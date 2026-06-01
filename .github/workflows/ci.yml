@@ -9,10 +9,13 @@ on:
 permissions:
   contents: read
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   frontend:
     name: Frontend build
-    runs-on: windows-latest
+    runs-on: windows-2025
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -34,7 +37,7 @@ jobs:
 
   rust:
     name: Rust tests
-    runs-on: windows-latest
+    runs-on: windows-2025
     steps:
       - name: Checkout
         uses: actions/checkout@v4
