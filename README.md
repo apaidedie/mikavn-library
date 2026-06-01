@@ -2,6 +2,8 @@
 
 MikaVN Library is a Windows-first, local-first Galgame / Visual Novel library manager built from the mature V1 brief.
 
+[![CI](https://github.com/apaidedie/mikavn-library/actions/workflows/ci.yml/badge.svg)](https://github.com/apaidedie/mikavn-library/actions/workflows/ci.yml)
+
 GitHub Actions are configured in `.github/workflows/ci.yml` and `.github/workflows/release.yml` for CI and tagged Windows releases.
 
 The current implementation focuses on a complete local desktop workflow:
