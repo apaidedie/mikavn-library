@@ -1,0 +1,14 @@
+pub mod asset_tags;
+pub mod collections;
+pub mod games;
+pub mod launch;
+pub mod library_roots;
+pub mod metadata_cache;
+pub mod metadata_ids;
+pub mod metadata_matches;
+pub mod metadata_sources;
+pub mod saved_searches;
+pub mod saves;
+pub mod scanner_results;
+pub mod settings;
+pub mod tasks;

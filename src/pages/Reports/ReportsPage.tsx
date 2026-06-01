@@ -1,0 +1,176 @@
+import { BarChart3, CalendarDays, Clock3, Download, History } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/notice';
+import { MetricTile, PageFrame, PageHeader, PageShell, Panel, PanelContent, PanelHeader, SoftRow } from '@/components/ui/page';
+import { TaskNotice } from '@/components/ui/task-notice';
+import { api } from '@/services/api';
+import { chooseMarkdownSavePath } from '@/services/dialog';
+import type { Game } from '@/types/game';
+import { PLAY_STATUS_LABEL } from '@/types/game';
+import { formatPlayTime } from '@/utils/time';
+
+type TaskMessage = { text: string; taskId?: string | null };
+
+export function ReportsPage({ refreshKey, onOpenTask }: { refreshKey: number; onOpenTask?: (taskId: string) => void }) {
+  const [games, setGames] = useState<Game[]>([]);
+  const [settings, setSettings] = useState<Record<string, string>>({});
+  const [message, setMessage] = useState<TaskMessage | null>(null);
+
+  useEffect(() => {
+    Promise.all([
+      api.listGames({ sortBy: 'updated_at', sortDirection: 'desc' }).catch(() => []),
+      api.getAppSettings().catch(() => ({})),
+    ]).then(([gameList, nextSettings]) => {
+      setGames(gameList);
+      setSettings(nextSettings);
+    });
+  }, [refreshKey]);
+
+  const visibleGames = useMemo(() => settings.privacy_filter_reports === 'false' ? games : games.filter((game) => !game.hidden && game.ageRating !== 'R18'), [games, settings]);
+  const stats = useMemo(() => buildStats(visibleGames), [visibleGames]);
+
+  const exportMarkdown = async () => {
+    const content = buildMarkdown(visibleGames, stats);
+    const path = await chooseMarkdownSavePath(`mikavn-report-${new Date().toISOString().slice(0, 10)}.md`);
+    if (!path) return;
+    const task = await api.exportReportMarkdownTask(path, content);
+    setMessage({ text: `报告导出任务已创建：${task.id}`, taskId: task.id });
+  };
+
+  return (
+    <PageShell>
+      <PageFrame>
+      <PageHeader
+        title="游玩报告"
+        description="统计会遵守隐私设置中的报告过滤选项。"
+        actions={<Button onClick={exportMarkdown}><Download className="h-4 w-4" />导出 Markdown</Button>}
+      />
+      {message && <TaskNotice message={message.text} taskId={message.taskId} onOpenTask={onOpenTask} />}
+
+      <div className="grid gap-3 md:grid-cols-4">
+        <MetricTile icon={<Clock3 className="h-4 w-4" />} label="累计游玩" value={formatPlayTime(stats.totalPlaySeconds)} />
+        <MetricTile icon={<CalendarDays className="h-4 w-4" />} label="本周游玩" value={formatPlayTime(stats.weekPlaySeconds)} />
+        <MetricTile icon={<History className="h-4 w-4" />} label="本月游玩" value={formatPlayTime(stats.monthPlaySeconds)} />
+        <MetricTile icon={<BarChart3 className="h-4 w-4" />} label="报告条目" value={`${visibleGames.length}`} />
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        <StatCard title="状态分布" items={stats.status} />
+        <StatCard title="标签 Top" items={stats.tags} />
+        <StatCard title="会社 Top" items={stats.developers} />
+        <StatCard title="游玩时间 Top" items={stats.playtime.map((item) => ({ label: item.label, value: formatPlayTime(item.seconds) }))} />
+      </div>
+
+      <Panel>
+        <PanelHeader title="元数据完整度" />
+        <PanelContent className="grid gap-3 md:grid-cols-4">
+          <Completeness label="封面" value={stats.completeness.cover} total={visibleGames.length} />
+          <Completeness label="简介" value={stats.completeness.description} total={visibleGames.length} />
+          <Completeness label="发售日" value={stats.completeness.releaseDate} total={visibleGames.length} />
+          <Completeness label="外部 ID" value={stats.completeness.externalIds} total={visibleGames.length} />
+        </PanelContent>
+      </Panel>
+      </PageFrame>
+    </PageShell>
+  );
+}
+
+function buildStats(games: Game[]) {
+  const now = Date.now();
+  const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
+  const monthAgo = now - 30 * 24 * 60 * 60 * 1000;
+  const playedSince = (since: number) => games
+    .filter((game) => game.lastPlayedAt && Date.parse(game.lastPlayedAt) >= since)
+    .reduce((sum, game) => sum + game.totalPlaySeconds, 0);
+
+  return {
+    totalPlaySeconds: games.reduce((sum, game) => sum + game.totalPlaySeconds, 0),
+    weekPlaySeconds: playedSince(weekAgo),
+    monthPlaySeconds: playedSince(monthAgo),
+    status: countValues(games.map((game) => PLAY_STATUS_LABEL[game.playStatus] ?? game.playStatus)),
+    tags: countValues(games.flatMap((game) => game.tags)).slice(0, 8),
+    developers: countValues(games.map((game) => game.developer || game.brand || '未填写')).slice(0, 8),
+    playtime: [...games].sort((a, b) => b.totalPlaySeconds - a.totalPlaySeconds).slice(0, 8).map((game) => ({ label: game.title, seconds: game.totalPlaySeconds })),
+    completeness: {
+      cover: games.filter((game) => game.coverImage).length,
+      description: games.filter((game) => game.description).length,
+      releaseDate: games.filter((game) => game.releaseDate).length,
+      externalIds: games.filter((game) => game.vndbId || game.dlsiteId || game.fanzaId || game.bangumiId || game.ymgalId).length,
+    },
+  };
+}
+
+function countValues(values: string[]) {
+  const map = new Map<string, number>();
+  for (const value of values.filter(Boolean)) map.set(value, (map.get(value) ?? 0) + 1);
+  return [...map.entries()].sort((a, b) => b[1] - a[1]).map(([label, value]) => ({ label, value }));
+}
+
+function buildMarkdown(games: Game[], stats: ReturnType<typeof buildStats>) {
+  const lines = [
+    '# MikaVN Library Report',
+    '',
+    `- 生成时间：${new Date().toISOString()}`,
+    `- 报告条目：${games.length}`,
+    `- 累计游玩：${formatPlayTime(stats.totalPlaySeconds)}`,
+    `- 本周游玩：${formatPlayTime(stats.weekPlaySeconds)}`,
+    `- 本月游玩：${formatPlayTime(stats.monthPlaySeconds)}`,
+    '',
+    '## 状态分布',
+    ...stats.status.map((item) => `- ${item.label}: ${item.value}`),
+    '',
+    '## 标签 Top',
+    ...stats.tags.map((item) => `- ${item.label}: ${item.value}`),
+    '',
+    '## 会社 Top',
+    ...stats.developers.map((item) => `- ${item.label}: ${item.value}`),
+    '',
+    '## 游玩时间 Top',
+    ...stats.playtime.map((item) => `- ${item.label}: ${formatPlayTime(item.seconds)}`),
+  ];
+  return `${lines.join('\n')}\n`;
+}
+
+function StatCard({ title, items }: { title: string; items: Array<{ label: string; value: number | string }> }) {
+  const numericMax = Math.max(1, ...items.map((item) => typeof item.value === 'number' ? item.value : 0));
+  return (
+    <Panel>
+      <PanelHeader title={title} />
+      <PanelContent className="space-y-2">
+        {items.length === 0 ? <EmptyState className="py-8">暂无数据。</EmptyState> : items.map((item) => (
+          <SoftRow className="px-3 py-2" key={item.label}>
+            <div className="flex items-center justify-between gap-3">
+              <span className="truncate text-sm text-slate-300">{item.label}</span>
+              <Badge>{item.value}</Badge>
+            </div>
+            {typeof item.value === 'number' && (
+              <div className="mt-2 h-1 overflow-hidden rounded-full bg-black/20">
+                <div className="h-full rounded-full bg-[rgb(var(--accent-rgb)/0.72)]" style={{ width: `${Math.max(6, Math.round((item.value / numericMax) * 100))}%` }} />
+              </div>
+            )}
+          </SoftRow>
+        ))}
+      </PanelContent>
+    </Panel>
+  );
+}
+
+function Completeness({ label, value, total }: { label: string; value: number; total: number }) {
+  const percent = total === 0 ? 0 : Math.round((value / total) * 100);
+  return (
+    <MetricTile
+      detail={(
+        <span className="block">
+          <span>{value}/{total}</span>
+          <span className="mt-2 block h-1 overflow-hidden rounded-full bg-black/20">
+            <span className="block h-full rounded-full bg-[rgb(var(--accent-rgb)/0.72)]" style={{ width: `${percent}%` }} />
+          </span>
+        </span>
+      )}
+      label={label}
+      value={`${percent}%`}
+    />
+  );
+}

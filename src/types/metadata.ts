@@ -1,0 +1,186 @@
+import type { Game } from './game';
+
+export type MetadataProvider = 'vndb' | 'dlsite' | 'fanza';
+
+export type ExternalIds = {
+  vndb?: string | null;
+  dlsite?: string | null;
+  fanza?: string | null;
+};
+
+export type MetadataSearchResult = {
+  provider: MetadataProvider;
+  id: string;
+  title: string;
+  url: string;
+  imageUrl?: string | null;
+  description?: string | null;
+  releaseDate?: string | null;
+  developers: string[];
+  tags: string[];
+  externalIds: ExternalIds;
+  relevanceScore: number;
+  fromVndbSniff: boolean;
+};
+
+export type MetadataSearchResponse = {
+  query: string;
+  cleanedQuery: string;
+  variants: string[];
+  results: MetadataSearchResult[];
+  errors: string[];
+};
+
+export type NormalizedMetadata = {
+  provider: MetadataProvider | string;
+  id: string;
+  title: string;
+  originalTitle?: string | null;
+  aliases: string[];
+  description?: string | null;
+  releaseDate?: string | null;
+  developers: string[];
+  publishers: string[];
+  tags: string[];
+  genres: string[];
+  images: string[];
+  externalIds: ExternalIds;
+  ageRating?: string | null;
+};
+
+export type MatchSuggestion = {
+  gameId: string;
+  originalTitle: string;
+  cleanedTitle: string;
+  selected?: MetadataSearchResult | null;
+  candidates: MetadataSearchResult[];
+  status: 'success' | 'review' | 'no_result' | 'error' | string;
+  reason?: string | null;
+};
+
+export type BatchMatchJob = {
+  id: string;
+  taskId?: string | null;
+  status: string;
+  total: number;
+  completed: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type BatchMatchResult = {
+  id: string;
+  jobId: string;
+  gameId: string;
+  originalTitle: string;
+  cleanedTitle?: string | null;
+  selectedProvider?: MetadataProvider | string | null;
+  selectedId?: string | null;
+  selectedScore?: number | null;
+  status: string;
+  reason?: string | null;
+  candidates: MetadataSearchResult[];
+  createdAt: string;
+};
+
+export type BatchMatchStatus = {
+  job: BatchMatchJob;
+  results: BatchMatchResult[];
+};
+
+export type AiRecognitionResult = {
+  title: string;
+  rawText: string;
+  confidence?: number | null;
+};
+
+export type AiConnectionTestResult = {
+  ok: boolean;
+  baseUrl: string;
+  model: string;
+  message: string;
+};
+
+export type FieldLock = {
+  id: string;
+  gameId: string;
+  fieldName: ApplyMetadataFields[number] | string;
+  lockedByUser: boolean;
+  updatedAt: string;
+};
+
+export type MetadataSourceRecord = {
+  id: string;
+  provider: string;
+  label: string;
+  enabled: boolean;
+  priority: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ExternalIdRecord = {
+  id: string;
+  gameId: string;
+  provider: string;
+  externalId: string;
+  source?: string | null;
+  confidence?: number | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ApplyMetadataFields = Array<'title' | 'originalTitle' | 'description' | 'releaseDate' | 'developer' | 'publisher' | 'tags' | 'genres' | 'coverImage' | 'externalIds' | 'ageRating'>;
+
+export type AppliedMetadataResult = Game;
+
+export type SearchClause = {
+  kind: 'term' | 'field' | 'comparison';
+  field?: string | null;
+  operator?: string | null;
+  value: string;
+  negated: boolean;
+};
+
+export type SearchQueryValidation = {
+  valid: boolean;
+  errors: string[];
+  clauses: SearchClause[];
+};
+
+export type AdvancedSearchInput = {
+  query: string;
+  sortBy?: string | null;
+  sortDirection?: 'asc' | 'desc' | string | null;
+  limit?: number | null;
+};
+
+export type AdvancedSearchResult = {
+  query: string;
+  cleanedQuery: string;
+  total: number;
+  games: Game[];
+  clauses: SearchClause[];
+  errors: string[];
+};
+
+export type SavedSearch = {
+  id: string;
+  name: string;
+  query: string;
+  description?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type SavedSearchInput = {
+  name: string;
+  query: string;
+  description?: string | null;
+};
+
+export const PROVIDER_LABEL: Record<MetadataProvider, string> = {
+  vndb: 'VNDB',
+  dlsite: 'DLsite',
+  fanza: 'FANZA',
+};

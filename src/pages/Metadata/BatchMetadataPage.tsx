@@ -1,0 +1,305 @@
+import { CheckCircle2, ChevronDown, DatabaseZap, RefreshCw, StopCircle } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { EmptyState, Notice } from '@/components/ui/notice';
+import { MetricTile, PageFrame, PageHeader, PageShell, Panel, PanelContent, PanelHeader, SoftRow } from '@/components/ui/page';
+import { TaskNotice } from '@/components/ui/task-notice';
+import { api } from '@/services/api';
+import type { Game } from '@/types/game';
+import type { ApplyMetadataFields, BatchMatchResult, BatchMatchStatus, MetadataSearchResult, NormalizedMetadata } from '@/types/metadata';
+import { PROVIDER_LABEL } from '@/types/metadata';
+import { errorMessage } from '@/utils/errorMessage';
+import { friendlyMetadataError, metadataErrorMessage } from '@/utils/metadataErrors';
+
+const defaultFields: ApplyMetadataFields = ['originalTitle', 'description', 'releaseDate', 'developer', 'tags', 'genres', 'coverImage', 'externalIds'];
+type TaskMessage = { text: string; taskId?: string | null };
+
+export function BatchMetadataPage({ refreshKey, onOpenTask }: { refreshKey: number; onOpenTask?: (taskId: string) => void }) {
+  const [games, setGames] = useState<Game[]>([]);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [status, setStatus] = useState<BatchMatchStatus | null>(null);
+  const [fields, setFields] = useState<ApplyMetadataFields>(defaultFields);
+  const [appliedIds, setAppliedIds] = useState<string[]>([]);
+  const [applyingIds, setApplyingIds] = useState<string[]>([]);
+  const [expandedIds, setExpandedIds] = useState<string[]>([]);
+  const [selectedCandidates, setSelectedCandidates] = useState<Record<string, MetadataSearchResult>>({});
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<TaskMessage | null>(null);
+
+  useEffect(() => {
+    loadGames();
+  }, [refreshKey]);
+
+  useEffect(() => {
+    if (!status || status.job.status !== 'running') {
+      return;
+    }
+    const timer = window.setInterval(() => {
+      api.getBatchMatchStatus(status.job.id).then(setStatus).catch(() => undefined);
+    }, 1200);
+    return () => window.clearInterval(timer);
+  }, [status]);
+
+  const incompleteGames = useMemo(() => games.filter((game) => !game.vndbId || !game.dlsiteId || !game.fanzaId), [games]);
+  const applicableResults = useMemo(() => status?.results.filter((result) => Boolean(candidateForResult(result))) ?? [], [status, selectedCandidates]);
+
+  const loadGames = async () => {
+    try {
+      setGames(await api.listGames({ sortBy: 'updated_at', sortDirection: 'desc' }));
+    } catch (reason) {
+      setError(errorMessage(reason));
+    }
+  };
+
+  const toggle = (id: string) => setSelectedIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
+
+  const toggleField = (field: ApplyMetadataFields[number]) => {
+    setFields((current) => current.includes(field) ? current.filter((item) => item !== field) as ApplyMetadataFields : [...current, field]);
+  };
+
+  const start = async () => {
+    setLoading(true);
+    setError(null);
+    setMessage(null);
+    setAppliedIds([]);
+    setSelectedCandidates({});
+    try {
+      const job = await api.batchMatchMetadata(selectedIds);
+      setStatus(await api.getBatchMatchStatus(job.id));
+      setMessage({ text: `批量匹配任务已启动：${selectedIds.length} 个条目。`, taskId: job.taskId });
+    } catch (reason) {
+      setError(metadataErrorMessage(reason));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const cancel = async () => {
+    if (!status) return;
+    await api.cancelBatchMatch(status.job.id);
+    setStatus(await api.getBatchMatchStatus(status.job.id));
+  };
+
+  const applyResult = async (result: BatchMatchResult): Promise<boolean> => {
+    const candidate = candidateForResult(result);
+    if (!candidate || fields.length === 0) return false;
+    setApplyingIds((current) => [...current, result.id]);
+    setError(null);
+    try {
+      const metadata = await metadataForCandidate(candidate);
+      const game = await api.applyMetadataToGame(result.gameId, metadata, fields);
+      setGames((current) => current.map((item) => item.id === game.id ? game : item));
+      setAppliedIds((current) => current.includes(result.id) ? current : [...current, result.id]);
+      setMessage({ text: `已写入：${result.originalTitle}`, taskId: status?.job.taskId });
+      return true;
+    } catch (reason) {
+      setError(errorMessage(reason));
+      return false;
+    } finally {
+      setApplyingIds((current) => current.filter((id) => id !== result.id));
+    }
+  };
+
+  const toggleExpanded = (id: string) => setExpandedIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
+
+  const chooseCandidate = (result: BatchMatchResult, candidate: MetadataSearchResult) => {
+    setSelectedCandidates((current) => ({ ...current, [result.id]: candidate }));
+    setAppliedIds((current) => current.filter((id) => id !== result.id));
+  };
+
+  function candidateForResult(result: BatchMatchResult) {
+    return selectedCandidates[result.id] ?? result.candidates.find((item) => item.provider === result.selectedProvider && item.id === result.selectedId) ?? result.candidates[0] ?? null;
+  }
+
+  const applyAll = async () => {
+    const pending = applicableResults.filter((result) => !appliedIds.includes(result.id));
+    if (pending.length === 0 || fields.length === 0) return;
+    setLoading(true);
+    setMessage(null);
+    let success = 0;
+    let failed = 0;
+    for (const result of pending) {
+      if (await applyResult(result)) {
+        success += 1;
+      } else {
+        failed += 1;
+      }
+    }
+    setLoading(false);
+    setMessage({ text: failed > 0 ? `已写入 ${success} 个推荐，${failed} 个失败。` : `已写入 ${success} 个推荐结果。`, taskId: status?.job.taskId });
+  };
+
+  return (
+    <PageShell>
+      <PageFrame>
+        <PageHeader title="批量匹配" description="选择元数据不完整的游戏，按 ButterFetch 风格批量匹配 VNDB / DLsite / FANZA。" />
+        {(error || message) && (
+          <div className="space-y-2">
+            {error && <Notice tone="error">{error}</Notice>}
+            {message && <TaskNotice message={message.text} taskId={message.taskId} onOpenTask={onOpenTask} />}
+          </div>
+        )}
+
+        <div className="grid min-h-[calc(100vh-9rem)] gap-4 xl:grid-cols-[22rem_minmax(0,1fr)]">
+      <Panel>
+        <PanelHeader title="匹配队列" icon={<DatabaseZap className="h-4 w-4" />} />
+        <PanelContent className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <MetricTile label="待补全" value={`${incompleteGames.length}`} />
+            <MetricTile label="已选择" value={`${selectedIds.length}`} />
+            <MetricTile label="可写入" value={`${applicableResults.length}`} />
+          </div>
+          <div className="flex gap-2">
+            <Button size="sm" variant="secondary" onClick={() => setSelectedIds(incompleteGames.map((game) => game.id))}>选择缺失条目</Button>
+            <Button size="sm" variant="ghost" onClick={() => setSelectedIds([])}>清空</Button>
+          </div>
+          <div className="max-h-[calc(100vh-25rem)] space-y-1.5 overflow-auto pr-1">
+            {incompleteGames.map((game) => (
+              <label className="block" key={game.id}>
+                <SoftRow className="flex gap-3 bg-black/[0.08] px-2.5 py-2">
+                  <Checkbox checked={selectedIds.includes(game.id)} className="mt-1" onChange={() => toggle(game.id)} />
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-medium text-slate-100">{game.title}</div>
+                    <div className="mt-1 flex flex-wrap gap-1.5 text-xs text-slate-500">
+                      {!game.vndbId && <span>缺 VNDB</span>}
+                      {!game.dlsiteId && <span>缺 DLsite</span>}
+                      {!game.fanzaId && <span>缺 FANZA</span>}
+                    </div>
+                  </div>
+                </SoftRow>
+              </label>
+            ))}
+          </div>
+          <div className="space-y-2">
+            <div className="text-xs font-medium text-slate-500">写入字段</div>
+            <div className="flex flex-wrap gap-2">
+              {fieldOptions.map((option) => (
+                <label className="flex items-center gap-1 rounded-md border border-white/10 bg-black/[0.12] px-2 py-1 text-xs text-slate-400" key={option.id}>
+                  <Checkbox checked={fields.includes(option.id)} className="h-3.5 w-3.5" onChange={() => toggleField(option.id)} />
+                  {option.label}
+                </label>
+              ))}
+            </div>
+          </div>
+          <Button className="w-full" disabled={loading || selectedIds.length === 0} onClick={start}><RefreshCw className="h-4 w-4" />开始匹配 {selectedIds.length} 个条目</Button>
+        </PanelContent>
+      </Panel>
+
+      <Panel>
+        <PanelHeader
+          title="匹配结果"
+          description="成功、无结果、待复核和错误会分别显示。"
+          actions={(
+            <>
+              <Button disabled={!status || applicableResults.length === 0 || fields.length === 0 || loading} size="sm" variant="secondary" onClick={applyAll}><CheckCircle2 className="h-4 w-4" />应用全部推荐</Button>
+              <Button disabled={!status || status.job.status !== 'running'} size="sm" variant="outline" onClick={cancel}><StopCircle className="h-4 w-4" />取消</Button>
+            </>
+          )}
+        />
+        <PanelContent className="space-y-3">
+          {!status ? (
+            <EmptyState className="flex min-h-[22rem] flex-col items-center justify-center py-12">尚未开始批量匹配。</EmptyState>
+          ) : (
+            <>
+              <div className="flex flex-wrap gap-2 text-sm text-slate-400">
+                <Badge>状态 {status.job.status}</Badge>
+                <Badge>{status.job.completed}/{status.job.total}</Badge>
+              </div>
+              <div className="max-h-[calc(100vh-16rem)] space-y-2 overflow-auto pr-1">
+                {status.results.map((result) => (
+                  <SoftRow className="px-3 py-2.5" key={result.id}>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="truncate text-sm font-medium text-slate-100">{result.originalTitle}</div>
+                      <Badge>{result.status}</Badge>
+                    </div>
+                    <div className="mt-1 text-xs text-slate-500">清洗：{result.cleanedTitle || '无'}</div>
+                    {candidateForResult(result) ? (
+                      <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                        <div className="text-sm text-[rgb(var(--accent-rgb))]">推荐：{providerLabel(candidateForResult(result)?.provider)} {candidateForResult(result)?.id} · {Math.round((candidateForResult(result)?.relevanceScore ?? result.selectedScore ?? 0) * 100)}%</div>
+                        <Button disabled={fields.length === 0 || applyingIds.includes(result.id) || appliedIds.includes(result.id)} size="sm" variant={appliedIds.includes(result.id) ? 'ghost' : 'outline'} onClick={() => applyResult(result)}>
+                          <CheckCircle2 className="h-4 w-4" />{appliedIds.includes(result.id) ? '已写入' : '写入推荐'}
+                        </Button>
+                      </div>
+                    ) : <div className="mt-2 text-sm text-slate-500">{result.reason ? friendlyMetadataError(result.reason) : '无推荐结果'}</div>}
+                    {result.candidates.length > 0 && (
+                      <div className="mt-3">
+                        <Button size="sm" variant="ghost" onClick={() => toggleExpanded(result.id)}><ChevronDown className="h-4 w-4" />候选 {result.candidates.length}</Button>
+                        {expandedIds.includes(result.id) && (
+                          <div className="mt-2 space-y-2">
+                            {result.candidates.map((candidate) => {
+                              const active = candidateForResult(result)?.provider === candidate.provider && candidateForResult(result)?.id === candidate.id;
+                              return (
+                                <button className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition-colors ${active ? 'border-[rgb(var(--accent-rgb)/0.7)] bg-[rgb(var(--accent-rgb)/0.10)] text-slate-100' : 'border-white/10 bg-black/[0.16] text-slate-300 hover:border-[rgb(var(--accent-rgb)/0.35)]'}`} key={`${candidate.provider}:${candidate.id}`} onClick={() => chooseCandidate(result, candidate)} type="button">
+                                  <div className="flex items-center justify-between gap-3">
+                                    <span className="truncate">{candidate.title}</span>
+                                    <Badge>{Math.round(candidate.relevanceScore * 100)}%</Badge>
+                                  </div>
+                                  <div className="mt-1 flex flex-wrap gap-1.5 text-xs text-slate-500">
+                                    <span>{providerLabel(candidate.provider)} {candidate.id}</span>
+                                    {candidate.fromVndbSniff && <span className="text-[rgb(var(--accent-rgb))]">VNDB 嗅探</span>}
+                                    {candidate.releaseDate && <span>{candidate.releaseDate}</span>}
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </SoftRow>
+                ))}
+              </div>
+            </>
+          )}
+        </PanelContent>
+      </Panel>
+        </div>
+      </PageFrame>
+    </PageShell>
+  );
+}
+
+const fieldOptions: Array<{ id: ApplyMetadataFields[number]; label: string }> = [
+  { id: 'title', label: '标题' },
+  { id: 'originalTitle', label: '原名' },
+  { id: 'description', label: '简介' },
+  { id: 'releaseDate', label: '发售日' },
+  { id: 'developer', label: '会社' },
+  { id: 'tags', label: '标签' },
+  { id: 'genres', label: '类型' },
+  { id: 'coverImage', label: '封面' },
+  { id: 'externalIds', label: '外部 ID' },
+];
+
+async function metadataForCandidate(candidate: MetadataSearchResult): Promise<NormalizedMetadata> {
+  return api.getMetadataDetail(candidate.provider, candidate.id).catch(() => resultToMetadata(candidate));
+}
+
+function resultToMetadata(result: MetadataSearchResult): NormalizedMetadata {
+  return {
+    provider: result.provider,
+    id: result.id,
+    title: result.title,
+    originalTitle: result.provider === 'vndb' ? result.title : null,
+    aliases: [],
+    description: result.description,
+    releaseDate: result.releaseDate,
+    developers: result.developers,
+    publishers: [],
+    tags: result.tags,
+    genres: ['Visual Novel'],
+    images: result.imageUrl ? [result.imageUrl] : [],
+    externalIds: result.externalIds,
+    ageRating: null,
+  };
+}
+
+function providerLabel(value?: string | null) {
+  if (value === 'vndb' || value === 'dlsite' || value === 'fanza') {
+    return PROVIDER_LABEL[value];
+  }
+  return value ?? '未知来源';
+}

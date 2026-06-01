@@ -1,0 +1,15 @@
+pub mod archives;
+pub mod assets;
+pub mod backups;
+pub mod collections;
+pub mod filesystem;
+pub mod games;
+pub mod launcher;
+pub mod logs;
+pub mod metadata;
+pub mod reports;
+pub mod saves;
+pub mod scanner;
+pub mod search;
+pub mod settings;
+pub mod tasks;

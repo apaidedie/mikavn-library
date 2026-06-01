@@ -1,0 +1,46 @@
+name: Feature request
+description: Suggest a workflow improvement or new capability.
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: workflow
+    attributes:
+      label: Workflow
+      description: What are you trying to do in your library?
+      placeholder: Describe the current workflow and where it becomes awkward.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      placeholder: Describe the behavior you want.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      placeholder: Existing workaround, other apps, or simpler versions of the idea.
+    validations:
+      required: false
+  - type: dropdown
+    id: data_safety
+    attributes:
+      label: Does this touch local files or saves?
+      options:
+        - No, database/UI only
+        - Reads local files only
+        - Writes app data cache/backups only
+        - May replace or delete user data
+        - Not sure
+    validations:
+      required: true
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check
+      options:
+        - label: I checked ROADMAP.md for current boundaries.
+          required: true
