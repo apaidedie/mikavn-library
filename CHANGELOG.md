@@ -2,6 +2,29 @@
 
 All notable changes to MikaVN Library are documented here. This project follows a practical `0.x` cadence while the local-first desktop workflow stabilizes.
 
+## 0.1.1 - Mature Local V1 Hardening
+
+Updated release candidate with the mature local V1 hardening pass.
+
+### Added
+
+- Strict one-command release validation scripts for metadata, frontend, Rust, browser smoke, large-library smoke, Tauri build, and desktop smoke.
+- Large-library browser smoke covering 1500 preview records and advanced-search timing budgets.
+- Isolated desktop smoke validation using `MIKAVN_APP_DATA_DIR` so smoke runs never touch the real user profile.
+- Settings page module split for appearance, metadata/AI configuration, and shared setting indicators.
+
+### Changed
+
+- Hardened Tauri security with explicit CSP, prototype freezing, and scoped asset protocol rules.
+- Strengthened scanner, archive, save restore, database restore, task-log, and diagnostic-log audit behavior.
+- Added explicit record-only confirmations for saved searches, save paths, and save-backup records.
+- Expanded CI and release workflows with strict release metadata, Rust formatting, Clippy, browser smoke, large-library smoke, desktop smoke, and artifact uploads.
+
+### Safety Notes
+
+- Save path and backup record deletion remove only MikaVN database records; real save directories and backup folders are not deleted.
+- Desktop smoke verifies the release executable creates `mikavn.db` only under an isolated `output/desktop-smoke/run-*/isolated-app-data` root.
+
 ## 0.1.0 - Mature Local V1
 
 Initial public-ready release candidate.
