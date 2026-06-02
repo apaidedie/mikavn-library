@@ -1,8 +1,8 @@
 use crate::db::models::{
-    BatchMatchJob, BatchMatchStatus, ExternalIdRecord, FieldLock, Game, MetadataSearchResult,
-    MetadataSourceRecord,
+    BatchMatchJob, BatchMatchStatus, ExternalIdRecord, FieldLock, Game, MetadataSourceRecord,
 };
 use crate::db::{Database, DbResult};
+use crate::repositories::metadata_matches::InsertMatchResultInput;
 
 impl Database {
     pub fn cache_get<T: serde::de::DeserializeOwned>(&self, key: &str) -> DbResult<Option<T>> {
@@ -44,27 +44,8 @@ impl Database {
             .set_match_job_status(job_id, status)
     }
 
-    pub fn insert_match_result(
-        &self,
-        job_id: &str,
-        game_id: &str,
-        original_title: &str,
-        cleaned_title: &str,
-        selected: Option<&MetadataSearchResult>,
-        status: &str,
-        reason: Option<String>,
-        candidates: Vec<MetadataSearchResult>,
-    ) -> DbResult<()> {
-        self.metadata_match_repository().insert_match_result(
-            job_id,
-            game_id,
-            original_title,
-            cleaned_title,
-            selected,
-            status,
-            reason,
-            candidates,
-        )
+    pub fn insert_match_result(&self, input: InsertMatchResultInput<'_>) -> DbResult<()> {
+        self.metadata_match_repository().insert_match_result(input)
     }
 
     pub fn match_status(&self, job_id: String) -> DbResult<BatchMatchStatus> {

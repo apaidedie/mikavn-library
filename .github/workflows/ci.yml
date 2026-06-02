@@ -35,6 +35,73 @@ jobs:
       - name: Build frontend
         run: npm run build
 
+  browser-smoke:
+    name: Browser smoke
+    runs-on: windows-2025
+    needs: frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npm exec -- playwright install chromium
+
+      - name: Run browser smoke
+        shell: powershell
+        env:
+          MIKAVN_QA_URL: http://127.0.0.1:1420/
+        run: |
+          $ErrorActionPreference = "Stop"
+          $outDir = Join-Path $env:GITHUB_WORKSPACE "output\ci-vite"
+          New-Item -ItemType Directory -Force -Path $outDir | Out-Null
+          $stdout = Join-Path $outDir "vite.stdout.log"
+          $stderr = Join-Path $outDir "vite.stderr.log"
+          $vite = Start-Process -FilePath "npm.cmd" -ArgumentList @("run", "dev", "--", "--host", "127.0.0.1") -WorkingDirectory $env:GITHUB_WORKSPACE -RedirectStandardOutput $stdout -RedirectStandardError $stderr -WindowStyle Hidden -PassThru
+          try {
+            $deadline = (Get-Date).AddSeconds(60)
+            do {
+              try {
+                $response = Invoke-WebRequest -Uri $env:MIKAVN_QA_URL -UseBasicParsing -TimeoutSec 2
+                if ($response.StatusCode -eq 200) { break }
+              } catch {
+                Start-Sleep -Milliseconds 500
+              }
+            } while ((Get-Date) -lt $deadline)
+
+            if ((Get-Date) -ge $deadline) {
+              Get-Content -LiteralPath $stdout -ErrorAction SilentlyContinue
+              Get-Content -LiteralPath $stderr -ErrorAction SilentlyContinue
+              throw "Vite did not become ready at $env:MIKAVN_QA_URL."
+            }
+
+            npm run smoke:browser
+            npm run smoke:large
+          } finally {
+            if ($vite -and !$vite.HasExited) {
+              Stop-Process -Id $vite.Id -Force
+            }
+          }
+
+      - name: Upload smoke artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: browser-smoke-artifacts
+          path: |
+            output/playwright/page-qa-current/**
+            output/playwright/workflow-smoke-current/**
+            output/playwright/large-library-current/**
+            output/ci-vite/**
+
   rust:
     name: Rust tests
     runs-on: windows-2025
@@ -53,6 +120,10 @@ jobs:
       - name: Check formatting
         working-directory: src-tauri
         run: cargo fmt --check
+
+      - name: Run Clippy
+        working-directory: src-tauri
+        run: cargo clippy -- -D warnings
 
       - name: Run tests
         working-directory: src-tauri

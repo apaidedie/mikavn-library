@@ -1,3 +1,4 @@
+use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -12,6 +13,10 @@ pub struct AppPaths {
 
 impl AppPaths {
     pub fn from_app(app: &AppHandle) -> DbResult<Self> {
+        if let Some(root) = override_app_data_dir()? {
+            return Self::from_root(root);
+        }
+
         let root = app.path().app_data_dir().map_err(|error| {
             DbError::new(
                 "IO_ERROR",
@@ -75,6 +80,25 @@ impl AppPaths {
     }
 }
 
+fn override_app_data_dir() -> DbResult<Option<PathBuf>> {
+    override_app_data_dir_from(std::env::var_os("MIKAVN_APP_DATA_DIR"))
+}
+
+fn override_app_data_dir_from(value: Option<OsString>) -> DbResult<Option<PathBuf>> {
+    match value {
+        Some(value) if !value.is_empty() => {
+            let root = PathBuf::from(value);
+            if root.is_relative() {
+                return Err(DbError::validation(
+                    "MIKAVN_APP_DATA_DIR must be an absolute path",
+                ));
+            }
+            Ok(Some(root))
+        }
+        _ => Ok(None),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -87,5 +111,26 @@ mod tests {
         assert_eq!(paths.database(), root.join("mikavn.db"));
         assert_eq!(paths.images(), root.join("images"));
         assert_eq!(paths.save_backups(), root.join("save-backups"));
+    }
+
+    #[test]
+    fn override_app_data_dir_rejects_relative_paths() {
+        let error = override_app_data_dir_from(Some(OsString::from("relative-path"))).unwrap_err();
+
+        assert_eq!(error.code, "VALIDATION_ERROR");
+    }
+
+    #[test]
+    fn override_app_data_dir_accepts_absolute_paths() {
+        let root = if cfg!(windows) {
+            PathBuf::from(r"C:\isolated\mikavn")
+        } else {
+            PathBuf::from("/tmp/isolated/mikavn")
+        };
+
+        let override_root =
+            override_app_data_dir_from(Some(root.clone().into_os_string())).unwrap();
+
+        assert_eq!(override_root, Some(root));
     }
 }

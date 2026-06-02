@@ -19,9 +19,21 @@ Download the Windows NSIS installer attached to this release and run it normally
 
 This release should be built with:
 
+- `npm run release:validate:strict`
+
+Or, equivalently, the expanded validation chain:
+
+- `npm run release:check:strict`
 - `npm run build`
+- `cargo fmt --check`
+- `cargo clippy -- -D warnings`
 - `cargo test`
+- `npm run smoke:browser`
+- `npm run smoke:large`
 - `npm run tauri:build`
+- `npm run smoke:desktop`
+
+CI also gates `npm run smoke:browser` and `npm run smoke:large`, and uploads browser, Vite, and desktop smoke artifacts for review.
 
 Recommended manual smoke coverage is listed in `RELEASE_CHECKLIST.md`.
 

@@ -1,10 +1,11 @@
-use std::fs;
+use std::{cmp::Reverse, fs};
 
 use chrono::{Duration, Utc};
 use serde::{Deserialize, Serialize};
 use tauri::AppHandle;
 
 use crate::db::DbResult;
+use crate::infrastructure::logger;
 use crate::infrastructure::paths::AppPaths;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -64,7 +65,7 @@ fn list_diagnostic_logs_from_paths(
             .unwrap_or_default();
         entries.push(LogRecord {
             file_name: entry.file_name().to_string_lossy().to_string(),
-            path: path.to_string_lossy().to_string(),
+            path: logger::display_path(&path),
             size_bytes: metadata.len(),
             modified_at,
             preview,
@@ -92,7 +93,7 @@ fn prune_diagnostic_logs_from_paths(paths: &AppPaths, policy: LogRetentionPolicy
             .unwrap_or_else(Utc::now);
         files.push((path, modified));
     }
-    files.sort_by(|a, b| b.1.cmp(&a.1));
+    files.sort_by_key(|(_, modified)| Reverse(*modified));
     let max_files = policy.max_files.max(1) as usize;
     let mut removed = 0_i64;
     for (index, (path, modified)) in files.into_iter().enumerate() {
@@ -113,7 +114,7 @@ fn tail_lines(content: &str, count: usize) -> Vec<String> {
         .lines()
         .rev()
         .take(count)
-        .map(ToString::to_string)
+        .map(logger::redact_sensitive_text)
         .collect::<Vec<_>>()
         .into_iter()
         .rev()
@@ -146,6 +147,29 @@ mod tests {
         assert_eq!(logs[0].preview.first().map(String::as_str), Some("9"));
         assert_eq!(logs[0].preview.last().map(String::as_str), Some("20"));
         assert_eq!(logs[0].preview.len(), 12);
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn list_logs_redacts_preview_and_path_before_returning_to_ui() {
+        let root = std::env::temp_dir().join(format!("mikavn-log-redact-{}", Uuid::new_v4()));
+        let paths = AppPaths::from_root(root.clone()).unwrap();
+        fs::write(
+            paths.logs().join("mikavn.log"),
+            r"API_KEY=secret token:abc password=hunter2 C:\Users\alice\AppData\Roaming\MikaVN\mikavn.db",
+        )
+        .unwrap();
+
+        let logs = list_diagnostic_logs_from_paths(&paths, Some(10)).unwrap();
+
+        assert_eq!(logs.len(), 1);
+        assert!(logs[0].path.contains("[redacted]") || !logs[0].path.contains("alice"));
+        let preview = logs[0].preview.join("\n");
+        assert!(preview.contains("[redacted]"));
+        assert!(!preview.contains("secret"));
+        assert!(!preview.contains("hunter2"));
+        assert!(!preview.contains("token:abc"));
+        assert!(!preview.contains("alice"));
         let _ = fs::remove_dir_all(root);
     }
 

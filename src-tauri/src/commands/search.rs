@@ -12,7 +12,7 @@ pub fn search_games_advanced(
     state: State<'_, AppState>,
     input: AdvancedSearchInput,
 ) -> DbResult<AdvancedSearchResult> {
-    let db = state.db.lock().expect("database mutex poisoned");
+    let db = state.db()?;
     search_service::search_games(&db, input)
 }
 
@@ -26,7 +26,7 @@ pub fn validate_search_query(
 
 #[tauri::command]
 pub fn list_saved_searches(state: State<'_, AppState>) -> DbResult<Vec<SavedSearch>> {
-    let db = state.db.lock().expect("database mutex poisoned");
+    let db = state.db()?;
     search_service::list_saved_searches(&db)
 }
 
@@ -35,7 +35,7 @@ pub fn create_saved_search(
     state: State<'_, AppState>,
     input: SavedSearchInput,
 ) -> DbResult<SavedSearch> {
-    let db = state.db.lock().expect("database mutex poisoned");
+    let db = state.db()?;
     search_service::create_saved_search(&db, input)
 }
 
@@ -45,12 +45,12 @@ pub fn update_saved_search(
     id: String,
     input: SavedSearchInput,
 ) -> DbResult<SavedSearch> {
-    let db = state.db.lock().expect("database mutex poisoned");
+    let db = state.db()?;
     search_service::update_saved_search(&db, id, input)
 }
 
 #[tauri::command]
 pub fn delete_saved_search(state: State<'_, AppState>, id: String) -> DbResult<()> {
-    let db = state.db.lock().expect("database mutex poisoned");
+    let db = state.db()?;
     search_service::delete_saved_search(&db, id)
 }

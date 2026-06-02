@@ -49,6 +49,10 @@ impl AppError {
     pub fn asset_download_failed(message: impl Into<String>) -> Self {
         Self::new("ASSET_DOWNLOAD_FAILED", message)
     }
+
+    pub fn internal(message: impl Into<String>) -> Self {
+        Self::new("INTERNAL_ERROR", message)
+    }
 }
 
 impl std::fmt::Display for AppError {
@@ -112,5 +116,12 @@ mod tests {
     fn maps_not_found_io_error_to_path_code() {
         let error: AppError = std::io::Error::new(std::io::ErrorKind::NotFound, "missing").into();
         assert_eq!(error.code, "PATH_NOT_FOUND");
+    }
+
+    #[test]
+    fn internal_errors_keep_stable_code() {
+        let error = AppError::internal("state unavailable");
+        assert_eq!(error.code, "INTERNAL_ERROR");
+        assert_eq!(error.message, "state unavailable");
     }
 }

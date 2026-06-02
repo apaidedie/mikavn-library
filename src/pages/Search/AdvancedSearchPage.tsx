@@ -99,9 +99,10 @@ export function AdvancedSearchPage({ refreshKey, onOpenGame }: { refreshKey: num
     }
   }
 
-  async function deleteSavedSearch(id: string) {
+  async function deleteSavedSearch(item: SavedSearch) {
+    if (!window.confirm(`删除保存搜索「${item.name}」？不会影响任何游戏记录。`)) return;
     try {
-      await api.deleteSavedSearch(id);
+      await api.deleteSavedSearch(item.id);
       await loadSavedSearches();
     } catch (reason) {
       setError(errorMessage(reason));
@@ -196,7 +197,7 @@ export function AdvancedSearchPage({ refreshKey, onOpenGame }: { refreshKey: num
                           <div className="flex items-center gap-2 text-sm font-medium text-slate-100"><Bookmark className="h-3.5 w-3.5 text-[rgb(var(--accent-rgb))]" />{item.name}</div>
                           <div className="mt-1 break-all font-mono text-xs text-slate-500">{item.query}</div>
                         </button>
-                        <Button aria-label="删除保存搜索" className="h-7 w-7" size="icon" variant="ghost" onClick={() => void deleteSavedSearch(item.id)}><Trash2 className="h-4 w-4" /></Button>
+                        <Button aria-label="删除保存搜索" className="h-7 w-7" size="icon" title="删除保存搜索" variant="ghost" onClick={() => void deleteSavedSearch(item)}><Trash2 className="h-4 w-4" /></Button>
                       </div>
                     </SoftRow>
                   ))}

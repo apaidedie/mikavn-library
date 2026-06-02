@@ -116,7 +116,9 @@ async function main() {
     if (message.type() === 'error') consoleErrors.push(message.text());
   });
   page.on('pageerror', (error) => consoleErrors.push(error.message));
-  page.on('dialog', async (dialog) => { await dialog.accept(); });
+  page.on('dialog', async (dialog) => {
+    await dialog.accept(dialog.type() === 'prompt' ? dialog.defaultValue() : undefined);
+  });
 
   await page.addInitScript(({ data }) => {
     localStorage.clear();
@@ -136,11 +138,14 @@ async function main() {
     await expectText(page, 'Smoke 高分全年龄');
     const savedSearches = await getStorage(page, 'mikavn-library.mock.savedSearches');
     if (!Array.isArray(savedSearches) || !savedSearches.some((item) => item.name === 'Smoke 高分全年龄')) throw new Error('saved search was not persisted');
+    await page.getByRole('button', { name: '删除保存搜索' }).first().click();
+    const afterSavedSearchDelete = await getStorage(page, 'mikavn-library.mock.savedSearches');
+    if (!Array.isArray(afterSavedSearchDelete) || afterSavedSearchDelete.some((item) => item.name === 'Smoke 高分全年龄')) throw new Error('saved search delete did not remove only the saved query record');
     console.log('OK advanced search query/save');
 
     await navigate(page, 'library');
     await expectText(page, /媒体图库/);
-    await page.getByPlaceholder('https://example.com/cover.jpg').fill('https://example.com/smoke-cover.jpg');
+    await page.getByPlaceholder('https://example.com/cover.jpg').fill(`${baseUrl.replace(/\/$/, '')}${hero}`);
     await page.getByRole('button', { name: /下载/ }).first().click();
     await expectText(page, /图片已下载到本地缓存并设为主图/);
     await page.getByRole('button', { name: /清理缓存/ }).click();
@@ -148,8 +153,8 @@ async function main() {
     const afterAssetGames = await getStorage(page, 'mikavn-library.mock.games');
     const afterAssetRecords = await getStorage(page, 'mikavn-library.mock.assets');
     const assetGame = afterAssetGames.find((item) => item.id === 'qa-1');
-    if (assetGame?.coverImage !== 'https://example.com/smoke-cover.jpg') throw new Error('asset download did not update primary cover field');
-    if (!Array.isArray(afterAssetRecords) || !afterAssetRecords.some((item) => item.source === 'download' && item.uri.includes('smoke-cover'))) throw new Error('asset download record was not persisted');
+    if (assetGame?.coverImage !== `${baseUrl.replace(/\/$/, '')}${hero}`) throw new Error('asset download did not update primary cover field');
+    if (!Array.isArray(afterAssetRecords) || !afterAssetRecords.some((item) => item.source === 'download' && item.uri.includes(hero))) throw new Error('asset download record was not persisted');
     console.log('OK asset gallery download/cache cleanup');
 
     await navigate(page, 'scanner');
@@ -160,7 +165,8 @@ async function main() {
     await replaceRow.getByRole('checkbox').check();
     await replaceRow.locator('select').selectOption('replace');
     await page.getByRole('button', { name: /导入选中/ }).click();
-    await expectText(page, /已导入/);
+    await expectText(page, /导入处理完成：新增 0、合并 0、替换 1、副本 0、跳过 0/);
+    await expectText(page, /已替换现有数据库记录/);
     const afterReplaceGames = await getStorage(page, 'mikavn-library.mock.games');
     const replacedGame = afterReplaceGames.find((item) => item.id === 'qa-2');
     if (!replacedGame || !normalizeMockPath(replacedGame.installPath).includes('ゆずソフト\\天使騒々'.toLowerCase())) throw new Error('scanner replace did not update the existing database record path');
@@ -173,7 +179,8 @@ async function main() {
     await conflictRow.getByRole('checkbox').check();
     await conflictRow.locator('select').selectOption('duplicate');
     await page.getByRole('button', { name: /导入选中/ }).click();
-    await expectText(page, /已导入/);
+    await expectText(page, /导入处理完成：新增 0、合并 0、替换 0、副本 1、跳过 0/);
+    await expectText(page, /已作为副本导入/);
     const afterImportGames = await getStorage(page, 'mikavn-library.mock.games');
     if (!Array.isArray(afterImportGames) || afterImportGames.length < 3) throw new Error('scanner duplicate import did not add a game');
     console.log('OK scanner conflict review/duplicate import');
@@ -190,7 +197,16 @@ async function main() {
     await expectText(page, /镜像存档恢复任务已创建/);
     const backups = await getStorage(page, 'mikavn-library.mock.saveBackups');
     if (!Array.isArray(backups) || backups.filter((item) => item.protection).length < 2) throw new Error('restore flows did not create protection backup records');
-    console.log('OK saves backup/merge/mirror restore protection');
+    await page.getByRole('button', { name: '删除备份记录' }).first().click();
+    await expectText(page, /备份记录已删除，备份文件夹未被删除/);
+    const afterBackupDelete = await getStorage(page, 'mikavn-library.mock.saveBackups');
+    if (!Array.isArray(afterBackupDelete) || afterBackupDelete.length !== backups.length - 1) throw new Error('backup record delete should remove one database record only');
+    const savePathsBeforeRemove = await getStorage(page, 'mikavn-library.mock.savePaths');
+    await page.getByRole('button', { name: '移除存档路径记录' }).first().click();
+    await expectText(page, /存档路径记录已移除，真实存档目录未被删除/);
+    const savePathsAfterRemove = await getStorage(page, 'mikavn-library.mock.savePaths');
+    if (!Array.isArray(savePathsBeforeRemove) || !Array.isArray(savePathsAfterRemove) || savePathsAfterRemove.length !== savePathsBeforeRemove.length - 1) throw new Error('save path remove should remove one database record only');
+    console.log('OK saves backup/merge/mirror restore protection and record-only deletes');
 
     await navigate(page, 'settings');
     await expectText(page, /设置/);
@@ -215,14 +231,38 @@ async function main() {
     console.log('OK tag maintenance rename/merge/delete');
 
     await expectText(page, /诊断日志/);
+    await page.getByRole('button', { name: /^备份$/ }).click();
+    await expectText(page, /数据库备份任务已创建/);
+    await page.getByRole('button', { name: /安排恢复/ }).click();
+    await expectText(page, /数据库恢复任务已创建/);
     await page.getByRole('button', { name: /刷新/ }).first().click();
     await expectText(page, /mock-1\.log|localStorage:\/\/task|最近日志|还没有诊断日志/);
     await page.locator('input[placeholder*="MikaVN-Archives"]').fill('D:\\MikaVN-Smoke-Archive');
+    await page.getByRole('button', { name: /^预览$/ }).click();
+    await expectText(page, /归档预览已读取/);
+    await page.getByRole('button', { name: /安全导入/ }).click();
+    await expectText(page, /库归档安全导入任务已创建/);
     await page.getByRole('button', { name: /导出 ZIP/ }).click();
     await expectText(page, /ZIP 库归档导出任务已创建/);
-    console.log('OK settings logs/archive zip task');
+    console.log('OK settings logs/archive import zip task');
 
     await navigate(page, 'tasks');
+    const databaseRestoreRow = page.locator('.motion-soft-row').filter({ hasText: /数据库恢复/ }).first();
+    await databaseRestoreRow.getByRole('button', { name: /日志/ }).click();
+    await expectText(page, /数据库恢复来源/);
+    await expectText(page, /数据库恢复待应用/);
+    console.log('OK database restore audit logs');
+    const saveRestoreRow = page.locator('.motion-soft-row').filter({ hasText: /存档恢复/ }).first();
+    await saveRestoreRow.getByRole('button', { name: /日志/ }).click();
+    await expectText(page, /存档恢复保护备份/);
+    await expectText(page, /存档恢复报告：模式/);
+    console.log('OK save restore audit logs');
+    const archiveImportRow = page.locator('.motion-soft-row').filter({ hasText: /库归档导入/ }).first();
+    await archiveImportRow.getByRole('button', { name: /日志/ }).click();
+    await expectText(page, /归档导入保护备份/);
+    await expectText(page, /归档导入新增/);
+    await expectText(page, /归档导入跳过/);
+    console.log('OK archive import audit logs');
     await page.getByRole('button', { name: /日志/ }).first().click();
     await expectText(page, /任务日志|浏览器预览|路径不存在/);
     const allTasks = await getStorage(page, 'mikavn-library.mock.tasks');

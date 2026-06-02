@@ -5,13 +5,22 @@ mod infrastructure;
 mod repositories;
 mod services;
 
-use std::sync::Mutex;
+use std::sync::{Mutex, MutexGuard};
 
 use db::Database;
+use error::{AppError, AppResult};
 use tauri::Manager;
 
 pub struct AppState {
     db: Mutex<Database>,
+}
+
+impl AppState {
+    pub fn db(&self) -> AppResult<MutexGuard<'_, Database>> {
+        self.db
+            .lock()
+            .map_err(|_| AppError::internal("database state is unavailable"))
+    }
 }
 
 pub fn run() {

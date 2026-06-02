@@ -154,14 +154,36 @@ export function SavesPage({ refreshKey, onOpenTask }: { refreshKey: number; onOp
     }
   };
 
-  const removePath = async (id: string) => {
-    await api.removeSavePath(id);
-    await refreshSaves();
+  const removePath = async (item: SavePath) => {
+    if (!window.confirm(`移除存档路径「${item.label}」？这只删除 MikaVN 里的路径记录，不会删除真实存档目录，也不会删除已有备份。`)) return;
+    setLoading(true);
+    setMessage(null);
+    setError(null);
+    try {
+      await api.removeSavePath(item.id);
+      setMessage({ text: '存档路径记录已移除，真实存档目录未被删除。' });
+      await refreshSaves();
+    } catch (reason) {
+      setError(errorMessage(reason));
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const deleteBackup = async (id: string) => {
-    await api.deleteSaveBackupRecord(id);
-    await refreshSaves();
+  const deleteBackup = async (backup: SaveBackup) => {
+    if (!window.confirm(`删除备份记录「${backup.label}」？这只删除数据库记录，不会删除备份文件夹。`)) return;
+    setLoading(true);
+    setMessage(null);
+    setError(null);
+    try {
+      await api.deleteSaveBackupRecord(backup.id);
+      setMessage({ text: '备份记录已删除，备份文件夹未被删除。' });
+      await refreshSaves();
+    } catch (reason) {
+      setError(errorMessage(reason));
+    } finally {
+      setLoading(false);
+    }
   };
 
   const reveal = async (targetPath: string) => {
@@ -258,7 +280,7 @@ export function SavesPage({ refreshKey, onOpenTask }: { refreshKey: number; onOp
                   <div className="flex gap-2">
                     <Button size="sm" variant="outline" onClick={() => void reveal(item.path)}><FolderOpen className="h-4 w-4" />打开</Button>
                     <Button disabled={loading} size="sm" variant="secondary" onClick={() => createBackup(item.id)}><Save className="h-4 w-4" />备份</Button>
-                    <Button size="icon" variant="ghost" onClick={() => removePath(item.id)}><Trash2 className="h-4 w-4" /></Button>
+                    <Button aria-label="移除存档路径记录" disabled={loading} size="icon" title="移除存档路径记录" variant="ghost" onClick={() => void removePath(item)}><Trash2 className="h-4 w-4" /></Button>
                   </div>
                 </div>
               </SoftRow>
@@ -285,7 +307,7 @@ export function SavesPage({ refreshKey, onOpenTask }: { refreshKey: number; onOp
                   <Button size="sm" variant="outline" onClick={() => void reveal(backup.backupPath)}><FolderOpen className="h-4 w-4" />打开</Button>
                   <Button disabled={loading} size="sm" variant="outline" onClick={() => restore(backup, 'merge')}><RotateCcw className="h-4 w-4" />恢复</Button>
                   <Button disabled={loading} size="sm" variant="ghost" onClick={() => restore(backup, 'mirror')}>镜像恢复</Button>
-                  <Button size="icon" variant="ghost" onClick={() => deleteBackup(backup.id)}><Trash2 className="h-4 w-4" /></Button>
+                  <Button aria-label="删除备份记录" disabled={loading} size="icon" title="删除备份记录" variant="ghost" onClick={() => void deleteBackup(backup)}><Trash2 className="h-4 w-4" /></Button>
                 </div>
               </div>
             </SoftRow>

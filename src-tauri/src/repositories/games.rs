@@ -103,7 +103,7 @@ impl<'a> GameRepository<'a> {
 
         let sort_by = filter.sort_by.unwrap_or_else(|| "updated_at".to_string());
         let desc = filter.sort_direction.unwrap_or_else(|| "desc".to_string()) != "asc";
-        games.sort_by(|a, b| sort_key(a, &sort_by).cmp(&sort_key(b, &sort_by)));
+        games.sort_by_key(|game| sort_key(game, &sort_by));
         if desc {
             games.reverse();
         }

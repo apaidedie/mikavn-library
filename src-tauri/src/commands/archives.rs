@@ -15,7 +15,7 @@ pub fn export_library_archive(
     state: State<'_, AppState>,
     options: LibraryArchiveExportOptions,
 ) -> DbResult<TaskRecord> {
-    let db = state.db.lock().expect("database mutex poisoned");
+    let db = state.db()?;
     archive_service::enqueue_library_archive_export_task(app, &db, options)
 }
 
@@ -25,7 +25,7 @@ pub fn export_library_archive_zip(
     state: State<'_, AppState>,
     options: LibraryArchiveExportOptions,
 ) -> DbResult<TaskRecord> {
-    let db = state.db.lock().expect("database mutex poisoned");
+    let db = state.db()?;
     archive_service::enqueue_library_archive_export_zip_task(app, &db, options)
 }
 
@@ -40,6 +40,6 @@ pub fn import_library_archive(
     state: State<'_, AppState>,
     options: LibraryArchiveImportOptions,
 ) -> DbResult<TaskRecord> {
-    let db = state.db.lock().expect("database mutex poisoned");
+    let db = state.db()?;
     archive_service::enqueue_library_archive_import_task(app, &db, options)
 }

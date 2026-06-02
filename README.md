@@ -111,7 +111,7 @@ npm run tauri:build
 
 This repository includes GitHub-ready project metadata and automation:
 
-- `LICENSE`, `CHANGELOG.md`, `CONTRIBUTING.md`, `SECURITY.md`, and `SUPPORT.md`.
+- `LICENSE`, `CHANGELOG.md`, `CONTRIBUTING.md`, `DESIGN.md`, `SECURITY.md`, and `SUPPORT.md`.
 - Issue templates, pull request template, Dependabot configuration, CI, and release workflow under `.github/`.
 - Repeatable browser and desktop smoke scripts under `scripts/`.
 - Generated smoke screenshots, logs, installers, and local Tauri packaging tools belong under `output/` and are ignored by Git except for `output/README.md`.
@@ -122,12 +122,13 @@ Use `RELEASE_CHECKLIST.md` before tagging or publishing a GitHub release.
 
 Latest mature V1 acceptance pass. For the repeatable release checklist, see `RELEASE_CHECKLIST.md`.
 
-- `cargo fmt` and `cargo test` under `src-tauri` pass with 78 Rust tests.
+- `npm run release:check` verifies version alignment, release metadata, Tauri security hardening, browser/large smoke gates, and release desktop-smoke gating; `npm run release:check:strict` also verifies public GitHub release links. `npm run release:validate:strict` runs the local release validation chain end to end, and `npm run release:validate:core` reruns the strict non-smoke core checks.
+- `cargo fmt --check`, `cargo clippy -- -D warnings`, and `cargo test` under `src-tauri` pass with 87 Rust tests.
 - `npm run build` passes TypeScript and Vite production build checks.
-- Vite browser smoke at `http://127.0.0.1:1420/` returns 200.
-- Page-level Playwright QA screenshots cover Dashboard, Library populated/empty, Collections, Advanced Search, Scanner conflict review, Batch Metadata, Tasks, Reports, Saves, and Settings via `scripts/playwright/page-qa-runner.cjs`.
-- Core browser workflow smoke covers advanced search/save, asset gallery download/cache cleanup, scanner replace and duplicate import conflict actions, save backup plus merge/mirror restore protection, tag rename/merge/delete, Settings diagnostic logs/ZIP archive task, and task log expansion via `scripts/playwright/core-workflow-smoke.cjs`.
-- Desktop smoke verifies the release executable opens a main window and resolves the standard Windows app data database path via `scripts/desktop-smoke/run-desktop-smoke.ps1`.
+- `npm run smoke:browser` runs page-level Playwright QA plus core workflow smoke against a local Vite server.
+- `npm run smoke:large` seeds 1500 browser-preview records and verifies library rendering/filtering plus advanced-search timings; latest local run loaded the library in 1055ms and advanced search in 346ms.
+- `npm run tauri:build` produces the Windows release executable and NSIS installer; latest local release/package run rebuilt both artifacts successfully.
+- `npm run smoke:desktop` verifies the release executable starts, exposes a main window handle, and creates `mikavn.db` only under the isolated `output/desktop-smoke/run-*/isolated-app-data` root; latest local desktop smoke passed against the rebuilt release executable.
 
 ## Implemented Commands
 

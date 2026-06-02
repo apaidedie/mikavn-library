@@ -11,7 +11,7 @@ import { Select } from '@/components/ui/select';
 import { TaskNotice } from '@/components/ui/task-notice';
 import { api } from '@/services/api';
 import { chooseDirectory } from '@/services/dialog';
-import type { ImportCandidate, ScanCandidate } from '@/types/game';
+import type { ImportCandidate, ImportScanReport, ImportScanReportItem, ScanCandidate } from '@/types/game';
 import type { BatchMatchStatus } from '@/types/metadata';
 import type { ScanTaskStatus } from '@/types/task';
 import { errorMessage } from '@/utils/errorMessage';
@@ -31,6 +31,7 @@ export function ScannerPage({ onOpenTask }: { onOpenTask?: (taskId: string) => v
   const [matchStatus, setMatchStatus] = useState<BatchMatchStatus | null>(null);
   const [scanStatus, setScanStatus] = useState<ScanTaskStatus | null>(null);
   const [conflictActions, setConflictActions] = useState<Record<string, ConflictAction>>({});
+  const [importReport, setImportReport] = useState<ImportScanReport | null>(null);
 
   const scanning = scanStatus?.task.status === 'pending' || scanStatus?.task.status === 'running';
 
@@ -81,6 +82,7 @@ export function ScannerPage({ onOpenTask }: { onOpenTask?: (taskId: string) => v
     setCandidates([]);
     setSelectedIds([]);
     setConflictActions({});
+    setImportReport(null);
     try {
       const task = await api.startScanTask(path, recursive);
       const status = await api.getScanTaskStatus(task.id);
@@ -127,10 +129,11 @@ export function ScannerPage({ onOpenTask }: { onOpenTask?: (taskId: string) => v
           conflictGameId: candidate.conflict?.gameId ?? null,
           allowDuplicate: candidate.conflict ? conflictActions[candidate.id] === 'duplicate' : false,
         }));
-      const imported = await api.importScanCandidates(payload);
-      setImportedIds(imported.map((game) => game.id));
+      const report = await api.importScanCandidates(payload);
+      setImportReport(report);
+      setImportedIds(report.imported.map((game) => game.id));
       setMatchStatus(null);
-      setMessage({ text: `已导入 ${imported.length} 个游戏。可以立即批量匹配元数据。` });
+      setMessage({ text: importReportMessage(report) });
     } catch (reason) {
       setError(errorMessage(reason));
     } finally {
@@ -243,6 +246,28 @@ export function ScannerPage({ onOpenTask }: { onOpenTask?: (taskId: string) => v
                     </div>
                   </div>
                 )}
+                {importReport && (
+                  <div className="space-y-3 rounded-lg border border-white/10 bg-black/[0.12] p-3">
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 2xl:grid-cols-5">
+                      <MetricTile label="新增" value={importReport.added} />
+                      <MetricTile label="合并" value={importReport.merged} />
+                      <MetricTile label="替换" value={importReport.replaced} />
+                      <MetricTile label="副本" value={importReport.duplicated} />
+                      <MetricTile label="跳过" value={importReport.skipped} />
+                    </div>
+                    <div className="space-y-1.5">
+                      {importReport.items.slice(0, 4).map((item) => (
+                        <div className="rounded-md border border-white/10 bg-black/[0.10] px-3 py-2 text-xs" key={`${item.action}-${item.installPath}-${item.candidateTitle}`}>
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="min-w-0 truncate text-slate-300">{item.candidateTitle}</span>
+                            <Badge>{importActionLabel(item.action)}</Badge>
+                          </div>
+                          <div className="mt-1 text-slate-500">{item.message}{item.targetTitle ? `：${item.targetTitle}` : ''}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </PanelContent>
             </Panel>
           </div>
@@ -321,4 +346,19 @@ function defaultConflictActions(candidates: ScanCandidate[]) {
 function scanMessage(candidates: ScanCandidate[]) {
   const conflicts = candidates.filter((candidate) => candidate.conflict).length;
   return conflicts > 0 ? `发现 ${candidates.length} 个候选游戏，其中 ${conflicts} 个可能已存在，冲突项已默认设为跳过。` : `发现 ${candidates.length} 个候选游戏。`;
+}
+
+function importReportMessage(report: ImportScanReport) {
+  return `导入处理完成：新增 ${report.added}、合并 ${report.merged}、替换 ${report.replaced}、副本 ${report.duplicated}、跳过 ${report.skipped}。可以立即批量匹配元数据。`;
+}
+
+function importActionLabel(action: ImportScanReportItem['action']) {
+  switch (action) {
+    case 'add': return '新增';
+    case 'merge': return '合并';
+    case 'replace': return '替换';
+    case 'duplicate': return '副本';
+    case 'skip': return '跳过';
+    default: return action;
+  }
 }

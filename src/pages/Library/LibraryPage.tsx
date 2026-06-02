@@ -349,13 +349,27 @@ function GameList({ games, selectedId, onSelect, blurCovers }: { games: Game[]; 
 }
 
 function groupedGames(games: Game[]) {
-  const recent = games.filter((game) => game.lastPlayedAt).slice(0, 7);
-  const recentIds = new Set(recent.map((game) => game.id));
-  const groups = recent.length > 0 ? [{ id: 'recent', label: 'Recent Games', games: recent }] : [];
+  const recent: Game[] = [];
+  const buckets = new Map<PlayStatus, Game[]>();
 
-  for (const status of statuses.filter((item): item is PlayStatus => item !== 'all')) {
-    const items = games.filter((game) => game.playStatus === status && !recentIds.has(game.id));
-    if (items.length > 0) groups.push({ id: status, label: PLAY_STATUS_LABEL[status], games: items });
+  for (const game of games) {
+    if (game.lastPlayedAt && recent.length < 7) {
+      recent.push(game);
+      continue;
+    }
+
+    const items = buckets.get(game.playStatus) ?? [];
+    items.push(game);
+    buckets.set(game.playStatus, items);
+  }
+
+  const groups = recent.length > 0 ? [{ id: 'recent', label: 'Recent Games', games: recent }] : [];
+  for (const status of statuses) {
+    if (status === 'all') continue;
+    const items = buckets.get(status);
+    if (items?.length) {
+      groups.push({ id: status, label: PLAY_STATUS_LABEL[status], games: items });
+    }
   }
 
   return groups.length > 0 ? groups : [{ id: 'all', label: 'All Games', games }];

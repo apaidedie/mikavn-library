@@ -131,7 +131,7 @@ Migration order:
 
 ## Verification Rules
 
-- Frontend: `npm run typecheck`, `npm run build`.
-- Rust: `cargo check`, `cargo test` under `src-tauri`.
+- Frontend: `npm run build`.
+- Rust: `cargo fmt --check`, `cargo clippy -- -D warnings`, and `cargo test` under `src-tauri`.
 - Desktop bundle: `npm run tauri:build`.
-- UI changes should be checked in the browser or screenshots when possible. The mature V1 page-level QA runner is `output/playwright/page-qa-runner.cjs`, and the core workflow smoke runner is `output/playwright/core-workflow-smoke.cjs`.
+- UI changes should be checked in the browser or screenshots when possible. The mature V1 page-level QA runner is `scripts/playwright/page-qa-runner.cjs`, the core workflow smoke runner is `scripts/playwright/core-workflow-smoke.cjs`, and large-library smoke coverage lives in `scripts/playwright/large-library-smoke.cjs`.

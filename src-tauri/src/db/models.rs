@@ -472,6 +472,32 @@ pub struct ImportCandidate {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
+pub struct ImportScanReport {
+    pub requested: usize,
+    pub imported_count: usize,
+    pub added: usize,
+    pub merged: usize,
+    pub replaced: usize,
+    pub duplicated: usize,
+    pub skipped: usize,
+    pub imported: Vec<Game>,
+    pub items: Vec<ImportScanReportItem>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportScanReportItem {
+    pub candidate_title: String,
+    pub install_path: String,
+    pub action: String,
+    pub game_id: Option<String>,
+    pub target_title: Option<String>,
+    pub conflict_reason: Option<String>,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct ExternalIds {
     pub vndb: Option<String>,
     pub dlsite: Option<String>,

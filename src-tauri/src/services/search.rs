@@ -518,7 +518,7 @@ fn parse_date_sort_key(value: &str) -> Option<String> {
 
 fn sort_games(games: &mut [Game], sort_by: Option<&str>, sort_direction: Option<&str>) {
     let sort_by = sort_by.unwrap_or("updated_at");
-    games.sort_by(|a, b| sort_key(a, sort_by).cmp(&sort_key(b, sort_by)));
+    games.sort_by_key(|game| sort_key(game, sort_by));
     if sort_direction.unwrap_or("desc") != "asc" {
         games.reverse();
     }

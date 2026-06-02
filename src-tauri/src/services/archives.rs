@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::{self, Read, Seek, Write};
 use std::path::{Path, PathBuf};
@@ -440,8 +441,6 @@ pub(crate) fn enqueue_library_archive_import_task(
             let preview = preview_archive_dir(&archive_dir)?;
             let archive_games =
                 read_archive_games(&archive_dir.join(&preview.manifest.database_file))?;
-            let current_games = db.list_games(GameFilter::default())?;
-            let total = archive_games.len().max(1) as f64;
             let mut summary = ImportSummary {
                 imported: 0,
                 skipped: 0,
@@ -449,35 +448,24 @@ pub(crate) fn enqueue_library_archive_import_task(
                 save_backups: 0,
                 protection_path,
             };
-
-            for (index, game) in archive_games.into_iter().enumerate() {
-                if has_game_conflict(&current_games, &game)
-                    || has_game_conflict(&db.list_games(GameFilter::default())?, &game)
-                {
-                    summary.skipped += 1;
-                    let _ = db.append_task_log(
+            import_archive_games_with_summary(
+                &db,
+                &task_id,
+                archive_games,
+                &mut summary,
+                |progress, message| {
+                    tasks::update_task(
+                        &app_handle,
+                        &db,
                         &task_id,
-                        "warn",
-                        &format!("跳过冲突条目：{}", game.title),
-                    );
-                } else {
-                    game_service::insert_imported_game(&db, game)?;
-                    summary.imported += 1;
-                }
-                let progress = 0.24 + ((index + 1) as f64 / total) * 0.46;
-                tasks::update_task(
-                    &app_handle,
-                    &db,
-                    &task_id,
-                    "running",
-                    progress,
-                    Some(format!(
-                        "已导入 {} 个，跳过 {} 个",
-                        summary.imported, summary.skipped
-                    )),
-                    None,
-                )?;
-            }
+                        "running",
+                        progress,
+                        Some(message),
+                        None,
+                    )?;
+                    Ok(())
+                },
+            )?;
 
             if include_images {
                 tasks::update_task(
@@ -561,6 +549,87 @@ struct ImportSummary {
     images: i64,
     save_backups: i64,
     protection_path: PathBuf,
+}
+
+fn import_archive_games_with_summary(
+    db: &Database,
+    task_id: &str,
+    archive_games: Vec<Game>,
+    summary: &mut ImportSummary,
+    mut on_progress: impl FnMut(f64, String) -> DbResult<()>,
+) -> DbResult<()> {
+    let total = archive_games.len().max(1) as f64;
+    let mut conflicts = ArchiveImportConflictIndex::new(db.list_games(GameFilter::default())?);
+    for (index, game) in archive_games.into_iter().enumerate() {
+        if let Some(reason) = conflicts.conflict_reason(&game) {
+            summary.skipped += 1;
+            db.append_task_log(
+                task_id,
+                "warn",
+                &format!("归档导入跳过：{}（{}）", game.title, reason),
+            )?;
+        } else {
+            let title = game.title.clone();
+            let imported = game_service::insert_imported_game(db, game)?;
+            conflicts.insert(&imported);
+            summary.imported += 1;
+            db.append_task_log(task_id, "info", &format!("归档导入新增：{title}"))?;
+        }
+        let progress = 0.24 + ((index + 1) as f64 / total) * 0.46;
+        on_progress(
+            progress,
+            format!(
+                "已导入 {} 个，跳过 {} 个",
+                summary.imported, summary.skipped
+            ),
+        )?;
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+fn archive_import_conflict_reason(existing: &[Game], incoming: &Game) -> Option<String> {
+    ArchiveImportConflictIndex::new(existing.to_vec()).conflict_reason(incoming)
+}
+
+struct ArchiveImportConflictIndex {
+    ids: HashMap<String, String>,
+    titles: HashMap<String, String>,
+    install_paths: HashMap<String, String>,
+}
+
+impl ArchiveImportConflictIndex {
+    fn new(existing: Vec<Game>) -> Self {
+        let mut index = Self {
+            ids: HashMap::new(),
+            titles: HashMap::new(),
+            install_paths: HashMap::new(),
+        };
+        for game in &existing {
+            index.insert(game);
+        }
+        index
+    }
+
+    fn insert(&mut self, game: &Game) {
+        self.ids.insert(game.id.clone(), game.title.clone());
+        self.titles
+            .insert(normalize_title(&game.title), game.title.clone());
+        self.install_paths
+            .insert(normalize_path(&game.install_path), game.title.clone());
+    }
+
+    fn conflict_reason(&self, incoming: &Game) -> Option<String> {
+        if let Some(title) = self.ids.get(&incoming.id) {
+            Some(format!("ID 已存在：{title}"))
+        } else if let Some(title) = self.titles.get(&normalize_title(&incoming.title)) {
+            Some(format!("标题已存在：{title}"))
+        } else {
+            self.install_paths
+                .get(&normalize_path(&incoming.install_path))
+                .map(|title| format!("安装目录已存在：{title}"))
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -690,14 +759,6 @@ fn read_archive_games(db_path: &Path) -> DbResult<Vec<Game>> {
     let mut stmt = conn.prepare("SELECT * FROM games")?;
     let rows = stmt.query_map([], game_from_archive_row)?;
     Ok(rows.collect::<Result<Vec<_>, _>>()?)
-}
-
-fn has_game_conflict(existing: &[Game], incoming: &Game) -> bool {
-    existing.iter().any(|game| {
-        game.id == incoming.id
-            || normalize_title(&game.title) == normalize_title(&incoming.title)
-            || normalize_path(&game.install_path) == normalize_path(&incoming.install_path)
-    })
 }
 
 fn normalize_title(value: &str) -> String {
@@ -959,6 +1020,51 @@ fn normalize_zip_entry_name(name: &str) -> String {
 mod tests {
     use super::*;
 
+    fn test_db() -> Database {
+        let path = std::env::temp_dir().join(format!("mikavn-archive-test-{}.db", Uuid::new_v4()));
+        Database::new_from_path(path).unwrap()
+    }
+
+    fn game(id: &str, title: &str, install_path: &str) -> Game {
+        Game {
+            id: id.to_string(),
+            title: title.to_string(),
+            original_title: None,
+            aliases: Vec::new(),
+            developer: None,
+            publisher: None,
+            brand: None,
+            release_date: None,
+            description: None,
+            notes: None,
+            tags: Vec::new(),
+            genres: Vec::new(),
+            rating: None,
+            age_rating: None,
+            play_status: "planned".to_string(),
+            favorite: false,
+            hidden: false,
+            install_path: install_path.to_string(),
+            executable_path: None,
+            working_directory: None,
+            launch_args: None,
+            path_status: "unknown".to_string(),
+            last_path_checked_at: None,
+            cover_image: None,
+            banner_image: None,
+            background_image: None,
+            vndb_id: None,
+            bangumi_id: None,
+            dlsite_id: None,
+            fanza_id: None,
+            ymgal_id: None,
+            total_play_seconds: 0,
+            last_played_at: None,
+            created_at: String::new(),
+            updated_at: String::new(),
+        }
+    }
+
     #[test]
     fn copy_dir_recursive_counts_files() {
         let root =
@@ -1025,44 +1131,147 @@ mod tests {
     }
 
     #[test]
-    fn detects_archive_game_conflicts() {
-        let existing = Game {
-            id: "game-1".to_string(),
-            title: "星之终途".to_string(),
-            original_title: None,
-            aliases: Vec::new(),
-            developer: None,
-            publisher: None,
-            brand: None,
-            release_date: None,
-            description: None,
-            notes: None,
-            tags: Vec::new(),
-            genres: Vec::new(),
-            rating: None,
-            age_rating: None,
-            play_status: "planned".to_string(),
-            favorite: false,
-            hidden: false,
-            install_path: "D:\\Games\\星之终途".to_string(),
-            executable_path: None,
-            working_directory: None,
-            launch_args: None,
-            path_status: "unknown".to_string(),
-            last_path_checked_at: None,
-            cover_image: None,
-            banner_image: None,
-            background_image: None,
-            vndb_id: None,
-            bangumi_id: None,
-            dlsite_id: None,
-            fanza_id: None,
-            ymgal_id: None,
-            total_play_seconds: 0,
-            last_played_at: None,
-            created_at: String::new(),
-            updated_at: String::new(),
+    fn archive_directory_round_trips_real_database_records_and_indexes() {
+        let root =
+            std::env::temp_dir().join(format!("mikavn-archive-roundtrip-test-{}", Uuid::new_v4()));
+        let source_root = root.join("source");
+        let archive_dir = root.join("archive");
+        let target_root = root.join("target");
+        fs::create_dir_all(&source_root).unwrap();
+        fs::create_dir_all(&archive_dir).unwrap();
+        fs::create_dir_all(&target_root).unwrap();
+
+        let source_db = Database::new_from_path(source_root.join("mikavn.db")).unwrap();
+        let mut source_game = game("roundtrip-game", "Round Trip VN", "D:\\Games\\RoundTrip");
+        source_game.original_title = Some("Round Trip Original".to_string());
+        source_game.aliases = vec!["RTVN".to_string(), "Roundtrip".to_string()];
+        source_game.developer = Some("MikaVN Studio".to_string());
+        source_game.description = Some("A migration proof record.".to_string());
+        source_game.notes = Some("Patch 1.02 installed.".to_string());
+        source_game.tags = vec!["mystery".to_string(), "drama".to_string()];
+        source_game.genres = vec!["Visual Novel".to_string()];
+        source_game.favorite = true;
+        source_game.cover_image = Some("images/roundtrip-cover.webp".to_string());
+        source_game.vndb_id = Some("v12345".to_string());
+        source_game.dlsite_id = Some("RJ01234567".to_string());
+        game_service::insert_imported_game(&source_db, source_game).unwrap();
+
+        source_db
+            .backup_to_path(&archive_dir.join("mikavn.db"))
+            .unwrap();
+        let manifest = LibraryArchiveManifest {
+            app: "MikaVN Library".to_string(),
+            archive_version: 1,
+            exported_at: Utc::now().to_rfc3339(),
+            database_file: "mikavn.db".to_string(),
+            include_images: false,
+            include_save_backups: false,
+            images_count: 0,
+            save_backups_count: 0,
+            notes: vec![
+                "This archive contains MikaVN database records only.".to_string(),
+                "It never contains or deletes real game installation directories.".to_string(),
+            ],
         };
+        fs::write(
+            archive_dir.join("manifest.json"),
+            serde_json::to_string_pretty(&manifest).unwrap(),
+        )
+        .unwrap();
+
+        let preview = preview_archive_dir(&archive_dir).unwrap();
+        assert!(preview.database_present);
+        assert_eq!(preview.manifest.database_file, "mikavn.db");
+        assert!(preview.warnings.is_empty());
+
+        let archive_games = read_archive_games(&archive_dir.join("mikavn.db")).unwrap();
+        assert_eq!(archive_games.len(), 1);
+        assert_eq!(archive_games[0].title, "Round Trip VN");
+        assert_eq!(archive_games[0].tags, vec!["mystery", "drama"]);
+        assert_eq!(archive_games[0].genres, vec!["Visual Novel"]);
+        assert_eq!(archive_games[0].vndb_id.as_deref(), Some("v12345"));
+
+        let target_db = Database::new_from_path(target_root.join("mikavn.db")).unwrap();
+        let task = target_db
+            .create_task(
+                "library.archive_import",
+                Some("Round-trip archive import".to_string()),
+            )
+            .unwrap();
+        let mut summary = ImportSummary {
+            imported: 0,
+            skipped: 0,
+            images: 0,
+            save_backups: 0,
+            protection_path: root.join("before-import.db"),
+        };
+        let mut progress_messages = Vec::new();
+
+        import_archive_games_with_summary(
+            &target_db,
+            &task.id,
+            archive_games,
+            &mut summary,
+            |progress, message| {
+                progress_messages.push((progress, message));
+                Ok(())
+            },
+        )
+        .unwrap();
+
+        assert_eq!(summary.imported, 1);
+        assert_eq!(summary.skipped, 0);
+        assert_eq!(progress_messages.len(), 1);
+        assert!(progress_messages[0].1.contains("已导入 1 个，跳过 0 个"));
+
+        let imported_games = target_db.list_games(GameFilter::default()).unwrap();
+        assert_eq!(imported_games.len(), 1);
+        let imported = &imported_games[0];
+        assert_eq!(imported.title, "Round Trip VN");
+        assert_eq!(
+            imported.original_title.as_deref(),
+            Some("Round Trip Original")
+        );
+        assert_eq!(imported.aliases, vec!["RTVN", "Roundtrip"]);
+        assert_eq!(imported.developer.as_deref(), Some("MikaVN Studio"));
+        assert_eq!(imported.notes.as_deref(), Some("Patch 1.02 installed."));
+        assert!(imported.favorite);
+        assert_eq!(
+            imported.cover_image.as_deref(),
+            Some("images/roundtrip-cover.webp")
+        );
+
+        let assets = target_db.list_game_assets(imported.id.clone()).unwrap();
+        assert!(assets.iter().any(|asset| asset.asset_type == "cover"
+            && asset.uri == "images/roundtrip-cover.webp"
+            && asset.source.as_deref() == Some("archive_import")));
+        let tags = target_db.list_tags(None).unwrap();
+        assert!(tags
+            .iter()
+            .any(|tag| tag.kind == "tag" && tag.name == "mystery" && tag.game_count == 1));
+        assert!(tags
+            .iter()
+            .any(|tag| tag.kind == "genre" && tag.name == "Visual Novel" && tag.game_count == 1));
+        let external_ids = target_db.list_external_ids(imported.id.clone()).unwrap();
+        assert!(external_ids
+            .iter()
+            .any(|id| id.provider == "vndb" && id.external_id == "v12345"));
+        assert!(external_ids
+            .iter()
+            .any(|id| id.provider == "dlsite" && id.external_id == "RJ01234567"));
+        let logs = target_db.list_task_logs(&task.id).unwrap();
+        assert!(logs
+            .iter()
+            .any(|log| log.message.contains("归档导入新增：Round Trip VN")));
+
+        drop(target_db);
+        drop(source_db);
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn detects_archive_game_conflicts() {
+        let existing = game("game-1", "星之终途", "D:\\Games\\星之终途");
         let same_title = Game {
             id: "game-2".to_string(),
             install_path: "D:\\Other".to_string(),
@@ -1080,8 +1289,131 @@ mod tests {
             ..existing.clone()
         };
 
-        assert!(has_game_conflict(&[existing.clone()], &same_title));
-        assert!(has_game_conflict(&[existing.clone()], &same_path));
-        assert!(!has_game_conflict(&[existing], &new_game));
+        assert_eq!(
+            archive_import_conflict_reason(&[existing.clone()], &same_title).as_deref(),
+            Some("标题已存在：星之终途")
+        );
+        assert_eq!(
+            archive_import_conflict_reason(&[existing.clone()], &same_path).as_deref(),
+            Some("安装目录已存在：星之终途")
+        );
+        assert!(archive_import_conflict_reason(&[existing], &new_game).is_none());
+    }
+
+    #[test]
+    fn archive_import_summary_logs_added_and_skipped_games() {
+        let db = test_db();
+        let task = db
+            .create_task("library.archive_import", Some("导入测试".to_string()))
+            .unwrap();
+        let existing = game("existing", "Existing Title", "D:\\Games\\Existing");
+        game_service::insert_imported_game(&db, existing).unwrap();
+        let mut summary = ImportSummary {
+            imported: 0,
+            skipped: 0,
+            images: 0,
+            save_backups: 0,
+            protection_path: PathBuf::from("D:\\Protection\\before-import.db"),
+        };
+
+        import_archive_games_with_summary(
+            &db,
+            &task.id,
+            vec![
+                game("new", "Fresh Title", "D:\\Games\\Fresh"),
+                game("conflict-title", "Existing Title", "D:\\Games\\Other"),
+                game("conflict-path", "Other Title", "D:\\Games\\Existing"),
+            ],
+            &mut summary,
+            |_, _| Ok(()),
+        )
+        .unwrap();
+
+        assert_eq!(summary.imported, 1);
+        assert_eq!(summary.skipped, 2);
+        let logs = db.list_task_logs(&task.id).unwrap();
+        assert!(logs
+            .iter()
+            .any(|log| log.message.contains("归档导入新增：Fresh Title")));
+        assert!(logs
+            .iter()
+            .any(|log| log.message.contains("标题已存在：Existing Title")));
+        assert!(logs
+            .iter()
+            .any(|log| log.message.contains("安装目录已存在：Existing Title")));
+    }
+
+    #[test]
+    fn archive_import_summary_handles_large_batches_with_in_memory_conflicts() {
+        let db = test_db();
+        let task = db
+            .create_task("library.archive_import", Some("批量导入测试".to_string()))
+            .unwrap();
+        game_service::insert_imported_game(
+            &db,
+            game("existing", "Existing Title", "D:\\Games\\Existing"),
+        )
+        .unwrap();
+        let mut archive_games = (0..600)
+            .map(|index| {
+                game(
+                    &format!("new-{index}"),
+                    &format!("Batch Title {index}"),
+                    &format!("D:\\Games\\Batch\\{index}"),
+                )
+            })
+            .collect::<Vec<_>>();
+        archive_games.push(game(
+            "conflict-existing-title",
+            "Existing Title",
+            "D:\\Games\\Other",
+        ));
+        archive_games.push(game(
+            "conflict-existing-path",
+            "Other Existing Path Title",
+            "D:\\Games\\Existing",
+        ));
+        archive_games.push(game(
+            "conflict-batch-title",
+            "Batch Title 42",
+            "D:\\Games\\Batch\\duplicate-title",
+        ));
+        archive_games.push(game(
+            "conflict-batch-path",
+            "Duplicate Batch Path Title",
+            "D:\\Games\\Batch\\43",
+        ));
+        let mut summary = ImportSummary {
+            imported: 0,
+            skipped: 0,
+            images: 0,
+            save_backups: 0,
+            protection_path: PathBuf::from("D:\\Protection\\before-import.db"),
+        };
+        let mut progress_updates = 0;
+
+        import_archive_games_with_summary(&db, &task.id, archive_games, &mut summary, |_, _| {
+            progress_updates += 1;
+            Ok(())
+        })
+        .unwrap();
+
+        assert_eq!(summary.imported, 600);
+        assert_eq!(summary.skipped, 4);
+        assert_eq!(progress_updates, 604);
+        assert_eq!(db.list_games(GameFilter::default()).unwrap().len(), 601);
+        let logs = db.list_task_logs(&task.id).unwrap();
+        assert_eq!(
+            logs.iter()
+                .filter(|log| log.message.contains("归档导入新增：Batch Title"))
+                .count(),
+            600
+        );
+        assert!(logs
+            .iter()
+            .any(|log| log.message.contains("标题已存在：Batch Title 42")));
+        assert!(logs
+            .iter()
+            .any(|log| log.message.contains("安装目录已存在：Batch Title 43")));
     }
 }

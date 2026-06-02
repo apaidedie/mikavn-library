@@ -6,8 +6,8 @@ use tauri::AppHandle;
 use uuid::Uuid;
 
 use crate::db::models::{
-    AddGameInput, Game, GameFilter, ImportCandidate, LibraryRoot, ScanCandidate, ScanConflict,
-    ScanExecutable, ScanTaskStatus, TaskRecord,
+    AddGameInput, Game, GameFilter, ImportCandidate, ImportScanReport, ImportScanReportItem,
+    LibraryRoot, ScanCandidate, ScanConflict, ScanExecutable, ScanTaskStatus, TaskRecord,
 };
 use crate::db::{Database, DbError, DbResult};
 use crate::infrastructure::logger;
@@ -162,8 +162,16 @@ pub fn enqueue_scan_task(
 pub fn import_scan_candidates(
     db: &Database,
     candidates: Vec<ImportCandidate>,
-) -> DbResult<Vec<Game>> {
+) -> DbResult<ImportScanReport> {
+    let requested = candidates.len();
     let mut imported = Vec::new();
+    let mut items = Vec::new();
+    let mut added = 0usize;
+    let mut merged = 0usize;
+    let mut replaced = 0usize;
+    let mut duplicated = 0usize;
+    let mut skipped = 0usize;
+
     for candidate in candidates {
         let conflict = find_import_conflict(db, &candidate)?;
         let action = candidate
@@ -176,12 +184,40 @@ pub fn import_scan_candidates(
             });
 
         match (conflict, action) {
-            (Some(_), "skip") => continue,
+            (Some(conflict), "skip") => {
+                skipped += 1;
+                items.push(import_item(
+                    &candidate,
+                    "skip",
+                    None,
+                    Some(&conflict),
+                    "已跳过与现有记录冲突的候选",
+                ));
+                continue;
+            }
             (Some(conflict), "merge") => {
-                imported.push(merge_import_candidate(db, &candidate, &conflict.game_id)?)
+                let game = merge_import_candidate(db, &candidate, &conflict.game_id)?;
+                merged += 1;
+                items.push(import_item(
+                    &candidate,
+                    "merge",
+                    Some(&game),
+                    Some(&conflict),
+                    "已合并到现有记录",
+                ));
+                imported.push(game);
             }
             (Some(conflict), "replace") => {
-                imported.push(replace_import_candidate(db, &candidate, &conflict.game_id)?)
+                let game = replace_import_candidate(db, &candidate, &conflict.game_id)?;
+                replaced += 1;
+                items.push(import_item(
+                    &candidate,
+                    "replace",
+                    Some(&game),
+                    Some(&conflict),
+                    "已替换现有数据库记录",
+                ));
+                imported.push(game);
             }
             (Some(conflict), "duplicate") => {
                 if !candidate.allow_duplicate.unwrap_or(false) {
@@ -190,7 +226,16 @@ pub fn import_scan_candidates(
                         conflict.title, conflict.reason
                     )));
                 }
-                imported.push(add_import_candidate(db, candidate)?);
+                let game = add_import_candidate(db, &candidate)?;
+                duplicated += 1;
+                items.push(import_item(
+                    &candidate,
+                    "duplicate",
+                    Some(&game),
+                    Some(&conflict),
+                    "已作为副本导入",
+                ));
+                imported.push(game);
             }
             (Some(conflict), _) => {
                 return Err(DbError::validation(format!(
@@ -198,20 +243,72 @@ pub fn import_scan_candidates(
                     conflict.title
                 )));
             }
-            (None, "skip") => continue,
-            (None, _) => imported.push(add_import_candidate(db, candidate)?),
+            (None, "skip") => {
+                skipped += 1;
+                items.push(import_item(
+                    &candidate,
+                    "skip",
+                    None,
+                    None,
+                    "候选未冲突，仍被跳过",
+                ));
+                continue;
+            }
+            (None, _) => {
+                let game = add_import_candidate(db, &candidate)?;
+                added += 1;
+                items.push(import_item(
+                    &candidate,
+                    "add",
+                    Some(&game),
+                    None,
+                    "已新增游戏记录",
+                ));
+                imported.push(game);
+            }
         }
     }
-    Ok(imported)
+
+    Ok(ImportScanReport {
+        requested,
+        imported_count: imported.len(),
+        added,
+        merged,
+        replaced,
+        duplicated,
+        skipped,
+        imported,
+        items,
+    })
 }
 
-fn add_import_candidate(db: &Database, candidate: ImportCandidate) -> DbResult<Game> {
+fn import_item(
+    candidate: &ImportCandidate,
+    action: &str,
+    game: Option<&Game>,
+    conflict: Option<&ScanConflict>,
+    message: &str,
+) -> ImportScanReportItem {
+    ImportScanReportItem {
+        candidate_title: candidate.title.clone(),
+        install_path: candidate.install_path.clone(),
+        action: action.to_string(),
+        game_id: game.map(|item| item.id.clone()),
+        target_title: game
+            .map(|item| item.title.clone())
+            .or_else(|| conflict.map(|item| item.title.clone())),
+        conflict_reason: conflict.map(|item| item.reason.clone()),
+        message: message.to_string(),
+    }
+}
+
+fn add_import_candidate(db: &Database, candidate: &ImportCandidate) -> DbResult<Game> {
     game_service::add_game(
         db,
         AddGameInput {
-            title: candidate.title,
+            title: candidate.title.clone(),
             original_title: None,
-            aliases: candidate.aliases,
+            aliases: candidate.aliases.clone(),
             developer: None,
             publisher: None,
             brand: None,
@@ -226,8 +323,8 @@ fn add_import_candidate(db: &Database, candidate: ImportCandidate) -> DbResult<G
             favorite: Some(false),
             hidden: Some(false),
             install_path: candidate.install_path.clone(),
-            executable_path: candidate.executable_path,
-            working_directory: Some(candidate.install_path),
+            executable_path: candidate.executable_path.clone(),
+            working_directory: Some(candidate.install_path.clone()),
             launch_args: None,
             cover_image: None,
             banner_image: None,
@@ -340,16 +437,13 @@ fn scan_path_with_cancel(
     }
 
     let mut candidates = Vec::new();
-    scan_dirs_with_cancel(
+    let context = ScanTaskContext {
         app,
         db,
         task_id,
-        &root,
-        &root,
         recursive,
-        0,
-        &mut candidates,
-    )?;
+    };
+    scan_dirs_with_cancel(&context, &root, &root, 0, &mut candidates)?;
     if is_task_cancelled(db, task_id) {
         Ok(None)
     } else {
@@ -401,22 +495,26 @@ fn scan_dirs(
     Ok(())
 }
 
+struct ScanTaskContext<'a> {
+    app: &'a AppHandle,
+    db: &'a Database,
+    task_id: &'a str,
+    recursive: bool,
+}
+
 fn scan_dirs_with_cancel(
-    app: &AppHandle,
-    db: &Database,
-    task_id: &str,
+    context: &ScanTaskContext<'_>,
     root: &Path,
     current: &Path,
-    recursive: bool,
     depth: usize,
     candidates: &mut Vec<ScanCandidate>,
 ) -> DbResult<()> {
-    if depth > 3 || is_task_cancelled(db, task_id) {
+    if depth > 3 || is_task_cancelled(context.db, context.task_id) {
         return Ok(());
     }
 
     for entry in fs::read_dir(current)? {
-        if is_task_cancelled(db, task_id) {
+        if is_task_cancelled(context.db, context.task_id) {
             return Ok(());
         }
 
@@ -446,25 +544,16 @@ fn scan_dirs_with_cancel(
             });
             let progress = (0.08 + (candidates.len() as f64 * 0.025)).min(0.92);
             let _ = tasks::update_task(
-                app,
-                db,
-                task_id,
+                context.app,
+                context.db,
+                context.task_id,
                 "running",
                 progress,
                 Some(format!("已发现 {} 个候选游戏", candidates.len())),
                 None,
             );
-        } else if recursive {
-            scan_dirs_with_cancel(
-                app,
-                db,
-                task_id,
-                root,
-                &path,
-                recursive,
-                depth + 1,
-                candidates,
-            )?;
+        } else if context.recursive {
+            scan_dirs_with_cancel(context, root, &path, depth + 1, candidates)?;
         }
     }
 
@@ -895,7 +984,7 @@ mod tests {
             .add_game(add_game_input("Duplicate Existing", "D:\\Games\\Duplicate"))
             .unwrap();
 
-        let imported = import_scan_candidates(
+        let report = import_scan_candidates(
             &db,
             vec![
                 import_candidate(
@@ -930,8 +1019,32 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(imported.len(), 4);
-        assert!(!imported.iter().any(|game| game.id == skip_existing.id));
+        assert_eq!(report.requested, 5);
+        assert_eq!(report.imported_count, 4);
+        assert_eq!(report.added, 1);
+        assert_eq!(report.merged, 1);
+        assert_eq!(report.replaced, 1);
+        assert_eq!(report.duplicated, 1);
+        assert_eq!(report.skipped, 1);
+        assert_eq!(report.items.len(), 5);
+        assert!(report
+            .items
+            .iter()
+            .any(|item| item.action == "skip"
+                && item.target_title.as_deref() == Some("Skip Existing")));
+        assert!(report
+            .items
+            .iter()
+            .any(|item| item.action == "merge"
+                && item.conflict_reason.as_deref() == Some("标题相同")));
+        assert!(report
+            .items
+            .iter()
+            .any(|item| item.action == "add" && item.candidate_title == "Fresh Import"));
+        assert!(!report
+            .imported
+            .iter()
+            .any(|game| game.id == skip_existing.id));
 
         let merged = db.get_game(merge_existing.id.clone()).unwrap();
         assert_eq!(merged.install_path, "D:\\Games\\MergeNew");

@@ -14,6 +14,7 @@ use crate::db::models::{
 };
 use crate::db::{Database, DbError, DbResult};
 use crate::infrastructure::paths::AppPaths;
+use crate::repositories::metadata_matches::InsertMatchResultInput;
 use crate::services::games as game_service;
 use crate::services::images;
 use crate::services::tasks;
@@ -475,16 +476,16 @@ fn process_match_game(db: &Database, job_id: &str, game_id: &str) {
     let game = match db.get_game(game_id.to_string()) {
         Ok(game) => game,
         Err(error) => {
-            let _ = db.insert_match_result(
+            let _ = db.insert_match_result(InsertMatchResultInput {
                 job_id,
                 game_id,
-                "",
-                "",
-                None,
-                "error",
-                Some(error.to_string()),
-                Vec::new(),
-            );
+                original_title: "",
+                cleaned_title: "",
+                selected: None,
+                status: "error",
+                reason: Some(error.to_string()),
+                candidates: Vec::new(),
+            });
             return;
         }
     };
@@ -496,16 +497,16 @@ fn process_match_game(db: &Database, job_id: &str, game_id: &str) {
         ]
     });
     let suggestion = match_game_with_providers(&game, providers);
-    let _ = db.insert_match_result(
+    let _ = db.insert_match_result(InsertMatchResultInput {
         job_id,
-        &game.id,
-        &suggestion.original_title,
-        &suggestion.cleaned_title,
-        suggestion.selected.as_ref(),
-        &suggestion.status,
-        suggestion.reason.clone(),
-        suggestion.candidates,
-    );
+        game_id: &game.id,
+        original_title: &suggestion.original_title,
+        cleaned_title: &suggestion.cleaned_title,
+        selected: suggestion.selected.as_ref(),
+        status: &suggestion.status,
+        reason: suggestion.reason.clone(),
+        candidates: suggestion.candidates,
+    });
 }
 
 #[cfg(test)]

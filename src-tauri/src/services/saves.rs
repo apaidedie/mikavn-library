@@ -78,7 +78,7 @@ fn restore_save_backup_with_paths(
     validate_restore_mode(mode)?;
     let protection =
         create_backup_for_path_with_paths(paths, save_path, "恢复前保护备份".to_string(), true)?;
-    restore_files_from_backup(
+    let _ = restore_files_from_backup(
         Path::new(&backup.backup_path),
         Path::new(&save_path.path),
         mode,
@@ -314,12 +314,17 @@ pub fn enqueue_save_restore_task(
             Some("正在创建恢复前保护备份".to_string()),
             None,
         );
-        let result = (|| -> DbResult<SaveBackup> {
+        let result = (|| -> DbResult<SaveRestoreReport> {
             let protection = create_backup_for_path(
                 &app_handle,
                 &save_path,
                 "恢复前保护备份".to_string(),
                 true,
+            )?;
+            db.append_task_log(
+                &task_id,
+                "info",
+                &format!("存档恢复保护备份：{}", protection.backup_path),
             )?;
             let _ = tasks::update_task(
                 &app_handle,
@@ -330,22 +335,39 @@ pub fn enqueue_save_restore_task(
                 Some("正在恢复存档文件".to_string()),
                 None,
             );
-            restore_files_from_backup(
+            let report = restore_files_from_backup(
                 Path::new(&backup.backup_path),
                 Path::new(&save_path.path),
                 &mode,
             )?;
-            db.insert_save_backup(&protection)
+            db.append_task_log(
+                &task_id,
+                "info",
+                &format!(
+                    "存档恢复报告：模式 {}，复制 {} 个文件，清理 {} 个文件。",
+                    restore_mode_label(&report.mode),
+                    report.copied_files,
+                    report.removed_files
+                ),
+            )?;
+            let protection = db.insert_save_backup(&protection)?;
+            Ok(SaveRestoreReport {
+                copied_files: report.copied_files,
+                removed_files: report.removed_files,
+                protection,
+            })
         })();
 
         match result {
-            Ok(protection) => {
+            Ok(report) => {
                 logger::log_info(
                     &paths,
                     "save.restore",
                     format!(
-                        "save restored with protection backup: {}",
-                        logger::display_path(Path::new(&protection.backup_path))
+                        "save restored with protection backup: {}, copied {}, removed {}",
+                        logger::display_path(Path::new(&report.protection.backup_path)),
+                        report.copied_files,
+                        report.removed_files
                     ),
                 );
                 let _ = tasks::update_task(
@@ -354,7 +376,10 @@ pub fn enqueue_save_restore_task(
                     &task_id,
                     "completed",
                     1.0,
-                    Some("存档已恢复，并已创建保护备份".to_string()),
+                    Some(format!(
+                        "存档已恢复：复制 {} 个文件，清理 {} 个文件，并已创建保护备份",
+                        report.copied_files, report.removed_files
+                    )),
                     None,
                 );
             }
@@ -374,6 +399,19 @@ pub fn enqueue_save_restore_task(
     });
 
     Ok(task)
+}
+
+struct SaveRestoreReport {
+    copied_files: i64,
+    removed_files: i64,
+    protection: SaveBackup,
+}
+
+fn restore_mode_label(mode: &str) -> &'static str {
+    match mode {
+        "mirror" => "镜像",
+        _ => "合并",
+    }
 }
 
 pub fn restore_mode(mode: Option<String>) -> String {
@@ -517,7 +555,7 @@ fn create_backup_for_path_with_paths(
         .join(&save_path.game_id)
         .join(format!("{timestamp}-{clean_label}"));
     fs::create_dir_all(&target)?;
-    copy_dir_contents(&source, &target)?;
+    let _ = copy_dir_contents(&source, &target)?;
 
     Ok(SaveBackup {
         id: Uuid::new_v4().to_string(),
@@ -564,47 +602,84 @@ fn trimmed_required(value: String, field: &str) -> DbResult<String> {
     }
 }
 
-fn copy_dir_contents(source: &Path, target: &Path) -> DbResult<()> {
+fn copy_dir_contents(source: &Path, target: &Path) -> DbResult<i64> {
     validate_existing_dir(source)?;
     fs::create_dir_all(target)?;
+    let mut copied = 0;
     for entry in fs::read_dir(source)? {
         let entry = entry?;
         let source_path = entry.path();
         let target_path = target.join(entry.file_name());
         let file_type = entry.file_type()?;
         if file_type.is_dir() {
-            copy_dir_contents(&source_path, &target_path)?;
+            copied += copy_dir_contents(&source_path, &target_path)?;
         } else if file_type.is_file() {
             if let Some(parent) = target_path.parent() {
                 fs::create_dir_all(parent)?;
             }
             fs::copy(&source_path, &target_path)?;
+            copied += 1;
         }
     }
-    Ok(())
+    Ok(copied)
 }
 
-fn clear_dir_contents(target: &Path) -> DbResult<()> {
+fn clear_dir_contents(target: &Path) -> DbResult<i64> {
     validate_existing_dir(target)?;
+    let mut removed = 0;
     for entry in fs::read_dir(target)? {
         let entry = entry?;
         let path = entry.path();
         let file_type = entry.file_type()?;
         if file_type.is_dir() {
+            removed += count_files_recursive(&path)?;
             fs::remove_dir_all(path)?;
         } else if file_type.is_file() {
             fs::remove_file(path)?;
+            removed += 1;
         }
     }
-    Ok(())
+    Ok(removed)
 }
 
-pub fn restore_files_from_backup(backup_path: &Path, save_path: &Path, mode: &str) -> DbResult<()> {
+pub fn restore_files_from_backup(
+    backup_path: &Path,
+    save_path: &Path,
+    mode: &str,
+) -> DbResult<RestoreFileReport> {
     validate_restore_mode(mode)?;
-    if mode == "mirror" {
-        clear_dir_contents(save_path)?;
+    let removed_files = if mode == "mirror" {
+        clear_dir_contents(save_path)?
+    } else {
+        0
+    };
+    let copied_files = copy_dir_contents(backup_path, save_path)?;
+    Ok(RestoreFileReport {
+        mode: mode.to_string(),
+        copied_files,
+        removed_files,
+    })
+}
+
+pub struct RestoreFileReport {
+    pub mode: String,
+    pub copied_files: i64,
+    pub removed_files: i64,
+}
+
+fn count_files_recursive(path: &Path) -> DbResult<i64> {
+    validate_existing_dir(path)?;
+    let mut count = 0;
+    for entry in fs::read_dir(path)? {
+        let entry = entry?;
+        let file_type = entry.file_type()?;
+        if file_type.is_dir() {
+            count += count_files_recursive(&entry.path())?;
+        } else if file_type.is_file() {
+            count += 1;
+        }
     }
-    copy_dir_contents(backup_path, save_path)
+    Ok(count)
 }
 
 fn safe_part(value: &str) -> String {
@@ -734,8 +809,9 @@ mod tests {
         fs::write(root.join("keep-root.txt"), "old").unwrap();
         fs::write(root.join("nested").join("old.dat"), "old").unwrap();
 
-        clear_dir_contents(&root).unwrap();
+        let removed = clear_dir_contents(&root).unwrap();
 
+        assert_eq!(removed, 2);
         assert!(root.is_dir());
         assert_eq!(fs::read_dir(&root).unwrap().count(), 0);
         let _ = fs::remove_dir_all(root);
@@ -752,8 +828,11 @@ mod tests {
         fs::write(backup.join("nested").join("slot2.dat"), "backup nested").unwrap();
         fs::write(save.join("local-only.dat"), "current").unwrap();
 
-        restore_files_from_backup(&backup, &save, "merge").unwrap();
+        let report = restore_files_from_backup(&backup, &save, "merge").unwrap();
 
+        assert_eq!(report.mode, "merge");
+        assert_eq!(report.copied_files, 2);
+        assert_eq!(report.removed_files, 0);
         assert_eq!(
             fs::read_to_string(save.join("slot1.dat")).unwrap(),
             "backup"
@@ -780,8 +859,11 @@ mod tests {
         fs::write(save.join("local-only.dat"), "current").unwrap();
         fs::write(save.join("old-nested").join("stale.dat"), "stale").unwrap();
 
-        restore_files_from_backup(&backup, &save, "mirror").unwrap();
+        let report = restore_files_from_backup(&backup, &save, "mirror").unwrap();
 
+        assert_eq!(report.mode, "mirror");
+        assert_eq!(report.copied_files, 1);
+        assert_eq!(report.removed_files, 2);
         assert_eq!(
             fs::read_to_string(save.join("slot1.dat")).unwrap(),
             "backup"

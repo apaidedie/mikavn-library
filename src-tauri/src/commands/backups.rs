@@ -11,7 +11,7 @@ pub fn backup_database(
     state: State<'_, AppState>,
     path: String,
 ) -> DbResult<TaskRecord> {
-    let db = state.db.lock().expect("database mutex poisoned");
+    let db = state.db()?;
     backup_service::enqueue_database_backup_task(app, &db, path)
 }
 
@@ -21,6 +21,6 @@ pub fn restore_database_backup(
     state: State<'_, AppState>,
     path: String,
 ) -> DbResult<TaskRecord> {
-    let db = state.db.lock().expect("database mutex poisoned");
+    let db = state.db()?;
     backup_service::enqueue_database_restore_task(app, &db, path)
 }

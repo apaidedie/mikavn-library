@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { AddGameInput, AssetCacheCleanupResult, AssetDownloadInput, AssetImportInput, AssetInput, CollectionGameLink, CollectionInput, DashboardData, Game, GameAsset, GameCollection, GameFilter, GamePathHealth, ImportCandidate, LibraryRoot, PlaySession, ScanCandidate, TagRecord, UpdateGameInput } from '@/types/game';
+import type { AddGameInput, AssetCacheCleanupResult, AssetDownloadInput, AssetImportInput, AssetInput, CollectionGameLink, CollectionInput, DashboardData, Game, GameAsset, GameCollection, GameFilter, GamePathHealth, ImportCandidate, ImportScanReport, LibraryRoot, PlaySession, ScanCandidate, TagRecord, UpdateGameInput } from '@/types/game';
 import type { LibraryArchiveExportOptions, LibraryArchiveImportOptions, LibraryArchivePreview, LogRecord, LogRetentionPolicy } from '@/types/archive';
 import type { LaunchProfile, LaunchProfileInput, LaunchProfileUpdate } from '@/types/launch';
 import type { AdvancedSearchInput, AdvancedSearchResult, AiConnectionTestResult, AiRecognitionResult, ApplyMetadataFields, BatchMatchJob, BatchMatchStatus, ExternalIdRecord, FieldLock, MatchSuggestion, MetadataProvider, MetadataSearchResponse, MetadataSourceRecord, NormalizedMetadata, SavedSearch, SavedSearchInput, SearchQueryValidation } from '@/types/metadata';
@@ -308,7 +308,7 @@ export const api = {
   },
 
   importScanCandidates(candidates: ImportCandidate[]) {
-    return command<Game[]>('import_scan_candidates', { candidates }, () => mockStore.importScanCandidates(candidates));
+    return command<ImportScanReport>('import_scan_candidates', { candidates }, () => mockStore.importScanCandidates(candidates));
   },
 
   addLibraryRoot(path: string) {

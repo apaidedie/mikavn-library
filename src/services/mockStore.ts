@@ -1,4 +1,4 @@
-import type { AddGameInput, AssetCacheCleanupResult, AssetDownloadInput, AssetImportInput, AssetInput, CollectionGameLink, CollectionInput, DashboardData, Game, GameAsset, GameCollection, GameFilter, GamePathHealth, ImportCandidate, LibraryRoot, PathCheckItem, PlaySession, PlayStatus, ScanCandidate, TagRecord, UpdateGameInput } from '@/types/game';
+import type { AddGameInput, AssetCacheCleanupResult, AssetDownloadInput, AssetImportInput, AssetInput, CollectionGameLink, CollectionInput, DashboardData, Game, GameAsset, GameCollection, GameFilter, GamePathHealth, ImportCandidate, ImportScanReport, ImportScanReportItem, LibraryRoot, PathCheckItem, PlaySession, PlayStatus, ScanCandidate, ScanConflict, TagRecord, UpdateGameInput } from '@/types/game';
 import type { LibraryArchiveExportOptions, LibraryArchiveImportOptions, LibraryArchivePreview, LogRecord, LogRetentionPolicy } from '@/types/archive';
 import type { LaunchProfile, LaunchProfileInput, LaunchProfileUpdate } from '@/types/launch';
 import type { AdvancedSearchInput, AdvancedSearchResult, AiConnectionTestResult, AiRecognitionResult, ApplyMetadataFields, BatchMatchJob, BatchMatchStatus, ExternalIdRecord, FieldLock, MatchSuggestion, MetadataProvider, MetadataSearchResponse, MetadataSearchResult, MetadataSourceRecord, NormalizedMetadata, SavedSearch, SavedSearchInput, SearchClause, SearchQueryValidation } from '@/types/metadata';
@@ -982,27 +982,35 @@ export const mockStore = {
   },
 
   backupDatabase(path: string): Promise<TaskRecord> {
-    return Promise.resolve(makeTask({
+    const target = path || 'mikavn-backup.db';
+    const task = makeTask({
       taskType: 'database.backup',
       status: 'completed',
       progress: 1,
-      message: `浏览器预览已模拟备份到 ${path || 'mikavn-backup.db'}`,
+      message: `浏览器预览已模拟备份到 ${target}`,
       error: null,
       retryPayload: JSON.stringify({ path }),
       retryable: true,
-    }));
+    });
+    addTaskLog(task.id, 'info', `数据库备份报告：目标 ${target}，大小 131072 bytes。`);
+    return Promise.resolve(task);
   },
 
   restoreDatabaseBackup(path: string): Promise<TaskRecord> {
-    return Promise.resolve(makeTask({
+    const source = path || 'D:\\MikaVN-Backups\\mikavn.db';
+    const pending = 'mock://pending-restore/mikavn.db';
+    const task = makeTask({
       taskType: 'database.restore',
       status: 'completed',
       progress: 1,
-      message: `浏览器预览已模拟安排下次启动恢复 ${path}`,
+      message: `浏览器预览已模拟安排下次启动恢复 ${pending}（131072 bytes）`,
       error: null,
       retryPayload: JSON.stringify({ path }),
       retryable: false,
-    }));
+    });
+    addTaskLog(task.id, 'info', `数据库恢复来源：${source}（131072 bytes）`);
+    addTaskLog(task.id, 'info', `数据库恢复待应用：${pending}（131072 bytes）`);
+    return Promise.resolve(task);
   },
 
   listDiagnosticLogs(limit = 30): Promise<LogRecord[]> {
@@ -1070,15 +1078,30 @@ export const mockStore = {
   },
 
   importLibraryArchive(options: LibraryArchiveImportOptions): Promise<TaskRecord> {
-    return Promise.resolve(makeTask({
+    const games = readGames().map(ensureGameDefaults);
+    const freshTitle = 'Browser Archive Fresh';
+    const conflictTitle = games[0]?.title ?? '星之终途';
+    const imported = games.some((game) => game.title === freshTitle) ? 0 : 1;
+    if (imported > 0) {
+      void this.addGame({
+        title: freshTitle,
+        installPath: 'D:\\MikaVN-Smoke-Archive\\Fresh',
+        genres: ['Visual Novel'],
+      });
+    }
+    const task = makeTask({
       taskType: 'library.archive_import',
       status: 'completed',
       progress: 1,
-      message: `浏览器预览已模拟安全导入归档 ${options.archiveDir}`,
+      message: `浏览器预览归档导入完成：导入 ${imported} 个，跳过 1 个。保护备份：mock://archive-import-protection/before-import.db`,
       error: null,
       retryPayload: JSON.stringify(options),
       retryable: true,
-    }));
+    });
+    addTaskLog(task.id, 'info', '归档导入保护备份：mock://archive-import-protection/before-import.db');
+    if (imported > 0) addTaskLog(task.id, 'info', `归档导入新增：${freshTitle}`);
+    addTaskLog(task.id, 'warn', `归档导入跳过：${conflictTitle}（标题已存在：${conflictTitle}）`);
+    return Promise.resolve(task);
   },
 
   searchMetadata(query: string, providers: MetadataProvider[]): Promise<MetadataSearchResponse> {
@@ -1386,8 +1409,25 @@ export const mockStore = {
     return Promise.resolve(status);
   },
 
-  async importScanCandidates(candidates: ImportCandidate[]): Promise<Game[]> {
+  async importScanCandidates(candidates: ImportCandidate[]): Promise<ImportScanReport> {
     const imported: Game[] = [];
+    const items: ImportScanReportItem[] = [];
+    let added = 0;
+    let merged = 0;
+    let replaced = 0;
+    let duplicated = 0;
+    let skipped = 0;
+
+    const reportItem = (candidate: ImportCandidate, action: ImportScanReportItem['action'], game: Game | null, conflict: ScanConflict | null, message: string): ImportScanReportItem => ({
+      candidateTitle: candidate.title,
+      installPath: candidate.installPath,
+      action,
+      gameId: game?.id ?? null,
+      targetTitle: game?.title ?? conflict?.title ?? null,
+      conflictReason: conflict?.reason ?? null,
+      message,
+    });
+
     for (const candidate of candidates) {
       const games = readGames().map(ensureGameDefaults);
       const normalizePath = (value: string) => value.trim().replace(/[/]+/g, '\\').replace(/[\\/]+$/g, '').toLowerCase();
@@ -1395,7 +1435,11 @@ export const mockStore = {
       const found = games.find((game) => normalizePath(game.installPath) === normalizePath(candidate.installPath) || normalizeTitle(game.title) === normalizeTitle(candidate.title));
       const conflict = found ? { gameId: found.id, title: found.title, reason: normalizePath(found.installPath) === normalizePath(candidate.installPath) ? '安装目录已存在' : '标题相同' } : null;
       const action = candidate.conflictAction ?? (conflict ? 'skip' : 'duplicate');
-      if (conflict && action === 'skip') continue;
+      if (conflict && action === 'skip') {
+        skipped += 1;
+        items.push(reportItem(candidate, 'skip', null, conflict, '已跳过与现有记录冲突的候选'));
+        continue;
+      }
       if (conflict && action === 'merge') {
         if (candidate.conflictGameId && candidate.conflictGameId !== conflict.gameId) {
           return Promise.reject(new Error('Conflict target changed; rescan before merging'));
@@ -1411,6 +1455,8 @@ export const mockStore = {
           pathStatus: 'unknown',
           lastPathCheckedAt: null,
         });
+        merged += 1;
+        items.push(reportItem(candidate, 'merge', updated, conflict, '已合并到现有记录'));
         imported.push(updated);
         continue;
       }
@@ -1427,22 +1473,37 @@ export const mockStore = {
           pathStatus: 'unknown',
           lastPathCheckedAt: null,
         });
+        replaced += 1;
+        items.push(reportItem(candidate, 'replace', updated, conflict, '已替换现有数据库记录'));
         imported.push(updated);
         continue;
       }
       if (conflict && action === 'duplicate' && !candidate.allowDuplicate) {
         return Promise.reject(new Error(`Candidate conflicts with existing game: ${conflict.title}`));
       }
-      imported.push(await this.addGame({
+      if (!conflict && action === 'skip') {
+        skipped += 1;
+        items.push(reportItem(candidate, 'skip', null, null, '候选未冲突，仍被跳过'));
+        continue;
+      }
+      const game = await this.addGame({
         title: candidate.title,
         installPath: candidate.installPath,
         executablePath: candidate.executablePath ?? undefined,
         workingDirectory: candidate.installPath,
         aliases: candidate.aliases,
         genres: ['Visual Novel'],
-      }));
+      });
+      if (conflict && action === 'duplicate') {
+        duplicated += 1;
+        items.push(reportItem(candidate, 'duplicate', game, conflict, '已作为副本导入'));
+      } else {
+        added += 1;
+        items.push(reportItem(candidate, 'add', game, null, '已新增游戏记录'));
+      }
+      imported.push(game);
     }
-    return imported;
+    return { requested: candidates.length, importedCount: imported.length, added, merged, replaced, duplicated, skipped, imported, items };
   },
 
   getAppSettings(): Promise<Record<string, string>> {
@@ -1585,16 +1646,21 @@ export const mockStore = {
   },
 
   async restoreSaveBackupTask(backupId: string, mode: 'merge' | 'mirror' = 'merge'): Promise<TaskRecord> {
-    await this.restoreSaveBackup(backupId);
-    return makeTask({
+    const protection = await this.restoreSaveBackup(backupId);
+    const copiedFiles = 2;
+    const removedFiles = mode === 'mirror' ? 2 : 0;
+    const task = makeTask({
       taskType: 'save.restore',
       status: 'completed',
       progress: 1,
-      message: mode === 'mirror' ? '浏览器预览已模拟镜像恢复存档' : '浏览器预览已模拟合并恢复存档',
+      message: `浏览器预览已模拟${mode === 'mirror' ? '镜像' : '合并'}恢复存档：复制 ${copiedFiles} 个文件，清理 ${removedFiles} 个文件`,
       error: null,
       retryPayload: JSON.stringify({ backupId, mode }),
       retryable: true,
     });
+    addTaskLog(task.id, 'info', `存档恢复保护备份：${protection.backupPath}`);
+    addTaskLog(task.id, 'info', `存档恢复报告：模式 ${mode === 'mirror' ? '镜像' : '合并'}，复制 ${copiedFiles} 个文件，清理 ${removedFiles} 个文件。`);
+    return task;
   },
 
   deleteSaveBackupRecord(id: string) {

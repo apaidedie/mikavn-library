@@ -67,13 +67,13 @@ Required semantic groups for future extraction:
 
 - Left library panel with search, filters, list/grid switch, and compact rows.
 - Right detail page with cover hero, one primary launch action, secondary edit/delete actions.
-- Tabs should include Overview, Metadata, and Files today. Future tabs: Records, Saves, Notes, Links, Tools.
+- Tabs and panels should keep launch, metadata, assets, collections, notes, paths, and task shortcuts close to the selected game without turning the detail view into a settings page.
 
 ### Import Scanner
 
 - Command bar for folder selection, recursive toggle, scan/import actions.
 - Candidate review before import.
-- Future work: background task progress, cancel, retry, duplicate conflict resolution.
+- Background scan progress, cancellation, task logs, retry from the Tasks page, and duplicate/conflict actions must stay visible and explicit.
 
 ### Metadata
 
@@ -95,4 +95,5 @@ Required semantic groups for future extraction:
 ## Current State
 
 - The app already has a unified shell, dark and light theme, accent color options, reusable page primitives, poster interactions, and reduced-motion support.
-- Remaining design debt: extract `src/style.css` into a stronger token/design folder later, add keyboard shortcut affordances, refine detail tabs, and add task/progress surfaces.
+- Mature V1 task/progress surfaces are implemented through the Dashboard recent-task panel, page-level `TaskNotice` shortcuts, Scanner progress, and the Tasks page with logs, retry, and cancellation.
+- Remaining design debt: extract `src/style.css` into a stronger token/design folder later, add clearer keyboard shortcut affordances if shortcuts expand, and keep refining detail density as more optional post-V1 surfaces are added.

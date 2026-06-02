@@ -211,6 +211,28 @@ export type ImportCandidate = {
   conflictGameId?: string | null;
 };
 
+export type ImportScanReport = {
+  requested: number;
+  importedCount: number;
+  added: number;
+  merged: number;
+  replaced: number;
+  duplicated: number;
+  skipped: number;
+  imported: Game[];
+  items: ImportScanReportItem[];
+};
+
+export type ImportScanReportItem = {
+  candidateTitle: string;
+  installPath: string;
+  action: 'add' | 'merge' | 'replace' | 'duplicate' | 'skip' | string;
+  gameId?: string | null;
+  targetTitle?: string | null;
+  conflictReason?: string | null;
+  message: string;
+};
+
 export type DashboardData = {
   totalGames: number;
   plannedGames: number;

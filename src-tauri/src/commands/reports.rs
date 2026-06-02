@@ -9,7 +9,7 @@ use crate::AppState;
 
 #[tauri::command]
 pub fn get_dashboard(state: State<'_, AppState>) -> DbResult<DashboardData> {
-    let db = state.db.lock().expect("database mutex poisoned");
+    let db = state.db()?;
     report_service::get_dashboard(&db)
 }
 
@@ -25,6 +25,6 @@ pub fn export_report_markdown_task(
     path: String,
     content: String,
 ) -> DbResult<TaskRecord> {
-    let db = state.db.lock().expect("database mutex poisoned");
+    let db = state.db()?;
     report_service::enqueue_report_export_task(app, &db, path, content)
 }

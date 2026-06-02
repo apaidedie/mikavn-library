@@ -5,6 +5,17 @@ use uuid::Uuid;
 use crate::db::models::{BatchMatchJob, BatchMatchResult, BatchMatchStatus, MetadataSearchResult};
 use crate::db::{DbError, DbResult};
 
+pub struct InsertMatchResultInput<'a> {
+    pub job_id: &'a str,
+    pub game_id: &'a str,
+    pub original_title: &'a str,
+    pub cleaned_title: &'a str,
+    pub selected: Option<&'a MetadataSearchResult>,
+    pub status: &'a str,
+    pub reason: Option<String>,
+    pub candidates: Vec<MetadataSearchResult>,
+}
+
 pub struct MetadataMatchRepository<'a> {
     conn: &'a Connection,
 }
@@ -66,21 +77,11 @@ impl<'a> MetadataMatchRepository<'a> {
         Ok(())
     }
 
-    pub fn insert_match_result(
-        &self,
-        job_id: &str,
-        game_id: &str,
-        original_title: &str,
-        cleaned_title: &str,
-        selected: Option<&MetadataSearchResult>,
-        status: &str,
-        reason: Option<String>,
-        candidates: Vec<MetadataSearchResult>,
-    ) -> DbResult<()> {
-        let selected_provider = selected.map(|item| item.provider.clone());
-        let selected_id = selected.map(|item| item.id.clone());
-        let selected_score = selected.map(|item| item.relevance_score);
-        let candidates_json = serde_json::to_string(&candidates)?;
+    pub fn insert_match_result(&self, input: InsertMatchResultInput<'_>) -> DbResult<()> {
+        let selected_provider = input.selected.map(|item| item.provider.clone());
+        let selected_id = input.selected.map(|item| item.id.clone());
+        let selected_score = input.selected.map(|item| item.relevance_score);
+        let candidates_json = serde_json::to_string(&input.candidates)?;
         self.conn.execute(
             r#"
             INSERT INTO metadata_match_results (
@@ -90,22 +91,22 @@ impl<'a> MetadataMatchRepository<'a> {
             "#,
             params![
                 Uuid::new_v4().to_string(),
-                job_id,
-                game_id,
-                original_title,
-                cleaned_title,
+                input.job_id,
+                input.game_id,
+                input.original_title,
+                input.cleaned_title,
                 selected_provider,
                 selected_id,
                 selected_score,
-                status,
-                reason,
+                input.status,
+                input.reason,
                 candidates_json,
                 now(),
             ],
         )?;
         self.conn.execute(
             "UPDATE metadata_match_jobs SET completed = completed + 1, updated_at = ?2 WHERE id = ?1",
-            params![job_id, now()],
+            params![input.job_id, now()],
         )?;
         Ok(())
     }

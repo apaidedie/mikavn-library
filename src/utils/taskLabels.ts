@@ -2,6 +2,7 @@ export function taskLabel(taskType: string) {
   if (taskType === 'metadata.batch_match') return '批量元数据匹配';
   if (taskType === 'library.scan') return '目录扫描';
   if (taskType === 'database.backup') return '数据库备份';
+  if (taskType === 'database.restore') return '数据库恢复';
   if (taskType === 'library.archive_export') return '库归档导出';
   if (taskType === 'library.archive_import') return '库归档导入';
   if (taskType === 'report.export_markdown') return '报告导出';

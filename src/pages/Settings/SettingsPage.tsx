@@ -1,7 +1,6 @@
-import { Bot, Database, Download, FileText, Folder, FolderSearch, Loader2, Palette, RotateCcw, Save, Search, Tags, Trash2 } from 'lucide-react';
+import { Database, Download, FileText, Folder, FolderSearch, Palette, RotateCcw, Save, Search, Tags, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { CheckboxField } from '@/components/ui/checkbox';
 import { ConfigItem, ConfigSection } from '@/components/ui/config-item';
 import { Input } from '@/components/ui/input';
 import { Notice } from '@/components/ui/notice';
@@ -14,24 +13,11 @@ import { chooseArchiveDirectory, chooseArchivePath, chooseDatabaseBackupPath, ch
 import type { LibraryArchivePreview, LogRecord } from '@/types/archive';
 import type { LibraryRoot, TagRecord } from '@/types/game';
 import type { MetadataSourceRecord } from '@/types/metadata';
-import { cn } from '@/utils/cn';
 import { errorMessage } from '@/utils/errorMessage';
-
-type SettingsForm = {
-  provider_vndb_enabled: boolean;
-  provider_dlsite_enabled: boolean;
-  provider_fanza_enabled: boolean;
-  ai_base_url: string;
-  ai_model: string;
-  ai_api_key: string;
-  ui_accent_color: string;
-  ui_theme_mode: string;
-  privacy_hide_hidden: boolean;
-  privacy_blur_covers: boolean;
-  privacy_filter_reports: boolean;
-  save_auto_backup_before_launch: boolean;
-  save_auto_backup_after_exit: boolean;
-};
+import { AppearanceSettings } from './AppearanceSettings';
+import { MetadataAiSettings } from './MetadataAiSettings';
+import { SettingFlag } from './SettingFlag';
+import type { SettingsForm } from './settingsTypes';
 
 type TaskMessage = { text: string; taskId?: string | null };
 
@@ -149,76 +135,11 @@ export function SettingsPage({ onAccentPreview, onThemePreview, onSaved, onOpenT
           </TabsList>
 
           <TabsContent className="space-y-6" value="appearance">
-            <ConfigSection title="主题">
-              <ConfigItem title="外观模式" description="浅色模式适合白天使用；跟随系统会读取系统偏好。">
-                <div className="grid grid-cols-3 gap-2">
-                  {themeModeOptions.map((option) => (
-                    <button
-                      className={cn('h-9 rounded-md border px-3 text-xs transition-colors', form.ui_theme_mode === option.id ? 'border-[rgb(var(--accent-rgb)/0.75)] bg-[rgb(var(--accent-rgb)/0.12)] text-slate-100' : 'border-white/10 bg-black/10 text-slate-400 hover:border-white/20')}
-                      key={option.id}
-                      onClick={() => setThemeMode(option.id)}
-                      type="button"
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              </ConfigItem>
-              <ConfigItem title="强调色" description="点击色块会立即预览，保存后写入本机配置。">
-                <div className="grid grid-cols-5 gap-2">
-                  {accentOptions.map((option) => (
-                    <button
-                      className={cn('flex h-10 w-20 items-center gap-2 rounded-md border px-2 text-xs transition-colors', form.ui_accent_color === option.id ? 'border-[rgb(var(--accent-rgb)/0.75)] bg-[rgb(var(--accent-rgb)/0.12)] text-slate-100' : 'border-white/10 bg-black/10 text-slate-400 hover:border-white/20')}
-                      key={option.id}
-                      onClick={() => setAccentColor(option.id)}
-                      type="button"
-                    >
-                      <span className="h-4 w-4 rounded-full" style={{ background: option.color }} />
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              </ConfigItem>
-            </ConfigSection>
+            <AppearanceSettings form={form} onAccentColorChange={setAccentColor} onThemeModeChange={setThemeMode} />
           </TabsContent>
 
           <TabsContent className="space-y-6" value="sources">
-            <ConfigSection title="元数据数据源">
-              {metadataSources.length > 0 && (
-                <ConfigItem title="来源注册表" description="来自归一化 metadata_sources 表，供后续来源优先级与扩展使用。">
-                  <div className="flex flex-wrap justify-end gap-1.5">
-                    {metadataSources.map((source) => <span className="rounded-full border border-white/10 bg-black/[0.12] px-2 py-1 text-xs text-slate-300" key={source.id}>{source.label} · {source.priority}</span>)}
-                  </div>
-                </ConfigItem>
-              )}
-              <ConfigItem title="启用 VNDB" description="用于视觉小说基础元数据、标签和开发商信息。">
-                <SettingFlag checked={form.provider_vndb_enabled} label="VNDB" onChange={(value) => setForm((current) => ({ ...current, provider_vndb_enabled: value }))} />
-              </ConfigItem>
-              <ConfigItem title="启用 DLsite" description="仅检索公开页面和公开搜索结果。">
-                <SettingFlag checked={form.provider_dlsite_enabled} label="DLsite" onChange={(value) => setForm((current) => ({ ...current, provider_dlsite_enabled: value }))} />
-              </ConfigItem>
-              <ConfigItem title="启用 FANZA" description="失败时只记录 provider 级错误，不中断整体搜索。">
-                <SettingFlag checked={form.provider_fanza_enabled} label="FANZA" onChange={(value) => setForm((current) => ({ ...current, provider_fanza_enabled: value }))} />
-              </ConfigItem>
-            </ConfigSection>
-
-            <ConfigSection title="AI 图片识别">
-              <ConfigItem title="API Key" description="优先推荐使用环境变量 MIKAVN_AI_API_KEY。">
-                <EditableField type="password" value={form.ai_api_key} onChange={(value) => setForm((current) => ({ ...current, ai_api_key: value }))} placeholder="本机私有配置" />
-              </ConfigItem>
-              <ConfigItem title="Base URL">
-                <EditableField value={form.ai_base_url} onChange={(value) => setForm((current) => ({ ...current, ai_base_url: value }))} placeholder="https://api.example.com/v1" />
-              </ConfigItem>
-              <ConfigItem title="Model">
-                <EditableField value={form.ai_model} onChange={(value) => setForm((current) => ({ ...current, ai_model: value }))} placeholder="gpt-4o-mini" />
-              </ConfigItem>
-              <ConfigItem title="测试连接" description="会先保存当前 AI 配置，再发送一次最小文本请求；不会上传图片，也不会显示 API Key。">
-                <Button disabled={testingAi} variant="secondary" onClick={testAiConnection}>
-                  {testingAi ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bot className="h-4 w-4" />}
-                  {testingAi ? '测试中...' : '测试 AI'}
-                </Button>
-              </ConfigItem>
-            </ConfigSection>
+            <MetadataAiSettings form={form} metadataSources={metadataSources} testingAi={testingAi} onFormChange={updateForm} onTestAiConnection={testAiConnection} />
           </TabsContent>
 
           <TabsContent className="space-y-6" value="local">
@@ -403,6 +324,10 @@ export function SettingsPage({ onAccentPreview, onThemePreview, onSaved, onOpenT
     setForm((current) => ({ ...current, ui_theme_mode: value }));
     onThemePreview?.(value);
     setMessage(null);
+  }
+
+  function updateForm(update: Partial<SettingsForm>) {
+    setForm((current) => ({ ...current, ...update }));
   }
 
   async function backupDatabase() {
@@ -693,28 +618,6 @@ export function SettingsPage({ onAccentPreview, onThemePreview, onSaved, onOpenT
   }
 }
 
-function EditableField({ value, onChange, placeholder, type = 'text' }: { value: string; onChange: (value: string) => void; placeholder?: string; type?: string }) {
-  return <Input className="w-72 max-w-[calc(100vw-5rem)] sm:max-w-[18rem]" type={type} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} />;
-}
-
-function SettingFlag({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) {
-  return <CheckboxField checked={checked} className="min-w-24" label={label} onChange={(event) => onChange(event.target.checked)} />;
-}
-
 function tagLabel(tag: TagRecord) {
   return `${tag.kind === 'genre' ? '类型' : '标签'} · ${tag.name} (${tag.gameCount})`;
 }
-
-const accentOptions = [
-  { id: 'vnite', label: 'Vnite', color: 'rgb(91 118 183)' },
-  { id: 'rose', label: '樱粉', color: 'rgb(251 113 133)' },
-  { id: 'teal', label: '青绿', color: 'rgb(94 234 212)' },
-  { id: 'blue', label: '天蓝', color: 'rgb(125 211 252)' },
-  { id: 'amber', label: '琥珀', color: 'rgb(252 211 77)' },
-];
-
-const themeModeOptions = [
-  { id: 'dark', label: '深色' },
-  { id: 'light', label: '浅色' },
-  { id: 'system', label: '跟随系统' },
-];

@@ -34,7 +34,8 @@ Before opening a pull request, run:
 
 ```powershell
 cd src-tauri
-cargo fmt
+cargo fmt --check
+cargo clippy -- -D warnings
 cargo test
 ```
 

@@ -21,7 +21,29 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self' ipc: http://ipc.localhost; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: http://asset.localhost data: http: https:; font-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost",
+      "freezePrototype": true,
+      "assetProtocol": {
+        "enable": true,
+        "scope": {
+          "allow": [
+            "$APPDATA/**",
+            "$APPLOCALDATA/**",
+            "$APPCACHE/**",
+            "$PICTURE/**",
+            "$DOCUMENT/**",
+            "$DOWNLOAD/**",
+            "$DESKTOP/**"
+          ],
+          "deny": [
+            "$APPDATA/**/mikavn.db",
+            "$APPDATA/**/*.db",
+            "$APPDATA/**/*.sqlite",
+            "$APPDATA/**/*.sqlite3",
+            "$APPDATA/**/logs/**"
+          ]
+        }
+      }
     }
   },
   "bundle": {
