@@ -138,7 +138,7 @@ foreach ($reportField in @("isolatedAppDataRoot", "appDataRoot", "database", "ma
 if (!$desktopSmokeScript.Contains('$dbPath -and $windowDetected')) {
   throw "Desktop smoke must wait for both database creation and main window detection before stopping the app."
 }
-foreach ($token in @("删除保存搜索", "删除备份记录", "移除存档路径记录", "record-only deletes")) {
+foreach ($token in @("afterSavedSearchDelete", "afterBackupDelete", "savePathsAfterRemove", "record-only deletes")) {
   if (!$coreWorkflowSmoke.Contains($token)) {
     throw "Core workflow smoke must keep record-only delete safety assertion token '$token'."
   }
