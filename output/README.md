@@ -6,8 +6,10 @@ This directory keeps generated verification artifacts, local packaging helpers, 
 
 ## Current Artifacts
 
+- `release/<version>-windows-x64/`: copied release installers, release executables, and SHA256 checksums for local handoff.
 - `playwright/page-qa-current/`: latest page-level screenshots for dashboard, library, search, scanner, metadata, tasks, reports, saves, collections, and settings.
 - `playwright/workflow-smoke-current/`: latest workflow smoke screenshot.
+- `clean-install-smoke/run-*/`: isolated NSIS install, first-run, and uninstall smoke reports.
 - `desktop-smoke/run-*/`: desktop smoke reports and logs.
 - `nsis-3.11/`, `nsis-3.11.zip`, and `nsis_tauri_utils.dll`: local Tauri packaging helpers when `useLocalToolsDir` is enabled.
 

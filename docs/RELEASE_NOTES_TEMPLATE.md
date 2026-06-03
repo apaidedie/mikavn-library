@@ -31,9 +31,10 @@ Or, equivalently, the expanded validation chain:
 - `npm run smoke:browser`
 - `npm run smoke:large`
 - `npm run tauri:build`
+- `npm run smoke:install`
 - `npm run smoke:desktop`
 
-CI also gates `npm run smoke:browser` and `npm run smoke:large`, and uploads browser, Vite, and desktop smoke artifacts for review.
+CI also gates `npm run smoke:browser` and `npm run smoke:large`, and uploads browser, Vite, and desktop smoke artifacts for review. Local release candidates should also pass `npm run smoke:install` so the NSIS installer lifecycle is covered before sharing.
 
 Recommended manual smoke coverage is listed in `RELEASE_CHECKLIST.md`.
 

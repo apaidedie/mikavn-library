@@ -26,23 +26,17 @@ npm run build
 
 Expected baseline for the current mature V1 snapshot: Rust tests pass with the current repository test count, the frontend build completes TypeScript plus Vite production checks, and browser smoke covers backup/restore/archival task logs.
 
-`npm run release:validate:strict` runs these checks in sequence before the smoke and packaging steps, so release candidates can be validated from one command when a full pass is needed.
+`npm run release:validate:strict` runs these checks in sequence before the smoke and packaging steps, so release candidates can be validated from one command when a full pass is needed. `npm run release:validate:core` skips browser, large-library, Tauri build, clean-install, and desktop smoke when those slower checks were already verified separately.
 
 ## 3. Browser Smoke
 
-Start Vite if it is not already running:
-
-```powershell
-npm run dev -- --host 127.0.0.1
-```
-
-Then run:
+Run:
 
 ```powershell
 npm run smoke:browser
 ```
 
-The page QA runner refreshes screenshots in `output/playwright/page-qa-current/`. The workflow smoke covers advanced search and saved searches, asset gallery/cache cleanup, scanner conflict actions, save backup/restore protection, tag maintenance, settings archive/log flows, and task log expansion. Set `MIKAVN_QA_URL` or `MIKAVN_QA_OUT_DIR` to override the target URL or output directory.
+The smoke command starts or reuses a local Vite server, and the page QA runner refreshes screenshots in `output/playwright/page-qa-current/`. The workflow smoke covers advanced search and saved searches, asset gallery/cache cleanup, scanner conflict actions, save backup/restore protection, tag maintenance, settings archive/log flows, and task log expansion. Set `MIKAVN_QA_URL` or `MIKAVN_QA_OUT_DIR` to override the target URL or output directory.
 
 For scale-sensitive changes to library rendering, filtering, or advanced search, also run:
 
@@ -59,8 +53,11 @@ CI runs `npm run smoke:browser` and `npm run smoke:large` against a local Vite s
 After a release build exists, run:
 
 ```powershell
+npm run smoke:install
 npm run smoke:desktop
 ```
+
+`npm run smoke:install` silently installs the NSIS package into `output/clean-install-smoke/run-*/install`, launches the installed app with isolated app data, verifies first-run database/window creation, and silently uninstalls it.
 
 The smoke should start `src-tauri/target/release/mikavn-library.exe`, detect that the main window was exposed, and create or open `mikavn.db` only under `output/desktop-smoke/run-*/isolated-app-data`. The report records `mainWindowDetected`, `mainWindowHandle`, and `mainWindowTitle` when available. The script sets `MIKAVN_APP_DATA_DIR` for the launched process and must fail if the database appears outside that isolated root; desktop smoke must not read from or write to the real `%APPDATA%\dev.mikavn.library` profile.
 
@@ -74,6 +71,7 @@ The smoke should start `src-tauri/target/release/mikavn-library.exe`, detect tha
 ## 6. Package Notes
 
 - `npm run tauri:build` produces the NSIS installer under `src-tauri/target/release/bundle/nsis/`.
-- GitHub tag releases are handled by `.github/workflows/release.yml`; tag versions should use `vMAJOR.MINOR.PATCH`, such as `v0.1.0`. The release workflow runs `npm run smoke:desktop` after `npm run tauri:build` and before uploading installer artifacts, then uploads the isolated desktop smoke report under `output/desktop-smoke/`.
+- Before public sharing, follow `docs/CODE_SIGNING.md`: sign with a trusted certificate, then run `npm run release:signing:require`.
+- GitHub tag releases are handled by `.github/workflows/release.yml`; tag versions should use `vMAJOR.MINOR.PATCH`, such as `v0.1.0`. The release workflow runs `npm run smoke:install` and `npm run smoke:desktop` after `npm run tauri:build` and before uploading installer artifacts, then uploads the isolated clean-install and desktop smoke reports under `output/clean-install-smoke/` and `output/desktop-smoke/`.
 - Keep release notes focused on local-only data safety: real game directories are never moved, rewritten, or deleted by import/export/archive flows.
 - If the version changes, update every versioned file before rebuilding.

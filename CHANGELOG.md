@@ -10,12 +10,16 @@ Updated release candidate with the mature local V1 hardening pass.
 
 - Strict one-command release validation scripts for metadata, frontend, Rust, browser smoke, large-library smoke, Tauri build, and desktop smoke.
 - Large-library browser smoke covering 1500 preview records and advanced-search timing budgets.
+- Clean-install smoke covering NSIS silent install, isolated first launch, and silent uninstall.
+- Windows signing check/sign helper scripts and 0.1.1 release notes.
 - Isolated desktop smoke validation using `MIKAVN_APP_DATA_DIR` so smoke runs never touch the real user profile.
 - Settings page module split for appearance, metadata/AI configuration, and shared setting indicators.
 
 ### Changed
 
 - Hardened Tauri security with explicit CSP, prototype freezing, and scoped asset protocol rules.
+- Built release executables as Windows GUI applications to avoid opening an extra console window.
+- Browser smoke scripts now start or reuse Vite automatically instead of requiring a manually started dev server.
 - Strengthened scanner, archive, save restore, database restore, task-log, and diagnostic-log audit behavior.
 - Added explicit record-only confirmations for saved searches, save paths, and save-backup records.
 - Expanded CI and release workflows with strict release metadata, Rust formatting, Clippy, browser smoke, large-library smoke, desktop smoke, and artifact uploads.

@@ -58,6 +58,9 @@ jobs:
       - name: Build Tauri bundle
         run: npm run tauri:build
 
+      - name: Run clean install smoke
+        run: npm run smoke:install
+
       - name: Run desktop smoke
         run: npm run smoke:desktop
 
@@ -74,6 +77,7 @@ jobs:
         with:
           name: desktop-smoke-report
           path: |
+            output/clean-install-smoke/**
             output/desktop-smoke/**
 
       - name: Create GitHub release

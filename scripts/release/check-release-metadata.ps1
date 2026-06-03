@@ -45,6 +45,8 @@ $requiredFiles = @(
   "README.md",
   "RELEASE_CHECKLIST.md",
   "docs\RELEASE_NOTES_TEMPLATE.md",
+  "docs\RELEASE_NOTES_0.1.1.md",
+  "docs\CODE_SIGNING.md",
   "output\README.md",
   ".github\workflows\ci.yml",
   ".github\workflows\release.yml",
@@ -62,7 +64,7 @@ if ($package.private -ne $true) {
   throw "package.json should remain private=true; GitHub release publishes the desktop installer, not an npm package."
 }
 
-$requiredScripts = @("build", "release:check", "release:check:strict", "release:validate", "release:validate:strict", "release:validate:core", "smoke:browser", "smoke:large", "tauri:build", "smoke:desktop")
+$requiredScripts = @("build", "release:check", "release:check:strict", "release:signing:check", "release:signing:require", "release:sign", "release:validate", "release:validate:strict", "release:validate:core", "smoke:browser", "smoke:large", "smoke:install", "tauri:build", "smoke:desktop")
 foreach ($scriptName in $requiredScripts) {
   if ($null -eq $package.scripts.$scriptName -or [string]::IsNullOrWhiteSpace([string]$package.scripts.$scriptName)) {
     throw "package.json is missing required script '$scriptName'."
@@ -74,10 +76,40 @@ foreach ($token in @("scripts/release/check-release-metadata.ps1", "-StrictGitHu
     throw "package.json release:check:strict must include token '$token'."
   }
 }
-foreach ($token in @("scripts/release/run-release-validation.ps1", "-StrictGitHubLinks", "-SkipBrowserSmoke", "-SkipLargeSmoke", "-SkipTauriBuild", "-SkipDesktopSmoke")) {
+foreach ($token in @("scripts/release/run-release-validation.ps1", "-StrictGitHubLinks", "-SkipBrowserSmoke", "-SkipLargeSmoke", "-SkipTauriBuild", "-SkipInstallSmoke", "-SkipDesktopSmoke")) {
   $scriptText = [string]$package.scripts.'release:validate:core'
   if (!$scriptText.Contains($token)) {
     throw "package.json release:validate:core must include token '$token'."
+  }
+}
+foreach ($token in @("scripts/release/check-windows-signing.ps1", "-RequireSigned")) {
+  $scriptText = [string]$package.scripts.'release:signing:require'
+  if (!$scriptText.Contains($token)) {
+    throw "package.json release:signing:require must include token '$token'."
+  }
+}
+foreach ($token in @("scripts/release/sign-windows-release.ps1")) {
+  $scriptText = [string]$package.scripts.'release:sign'
+  if (!$scriptText.Contains($token)) {
+    throw "package.json release:sign must include token '$token'."
+  }
+}
+foreach ($token in @("scripts/playwright/run-smoke-with-vite.cjs", "browser")) {
+  $scriptText = [string]$package.scripts.'smoke:browser'
+  if (!$scriptText.Contains($token)) {
+    throw "package.json smoke:browser must include token '$token'."
+  }
+}
+foreach ($token in @("scripts/playwright/run-smoke-with-vite.cjs", "large")) {
+  $scriptText = [string]$package.scripts.'smoke:large'
+  if (!$scriptText.Contains($token)) {
+    throw "package.json smoke:large must include token '$token'."
+  }
+}
+foreach ($token in @("scripts/desktop-smoke/run-clean-install-smoke.ps1")) {
+  $scriptText = [string]$package.scripts.'smoke:install'
+  if (!$scriptText.Contains($token)) {
+    throw "package.json smoke:install must include token '$token'."
   }
 }
 
@@ -85,7 +117,11 @@ $requiredScriptFiles = @(
   "scripts\playwright\page-qa-runner.cjs",
   "scripts\playwright\core-workflow-smoke.cjs",
   "scripts\playwright\large-library-smoke.cjs",
+  "scripts\playwright\run-smoke-with-vite.cjs",
   "scripts\desktop-smoke\run-desktop-smoke.ps1",
+  "scripts\desktop-smoke\run-clean-install-smoke.ps1",
+  "scripts\release\check-windows-signing.ps1",
+  "scripts\release\sign-windows-release.ps1",
   "scripts\release\run-release-validation.ps1",
   "scripts\release\check-release-metadata.ps1"
 )
@@ -95,6 +131,7 @@ if ($missingScriptFiles.Count -gt 0) {
 }
 
 $desktopSmokeScript = Get-Content -LiteralPath (Join-Path $repoRoot "scripts\desktop-smoke\run-desktop-smoke.ps1") -Raw
+$cleanInstallSmokeScript = Get-Content -LiteralPath (Join-Path $repoRoot "scripts\desktop-smoke\run-clean-install-smoke.ps1") -Raw
 $coreWorkflowSmoke = Get-Content -LiteralPath (Join-Path $repoRoot "scripts\playwright\core-workflow-smoke.cjs") -Raw
 $appPathsSource = Get-Content -LiteralPath (Join-Path $repoRoot "src-tauri\src\infrastructure\paths.rs") -Raw
 $loggerSource = Get-Content -LiteralPath (Join-Path $repoRoot "src-tauri\src\infrastructure\logger.rs") -Raw
@@ -108,6 +145,8 @@ $releaseChecklist = Get-Content -LiteralPath (Join-Path $repoRoot "RELEASE_CHECK
 $ciWorkflow = Get-Content -LiteralPath (Join-Path $repoRoot ".github\workflows\ci.yml") -Raw
 $releaseWorkflow = Get-Content -LiteralPath (Join-Path $repoRoot ".github\workflows\release.yml") -Raw
 $releaseNotesTemplate = Get-Content -LiteralPath (Join-Path $repoRoot "docs\RELEASE_NOTES_TEMPLATE.md") -Raw
+$releaseNotes011 = Get-Content -LiteralPath (Join-Path $repoRoot "docs\RELEASE_NOTES_0.1.1.md") -Raw
+$codeSigningDoc = Get-Content -LiteralPath (Join-Path $repoRoot "docs\CODE_SIGNING.md") -Raw
 
 foreach ($content in @($releaseWorkflow, $releaseNotesTemplate, $releaseChecklist)) {
   if ($content.Contains("release:check -- -StrictGitHubLinks")) {
@@ -138,6 +177,11 @@ foreach ($reportField in @("isolatedAppDataRoot", "appDataRoot", "database", "ma
 if (!$desktopSmokeScript.Contains('$dbPath -and $windowDetected')) {
   throw "Desktop smoke must wait for both database creation and main window detection before stopping the app."
 }
+foreach ($token in @("/S", "/D=", "uninstall.exe", "MIKAVN_APP_DATA_DIR", "clean-install-smoke-report.json")) {
+  if (!$cleanInstallSmokeScript.Contains($token)) {
+    throw "Clean install smoke must keep installer lifecycle token '$token'."
+  }
+}
 foreach ($token in @("afterSavedSearchDelete", "afterBackupDelete", "savePathsAfterRemove", "record-only deletes")) {
   if (!$coreWorkflowSmoke.Contains($token)) {
     throw "Core workflow smoke must keep record-only delete safety assertion token '$token'."
@@ -161,21 +205,34 @@ foreach ($token in @("cargo fmt --check", "cargo clippy -- -D warnings", "cargo 
     throw "CI workflow must keep Rust quality gate token '$token'."
   }
 }
-foreach ($token in @("npm run release:check:strict", "cargo fmt --check", "cargo clippy -- -D warnings", "npm run tauri:build", "npm run smoke:desktop", "desktop-smoke-report", "output/desktop-smoke/**")) {
+foreach ($token in @("npm run release:check:strict", "cargo fmt --check", "cargo clippy -- -D warnings", "npm run tauri:build", "npm run smoke:install", "npm run smoke:desktop", "desktop-smoke-report", "output/clean-install-smoke/**", "output/desktop-smoke/**")) {
   if (!$releaseWorkflow.Contains($token)) {
     throw "Release workflow must keep desktop smoke gate token '$token'."
   }
 }
-if ($releaseWorkflow.IndexOf("npm run smoke:desktop") -lt $releaseWorkflow.IndexOf("npm run tauri:build")) {
-  throw "Release workflow must run desktop smoke after building the Tauri bundle."
+if ($releaseWorkflow.IndexOf("npm run smoke:install") -lt $releaseWorkflow.IndexOf("npm run tauri:build")) {
+  throw "Release workflow must run clean install smoke after building the Tauri bundle."
+}
+if ($releaseWorkflow.IndexOf("npm run smoke:desktop") -lt $releaseWorkflow.IndexOf("npm run smoke:install")) {
+  throw "Release workflow must run desktop smoke after clean install smoke."
 }
 if ($releaseWorkflow.IndexOf("src-tauri/target/release/bundle/nsis/*.exe") -lt $releaseWorkflow.IndexOf("npm run smoke:desktop")) {
   throw "Release workflow must run desktop smoke before uploading installer artifacts."
 }
 
-foreach ($token in @("npm run release:validate:strict", "npm run release:check:strict", "npm run build", "cargo fmt --check", "cargo clippy -- -D warnings", "cargo test", "npm run tauri:build", "npm run smoke:desktop", "npm run smoke:browser", "npm run smoke:large")) {
+foreach ($token in @("npm run release:validate:strict", "npm run release:check:strict", "npm run build", "cargo fmt --check", "cargo clippy -- -D warnings", "cargo test", "npm run tauri:build", "npm run smoke:install", "npm run smoke:desktop", "npm run smoke:browser", "npm run smoke:large")) {
   if (!$releaseNotesTemplate.Contains($token)) {
     throw "Release notes template must document verification command '$token'."
+  }
+}
+foreach ($token in @("0.1.1", "Windows GUI", "npm run release:validate:strict", "npm run smoke:install", "npm run release:signing:check", "local-only data safety")) {
+  if (!$releaseNotes011.Contains($token)) {
+    throw "0.1.1 release notes must document token '$token'."
+  }
+}
+foreach ($token in @("trusted OV/EV", "signtool.exe", "npm run release:sign", "npm run release:signing:require", "SmartScreen")) {
+  if (!$codeSigningDoc.Contains($token)) {
+    throw "CODE_SIGNING.md must document token '$token'."
   }
 }
 foreach ($token in @("browser", "Vite", "desktop smoke artifacts")) {
@@ -183,7 +240,7 @@ foreach ($token in @("browser", "Vite", "desktop smoke artifacts")) {
     throw "Release notes template must document CI artifact coverage token '$token'."
   }
 }
-foreach ($token in @("npm run release:check:strict", "npm run release:validate:strict", "npm run release:validate:core", "npm run smoke:large", "output/desktop-smoke/run-*/isolated-app-data")) {
+foreach ($token in @("npm run release:check:strict", "npm run release:validate:strict", "npm run release:validate:core", "npm run smoke:large", "npm run smoke:install", "output/desktop-smoke/run-*/isolated-app-data", "docs/CODE_SIGNING.md")) {
   if (!$releaseChecklist.Contains($token)) {
     throw "RELEASE_CHECKLIST.md must document release gate token '$token'."
   }
@@ -226,14 +283,14 @@ foreach ($stalePath in @("output/playwright/page-qa-runner.cjs", "output/playwri
     throw "ARCHITECTURE.md must not point to stale smoke runner path '$stalePath'."
   }
 }
-foreach ($token in @("87 Rust tests", "cargo clippy -- -D warnings", "1500 browser-preview records", "advanced search", "npm run release:check:strict", "npm run release:validate:strict", "npm run release:validate:core", "npm run smoke:large", "npm run tauri:build", "npm run smoke:desktop", "output/desktop-smoke/run-*/isolated-app-data")) {
+foreach ($token in @("87 Rust tests", "cargo clippy -- -D warnings", "1500 browser-preview records", "advanced search", "npm run release:check:strict", "npm run release:validate:strict", "npm run release:validate:core", "npm run smoke:large", "npm run smoke:install", "npm run tauri:build", "npm run smoke:desktop", "output/desktop-smoke/run-*/isolated-app-data")) {
   if (!$readme.Contains($token)) {
     throw "README.md verification snapshot must document '$token'."
   }
 }
 
 $releaseValidationScript = Get-Content -LiteralPath (Join-Path $repoRoot "scripts\release\run-release-validation.ps1") -Raw
-foreach ($token in @("check-release-metadata.ps1", "-StrictGitHubLinks", "cargo fmt --check", "cargo clippy -- -D warnings", "cargo test", "npm run smoke:browser", "npm run smoke:large", "npm run tauri:build", "npm run smoke:desktop")) {
+foreach ($token in @("check-release-metadata.ps1", "-StrictGitHubLinks", "cargo fmt --check", "cargo clippy -- -D warnings", "cargo test", "npm run smoke:browser", "npm run smoke:large", "npm run tauri:build", "npm run smoke:install", "npm run smoke:desktop")) {
   if (!$releaseValidationScript.Contains($token)) {
     throw "Release validation script must keep validation step '$token'."
   }
@@ -322,6 +379,8 @@ if ($StrictGitHubLinks) {
     "RELEASE_CHECKLIST.md",
     ".github\ISSUE_TEMPLATE\config.yml",
     "docs\RELEASE_NOTES_TEMPLATE.md",
+    "docs\RELEASE_NOTES_0.1.1.md",
+    "docs\CODE_SIGNING.md",
     "output\README.md"
   )
   foreach ($file in $filesToCheck) {

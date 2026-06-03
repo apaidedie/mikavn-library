@@ -3,6 +3,7 @@ param(
   [switch]$SkipBrowserSmoke,
   [switch]$SkipLargeSmoke,
   [switch]$SkipTauriBuild,
+  [switch]$SkipInstallSmoke,
   [switch]$SkipDesktopSmoke
 )
 
@@ -16,12 +17,12 @@ function Invoke-Step([string]$Name, [scriptblock]$Action) {
 
 Push-Location $repoRoot
 try {
-  $releaseCheckArgs = @("-ExecutionPolicy", "Bypass", "-File", (Join-Path $repoRoot "scripts\release\check-release-metadata.ps1"))
+  $releaseCheckArgs = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $repoRoot "scripts\release\check-release-metadata.ps1"))
   if ($StrictGitHubLinks) {
     $releaseCheckArgs += "-StrictGitHubLinks"
   }
 
-  Invoke-Step "Release metadata" { powershell @releaseCheckArgs }
+  Invoke-Step "Release metadata" { pwsh @releaseCheckArgs }
   Invoke-Step "Frontend build" { npm run build }
 
   Push-Location (Join-Path $repoRoot "src-tauri")
@@ -41,6 +42,9 @@ try {
   }
   if (!$SkipTauriBuild) {
     Invoke-Step "Tauri release build" { npm run tauri:build }
+  }
+  if (!$SkipInstallSmoke) {
+    Invoke-Step "Clean install smoke" { npm run smoke:install }
   }
   if (!$SkipDesktopSmoke) {
     Invoke-Step "Desktop smoke" { npm run smoke:desktop }

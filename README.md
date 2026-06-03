@@ -125,10 +125,12 @@ Latest mature V1 acceptance pass. For the repeatable release checklist, see `REL
 - `npm run release:check` verifies version alignment, release metadata, Tauri security hardening, browser/large smoke gates, and release desktop-smoke gating; `npm run release:check:strict` also verifies public GitHub release links. `npm run release:validate:strict` runs the local release validation chain end to end, and `npm run release:validate:core` reruns the strict non-smoke core checks.
 - `cargo fmt --check`, `cargo clippy -- -D warnings`, and `cargo test` under `src-tauri` pass with 87 Rust tests.
 - `npm run build` passes TypeScript and Vite production build checks.
-- `npm run smoke:browser` runs page-level Playwright QA plus core workflow smoke against a local Vite server.
-- `npm run smoke:large` seeds 1500 browser-preview records and verifies library rendering/filtering plus advanced-search timings; latest local run loaded the library in 1055ms and advanced search in 346ms.
+- `npm run smoke:browser` starts or reuses a local Vite server, then runs page-level Playwright QA plus core workflow smoke.
+- `npm run smoke:large` starts or reuses a local Vite server, seeds 1500 browser-preview records, and verifies library rendering/filtering plus advanced-search timings; latest local run loaded the library in 1055ms and advanced search in 346ms.
 - `npm run tauri:build` produces the Windows release executable and NSIS installer; latest local release/package run rebuilt both artifacts successfully.
+- `npm run smoke:install` silently installs the NSIS package into `output/clean-install-smoke/run-*/install`, launches the installed app with isolated app data, verifies first-run database/window creation, and silently uninstalls it.
 - `npm run smoke:desktop` verifies the release executable starts, exposes a main window handle, and creates `mikavn.db` only under the isolated `output/desktop-smoke/run-*/isolated-app-data` root; latest local desktop smoke passed against the rebuilt release executable.
+- `npm run release:signing:check` reports Windows Authenticode status; public installers should be signed with a trusted certificate as described in `docs/CODE_SIGNING.md`.
 
 ## Implemented Commands
 
