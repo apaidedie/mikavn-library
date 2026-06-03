@@ -33,7 +33,8 @@
             "$PICTURE/**",
             "$DOCUMENT/**",
             "$DOWNLOAD/**",
-            "$DESKTOP/**"
+            "$DESKTOP/**",
+            "E:\\MikaVN Library\\app-data\\images\\**"
           ],
           "deny": [
             "$APPDATA/**/mikavn.db",
