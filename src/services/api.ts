@@ -3,7 +3,7 @@ import type { AddGameInput, AssetCacheCleanupResult, AssetDownloadInput, AssetIm
 import type { AppDataDiagnostics, DatabaseBackupCleanupPolicy, DatabaseBackupCleanupReport, ImageReferenceAudit, ImageReferenceAuditOptions, LibraryArchiveExportOptions, LibraryArchiveImportOptions, LibraryArchivePreview, LibraryArchiveRestoreOptions, LogRecord, LogRetentionPolicy } from '@/types/archive';
 import type { LaunchProfile, LaunchProfileInput, LaunchProfileUpdate } from '@/types/launch';
 import type { AdvancedSearchInput, AdvancedSearchResult, AiConnectionTestResult, AiRecognitionResult, ApplyMetadataFields, ArtworkRepairDiagnosis, ArtworkRepairOptions, ArtworkRepairPreview, BatchMatchJob, BatchMatchStatus, DescriptionImageRepairOptions, DescriptionImageRepairPreview, DuplicateExternalIdAuditOptions, DuplicateExternalIdPreview, DuplicateGameMergeOptions, DuplicateGameMergePreview, DuplicateGameMergeResult, ExternalIdRecord, FieldLock, MatchSuggestion, MetadataProvider, MetadataSearchResponse, MetadataSourceRecord, NormalizedMetadata, SavedSearch, SavedSearchInput, SearchQueryValidation } from '@/types/metadata';
-import type { SaveBackup, SavePath, SavePathCandidate } from '@/types/saves';
+import type { SaveBackup, SavePath, SavePathCandidate, SaveRestoreMode, SaveRestorePreview } from '@/types/saves';
 import { normalizeAppError } from '@/types/error';
 import type { ScanTaskStatus, TaskDetail, TaskLogEntry, TaskRecord } from '@/types/task';
 import { mockStore } from './mockStore';
@@ -461,6 +461,10 @@ export const api = {
 
   restoreSaveBackupTask(backupId: string, mode: 'merge' | 'mirror' = 'merge') {
     return command<TaskRecord>('restore_save_backup_task', { backupId, options: { mode } }, () => mockStore.restoreSaveBackupTask(backupId, mode));
+  },
+
+  previewSaveRestore(backupId: string, mode: SaveRestoreMode = 'merge') {
+    return command<SaveRestorePreview>('preview_save_restore', { backupId, options: { mode } }, () => mockStore.previewSaveRestore(backupId, mode));
   },
 
   deleteSaveBackupRecord(id: string) {

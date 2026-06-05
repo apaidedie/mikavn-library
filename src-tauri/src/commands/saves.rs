@@ -4,6 +4,7 @@ use tauri::{AppHandle, State};
 use crate::db::models::{SaveBackup, SavePath, SavePathCandidate, TaskRecord};
 use crate::db::DbResult;
 use crate::services::saves as save_service;
+use crate::services::saves::SaveRestorePreview;
 use crate::AppState;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -92,6 +93,20 @@ pub fn restore_save_backup_task(
     let db = state.db()?;
     save_service::enqueue_save_restore_task(
         app,
+        &db,
+        backup_id,
+        save_service::restore_mode(options.and_then(|item| item.mode)),
+    )
+}
+
+#[tauri::command]
+pub fn preview_save_restore(
+    state: State<'_, AppState>,
+    backup_id: String,
+    options: Option<SaveRestoreOptions>,
+) -> DbResult<SaveRestorePreview> {
+    let db = state.db()?;
+    save_service::preview_save_restore(
         &db,
         backup_id,
         save_service::restore_mode(options.and_then(|item| item.mode)),

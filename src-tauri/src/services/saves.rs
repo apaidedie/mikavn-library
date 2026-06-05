@@ -1,9 +1,10 @@
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::thread;
 
 use chrono::Utc;
+use serde::{Deserialize, Serialize};
 use tauri::AppHandle;
 use uuid::Uuid;
 
@@ -66,6 +67,21 @@ pub fn restore_save_backup(
     let paths =
         AppPaths::from_app(app).map_err(|error| DbError::backup_failed(error.to_string()))?;
     restore_save_backup_with_paths(&paths, db, &backup, &save_path, "merge")
+}
+
+pub fn preview_save_restore(
+    db: &Database,
+    backup_id: String,
+    mode: String,
+) -> DbResult<SaveRestorePreview> {
+    validate_restore_mode(&mode)?;
+    let backup = db.get_save_backup(&backup_id)?;
+    let save_path = db.get_save_path(&backup.save_path_id)?;
+    preview_restore_files(
+        Path::new(&backup.backup_path),
+        Path::new(&save_path.path),
+        &mode,
+    )
 }
 
 fn restore_save_backup_with_paths(
@@ -667,6 +683,115 @@ pub struct RestoreFileReport {
     pub removed_files: i64,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct SaveRestorePreview {
+    pub mode: String,
+    pub backup_path: String,
+    pub save_path: String,
+    pub backup_file_count: i64,
+    pub current_file_count: i64,
+    pub new_files: i64,
+    pub overwritten_files: i64,
+    pub kept_files: i64,
+    pub removed_files: i64,
+    pub sample_new_files: Vec<String>,
+    pub sample_overwritten_files: Vec<String>,
+    pub sample_kept_files: Vec<String>,
+    pub sample_removed_files: Vec<String>,
+}
+
+pub fn preview_restore_files(
+    backup_path: &Path,
+    save_path: &Path,
+    mode: &str,
+) -> DbResult<SaveRestorePreview> {
+    validate_restore_mode(mode)?;
+    let backup_files = collect_relative_files(backup_path)?;
+    let current_files = collect_relative_files(save_path)?;
+    let backup_keys = backup_files.keys().cloned().collect::<HashSet<_>>();
+    let current_keys = current_files.keys().cloned().collect::<HashSet<_>>();
+
+    let new_files = backup_files
+        .iter()
+        .filter(|(key, _)| !current_keys.contains(*key))
+        .map(|(_, value)| value.clone())
+        .collect::<Vec<_>>();
+    let overwritten_files = backup_files
+        .iter()
+        .filter(|(key, _)| current_keys.contains(*key))
+        .map(|(_, value)| value.clone())
+        .collect::<Vec<_>>();
+    let current_only_files = current_files
+        .iter()
+        .filter(|(key, _)| !backup_keys.contains(*key))
+        .map(|(_, value)| value.clone())
+        .collect::<Vec<_>>();
+    let removed_files = if mode == "mirror" {
+        current_files.values().cloned().collect::<Vec<_>>()
+    } else {
+        Vec::new()
+    };
+
+    Ok(SaveRestorePreview {
+        mode: mode.to_string(),
+        backup_path: backup_path.to_string_lossy().to_string(),
+        save_path: save_path.to_string_lossy().to_string(),
+        backup_file_count: backup_files.len() as i64,
+        current_file_count: current_files.len() as i64,
+        new_files: new_files.len() as i64,
+        overwritten_files: overwritten_files.len() as i64,
+        kept_files: if mode == "merge" {
+            current_only_files.len() as i64
+        } else {
+            0
+        },
+        removed_files: removed_files.len() as i64,
+        sample_new_files: sample_paths(&new_files),
+        sample_overwritten_files: sample_paths(&overwritten_files),
+        sample_kept_files: if mode == "merge" {
+            sample_paths(&current_only_files)
+        } else {
+            Vec::new()
+        },
+        sample_removed_files: sample_paths(&removed_files),
+    })
+}
+
+fn collect_relative_files(root: &Path) -> DbResult<BTreeMap<String, String>> {
+    validate_existing_dir(root)?;
+    let mut files = BTreeMap::new();
+    collect_relative_files_inner(root, root, &mut files)?;
+    Ok(files)
+}
+
+fn collect_relative_files_inner(
+    root: &Path,
+    current: &Path,
+    files: &mut BTreeMap<String, String>,
+) -> DbResult<()> {
+    for entry in fs::read_dir(current)? {
+        let entry = entry?;
+        let path = entry.path();
+        let file_type = entry.file_type()?;
+        if file_type.is_dir() {
+            collect_relative_files_inner(root, &path, files)?;
+        } else if file_type.is_file() {
+            let relative = path
+                .strip_prefix(root)
+                .unwrap_or(&path)
+                .to_string_lossy()
+                .replace('\\', "/");
+            files.insert(relative.to_lowercase(), relative);
+        }
+    }
+    Ok(())
+}
+
+fn sample_paths(paths: &[String]) -> Vec<String> {
+    paths.iter().take(5).cloned().collect()
+}
+
 fn count_files_recursive(path: &Path) -> DbResult<i64> {
     validate_existing_dir(path)?;
     let mut count = 0;
@@ -870,6 +995,38 @@ mod tests {
         );
         assert!(!save.join("local-only.dat").exists());
         assert!(!save.join("old-nested").exists());
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn restore_preview_reports_differences_without_modifying_files() {
+        let root = std::env::temp_dir().join(format!("mikavn-save-preview-{}", Uuid::new_v4()));
+        let backup = root.join("backup");
+        let save = root.join("save");
+        fs::create_dir_all(backup.join("nested")).unwrap();
+        fs::create_dir_all(&save).unwrap();
+        fs::write(backup.join("slot1.dat"), "backup").unwrap();
+        fs::write(backup.join("nested").join("slot2.dat"), "backup nested").unwrap();
+        fs::write(save.join("slot1.dat"), "current").unwrap();
+        fs::write(save.join("local-only.dat"), "current only").unwrap();
+
+        let merge = preview_restore_files(&backup, &save, "merge").unwrap();
+        let mirror = preview_restore_files(&backup, &save, "mirror").unwrap();
+
+        assert_eq!(merge.backup_file_count, 2);
+        assert_eq!(merge.current_file_count, 2);
+        assert_eq!(merge.new_files, 1);
+        assert_eq!(merge.overwritten_files, 1);
+        assert_eq!(merge.kept_files, 1);
+        assert_eq!(merge.removed_files, 0);
+        assert_eq!(mirror.removed_files, 2);
+        assert_eq!(mirror.kept_files, 0);
+        assert_eq!(
+            fs::read_to_string(save.join("slot1.dat")).unwrap(),
+            "current"
+        );
+        assert!(save.join("local-only.dat").exists());
+
         let _ = fs::remove_dir_all(root);
     }
 

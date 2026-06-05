@@ -2,7 +2,7 @@ import type { AddGameInput, AssetCacheCleanupResult, AssetDownloadInput, AssetIm
 import type { AppDataDiagnostics, DatabaseBackupCleanupPolicy, DatabaseBackupCleanupReport, ImageReferenceAudit, ImageReferenceAuditOptions, ImageReferenceAuditItem, LibraryArchiveExportOptions, LibraryArchiveImportOptions, LibraryArchivePreview, LibraryArchiveRestoreOptions, LogRecord, LogRetentionPolicy } from '@/types/archive';
 import type { LaunchProfile, LaunchProfileInput, LaunchProfileUpdate } from '@/types/launch';
 import type { AdvancedSearchInput, AdvancedSearchResult, AiConnectionTestResult, AiRecognitionResult, ApplyMetadataFields, ArtworkRepairDiagnosis, ArtworkRepairOptions, ArtworkRepairPreview, BatchMatchJob, BatchMatchStatus, DescriptionImageRepairOptions, DescriptionImageRepairPreview, DuplicateExternalIdAuditOptions, DuplicateExternalIdGroup, DuplicateExternalIdPreview, DuplicateGameMergeExternalId, DuplicateGameMergeOptions, DuplicateGameMergePreview, DuplicateGameMergeResult, ExternalIdRecord, FieldLock, MatchSuggestion, MetadataProvider, MetadataSearchResponse, MetadataSearchResult, MetadataSourceRecord, NormalizedMetadata, SavedSearch, SavedSearchInput, SearchClause, SearchQueryValidation } from '@/types/metadata';
-import type { SaveBackup, SavePath, SavePathCandidate } from '@/types/saves';
+import type { SaveBackup, SavePath, SavePathCandidate, SaveRestoreMode, SaveRestorePreview } from '@/types/saves';
 import type { ScanTaskStatus, TaskDetail, TaskLogEntry, TaskRecord } from '@/types/task';
 import sampleHeroUrl from '@/assets/hero.png';
 
@@ -2261,6 +2261,26 @@ export const mockStore = {
     addTaskLog(task.id, 'info', `存档恢复保护备份：${protection.backupPath}`);
     addTaskLog(task.id, 'info', `存档恢复报告：模式 ${mode === 'mirror' ? '镜像' : '合并'}，复制 ${copiedFiles} 个文件，清理 ${removedFiles} 个文件。`);
     return task;
+  },
+
+  previewSaveRestore(backupId: string, mode: SaveRestoreMode = 'merge'): Promise<SaveRestorePreview> {
+    const backup = readJson<SaveBackup[]>(SAVE_BACKUPS_KEY, []).find((item) => item.id === backupId);
+    if (!backup) return Promise.reject(new Error('Save backup not found'));
+    return Promise.resolve({
+      mode,
+      backupPath: backup.backupPath,
+      savePath: backup.sourcePath,
+      backupFileCount: 3,
+      currentFileCount: 4,
+      newFiles: 1,
+      overwrittenFiles: 2,
+      keptFiles: mode === 'merge' ? 2 : 0,
+      removedFiles: mode === 'mirror' ? 4 : 0,
+      sampleNewFiles: ['new-slot.dat'],
+      sampleOverwrittenFiles: ['slot1.dat', 'nested/slot2.dat'],
+      sampleKeptFiles: mode === 'merge' ? ['local-only.dat', 'config/user.ini'] : [],
+      sampleRemovedFiles: mode === 'mirror' ? ['slot1.dat', 'local-only.dat', 'config/user.ini'] : [],
+    });
   },
 
   deleteSaveBackupRecord(id: string) {

@@ -222,6 +222,7 @@ Latest mature V1 acceptance pass. For the repeatable release checklist, see `REL
 - `list_save_backups(game_id)`
 - `restore_save_backup(backup_id)`
 - `restore_save_backup_task(backup_id, options)`
+- `preview_save_restore(backup_id, options)`
 - `delete_save_backup_record(id)`
 - `export_report_markdown(path, content)`
 - `export_report_markdown_task(path, content)`
@@ -291,7 +292,7 @@ The Advanced Search page starts with a simple search box and shortcut searches s
 
 ## Save Backups
 
-The Saves page lets you attach one or more save directories to each game. Manual backups are copied into `save-backups/{game_id}/` under the application data directory. Backup and restore can create task records so progress and failures are visible in the Tasks page. Normal restore first creates a protection backup of the current save directory, then copies the selected backup over matching files. Explicit mirror restore is available as a high-risk option: it also creates a protection backup first, then clears the registered save directory before copying the backup contents.
+The Saves page lets you attach one or more save directories to each game. Manual backups are copied into `save-backups/{game_id}/` under the application data directory. Backup and restore can create task records so progress and failures are visible in the Tasks page. Restore preview scans the selected backup and current save directory before execution, reporting new, overwritten, kept, and mirror-removed files with small path samples. Normal restore first creates a protection backup of the current save directory, then copies the selected backup over matching files. Explicit mirror restore is available as a high-risk option: it also creates a protection backup first, then clears the registered save directory before copying the backup contents.
 
 Settings can enable automatic save backups before launch and after game exit. Auto backups reuse the same copy-only backup path, create `save.auto_backup` task records, and log per-path failures without deleting or moving real game files.
 
@@ -331,7 +332,7 @@ Not included yet:
 - Plugin system
 - Complex privacy mode beyond local hide/blur/report filters
 - Bangumi / YMGal providers
-- Rich save diff/preview tooling before mirror restore
+- Rich per-file save diff viewers beyond the current restore preview summary
 - Normalized log indexing beyond file preview/pruning
 - A dedicated `domain/` crate/module split
 - Complete removal of the stable `Database` compatibility facade after callers no longer need the compatibility surface

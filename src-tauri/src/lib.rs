@@ -151,6 +151,7 @@ pub fn run() {
             commands::saves::list_save_backups,
             commands::saves::restore_save_backup,
             commands::saves::restore_save_backup_task,
+            commands::saves::preview_save_restore,
             commands::saves::delete_save_backup_record,
         ])
         .run(tauri::generate_context!())

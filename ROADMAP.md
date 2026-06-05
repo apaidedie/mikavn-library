@@ -109,6 +109,7 @@ Done:
 - Manual save backup, merge restore, and explicit mirror restore.
 - Restore protection backup.
 - Save backup and restore task records.
+- Save restore preview summarizes merge and mirror differences before execution, including copied, overwritten, kept, and mirror-removed file counts.
 - Optional auto backup before launch and after exit through local settings and `save.auto_backup` task logs.
 - Batch metadata updates.
 - Metadata field locks with explicit override.
@@ -116,7 +117,7 @@ Done:
 
 Remaining:
 
-- Broader save diff/preview tooling before explicit mirror restore.
+- Rich per-file save diff viewers beyond the current restore preview summary.
 
 ## Phase 4: Advanced Optional
 
