@@ -7,8 +7,9 @@ use crate::services::metadata::cleaning::is_dlsite_id;
 use crate::services::metadata::{make_result, metadata_from_result};
 
 use super::{
-    absolute_url, decode_html, extract_first_attr_by_selectors, extract_first_text_by_selectors,
-    extract_labeled_value, extract_meta_content, http_client, normalize_date, split_values,
+    absolute_url, decode_html, extract_first_attr_by_selectors,
+    extract_first_rich_text_by_selectors, extract_first_text_by_selectors, extract_labeled_value,
+    extract_meta_content, html_to_description_text, http_client, normalize_date, split_values,
     strip_tags,
 };
 
@@ -182,7 +183,7 @@ fn extract_title(text: &str) -> Option<String> {
 }
 
 fn extract_description(text: &str) -> Option<String> {
-    if let Some(value) = extract_first_text_by_selectors(
+    if let Some(value) = extract_first_rich_text_by_selectors(
         text,
         &[
             "#work_intro",
@@ -201,7 +202,7 @@ fn extract_description(text: &str) -> Option<String> {
         if let Some(cap) = re.captures(text) {
             let value = cap
                 .get(1)
-                .map(|m| strip_tags(m.as_str()))
+                .map(|m| html_to_description_text(m.as_str()))
                 .unwrap_or_default();
             if !value.is_empty() {
                 return Some(value);
@@ -273,7 +274,7 @@ mod tests {
               <meta property="og:image" content="//img.dlsite.jp/modpub/images2/work/doujin/RJ01000000_img_main.jpg">
             </head><body>
               <h1 id="work_name">星之终途</h1>
-              <div id="work_intro"><p>这是作品简介。<br>第二行。</p></div>
+              <div id="work_intro"><p>这是作品简介。<br>第二行。</p><img src="//img.dlsite.jp/modpub/images2/work/doujin/RJ01000000/RJ01000000_img_smp1.jpg" alt="介绍图"></div>
               <table>
                 <tr><th>販売日</th><td>2022年09月30日</td></tr>
                 <tr><th>サークル名</th><td><a>Key</a></td></tr>
@@ -289,7 +290,7 @@ mod tests {
         );
         assert_eq!(
             extract_description(html).as_deref(),
-            Some("这是作品简介。 第二行。")
+            Some("这是作品简介。\n第二行。\n\n![介绍图](https://img.dlsite.jp/modpub/images2/work/doujin/RJ01000000/RJ01000000_img_smp1.jpg)")
         );
         assert_eq!(
             extract_labeled_value(html, &["販売日"])

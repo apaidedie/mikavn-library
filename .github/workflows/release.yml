@@ -61,6 +61,9 @@ jobs:
       - name: Run clean install smoke
         run: npm run smoke:install
 
+      - name: Run portable app-data smoke
+        run: npm run smoke:portable-data
+
       - name: Run desktop smoke
         run: npm run smoke:desktop
 
@@ -78,6 +81,7 @@ jobs:
           name: desktop-smoke-report
           path: |
             output/clean-install-smoke/**
+            output/portable-app-data-smoke/**
             output/desktop-smoke/**
 
       - name: Create GitHub release

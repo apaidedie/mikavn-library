@@ -32,7 +32,13 @@ pub fn run() {
             services::backups::apply_pending_database_restore(&paths)?;
             let db = Database::new(app.handle())?;
             app.manage(AppState { db: Mutex::new(db) });
+            services::tray::setup_app_tray(app.handle())?;
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            if window.label() == "main" {
+                services::tray::hide_instead_of_close(event, window);
+            }
         })
         .invoke_handler(tauri::generate_handler![
             commands::games::add_game,
@@ -60,6 +66,8 @@ pub fn run() {
             commands::assets::delete_tag,
             commands::backups::backup_database,
             commands::backups::restore_database_backup,
+            commands::diagnostics::get_app_data_diagnostics,
+            commands::diagnostics::cleanup_old_database_backups,
             commands::collections::list_collections,
             commands::collections::create_collection,
             commands::collections::update_collection,

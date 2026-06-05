@@ -1,4 +1,4 @@
-# MikaVN Library 0.1.1 Release Notes
+﻿# MikaVN Library 0.1.1 Release Notes
 
 ## Highlights
 
@@ -29,6 +29,7 @@ This build passed:
 - `npm run smoke:large`
 - `npm run tauri:build`
 - `npm run smoke:install`
+- `npm run smoke:portable-data`
 - `npm run smoke:desktop`
 
 Code signing status can be checked with:

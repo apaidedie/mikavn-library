@@ -47,3 +47,69 @@ export type LogRetentionPolicy = {
   retainDays: number;
   maxFiles: number;
 };
+
+export type DirectoryStats = {
+  path: string;
+  exists: boolean;
+  fileCount: number;
+  totalBytes: number;
+};
+
+export type DatabaseBackupFile = {
+  path: string;
+  fileName: string;
+  sizeBytes: number;
+  modifiedAt?: string | null;
+};
+
+export type DatabaseBackupSummary = {
+  rootPath: string;
+  fileCount: number;
+  totalBytes: number;
+  files: DatabaseBackupFile[];
+};
+
+export type DatabaseHealth = {
+  path: string;
+  exists: boolean;
+  sizeBytes: number;
+  userVersion?: number | null;
+  quickCheck?: string | null;
+  quickCheckOk: boolean;
+  foreignKeyIssues: number;
+  gameCount: number;
+  assetCount: number;
+  imageRefsCount: number;
+  localImageRefsCount: number;
+  missingImageRefsCount: number;
+  cDriveImageRefsCount: number;
+  playniteImageRefsCount: number;
+};
+
+export type AppDataDiagnostics = {
+  appDataDir: string;
+  dataDirSource: string;
+  database: DatabaseHealth;
+  images: DirectoryStats;
+  cache: DirectoryStats;
+  logs: DirectoryStats;
+  saveBackups: DirectoryStats;
+  databaseBackups: DatabaseBackupSummary;
+  warnings: string[];
+};
+
+export type DatabaseBackupCleanupPolicy = {
+  retainCount?: number | null;
+  retainDays?: number | null;
+};
+
+export type DatabaseBackupCleanupReport = {
+  scannedFiles: number;
+  removedFiles: number;
+  keptFiles: number;
+  removedBytes: number;
+  keptBytes: number;
+  retainCount: number;
+  retainDays?: number | null;
+  removed: DatabaseBackupFile[];
+};

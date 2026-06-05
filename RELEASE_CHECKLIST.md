@@ -26,7 +26,7 @@ npm run build
 
 Expected baseline for the current mature V1 snapshot: Rust tests pass with the current repository test count, the frontend build completes TypeScript plus Vite production checks, and browser smoke covers backup/restore/archival task logs.
 
-`npm run release:validate:strict` runs these checks in sequence before the smoke and packaging steps, so release candidates can be validated from one command when a full pass is needed. `npm run release:validate:core` skips browser, large-library, Tauri build, clean-install, and desktop smoke when those slower checks were already verified separately.
+`npm run release:validate:strict` runs these checks in sequence before the smoke and packaging steps, so release candidates can be validated from one command when a full pass is needed. `npm run release:validate:core` skips browser, large-library, Tauri build, clean-install, portable app-data, and desktop smoke when those slower checks were already verified separately.
 
 ## 3. Browser Smoke
 
@@ -54,10 +54,11 @@ After a release build exists, run:
 
 ```powershell
 npm run smoke:install
+npm run smoke:portable-data
 npm run smoke:desktop
 ```
 
-`npm run smoke:install` silently installs the NSIS package into `output/clean-install-smoke/run-*/install`, launches the installed app with isolated app data, verifies first-run database/window creation, and silently uninstalls it.
+`npm run smoke:install` silently installs the NSIS package into `output/clean-install-smoke/run-*/install`, launches the installed app with isolated app data, verifies first-run database/window creation, and silently uninstalls it. `npm run smoke:portable-data` installs without `MIKAVN_APP_DATA_DIR`, verifies executable-adjacent `app-data/` plus `.mikavn-portable`, and fails if `%APPDATA%` receives `mikavn.db`.
 
 The smoke should start `src-tauri/target/release/mikavn-library.exe`, detect that the main window was exposed, and create or open `mikavn.db` only under `output/desktop-smoke/run-*/isolated-app-data`. The report records `mainWindowDetected`, `mainWindowHandle`, and `mainWindowTitle` when available. The script sets `MIKAVN_APP_DATA_DIR` for the launched process and must fail if the database appears outside that isolated root; desktop smoke must not read from or write to the real `%APPDATA%\dev.mikavn.library` profile.
 
@@ -72,6 +73,6 @@ The smoke should start `src-tauri/target/release/mikavn-library.exe`, detect tha
 
 - `npm run tauri:build` produces the NSIS installer under `src-tauri/target/release/bundle/nsis/`.
 - Before public sharing, follow `docs/CODE_SIGNING.md`: sign with a trusted certificate, then run `npm run release:signing:require`.
-- GitHub tag releases are handled by `.github/workflows/release.yml`; tag versions should use `vMAJOR.MINOR.PATCH`, such as `v0.1.0`. The release workflow runs `npm run smoke:install` and `npm run smoke:desktop` after `npm run tauri:build` and before uploading installer artifacts, then uploads the isolated clean-install and desktop smoke reports under `output/clean-install-smoke/` and `output/desktop-smoke/`.
+- GitHub tag releases are handled by `.github/workflows/release.yml`; tag versions should use `vMAJOR.MINOR.PATCH`, such as `v0.1.0`. The release workflow runs `npm run smoke:install`, `npm run smoke:portable-data`, and `npm run smoke:desktop` after `npm run tauri:build` and before uploading installer artifacts, then uploads the isolated clean-install, portable app-data, and desktop smoke reports under `output/clean-install-smoke/`, `output/portable-app-data-smoke/`, and `output/desktop-smoke/`.
 - Keep release notes focused on local-only data safety: real game directories are never moved, rewritten, or deleted by import/export/archive flows.
 - If the version changes, update every versioned file before rebuilding.

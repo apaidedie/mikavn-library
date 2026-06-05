@@ -34,6 +34,7 @@
             "$DOCUMENT/**",
             "$DOWNLOAD/**",
             "$DESKTOP/**",
+            "$EXE/../app-data/images/**",
             "E:\\MikaVN Library\\app-data\\images\\**"
           ],
           "deny": [

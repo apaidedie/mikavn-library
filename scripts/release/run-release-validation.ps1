@@ -4,6 +4,7 @@ param(
   [switch]$SkipLargeSmoke,
   [switch]$SkipTauriBuild,
   [switch]$SkipInstallSmoke,
+  [switch]$SkipPortableDataSmoke,
   [switch]$SkipDesktopSmoke
 )
 
@@ -45,6 +46,9 @@ try {
   }
   if (!$SkipInstallSmoke) {
     Invoke-Step "Clean install smoke" { npm run smoke:install }
+  }
+  if (!$SkipPortableDataSmoke) {
+    Invoke-Step "Portable app-data smoke" { npm run smoke:portable-data }
   }
   if (!$SkipDesktopSmoke) {
     Invoke-Step "Desktop smoke" { npm run smoke:desktop }

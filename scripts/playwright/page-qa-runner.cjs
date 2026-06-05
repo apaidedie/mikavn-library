@@ -32,9 +32,10 @@ fs.mkdirSync(outDir, { recursive: true });
 
 const now = new Date().toISOString();
 const hero = '/src/assets/hero.png';
+const richDescription = `末世旅途题材的短篇视觉小说。这里用于成熟 V1 页面 QA。\n\n![作品介绍图](${hero})\n\n图片下方的正文也应该继续显示。`;
 const games = [
   {
-    id: 'qa-1', title: '星之终途', originalTitle: '終のステラ', aliases: ['[汉化硬盘版] 星之终途 v1.02'], developer: 'Key', publisher: 'Visual Arts', brand: 'Key', releaseDate: '2022-09-30', description: '末世旅途题材的短篇视觉小说。这里用于成熟 V1 页面 QA。', notes: '攻略进度：已通关第一章。', tags: ['全年龄', '科幻', '短篇'], genres: ['Visual Novel'], rating: 88, ageRating: '全年龄', playStatus: 'playing', favorite: true, hidden: false, installPath: 'D:\\Games\\VN\\星之终途', executablePath: 'D:\\Games\\VN\\星之终途\\stella.exe', workingDirectory: 'D:\\Games\\VN\\星之终途', launchArgs: null, pathStatus: 'unknown', lastPathCheckedAt: null, coverImage: hero, bannerImage: hero, backgroundImage: hero, vndbId: 'v29443', bangumiId: null, dlsiteId: 'RJ01000000', fanzaId: null, ymgalId: null, totalPlaySeconds: 12600, lastPlayedAt: now, createdAt: now, updatedAt: now,
+    id: 'qa-1', title: '星之终途', originalTitle: '終のステラ', aliases: ['[汉化硬盘版] 星之终途 v1.02'], developer: 'Key', publisher: 'Visual Arts', brand: 'Key', releaseDate: '2022-09-30', description: richDescription, notes: '攻略进度：已通关第一章。', tags: ['全年龄', '科幻', '短篇'], genres: ['Visual Novel'], rating: 88, ageRating: '全年龄', playStatus: 'playing', favorite: true, hidden: false, installPath: 'D:\\Games\\VN\\星之终途', executablePath: 'D:\\Games\\VN\\星之终途\\stella.exe', workingDirectory: 'D:\\Games\\VN\\星之终途', launchArgs: null, pathStatus: 'unknown', lastPathCheckedAt: null, coverImage: hero, bannerImage: hero, backgroundImage: hero, vndbId: 'v29443', bangumiId: null, dlsiteId: 'RJ01000000', fanzaId: null, ymgalId: null, totalPlaySeconds: 12600, lastPlayedAt: now, createdAt: now, updatedAt: now,
   },
   {
     id: 'qa-2', title: '天使☆騒々 RE-BOOT!', originalTitle: null, aliases: ['天使騒々'], developer: 'Yuzusoft', publisher: null, brand: 'ゆずソフト', releaseDate: '2023-04-28', description: '路径异常样例，用于检查 warning 和修复入口。', notes: '', tags: ['恋爱', '校园'], genres: ['Visual Novel'], rating: 82, ageRating: 'R18', playStatus: 'planned', favorite: false, hidden: false, installPath: 'D:\\Games\\VN\\天使騒々', executablePath: 'D:\\Games\\VN\\天使騒々\\game.exe', workingDirectory: 'D:\\Games\\VN\\天使騒々', launchArgs: null, pathStatus: 'broken', lastPathCheckedAt: now, coverImage: null, bannerImage: null, backgroundImage: null, vndbId: null, bangumiId: null, dlsiteId: null, fanzaId: null, ymgalId: null, totalPlaySeconds: 0, lastPlayedAt: null, createdAt: now, updatedAt: now,
@@ -148,7 +149,11 @@ async function main() {
   try {
     const cases = [
       ['dashboard-populated', 'dashboard'],
-      ['library-populated-detail-artwork', 'library'],
+      ['library-populated-detail-artwork', 'library', {}, async (page) => {
+        await page.getByText('图片下方的正文也应该继续显示。').first().waitFor({ timeout: 5000 });
+        const descriptionImages = page.locator('section').filter({ hasText: '简介' }).locator('figure img');
+        if (await descriptionImages.count() < 1) throw new Error('library detail description image was not rendered');
+      }],
       ['library-empty', 'library', { games: [] }],
       ['collections-populated', 'collections'],
       ['metadata-batch', 'metadata'],
@@ -157,8 +162,8 @@ async function main() {
       ['settings-local-privacy-backup', 'settings'],
     ];
 
-    for (const [name, view, overrides] of cases) {
-      await runCase(browser, name, view, overrides || {});
+    for (const [name, view, overrides, interact] of cases) {
+      await runCase(browser, name, view, overrides || {}, interact);
     }
 
     await runCase(browser, 'advanced-search-results', 'advanced-search', {}, async (page) => {

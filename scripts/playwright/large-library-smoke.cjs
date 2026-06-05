@@ -154,7 +154,14 @@ async function main() {
         await page.getByText('大型库性能样本 1 终途').first().waitFor({ timeout: 5000 });
       });
       const visibleRows = await page.locator('.game-nav-row').count();
-      if (visibleRows < gameCount) throw new Error(`expected ${gameCount} list rows, got ${visibleRows}`);
+      if (visibleRows <= 0) throw new Error('expected initial list rows to render');
+      if (visibleRows >= gameCount) throw new Error(`expected batched list rows below ${gameCount}, got ${visibleRows}`);
+      const loadMoreButton = page.getByRole('button', { name: /加载更多/ }).first();
+      await loadMoreButton.waitFor({ timeout: 5000 });
+      await loadMoreButton.click();
+      await page.waitForFunction((previousCount) => document.querySelectorAll('.game-nav-row').length > previousCount, visibleRows, { timeout: 5000 });
+      const expandedRows = await page.locator('.game-nav-row').count();
+      if (expandedRows <= visibleRows) throw new Error(`expected load more to increase row count, got ${visibleRows} -> ${expandedRows}`);
       await page.locator('aside').getByRole('button', { name: /筛选/ }).click();
       await page.getByPlaceholder('标签').fill('性能目标');
       await page.getByText(/60 games/).first().waitFor({ timeout: 5000 });

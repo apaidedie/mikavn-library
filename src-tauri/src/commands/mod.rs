@@ -2,6 +2,7 @@ pub mod archives;
 pub mod assets;
 pub mod backups;
 pub mod collections;
+pub mod diagnostics;
 pub mod filesystem;
 pub mod games;
 pub mod launcher;

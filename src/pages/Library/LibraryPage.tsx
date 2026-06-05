@@ -30,6 +30,10 @@ const statuses: Array<PlayStatus | 'all'> = ['all', 'planned', 'playing', 'compl
 const defaultLibraryPanelWidth = 270;
 const minLibraryPanelWidth = 220;
 const maxLibraryPanelWidth = 400;
+const listInitialRenderCount = 500;
+const listRenderBatchSize = 500;
+const gridInitialRenderCount = 160;
+const gridRenderBatchSize = 160;
 
 function clampLibraryPanelWidth(value: number) {
   return Math.max(minLibraryPanelWidth, Math.min(maxLibraryPanelWidth, value));
@@ -308,11 +312,20 @@ export function LibraryPage({ refreshKey, selectedGameId, onSelectedGameChange, 
 }
 
 function GameList({ games, selectedId, onSelect, blurCovers }: { games: Game[]; selectedId: string | null; onSelect: (id: string) => void; blurCovers: boolean }) {
+  const [renderCount, setRenderCount] = useState(listInitialRenderCount);
+
+  useEffect(() => {
+    setRenderCount(listInitialRenderCount);
+  }, [games]);
+
   if (games.length === 0) {
     return <EmptyLibrary />;
   }
 
-  const groups = groupedGames(games);
+  const selectedIndex = selectedId ? games.findIndex((game) => game.id === selectedId) : -1;
+  const visibleCount = Math.min(games.length, Math.max(renderCount, selectedIndex + 1));
+  const groups = groupedGames(games.slice(0, visibleCount));
+  const hasMore = visibleCount < games.length;
 
   return (
     <div className="space-y-2.5 py-1">
@@ -344,6 +357,13 @@ function GameList({ games, selectedId, onSelect, blurCovers }: { games: Game[]; 
           </div>
         </div>
       ))}
+      {hasMore && (
+        <div className="px-2 pb-2 pt-1">
+          <Button className="h-8 w-full text-xs" size="sm" variant="outline" onClick={() => setRenderCount((count) => Math.min(games.length, count + listRenderBatchSize))}>
+            加载更多 {formatCount(visibleCount)} / {formatCount(games.length)}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -376,27 +396,51 @@ function groupedGames(games: Game[]) {
 }
 
 function GameGrid({ games, selectedId, onSelect, blurCovers }: { games: Game[]; selectedId: string | null; onSelect: (id: string) => void; blurCovers: boolean }) {
+  const [renderCount, setRenderCount] = useState(gridInitialRenderCount);
+
+  useEffect(() => {
+    setRenderCount(gridInitialRenderCount);
+  }, [games]);
+
   if (games.length === 0) {
     return <EmptyLibrary />;
   }
 
+  const selectedIndex = selectedId ? games.findIndex((game) => game.id === selectedId) : -1;
+  const visibleCount = Math.min(games.length, Math.max(renderCount, selectedIndex + 1));
+  const visibleGames = games.slice(0, visibleCount);
+  const hasMore = visibleCount < games.length;
+
   return (
-    <div className="grid grid-cols-2 gap-4 p-1">
-      {games.map((game) => (
-        <button className={cn('group text-left', selectedId === game.id && 'text-[rgb(var(--accent-rgb))]')} key={game.id} onClick={() => onSelect(game.id)} type="button">
-          <div className={cn('motion-poster overflow-hidden rounded-lg shadow-md group-hover:ring-2 group-hover:ring-[rgb(var(--accent-rgb))]', selectedId === game.id && 'ring-2 ring-[rgb(var(--accent-rgb))]')}>
-            <CoverImage alt={game.title} blur={blurCovers} className="aspect-[2/3]" src={game.coverImage} />
-          </div>
-          <div className="mt-2 truncate text-center text-xs text-slate-200">{game.title}</div>
-          {(game.pathStatus === 'broken' || game.pathStatus === 'incomplete') && <div className="mt-1 text-center text-[11px] text-amber-100">{game.pathStatus === 'broken' ? '路径异常' : '路径不完整'}</div>}
-        </button>
-      ))}
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-4 p-1">
+        {visibleGames.map((game) => (
+          <button className={cn('group text-left', selectedId === game.id && 'text-[rgb(var(--accent-rgb))]')} key={game.id} onClick={() => onSelect(game.id)} type="button">
+            <div className={cn('motion-poster overflow-hidden rounded-lg shadow-md group-hover:ring-2 group-hover:ring-[rgb(var(--accent-rgb))]', selectedId === game.id && 'ring-2 ring-[rgb(var(--accent-rgb))]')}>
+              <CoverImage alt={game.title} blur={blurCovers} className="aspect-[2/3]" src={game.coverImage} />
+            </div>
+            <div className="mt-2 truncate text-center text-xs text-slate-200">{game.title}</div>
+            {(game.pathStatus === 'broken' || game.pathStatus === 'incomplete') && <div className="mt-1 text-center text-[11px] text-amber-100">{game.pathStatus === 'broken' ? '路径异常' : '路径不完整'}</div>}
+          </button>
+        ))}
+      </div>
+      {hasMore && (
+        <div className="px-2 pb-3">
+          <Button className="h-8 w-full text-xs" size="sm" variant="outline" onClick={() => setRenderCount((count) => Math.min(games.length, count + gridRenderBatchSize))}>
+            加载更多 {formatCount(visibleCount)} / {formatCount(games.length)}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
 
 function EmptyLibrary() {
   return <EmptyState>还没有匹配的游戏。可以手动添加，或到扫描入库页面导入。</EmptyState>;
+}
+
+function formatCount(value: number) {
+  return new Intl.NumberFormat('zh-CN').format(value);
 }
 
 function changedMetadataFields(game: Game, input: Parameters<typeof api.addGame>[0]) {

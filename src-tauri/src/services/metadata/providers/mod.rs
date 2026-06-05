@@ -128,6 +128,129 @@ pub fn extract_first_text_by_selectors(text: &str, selectors: &[&str]) -> Option
     None
 }
 
+pub fn extract_first_rich_text_by_selectors(text: &str, selectors: &[&str]) -> Option<String> {
+    let document = Html::parse_document(text);
+    for selector in selectors {
+        let selector = Selector::parse(selector).ok()?;
+        for element in document.select(&selector) {
+            let value = html_to_description_text(&element.html());
+            if !value.is_empty() {
+                return Some(value);
+            }
+        }
+    }
+    None
+}
+
+pub fn html_to_description_text(value: &str) -> String {
+    let without_noise = Regex::new(
+        r"(?is)<\s*(?:script|style|noscript)\b[^>]*>.*?</\s*(?:script|style|noscript)\s*>",
+    )
+    .unwrap()
+    .replace_all(value, " ");
+    let with_images = Regex::new(r"(?is)<\s*img\b[^>]*>").unwrap().replace_all(
+        &without_noise,
+        |caps: &regex::Captures| {
+            let tag = caps.get(0).map(|m| m.as_str()).unwrap_or_default();
+            image_markdown_from_tag(tag)
+                .map(|markdown| format!("\n\n{markdown}\n\n"))
+                .unwrap_or_else(|| "\n\n".to_string())
+        },
+    );
+    let with_line_breaks = Regex::new(r"(?i)<\s*br\s*/?\s*>")
+        .unwrap()
+        .replace_all(&with_images, "\n");
+    let with_blocks = Regex::new(r"(?i)</\s*(?:p|div|section|article|header|footer|li|ul|ol|tr|td|th|dd|dt|h[1-6]|blockquote)\s*>")
+        .unwrap()
+        .replace_all(&with_line_breaks, "\n");
+    let stripped = Regex::new(r"<[^>]+>")
+        .unwrap()
+        .replace_all(&with_blocks, " ");
+    normalize_description_lines(&decode_html(&stripped))
+}
+
+fn image_markdown_from_tag(tag: &str) -> Option<String> {
+    let src = extract_html_attr(
+        tag,
+        &[
+            "src",
+            "data-src",
+            "data-original",
+            "data-lazy-src",
+            "data-srcset",
+        ],
+    )?;
+    let src = first_image_candidate(&src)?;
+    let alt = extract_html_attr(tag, &["alt", "title"])
+        .map(|value| sanitize_markdown_alt(&decode_html(&value)))
+        .unwrap_or_default();
+    Some(format!("![{alt}]({})", absolute_url(&decode_html(&src))))
+}
+
+fn extract_html_attr(tag: &str, names: &[&str]) -> Option<String> {
+    for name in names {
+        let pattern = format!(
+            r#"(?is)\b{}\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))"#,
+            regex::escape(name)
+        );
+        let re = Regex::new(&pattern).ok()?;
+        if let Some(cap) = re.captures(tag) {
+            let value = cap
+                .get(1)
+                .or_else(|| cap.get(2))
+                .or_else(|| cap.get(3))
+                .map(|m| m.as_str().trim().to_string())
+                .unwrap_or_default();
+            if !value.is_empty() {
+                return Some(value);
+            }
+        }
+    }
+    None
+}
+
+fn first_image_candidate(value: &str) -> Option<String> {
+    value
+        .split(',')
+        .filter_map(|candidate| candidate.split_whitespace().next())
+        .map(str::trim)
+        .find(|candidate| !candidate.is_empty())
+        .map(str::to_string)
+}
+
+fn sanitize_markdown_alt(value: &str) -> String {
+    value
+        .replace(['[', ']', '\r', '\n'], " ")
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn normalize_description_lines(value: &str) -> String {
+    let value = value.replace('\r', "\n");
+    let mut lines = Vec::new();
+    let mut previous_blank = true;
+
+    for raw in value.lines() {
+        let line = raw.split_whitespace().collect::<Vec<_>>().join(" ");
+        if line.is_empty() {
+            if !previous_blank && !lines.is_empty() {
+                lines.push(String::new());
+            }
+            previous_blank = true;
+            continue;
+        }
+        lines.push(line);
+        previous_blank = false;
+    }
+
+    while lines.last().is_some_and(|line| line.is_empty()) {
+        lines.pop();
+    }
+
+    lines.join("\n")
+}
+
 pub fn extract_first_attr_by_selectors(
     text: &str,
     selectors: &[&str],
@@ -259,6 +382,22 @@ mod tests {
         assert_eq!(
             split_values(&extract_labeled_value(html, &["ジャンル"]).unwrap()),
             vec!["ADV", "萌え"]
+        );
+    }
+
+    #[test]
+    fn converts_description_html_images_to_markdown() {
+        let html = r#"
+          <div class="summary">
+            <p>第一行。<br>第二行。</p>
+            <img data-src="//img.example.test/work/sample.webp" alt="紹介画像">
+            <p>第三行。</p>
+          </div>
+        "#;
+
+        assert_eq!(
+            html_to_description_text(html),
+            "第一行。\n第二行。\n\n![紹介画像](https://img.example.test/work/sample.webp)\n\n第三行。"
         );
     }
 }

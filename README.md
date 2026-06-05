@@ -24,7 +24,7 @@ The current implementation focuses on a complete local desktop workflow:
 - Native directory, image, and save-file dialogs through Tauri dialog plugin
 - Open/reveal local game, executable, save, and backup paths from detail and save-management pages
 - Path health badges in library views plus repair guidance and install-directory relocation from detail pages
-- Local cover-image cache in the application data `images/` directory
+- Portable-first app data resolution for installed user-writable builds, keeping SQLite, images, logs, save backups, and cache under the app-adjacent `app-data/` directory when available
 - Normalized asset/tag tables with compatibility sync from existing game fields
 - Asset gallery on game detail pages for cover, banner, background, screenshots, local import, remote download, primary selection, removal, and cache cleanup
 - Asset commands for importing local image files into app data, downloading remote image assets, and cleaning unreferenced image cache files
@@ -39,7 +39,7 @@ The current implementation focuses on a complete local desktop workflow:
 - Advanced local search with field clauses, negation, comparisons, validation chips, and saved searches
 - Tag rename, merge, and delete UI in Settings for normalized tag maintenance
 - Normalized metadata source and external ID registry while preserving legacy `games.*_id` fields for compatibility
-- Local diagnostic log preview/pruning and safe database restore scheduling with next-start protection backup
+- Local app-data diagnostics, diagnostic log preview/pruning, old database-backup cleanup, and safe database restore scheduling with next-start protection backup
 - Tauri commands for games, dashboard, scanning roots, importing scan candidates, and launching executables with play-session timing
 
 ## Tech Stack
@@ -123,12 +123,13 @@ Use `RELEASE_CHECKLIST.md` before tagging or publishing a GitHub release.
 Latest mature V1 acceptance pass. For the repeatable release checklist, see `RELEASE_CHECKLIST.md`.
 
 - `npm run release:check` verifies version alignment, release metadata, Tauri security hardening, browser/large smoke gates, and release desktop-smoke gating; `npm run release:check:strict` also verifies public GitHub release links. `npm run release:validate:strict` runs the local release validation chain end to end, and `npm run release:validate:core` reruns the strict non-smoke core checks.
-- `cargo fmt --check`, `cargo clippy -- -D warnings`, and `cargo test` under `src-tauri` pass with 87 Rust tests.
+- `cargo fmt --check`, `cargo clippy -- -D warnings`, and `cargo test` under `src-tauri` pass with 95 Rust tests.
 - `npm run build` passes TypeScript and Vite production build checks.
 - `npm run smoke:browser` starts or reuses a local Vite server, then runs page-level Playwright QA plus core workflow smoke.
 - `npm run smoke:large` starts or reuses a local Vite server, seeds 1500 browser-preview records, and verifies library rendering/filtering plus advanced-search timings; latest local run loaded the library in 1055ms and advanced search in 346ms.
 - `npm run tauri:build` produces the Windows release executable and NSIS installer; latest local release/package run rebuilt both artifacts successfully.
 - `npm run smoke:install` silently installs the NSIS package into `output/clean-install-smoke/run-*/install`, launches the installed app with isolated app data, verifies first-run database/window creation, and silently uninstalls it.
+- `npm run smoke:portable-data` silently installs the NSIS package without `MIKAVN_APP_DATA_DIR`, verifies first-run `mikavn.db` plus `.mikavn-portable` are created under executable-adjacent `app-data/`, and fails if a fallback `%APPDATA%` database appears.
 - `npm run smoke:desktop` verifies the release executable starts, exposes a main window handle, and creates `mikavn.db` only under the isolated `output/desktop-smoke/run-*/isolated-app-data` root; latest local desktop smoke passed against the rebuilt release executable.
 - `npm run release:signing:check` reports Windows Authenticode status; public installers should be signed with a trusted certificate as described in `docs/CODE_SIGNING.md`.
 
@@ -164,6 +165,8 @@ Latest mature V1 acceptance pass. For the repeatable release checklist, see `REL
 - `get_dashboard()`
 - `backup_database(path)`
 - `restore_database_backup(path)`
+- `get_app_data_diagnostics()`
+- `cleanup_old_database_backups(policy)`
 - `export_library_archive(options)`
 - `export_library_archive_zip(options)`
 - `preview_library_archive(path)`
@@ -304,7 +307,7 @@ The Reports page computes status distribution, tag/developer rankings, playtime 
 
 ## Tasks And Backups
 
-The Dashboard shows a recent-task summary so failed, running, or pending work is visible immediately. Each recent task has a log shortcut that opens the Tasks page, expands the matching task, and scrolls it into view. Settings, Saves, Reports, and game detail task notices also show a non-disruptive `查看日志` action for newly created tasks. The Tasks page listens for `task://updated` events in Tauri and keeps the older polling fallback for browser preview or missed events. Long-running or recoverable operations such as scanner runs, path checks, batch metadata matching, database backup, report export, save backup, save restore, and library archive flows write progress and logs. Failed or cancelled directory scans, database backups, path checks, save backups, and save restores can be retried from the Tasks page. Report export keeps logs but is not retryable so exported Markdown content is not retained in retry payloads. Settings includes a manual SQLite database backup action using SQLite `VACUUM INTO` for a consistent backup file, a safe restore scheduler that applies on next startup after a protection backup, and a diagnostic log preview/prune surface.
+The Dashboard shows a recent-task summary so failed, running, or pending work is visible immediately. Each recent task has a log shortcut that opens the Tasks page, expands the matching task, and scrolls it into view. Settings, Saves, Reports, and game detail task notices also show a non-disruptive `查看日志` action for newly created tasks. The Tasks page listens for `task://updated` events in Tauri and keeps the older polling fallback for browser preview or missed events. Long-running or recoverable operations such as scanner runs, path checks, batch metadata matching, database backup, report export, save backup, save restore, and library archive flows write progress and logs. Failed or cancelled directory scans, database backups, path checks, save backups, and save restores can be retried from the Tasks page. Report export keeps logs but is not retryable so exported Markdown content is not retained in retry payloads. Settings includes an app-data self-check for the active data directory, database health, image references, app-data file counts, and safe database-backup cleanup. It also includes a manual SQLite database backup action using SQLite `VACUUM INTO` for a consistent backup file, a safe restore scheduler that applies on next startup after a protection backup, and a diagnostic log preview/prune surface.
 
 ## Library Archives
 

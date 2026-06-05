@@ -1,5 +1,5 @@
 import type { AddGameInput, AssetCacheCleanupResult, AssetDownloadInput, AssetImportInput, AssetInput, CollectionGameLink, CollectionInput, DashboardData, Game, GameAsset, GameCollection, GameFilter, GamePathHealth, ImportCandidate, ImportScanReport, ImportScanReportItem, LibraryRoot, PathCheckItem, PlaySession, PlayStatus, ScanCandidate, ScanConflict, TagRecord, UpdateGameInput } from '@/types/game';
-import type { LibraryArchiveExportOptions, LibraryArchiveImportOptions, LibraryArchivePreview, LogRecord, LogRetentionPolicy } from '@/types/archive';
+import type { AppDataDiagnostics, DatabaseBackupCleanupPolicy, DatabaseBackupCleanupReport, LibraryArchiveExportOptions, LibraryArchiveImportOptions, LibraryArchivePreview, LogRecord, LogRetentionPolicy } from '@/types/archive';
 import type { LaunchProfile, LaunchProfileInput, LaunchProfileUpdate } from '@/types/launch';
 import type { AdvancedSearchInput, AdvancedSearchResult, AiConnectionTestResult, AiRecognitionResult, ApplyMetadataFields, BatchMatchJob, BatchMatchStatus, ExternalIdRecord, FieldLock, MatchSuggestion, MetadataProvider, MetadataSearchResponse, MetadataSearchResult, MetadataSourceRecord, NormalizedMetadata, SavedSearch, SavedSearchInput, SearchClause, SearchQueryValidation } from '@/types/metadata';
 import type { SaveBackup, SavePath, SavePathCandidate } from '@/types/saves';
@@ -1011,6 +1011,61 @@ export const mockStore = {
     addTaskLog(task.id, 'info', `数据库恢复来源：${source}（131072 bytes）`);
     addTaskLog(task.id, 'info', `数据库恢复待应用：${pending}（131072 bytes）`);
     return Promise.resolve(task);
+  },
+
+  getAppDataDiagnostics(): Promise<AppDataDiagnostics> {
+    const games = readGames().map(ensureGameDefaults);
+    const assets = readAssets();
+    const imageRefs = games.flatMap((game) => [game.coverImage, game.bannerImage, game.backgroundImage]).filter(Boolean).length + assets.length;
+    return Promise.resolve({
+      appDataDir: 'E:\\MikaVN Library\\app-data',
+      dataDirSource: 'mock',
+      database: {
+        path: 'E:\\MikaVN Library\\app-data\\mikavn.db',
+        exists: true,
+        sizeBytes: 12 * 1024 * 1024,
+        userVersion: 13,
+        quickCheck: 'ok',
+        quickCheckOk: true,
+        foreignKeyIssues: 0,
+        gameCount: games.length,
+        assetCount: assets.length,
+        imageRefsCount: imageRefs,
+        localImageRefsCount: imageRefs,
+        missingImageRefsCount: 0,
+        cDriveImageRefsCount: 0,
+        playniteImageRefsCount: 0,
+      },
+      images: { path: 'E:\\MikaVN Library\\app-data\\images', exists: true, fileCount: Math.max(assets.length, 1), totalBytes: Math.max(assets.length, 1) * 96 * 1024 },
+      cache: { path: 'E:\\MikaVN Library\\app-data\\cache', exists: true, fileCount: 0, totalBytes: 0 },
+      logs: { path: 'E:\\MikaVN Library\\app-data\\logs', exists: true, fileCount: readTasks().length, totalBytes: readTasks().length * 512 },
+      saveBackups: { path: 'E:\\MikaVN Library\\app-data\\save-backups', exists: true, fileCount: readJson<SaveBackup[]>(SAVE_BACKUPS_KEY, []).length, totalBytes: readJson<SaveBackup[]>(SAVE_BACKUPS_KEY, []).length * 2048 },
+      databaseBackups: {
+        rootPath: 'E:\\MikaVN Library\\app-data',
+        fileCount: 2,
+        totalBytes: 24 * 1024 * 1024,
+        files: [
+          { fileName: 'mikavn.before-playnite-import-20260603-120000.db', path: 'E:\\MikaVN Library\\app-data\\mikavn.before-playnite-import-20260603-120000.db', sizeBytes: 12 * 1024 * 1024, modifiedAt: new Date().toISOString() },
+          { fileName: 'before-restore-20260603-130000.db', path: 'E:\\MikaVN Library\\app-data\\database-restore-protection\\before-restore-20260603-130000.db', sizeBytes: 12 * 1024 * 1024, modifiedAt: new Date(Date.now() - 86400000).toISOString() },
+        ],
+      },
+      warnings: [],
+    });
+  },
+
+  cleanupOldDatabaseBackups(policy: DatabaseBackupCleanupPolicy = {}): Promise<DatabaseBackupCleanupReport> {
+    const retainCount = policy.retainCount ?? 10;
+    const retainDays = policy.retainDays ?? 30;
+    return Promise.resolve({
+      scannedFiles: 2,
+      removedFiles: 0,
+      keptFiles: 2,
+      removedBytes: 0,
+      keptBytes: 24 * 1024 * 1024,
+      retainCount,
+      retainDays,
+      removed: [],
+    });
   },
 
   listDiagnosticLogs(limit = 30): Promise<LogRecord[]> {

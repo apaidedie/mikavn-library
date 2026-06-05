@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { AddGameInput, AssetCacheCleanupResult, AssetDownloadInput, AssetImportInput, AssetInput, CollectionGameLink, CollectionInput, DashboardData, Game, GameAsset, GameCollection, GameFilter, GamePathHealth, ImportCandidate, ImportScanReport, LibraryRoot, PlaySession, ScanCandidate, TagRecord, UpdateGameInput } from '@/types/game';
-import type { LibraryArchiveExportOptions, LibraryArchiveImportOptions, LibraryArchivePreview, LogRecord, LogRetentionPolicy } from '@/types/archive';
+import type { AppDataDiagnostics, DatabaseBackupCleanupPolicy, DatabaseBackupCleanupReport, LibraryArchiveExportOptions, LibraryArchiveImportOptions, LibraryArchivePreview, LogRecord, LogRetentionPolicy } from '@/types/archive';
 import type { LaunchProfile, LaunchProfileInput, LaunchProfileUpdate } from '@/types/launch';
 import type { AdvancedSearchInput, AdvancedSearchResult, AiConnectionTestResult, AiRecognitionResult, ApplyMetadataFields, BatchMatchJob, BatchMatchStatus, ExternalIdRecord, FieldLock, MatchSuggestion, MetadataProvider, MetadataSearchResponse, MetadataSourceRecord, NormalizedMetadata, SavedSearch, SavedSearchInput, SearchQueryValidation } from '@/types/metadata';
 import type { SaveBackup, SavePath, SavePathCandidate } from '@/types/saves';
@@ -153,6 +153,14 @@ export const api = {
 
   restoreDatabaseBackup(path: string) {
     return command<TaskRecord>('restore_database_backup', { path }, () => mockStore.restoreDatabaseBackup(path));
+  },
+
+  getAppDataDiagnostics() {
+    return command<AppDataDiagnostics>('get_app_data_diagnostics', undefined, () => mockStore.getAppDataDiagnostics());
+  },
+
+  cleanupOldDatabaseBackups(policy: DatabaseBackupCleanupPolicy = {}) {
+    return command<DatabaseBackupCleanupReport>('cleanup_old_database_backups', { policy }, () => mockStore.cleanupOldDatabaseBackups(policy));
   },
 
   listDiagnosticLogs(limit = 30) {

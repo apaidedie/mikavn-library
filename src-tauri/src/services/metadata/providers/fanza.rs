@@ -7,8 +7,9 @@ use crate::services::metadata::cleaning::is_fanza_id;
 use crate::services::metadata::{make_result, metadata_from_result};
 
 use super::{
-    absolute_url, decode_html, extract_first_attr_by_selectors, extract_first_text_by_selectors,
-    extract_labeled_value, extract_meta_content, http_client, normalize_date, split_values,
+    absolute_url, decode_html, extract_first_attr_by_selectors,
+    extract_first_rich_text_by_selectors, extract_first_text_by_selectors, extract_labeled_value,
+    extract_meta_content, html_to_description_text, http_client, normalize_date, split_values,
     strip_tags,
 };
 
@@ -149,7 +150,7 @@ fn extract_title(text: &str) -> Option<String> {
 }
 
 fn extract_description(text: &str) -> Option<String> {
-    if let Some(value) = extract_first_text_by_selectors(
+    if let Some(value) = extract_first_rich_text_by_selectors(
         text,
         &[
             "section.summary",
@@ -171,7 +172,7 @@ fn extract_description(text: &str) -> Option<String> {
         if let Some(cap) = re.captures(text) {
             let value = cap
                 .get(1)
-                .map(|m| strip_tags(m.as_str()))
+                .map(|m| html_to_description_text(m.as_str()))
                 .unwrap_or_default();
             if value.chars().count() > 12 {
                 return Some(value);
@@ -243,7 +244,7 @@ mod tests {
               <meta property="og:image" content="https://pics.dmm.co.jp/digital/pcgame/abc_1234/abc_1234pl.jpg">
             </head><body>
               <h1 class="productTitle__txt">PCゲーム 星之终途 - FANZA</h1>
-              <section class="summary">これはFANZAの作品紹介テキストです。十分な長さがあります。</section>
+              <section class="summary">これはFANZAの作品紹介テキストです。十分な長さがあります。<img src="https://pics.dmm.co.jp/digital/pcgame/abc_1234/abc_1234jp-001.jpg" alt="紹介画像"></section>
               <table>
                 <tr><th>配信開始日</th><td>2022/09/30</td></tr>
                 <tr><th>ブランド</th><td><a>Key</a></td></tr>
@@ -264,7 +265,7 @@ mod tests {
         );
         assert_eq!(
             extract_description(html).as_deref(),
-            Some("これはFANZAの作品紹介テキストです。十分な長さがあります。")
+            Some("これはFANZAの作品紹介テキストです。十分な長さがあります。\n\n![紹介画像](https://pics.dmm.co.jp/digital/pcgame/abc_1234/abc_1234jp-001.jpg)")
         );
         assert_eq!(
             extract_labeled_value(html, &["配信開始日"])

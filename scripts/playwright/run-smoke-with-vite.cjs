@@ -68,8 +68,9 @@ function startVite() {
   const outDir = path.join(repoRoot, 'output', 'dev-server');
   fs.mkdirSync(outDir, { recursive: true });
 
-  const stdoutPath = path.join(outDir, 'smoke-vite.out.log');
-  const stderrPath = path.join(outDir, 'smoke-vite.err.log');
+  const logId = `${mode}-${process.pid}-${Date.now()}`;
+  const stdoutPath = path.join(outDir, `smoke-vite-${logId}.out.log`);
+  const stderrPath = path.join(outDir, `smoke-vite-${logId}.err.log`);
   const stdout = fs.openSync(stdoutPath, 'w');
   const stderr = fs.openSync(stderrPath, 'w');
   const host = target.hostname || '127.0.0.1';

@@ -4,13 +4,21 @@ SQLite is the source of truth for core data. Browser mock mode may use localStor
 
 ## App Data Directory
 
-Current app data layout:
+Current app data layout is resolved in this order:
+
+1. `MIKAVN_APP_DATA_DIR` when set to an absolute path, used by smoke tests and explicit overrides.
+2. `app-data/` next to the executable when `mikavn.db`, `.mikavn-portable`, or an installer-created user-writable install directory is detected. This is the expected installed layout for `E:\MikaVN Library\app-data`.
+3. The Tauri default app data directory as a fallback.
+
+Portable/current layout:
 
 ```text
-%APPDATA%/MikaVN Library/
+<install-dir>/app-data/
+  .mikavn-portable
   mikavn.db
   images/
   cache/
+  logs/
   save-backups/
   archive-import-protection/
   pending-restore/
@@ -34,7 +42,7 @@ Target layout from the brief:
   themes/
 ```
 
-Migration note: keep compatibility with existing `mikavn.db`. Do not rename the database without a migration and backup story.
+Migration note: keep compatibility with existing `mikavn.db`. When switching to portable app-data, the app copies missing default app-data files into the portable directory and leaves the source in place as a safety copy. Do not rename the database without a migration and backup story.
 
 ## Current Tables
 

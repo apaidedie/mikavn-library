@@ -71,7 +71,7 @@ Good current decisions:
 
 - Commands are grouped by feature.
 - Metadata and image logic already live under `services`.
-- `infrastructure::paths::AppPaths` now centralizes the app data root and common subdirectories for database, cache, images, logs, save backups, and import-protection backups.
+- `infrastructure::paths::AppPaths` now centralizes the app data root and common subdirectories for database, cache, images, logs, save backups, and import-protection backups. It resolves `MIKAVN_APP_DATA_DIR` first, then executable-adjacent portable `app-data/`, writes `.mikavn-portable`, and copy-migrates missing default app-data files into portable storage without deleting the source.
 - `infrastructure::logger` provides local daily diagnostic logs plus privacy-safety primitives for redacting API-like tokens and Windows user profile names in selected task messages and log lines.
 - SQLite is used from the start.
 - Versioned migrations use `PRAGMA user_version`.

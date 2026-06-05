@@ -1,4 +1,4 @@
-import { Database, Download, FileText, Folder, FolderSearch, Palette, RotateCcw, Save, Search, Tags, Trash2 } from 'lucide-react';
+import { Database, Download, FileText, Folder, FolderSearch, Palette, RefreshCw, RotateCcw, Save, Search, Tags, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ConfigItem, ConfigSection } from '@/components/ui/config-item';
@@ -10,7 +10,7 @@ import { TaskNotice } from '@/components/ui/task-notice';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { api } from '@/services/api';
 import { chooseArchiveDirectory, chooseArchivePath, chooseDatabaseBackupPath, chooseDatabaseRestorePath, chooseDirectory } from '@/services/dialog';
-import type { LibraryArchivePreview, LogRecord } from '@/types/archive';
+import type { AppDataDiagnostics, LibraryArchivePreview, LogRecord } from '@/types/archive';
 import type { LibraryRoot, TagRecord } from '@/types/game';
 import type { MetadataSourceRecord } from '@/types/metadata';
 import { errorMessage } from '@/utils/errorMessage';
@@ -46,6 +46,9 @@ export function SettingsPage({ onAccentPreview, onThemePreview, onSaved, onOpenT
   const [includeImages, setIncludeImages] = useState(true);
   const [includeSaveBackups, setIncludeSaveBackups] = useState(false);
   const [metadataSources, setMetadataSources] = useState<MetadataSourceRecord[]>([]);
+  const [diagnostics, setDiagnostics] = useState<AppDataDiagnostics | null>(null);
+  const [diagnosticsLoading, setDiagnosticsLoading] = useState(false);
+  const [cleanupLoading, setCleanupLoading] = useState(false);
   const [libraryRoots, setLibraryRoots] = useState<LibraryRoot[]>([]);
   const [logs, setLogs] = useState<LogRecord[]>([]);
   const [tags, setTags] = useState<TagRecord[]>([]);
@@ -80,6 +83,7 @@ export function SettingsPage({ onAccentPreview, onThemePreview, onSaved, onOpenT
 
   useEffect(() => {
     api.listMetadataSources().then(setMetadataSources).catch(() => undefined);
+    void loadDiagnostics();
     void loadLibraryRoots();
     void loadLogs();
     void loadTags();
@@ -176,8 +180,52 @@ export function SettingsPage({ onAccentPreview, onThemePreview, onSaved, onOpenT
             </ConfigSection>
 
             <ConfigSection title="本地数据">
+              <ConfigItem title="数据目录自检" description="读取当前应用数据目录、数据库完整性、图片引用和备份文件状态。">
+                <div className="flex flex-wrap justify-end gap-2">
+                  <Button disabled={diagnosticsLoading} variant="outline" onClick={loadDiagnostics}><RefreshCw className="h-4 w-4" />{diagnosticsLoading ? '检查中' : '刷新自检'}</Button>
+                  <Button disabled={cleanupLoading || !diagnostics?.databaseBackups.fileCount} variant="ghost" onClick={cleanupDatabaseBackups}><Trash2 className="h-4 w-4" />{cleanupLoading ? '清理中' : '清理旧备份'}</Button>
+                </div>
+              </ConfigItem>
+              {diagnostics ? (
+                <>
+                  <ConfigItem title="当前数据目录" description={`来源：${dataDirSourceLabel(diagnostics.dataDirSource)} · mikavn.db`}>
+                    <div className="max-w-[42rem] break-all text-right font-mono text-xs text-slate-300">{diagnostics.appDataDir}</div>
+                  </ConfigItem>
+                  <ConfigItem title="数据库健康" description={diagnostics.database.path}>
+                    <div className="grid w-[min(42rem,calc(100vw-3rem))] gap-2 text-left text-xs sm:grid-cols-2 lg:grid-cols-3">
+                      <Stat label="quick_check" value={diagnostics.database.quickCheck ?? 'unknown'} tone={diagnostics.database.quickCheckOk ? 'ok' : 'warn'} />
+                      <Stat label="游戏" value={formatCount(diagnostics.database.gameCount)} />
+                      <Stat label="图片资产" value={formatCount(diagnostics.database.assetCount)} />
+                      <Stat label="数据库大小" value={formatBytes(diagnostics.database.sizeBytes)} />
+                      <Stat label="外键问题" value={formatCount(diagnostics.database.foreignKeyIssues)} tone={diagnostics.database.foreignKeyIssues > 0 ? 'warn' : 'ok'} />
+                      <Stat label="图片引用缺失" value={formatCount(diagnostics.database.missingImageRefsCount)} tone={diagnostics.database.missingImageRefsCount > 0 ? 'warn' : 'ok'} />
+                    </div>
+                  </ConfigItem>
+                  <ConfigItem title="图片与备份" description="统计 app-data 下 images、save-backups 和安全数据库备份。">
+                    <div className="grid w-[min(42rem,calc(100vw-3rem))] gap-2 text-left text-xs sm:grid-cols-2 lg:grid-cols-3">
+                      <Stat label="图片文件" value={`${formatCount(diagnostics.images.fileCount)} · ${formatBytes(diagnostics.images.totalBytes)}`} />
+                      <Stat label="旧数据库备份" value={`${formatCount(diagnostics.databaseBackups.fileCount)} · ${formatBytes(diagnostics.databaseBackups.totalBytes)}`} />
+                      <Stat label="存档备份文件" value={`${formatCount(diagnostics.saveBackups.fileCount)} · ${formatBytes(diagnostics.saveBackups.totalBytes)}`} />
+                      <Stat label="C 盘图片引用" value={formatCount(diagnostics.database.cDriveImageRefsCount)} tone={diagnostics.database.cDriveImageRefsCount > 0 ? 'warn' : 'ok'} />
+                      <Stat label="Playnite 图片引用" value={formatCount(diagnostics.database.playniteImageRefsCount)} tone={diagnostics.database.playniteImageRefsCount > 0 ? 'warn' : 'ok'} />
+                      <Stat label="日志文件" value={`${formatCount(diagnostics.logs.fileCount)} · ${formatBytes(diagnostics.logs.totalBytes)}`} />
+                    </div>
+                  </ConfigItem>
+                  {diagnostics.warnings.length > 0 && (
+                    <ConfigItem title="自检警告" description="这些项目不会自动修改，刷新或修复后会消失。">
+                      <div className="max-w-[42rem] space-y-1 text-right text-xs text-amber-200">
+                        {diagnostics.warnings.map((warning) => <div key={warning}>{warning}</div>)}
+                      </div>
+                    </ConfigItem>
+                  )}
+                </>
+              ) : (
+                <ConfigItem title="当前数据目录" description="点击刷新自检后显示真实 app-data 路径、数据库和图片状态。">
+                  <Folder className="h-4 w-4 text-slate-500" />
+                </ConfigItem>
+              )}
               <ConfigItem title="数据库位置" description="应用数据目录 / mikavn.db">
-                <Folder className="h-4 w-4 text-slate-500" />
+                <div className="max-w-[42rem] break-all text-right font-mono text-xs text-slate-400">{diagnostics?.database.path ?? '等待自检刷新'}</div>
               </ConfigItem>
               <ConfigItem title="手动备份数据库" description="生成 SQLite 一致性备份，备份文件可由你选择保存位置。">
                 <Button variant="secondary" onClick={backupDatabase}><Download className="h-4 w-4" />备份</Button>
@@ -328,6 +376,35 @@ export function SettingsPage({ onAccentPreview, onThemePreview, onSaved, onOpenT
 
   function updateForm(update: Partial<SettingsForm>) {
     setForm((current) => ({ ...current, ...update }));
+  }
+
+  async function loadDiagnostics() {
+    setDiagnosticsLoading(true);
+    setError(null);
+    try {
+      setDiagnostics(await api.getAppDataDiagnostics());
+    } catch (reason) {
+      setError(errorMessage(reason));
+    } finally {
+      setDiagnosticsLoading(false);
+    }
+  }
+
+  async function cleanupDatabaseBackups() {
+    setError(null);
+    setMessage(null);
+    const ok = window.confirm('按安全规则清理旧数据库备份？会保留最近 10 个和 30 天内备份，不会删除当前 mikavn.db。');
+    if (!ok) return;
+    setCleanupLoading(true);
+    try {
+      const report = await api.cleanupOldDatabaseBackups({ retainCount: 10, retainDays: 30 });
+      setMessage({ text: report.removedFiles > 0 ? `已清理 ${report.removedFiles} 个旧数据库备份，释放 ${formatBytes(report.removedBytes)}。` : '没有需要清理的旧数据库备份。' });
+      await loadDiagnostics();
+    } catch (reason) {
+      setError(errorMessage(reason));
+    } finally {
+      setCleanupLoading(false);
+    }
   }
 
   async function backupDatabase() {
@@ -620,4 +697,37 @@ export function SettingsPage({ onAccentPreview, onThemePreview, onSaved, onOpenT
 
 function tagLabel(tag: TagRecord) {
   return `${tag.kind === 'genre' ? '类型' : '标签'} · ${tag.name} (${tag.gameCount})`;
+}
+
+function Stat({ label, value, tone = 'neutral' }: { label: string; value: string; tone?: 'neutral' | 'ok' | 'warn' }) {
+  const toneClass = tone === 'ok' ? 'text-emerald-200' : tone === 'warn' ? 'text-amber-200' : 'text-slate-200';
+  return (
+    <div className="rounded-md border border-white/10 bg-black/[0.12] px-3 py-2">
+      <div className="text-[11px] text-slate-500">{label}</div>
+      <div className={`mt-1 truncate font-mono ${toneClass}`} title={value}>{value}</div>
+    </div>
+  );
+}
+
+function formatCount(value: number) {
+  return new Intl.NumberFormat('zh-CN').format(value);
+}
+
+function formatBytes(value: number) {
+  if (!Number.isFinite(value) || value <= 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let size = value;
+  let unit = 0;
+  while (size >= 1024 && unit < units.length - 1) {
+    size /= 1024;
+    unit += 1;
+  }
+  return `${unit === 0 ? Math.round(size) : size.toFixed(size >= 10 ? 1 : 2)} ${units[unit]}`;
+}
+
+function dataDirSourceLabel(value: string) {
+  if (value === 'env') return 'MIKAVN_APP_DATA_DIR';
+  if (value === 'portable') return '应用旁 app-data';
+  if (value === 'mock') return '浏览器预览';
+  return '应用默认目录';
 }
