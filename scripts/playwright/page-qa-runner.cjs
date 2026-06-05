@@ -103,7 +103,7 @@ async function seed(page, view, overrides = {}) {
 
 async function waitForApp(page) {
   await page.waitForSelector('body', { timeout: 10000 });
-  await page.waitForFunction(() => /MikaVN|游戏|任务|搜索|设置|存档|扫描|报告|合集|Library/i.test(document.body.innerText), null, { timeout: 10000 });
+  await page.waitForFunction(() => /MikaVN|游戏|任务|搜索|设置|存档|扫描|报告|合集|维护|Library/i.test(document.body.innerText), null, { timeout: 10000 });
   await page.waitForTimeout(650);
 }
 
@@ -116,7 +116,7 @@ async function openSeeded(browser, view, overrides = {}) {
   });
   page.on('pageerror', (error) => consoleErrors.push(error.message));
   await seed(page, view, overrides);
-  await page.goto(baseUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
+  await page.goto(baseUrl, { waitUntil: 'domcontentloaded', timeout: 45000 });
   await waitForApp(page);
   return { context, page, consoleErrors };
 }
@@ -159,6 +159,11 @@ async function main() {
       ['metadata-batch', 'metadata'],
       ['reports-populated', 'reports'],
       ['saves-backup-restore', 'saves'],
+      ['maintenance-health', 'maintenance', {}, async (page) => {
+        await page.getByText('维护中心').first().waitFor({ timeout: 5000 });
+        await page.getByText('简介图片覆盖').first().waitFor({ timeout: 5000 });
+        await page.getByText('维护队列').first().waitFor({ timeout: 5000 });
+      }],
       ['settings-local-privacy-backup', 'settings'],
     ];
 

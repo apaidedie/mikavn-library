@@ -69,6 +69,50 @@ export type DatabaseBackupSummary = {
   files: DatabaseBackupFile[];
 };
 
+export type MetadataCoverageHealth = {
+  completeGameCount: number;
+  needsMetadataCount: number;
+  missingCoverCount: number;
+  missingBannerCount: number;
+  missingBackgroundCount: number;
+  missingDescriptionCount: number;
+  missingExternalIdCount: number;
+  providerLinkedGameCount: number;
+  vndbGameCount: number;
+  dlsiteGameCount: number;
+  fanzaGameCount: number;
+};
+
+export type DescriptionImageHealth = {
+  providerGamesCount: number;
+  providerGamesWithImagesCount: number;
+  providerGamesWithoutImagesCount: number;
+  providerGamesEmptyDescriptionCount: number;
+  allGamesWithImagesCount: number;
+  imageRefsCount: number;
+  localImageRefsCount: number;
+  missingLocalImageRefsCount: number;
+};
+
+export type ExternalIdHealth = {
+  totalExternalIdCount: number;
+  vndbIdCount: number;
+  dlsiteIdCount: number;
+  fanzaIdCount: number;
+  duplicateExternalIdGroupsCount: number;
+  duplicateExternalIdGamesCount: number;
+  duplicateVndbIdGroupsCount: number;
+  duplicateDlsiteIdGroupsCount: number;
+  duplicateFanzaIdGroupsCount: number;
+};
+
+export type PathStatusHealth = {
+  okCount: number;
+  brokenCount: number;
+  incompleteCount: number;
+  uncheckedCount: number;
+};
+
 export type DatabaseHealth = {
   path: string;
   exists: boolean;
@@ -84,6 +128,10 @@ export type DatabaseHealth = {
   missingImageRefsCount: number;
   cDriveImageRefsCount: number;
   playniteImageRefsCount: number;
+  metadataCoverage: MetadataCoverageHealth;
+  descriptionImages: DescriptionImageHealth;
+  externalIds: ExternalIdHealth;
+  pathStatus: PathStatusHealth;
 };
 
 export type AppDataDiagnostics = {

@@ -1,4 +1,4 @@
-import { Archive, ArrowLeft, ArrowRight, BarChart3, Cloud, DatabaseZap, FolderSearch, Grid2X2, Home, Layers3, LibraryBig, ListTodo, Moon, Plus, RefreshCw, Search, SearchCheck, Settings, SlidersHorizontal, Sun } from 'lucide-react';
+import { Archive, ArrowLeft, ArrowRight, BarChart3, Cloud, DatabaseZap, FolderSearch, Grid2X2, Home, Layers3, LibraryBig, ListTodo, Moon, Plus, RefreshCw, Search, SearchCheck, Settings, SlidersHorizontal, Sun, Wrench } from 'lucide-react';
 import type { CSSProperties, ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DashboardPage } from '@/pages/Dashboard/DashboardPage';
@@ -8,6 +8,7 @@ import { SavesPage } from '@/pages/Saves/SavesPage';
 import { ScannerPage } from '@/pages/Scanner/ScannerPage';
 import { SettingsPage } from '@/pages/Settings/SettingsPage';
 import { BatchMetadataPage } from '@/pages/Metadata/BatchMetadataPage';
+import { MaintenancePage } from '@/pages/Maintenance/MaintenancePage';
 import { TasksPage } from '@/pages/Tasks/TasksPage';
 import { CollectionsPage } from '@/pages/Collections/CollectionsPage';
 import { AdvancedSearchPage } from '@/pages/Search/AdvancedSearchPage';
@@ -15,7 +16,7 @@ import { Button } from '@/components/ui/button';
 import { api } from '@/services/api';
 import { cn } from '@/utils/cn';
 
-type View = 'dashboard' | 'library' | 'collections' | 'advanced-search' | 'scanner' | 'metadata' | 'tasks' | 'reports' | 'saves' | 'settings';
+type View = 'dashboard' | 'library' | 'collections' | 'advanced-search' | 'scanner' | 'metadata' | 'tasks' | 'reports' | 'saves' | 'maintenance' | 'settings';
 type ThemeMode = 'dark' | 'light' | 'system';
 
 const navItems = [
@@ -28,6 +29,7 @@ const navItems = [
   { id: 'tasks', label: '任务', icon: ListTodo },
   { id: 'reports', label: '报告', icon: BarChart3 },
   { id: 'saves', label: '存档', icon: Archive },
+  { id: 'maintenance', label: '维护', icon: Wrench },
   { id: 'settings', label: '设置', icon: Settings },
 ] satisfies Array<{ id: View; label: string; icon: typeof Home }>;
 
@@ -277,6 +279,7 @@ export function App() {
           {view === 'tasks' && <TasksPage focusTaskId={taskFocusRequest.id} focusRequestKey={taskFocusRequest.key} refreshKey={refreshKey} />}
           {view === 'reports' && <ReportsPage refreshKey={refreshKey} onOpenTask={openTasks} />}
           {view === 'saves' && <SavesPage refreshKey={refreshKey} onOpenTask={openTasks} />}
+          {view === 'maintenance' && <MaintenancePage refreshKey={refreshKey} onOpenTasks={openTasks} />}
           {view === 'settings' && <SettingsPage onAccentPreview={previewAccent} onThemePreview={previewTheme} onSaved={refresh} onOpenTask={openTasks} />}
         </div>
       </main>

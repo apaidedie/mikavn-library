@@ -379,6 +379,10 @@ function externalIdCount(game: Game) {
   return [game.vndbId, game.bangumiId, game.dlsiteId, game.fanzaId, game.ymgalId].filter((value) => value?.trim()).length;
 }
 
+function hasMockDescriptionImage(value?: string | null) {
+  return Boolean(value?.match(/!\[[^\]]*\]\([^)]+\)|<img\b|\[img\]|https?:\/\/\S+\.(?:png|jpe?g|webp|gif)/i));
+}
+
 function metadataStatusMatches(game: Game, status?: string) {
   if (!status || status === 'all') return true;
   const hasDeveloper = Boolean(game.developer?.trim() || game.brand?.trim());
@@ -1017,6 +1021,9 @@ export const mockStore = {
     const games = readGames().map(ensureGameDefaults);
     const assets = readAssets();
     const imageRefs = games.flatMap((game) => [game.coverImage, game.bannerImage, game.backgroundImage]).filter(Boolean).length + assets.length;
+    const externalIdLinkedCount = games.filter((game) => externalIdCount(game) > 0).length;
+    const descriptionImageGames = games.filter((game) => hasMockDescriptionImage(game.description)).length;
+    const providerGames = games.filter((game) => game.dlsiteId || game.fanzaId);
     return Promise.resolve({
       appDataDir: 'E:\\MikaVN Library\\app-data',
       dataDirSource: 'mock',
@@ -1035,6 +1042,46 @@ export const mockStore = {
         missingImageRefsCount: 0,
         cDriveImageRefsCount: 0,
         playniteImageRefsCount: 0,
+        metadataCoverage: {
+          completeGameCount: games.filter((game) => game.description && game.releaseDate && (game.developer || game.brand) && game.coverImage && externalIdCount(game) > 0).length,
+          needsMetadataCount: games.filter((game) => !(game.description && game.releaseDate && (game.developer || game.brand) && game.coverImage && externalIdCount(game) > 0)).length,
+          missingCoverCount: games.filter((game) => !game.coverImage).length,
+          missingBannerCount: games.filter((game) => !game.bannerImage).length,
+          missingBackgroundCount: games.filter((game) => !game.backgroundImage).length,
+          missingDescriptionCount: games.filter((game) => !game.description?.trim()).length,
+          missingExternalIdCount: games.length - externalIdLinkedCount,
+          providerLinkedGameCount: externalIdLinkedCount,
+          vndbGameCount: games.filter((game) => game.vndbId).length,
+          dlsiteGameCount: games.filter((game) => game.dlsiteId).length,
+          fanzaGameCount: games.filter((game) => game.fanzaId).length,
+        },
+        descriptionImages: {
+          providerGamesCount: providerGames.length,
+          providerGamesWithImagesCount: providerGames.filter((game) => hasMockDescriptionImage(game.description)).length,
+          providerGamesWithoutImagesCount: providerGames.filter((game) => game.description?.trim() && !hasMockDescriptionImage(game.description)).length,
+          providerGamesEmptyDescriptionCount: providerGames.filter((game) => !game.description?.trim()).length,
+          allGamesWithImagesCount: descriptionImageGames,
+          imageRefsCount: descriptionImageGames,
+          localImageRefsCount: 0,
+          missingLocalImageRefsCount: 0,
+        },
+        externalIds: {
+          totalExternalIdCount: games.reduce((count, game) => count + externalIdCount(game), 0),
+          vndbIdCount: games.filter((game) => game.vndbId).length,
+          dlsiteIdCount: games.filter((game) => game.dlsiteId).length,
+          fanzaIdCount: games.filter((game) => game.fanzaId).length,
+          duplicateExternalIdGroupsCount: 0,
+          duplicateExternalIdGamesCount: 0,
+          duplicateVndbIdGroupsCount: 0,
+          duplicateDlsiteIdGroupsCount: 0,
+          duplicateFanzaIdGroupsCount: 0,
+        },
+        pathStatus: {
+          okCount: games.filter((game) => game.pathStatus === 'ok').length,
+          brokenCount: games.filter((game) => game.pathStatus === 'broken').length,
+          incompleteCount: games.filter((game) => game.pathStatus === 'incomplete').length,
+          uncheckedCount: games.filter((game) => !game.pathStatus || game.pathStatus === 'unknown').length,
+        },
       },
       images: { path: 'E:\\MikaVN Library\\app-data\\images', exists: true, fileCount: Math.max(assets.length, 1), totalBytes: Math.max(assets.length, 1) * 96 * 1024 },
       cache: { path: 'E:\\MikaVN Library\\app-data\\cache', exists: true, fileCount: 0, totalBytes: 0 },
