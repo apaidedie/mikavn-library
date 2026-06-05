@@ -1,4 +1,5 @@
-import { AlertTriangle, CheckCircle2, Database, FolderOpen, HardDrive, Image, ListChecks, RefreshCw, ShieldCheck, Trash2, Wrench } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Database, FolderOpen, HardDrive, Image, ListChecks, PlayCircle, RefreshCw, ShieldCheck, Trash2, Wrench } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -15,6 +16,7 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
   const [diagnostics, setDiagnostics] = useState<AppDataDiagnostics | null>(null);
   const [loading, setLoading] = useState(false);
   const [cleanupLoading, setCleanupLoading] = useState(false);
+  const [metadataRepairLoading, setMetadataRepairLoading] = useState(false);
   const [message, setMessage] = useState<TaskMessage | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -166,9 +168,14 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
               status="待接入处理器"
             />
             <MaintenanceAction
-              detail={`${formatCount((metadata?.needsMetadataCount ?? 0) + (pathStatus?.brokenCount ?? 0))} 个条目待整理`}
-              label="批量修复"
-              status="待接入批处理"
+              action={(
+                <Button disabled={metadataRepairLoading || (metadata?.needsMetadataCount ?? 0) === 0} size="sm" variant="secondary" onClick={startMetadataRepair}>
+                  <PlayCircle className="h-4 w-4" />{metadataRepairLoading ? '创建中' : '开始'}
+                </Button>
+              )}
+              detail={`${formatCount(metadata?.needsMetadataCount ?? 0)} 个条目可批量匹配元数据`}
+              label="批量元数据匹配"
+              status="可创建任务"
             />
           </PanelContent>
         </Panel>
@@ -201,6 +208,30 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
       setError(errorMessage(reason));
     } finally {
       setCleanupLoading(false);
+    }
+  }
+
+  async function startMetadataRepair() {
+    setMetadataRepairLoading(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const candidates = await api.listGames({ metadataStatus: 'needs_metadata', sortBy: 'updated_at', sortDirection: 'desc' });
+      const gameIds = candidates.map((game) => game.id);
+      if (gameIds.length === 0) {
+        setMessage({ text: '没有需要批量匹配元数据的条目。' });
+        await loadDiagnostics();
+        return;
+      }
+      const job = await api.batchMatchMetadata(gameIds);
+      const text = `已创建批量元数据匹配任务：${formatCount(gameIds.length)} 个条目。`;
+      setMessage({ text, taskId: job.taskId ?? null });
+      if (job.taskId) onOpenTasks?.(job.taskId);
+      await loadDiagnostics();
+    } catch (reason) {
+      setError(errorMessage(reason));
+    } finally {
+      setMetadataRepairLoading(false);
     }
   }
 
@@ -262,14 +293,17 @@ function CompactStat({ label, value, tone = 'neutral' }: { label: string; value:
   );
 }
 
-function MaintenanceAction({ label, detail, status }: { label: string; detail: string; status: string }) {
+function MaintenanceAction({ action, label, detail, status }: { action?: ReactNode; label: string; detail: string; status: string }) {
   return (
     <SoftRow className="flex items-center justify-between gap-3 px-3 py-3">
       <div className="min-w-0">
         <div className="text-sm font-medium text-slate-100">{label}</div>
         <div className="mt-1 text-xs text-slate-500">{detail}</div>
       </div>
-      <Badge>{status}</Badge>
+      <div className="flex shrink-0 items-center gap-2">
+        <Badge>{status}</Badge>
+        {action}
+      </div>
     </SoftRow>
   );
 }

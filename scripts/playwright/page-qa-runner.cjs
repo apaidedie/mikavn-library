@@ -163,6 +163,9 @@ async function main() {
         await page.getByText('维护中心').first().waitFor({ timeout: 5000 });
         await page.getByText('简介图片覆盖').first().waitFor({ timeout: 5000 });
         await page.getByText('维护队列').first().waitFor({ timeout: 5000 });
+        await page.getByText('批量元数据匹配').first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: /开始/ }).click();
+        await page.getByText(/批量元数据匹配|正在批量匹配/).first().waitFor({ timeout: 5000 });
       }],
       ['settings-local-privacy-backup', 'settings'],
     ];
