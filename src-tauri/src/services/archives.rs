@@ -37,6 +37,14 @@ pub struct LibraryArchiveImportOptions {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct LibraryArchiveRestoreOptions {
+    pub archive_dir: String,
+    pub restore_images: Option<bool>,
+    pub restore_save_backups: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct LibraryArchiveManifest {
     pub app: String,
     pub archive_version: i64,
@@ -58,6 +66,15 @@ pub struct LibraryArchivePreview {
     pub images_count: i64,
     pub save_backups_count: i64,
     pub warnings: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+struct ArchiveRestoreSummary {
+    pending_database_path: PathBuf,
+    pending_database_bytes: u64,
+    images_restored: i64,
+    save_backups_restored: i64,
+    protection_dir: PathBuf,
 }
 
 pub(crate) fn enqueue_library_archive_export_task(
@@ -543,6 +560,212 @@ pub(crate) fn enqueue_library_archive_import_task(
     Ok(task)
 }
 
+pub(crate) fn enqueue_library_archive_restore_task(
+    app: AppHandle,
+    db: &Database,
+    options: LibraryArchiveRestoreOptions,
+) -> DbResult<TaskRecord> {
+    let source = archive_existing_source(&options.archive_dir)?;
+    let preview = preview_archive_source(&source)?;
+    if !preview.database_present {
+        return Err(DbError::validation("archive database is missing"));
+    }
+    let restore_images = options
+        .restore_images
+        .unwrap_or(preview.manifest.include_images);
+    let restore_save_backups = options.restore_save_backups.unwrap_or(false);
+    let payload = serde_json::to_string(&LibraryArchiveRestoreOptions {
+        archive_dir: preview.archive_dir.clone(),
+        restore_images: Some(restore_images),
+        restore_save_backups: Some(restore_save_backups),
+    })?;
+    let task = tasks::create_task_with_payload(
+        &app,
+        db,
+        "library.archive_restore",
+        Some("正在安排库归档完整恢复".to_string()),
+        Some(payload),
+        true,
+    )?;
+    let task_id = task.id.clone();
+    let app_handle = app.clone();
+
+    thread::spawn(move || {
+        let Ok(paths) = AppPaths::from_app(&app_handle) else {
+            return;
+        };
+        let Ok(db) = Database::new_from_path(paths.database()) else {
+            return;
+        };
+
+        let mut cleanup_dir_for_result = None;
+        let mut pending_staging_for_result = None;
+        let result = (|| -> DbResult<ArchiveRestoreSummary> {
+            tasks::update_task(
+                &app_handle,
+                &db,
+                &task_id,
+                "running",
+                0.08,
+                Some("正在读取库归档".to_string()),
+                None,
+            )?;
+            let (archive_dir, cleanup_dir) = materialize_archive_source(&source, &paths)?;
+            cleanup_dir_for_result = cleanup_dir;
+            let preview = preview_archive_dir(&archive_dir)?;
+            let archive_database = archive_dir.join(&preview.manifest.database_file);
+            validate_archive_restore_database(&archive_database)?;
+
+            tasks::update_task(
+                &app_handle,
+                &db,
+                &task_id,
+                "running",
+                0.24,
+                Some("正在验证恢复数据库".to_string()),
+                None,
+            )?;
+            fs::create_dir_all(paths.database_restore_pending())?;
+            let pending_staging_path = paths
+                .database_restore_pending()
+                .join(format!("mikavn-restore-{}.tmp", Uuid::new_v4()));
+            pending_staging_for_result = Some(pending_staging_path.clone());
+            let pending_staging_bytes = fs::copy(&archive_database, &pending_staging_path)?;
+            validate_archive_restore_database(&pending_staging_path)?;
+
+            let protection_dir = paths.archive_restore_protection().join(format!(
+                "before-archive-restore-{}",
+                Utc::now().format("%Y%m%d-%H%M%S")
+            ));
+            fs::create_dir_all(&protection_dir)?;
+            let mut images_restored = 0;
+            let mut save_backups_restored = 0;
+
+            if restore_images {
+                tasks::update_task(
+                    &app_handle,
+                    &db,
+                    &task_id,
+                    "running",
+                    0.48,
+                    Some("正在镜像恢复图片缓存".to_string()),
+                    None,
+                )?;
+                images_restored = restore_cache_directory(
+                    &archive_dir.join("images"),
+                    &paths.images(),
+                    &protection_dir.join("images"),
+                )?;
+            }
+
+            if restore_save_backups {
+                tasks::update_task(
+                    &app_handle,
+                    &db,
+                    &task_id,
+                    "running",
+                    0.7,
+                    Some("正在镜像恢复存档备份缓存".to_string()),
+                    None,
+                )?;
+                save_backups_restored = restore_cache_directory(
+                    &archive_dir.join("save-backups"),
+                    &paths.save_backups(),
+                    &protection_dir.join("save-backups"),
+                )?;
+            }
+
+            tasks::update_task(
+                &app_handle,
+                &db,
+                &task_id,
+                "running",
+                0.88,
+                Some("正在安排下次启动替换数据库".to_string()),
+                None,
+            )?;
+            let pending_database_path = paths.database_restore_pending().join("mikavn.db");
+            let pending_database_bytes = replace_pending_restore_database(
+                &pending_staging_path,
+                &pending_database_path,
+                pending_staging_bytes,
+            )?;
+
+            let _ = db.append_task_log(
+                &task_id,
+                "warn",
+                "完整恢复已安排：数据库将在下次启动前替换，当前数据库会先创建保护备份。",
+            );
+            let _ = db.append_task_log(
+                &task_id,
+                "info",
+                &format!(
+                    "归档恢复保护目录：{}",
+                    logger::display_path(&protection_dir)
+                ),
+            );
+            Ok(ArchiveRestoreSummary {
+                pending_database_path,
+                pending_database_bytes,
+                images_restored,
+                save_backups_restored,
+                protection_dir,
+            })
+        })();
+
+        if let Some(cleanup_dir) = cleanup_dir_for_result {
+            let _ = fs::remove_dir_all(cleanup_dir);
+        }
+        if let Some(pending_staging) = pending_staging_for_result {
+            let _ = fs::remove_file(pending_staging);
+        }
+
+        match result {
+            Ok(summary) => {
+                logger::log_warn(
+                    &paths,
+                    "library.archive_restore",
+                    format!(
+                        "archive restore scheduled: pending {}, images {}, save backups {}, protection {}",
+                        logger::display_path(&summary.pending_database_path),
+                        summary.images_restored,
+                        summary.save_backups_restored,
+                        logger::display_path(&summary.protection_dir)
+                    ),
+                );
+                let _ = tasks::update_task(
+                    &app_handle,
+                    &db,
+                    &task_id,
+                    "completed",
+                    1.0,
+                    Some(format!(
+                        "完整恢复已安排：下次启动替换数据库（{} bytes），图片 {} 个，存档备份 {} 个。",
+                        summary.pending_database_bytes,
+                        summary.images_restored,
+                        summary.save_backups_restored
+                    )),
+                    None,
+                );
+            }
+            Err(error) => {
+                logger::log_error(&paths, "library.archive_restore", error.to_string());
+                let _ = tasks::update_task(
+                    &app_handle,
+                    &db,
+                    &task_id,
+                    "failed",
+                    1.0,
+                    Some("库归档完整恢复失败".to_string()),
+                    Some(error.to_string()),
+                );
+            }
+        }
+    });
+
+    Ok(task)
+}
+
 struct ImportSummary {
     imported: i64,
     skipped: i64,
@@ -903,6 +1126,125 @@ fn copy_dir_recursive(source: &Path, target: &Path) -> DbResult<i64> {
     Ok(count)
 }
 
+fn restore_cache_directory(source: &Path, target: &Path, protection: &Path) -> DbResult<i64> {
+    if !source.exists() {
+        return Ok(0);
+    }
+    if !source.is_dir() {
+        return Err(DbError::path_not_found(
+            "archive cache source must be a directory",
+        ));
+    }
+    if target.exists() {
+        copy_dir_recursive(target, protection)?;
+        clear_dir_contents(target)?;
+    }
+    fs::create_dir_all(target)?;
+    copy_dir_recursive(source, target)
+}
+
+fn replace_pending_restore_database(
+    staging: &Path,
+    pending: &Path,
+    staging_bytes: u64,
+) -> DbResult<u64> {
+    if !staging.is_file() {
+        return Err(DbError::path_not_found(
+            "staged archive restore database is missing",
+        ));
+    }
+    if let Some(parent) = pending.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    if pending.exists() && !pending.is_file() {
+        return Err(DbError::path_not_found(
+            "pending restore path must be a file",
+        ));
+    }
+
+    let existing_backup =
+        pending.with_file_name(format!("mikavn-restore-existing-{}.bak", Uuid::new_v4()));
+    let had_existing = pending.exists();
+    if had_existing {
+        fs::rename(pending, &existing_backup)?;
+    }
+
+    let replacement = (|| -> DbResult<u64> {
+        let pending_bytes = fs::copy(staging, pending)?;
+        if pending_bytes != staging_bytes {
+            return Err(DbError::backup_failed(
+                "pending archive restore database size does not match staging file",
+            ));
+        }
+        validate_archive_restore_database(pending)?;
+        Ok(pending_bytes)
+    })();
+
+    match replacement {
+        Ok(pending_bytes) => {
+            if had_existing {
+                let _ = fs::remove_file(existing_backup);
+            }
+            Ok(pending_bytes)
+        }
+        Err(error) => {
+            let _ = fs::remove_file(pending);
+            if had_existing {
+                let _ = fs::rename(existing_backup, pending);
+            }
+            Err(error)
+        }
+    }
+}
+
+fn clear_dir_contents(target: &Path) -> DbResult<i64> {
+    if !target.exists() {
+        fs::create_dir_all(target)?;
+        return Ok(0);
+    }
+    if !target.is_dir() {
+        return Err(DbError::path_not_found(
+            "target cache path must be a directory",
+        ));
+    }
+
+    let mut removed = 0;
+    for entry in fs::read_dir(target)? {
+        let entry = entry?;
+        let path = entry.path();
+        let file_type = entry.file_type()?;
+        if file_type.is_dir() {
+            removed += count_files(&path)?;
+            fs::remove_dir_all(&path)?;
+        } else if file_type.is_file() {
+            fs::remove_file(&path)?;
+            removed += 1;
+        }
+    }
+    Ok(removed)
+}
+
+fn validate_archive_restore_database(path: &Path) -> DbResult<()> {
+    let conn = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+    let check: String = conn.query_row("PRAGMA quick_check", [], |row| row.get(0))?;
+    if check != "ok" {
+        return Err(DbError::backup_failed(format!(
+            "archive database failed quick_check: {check}"
+        )));
+    }
+    let has_games_table: bool = conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'games')",
+        [],
+        |row| row.get::<_, i64>(0),
+    )? != 0;
+    if !has_games_table {
+        return Err(DbError::backup_failed(
+            "archive database does not look like a MikaVN database",
+        ));
+    }
+    Ok(())
+}
+
 fn count_files(path: &Path) -> DbResult<i64> {
     if !path.exists() {
         return Ok(0);
@@ -1025,6 +1367,12 @@ mod tests {
         Database::new_from_path(path).unwrap()
     }
 
+    fn database_marker(path: &Path) -> String {
+        let conn = Connection::open(path).unwrap();
+        conn.query_row("SELECT value FROM marker LIMIT 1", [], |row| row.get(0))
+            .unwrap()
+    }
+
     fn game(id: &str, title: &str, install_path: &str) -> Game {
         Game {
             id: id.to_string(),
@@ -1127,6 +1475,104 @@ mod tests {
         assert_eq!(preview.save_backups_count, 1);
         assert!(target.join("manifest.json").is_file());
         assert!(target.join("images").join("cover.png").is_file());
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn validate_archive_restore_database_rejects_non_mikavn_database() {
+        let root = std::env::temp_dir().join(format!(
+            "mikavn-archive-restore-validate-test-{}",
+            Uuid::new_v4()
+        ));
+        fs::create_dir_all(&root).unwrap();
+        let database = root.join("foreign.db");
+        let conn = Connection::open(&database).unwrap();
+        conn.execute("CREATE TABLE other_app(id TEXT PRIMARY KEY)", [])
+            .unwrap();
+        drop(conn);
+
+        let error = validate_archive_restore_database(&database).unwrap_err();
+
+        assert_eq!(error.code, "BACKUP_FAILED");
+        assert!(error
+            .message
+            .contains("does not look like a MikaVN database"));
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn restore_cache_directory_mirrors_and_protects_existing_cache() {
+        let root = std::env::temp_dir().join(format!(
+            "mikavn-archive-restore-cache-test-{}",
+            Uuid::new_v4()
+        ));
+        let source = root.join("archive-images");
+        let target = root.join("app-data-images");
+        let protection = root.join("protection-images");
+        fs::create_dir_all(source.join("nested")).unwrap();
+        fs::create_dir_all(target.join("stale-nested")).unwrap();
+        fs::create_dir_all(target.join("empty-stale-dir")).unwrap();
+        fs::write(source.join("new.webp"), "new").unwrap();
+        fs::write(source.join("nested").join("fresh.webp"), "fresh").unwrap();
+        fs::write(target.join("old.webp"), "old").unwrap();
+        fs::write(target.join("stale-nested").join("stale.webp"), "stale").unwrap();
+
+        let restored = restore_cache_directory(&source, &target, &protection).unwrap();
+
+        assert_eq!(restored, 2);
+        assert!(target.join("new.webp").is_file());
+        assert!(target.join("nested").join("fresh.webp").is_file());
+        assert!(!target.join("old.webp").exists());
+        assert!(!target.join("stale-nested").exists());
+        assert!(!target.join("empty-stale-dir").exists());
+        assert!(protection.join("old.webp").is_file());
+        assert!(protection.join("stale-nested").join("stale.webp").is_file());
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn replace_pending_restore_database_preserves_existing_pending_on_failure() {
+        let root = std::env::temp_dir().join(format!(
+            "mikavn-archive-pending-replace-test-{}",
+            Uuid::new_v4()
+        ));
+        fs::create_dir_all(&root).unwrap();
+        let pending = root.join("mikavn.db");
+        let staging = root.join("staging.db");
+        let invalid_staging = root.join("invalid.db");
+        Database::new_from_path(&pending).unwrap();
+        Database::new_from_path(&staging).unwrap();
+        fs::write(&invalid_staging, b"not sqlite").unwrap();
+        Connection::open(&pending)
+            .unwrap()
+            .execute("CREATE TABLE marker(value TEXT)", [])
+            .unwrap();
+        Connection::open(&pending)
+            .unwrap()
+            .execute("INSERT INTO marker(value) VALUES ('old')", [])
+            .unwrap();
+        Connection::open(&staging)
+            .unwrap()
+            .execute("CREATE TABLE marker(value TEXT)", [])
+            .unwrap();
+        Connection::open(&staging)
+            .unwrap()
+            .execute("INSERT INTO marker(value) VALUES ('new')", [])
+            .unwrap();
+
+        replace_pending_restore_database(&staging, &pending, fs::metadata(&staging).unwrap().len())
+            .unwrap();
+
+        assert_eq!(database_marker(&pending), "new");
+        let error = replace_pending_restore_database(
+            &invalid_staging,
+            &pending,
+            fs::metadata(&invalid_staging).unwrap().len(),
+        )
+        .unwrap_err();
+
+        assert_ne!(error.code, "VALIDATION_ERROR");
+        assert_eq!(database_marker(&pending), "new");
         let _ = fs::remove_dir_all(root);
     }
 

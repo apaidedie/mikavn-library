@@ -123,7 +123,7 @@ Use `RELEASE_CHECKLIST.md` before tagging or publishing a GitHub release.
 Latest mature V1 acceptance pass. For the repeatable release checklist, see `RELEASE_CHECKLIST.md`.
 
 - `npm run release:check` verifies version alignment, release metadata, Tauri security hardening, browser/large smoke gates, and release desktop-smoke gating; `npm run release:check:strict` also verifies public GitHub release links. `npm run release:validate:strict` runs the local release validation chain end to end, and `npm run release:validate:core` reruns the strict non-smoke core checks.
-- `cargo fmt --check`, `cargo clippy -- -D warnings`, and `cargo test` under `src-tauri` pass with 95 Rust tests.
+- `cargo fmt --check`, `cargo clippy -- -D warnings`, and `cargo test` under `src-tauri` pass with 112 Rust tests.
 - `npm run build` passes TypeScript and Vite production build checks.
 - `npm run smoke:browser` starts or reuses a local Vite server, then runs page-level Playwright QA plus core workflow smoke.
 - `npm run smoke:large` starts or reuses a local Vite server, seeds 1500 browser-preview records, and verifies library rendering/filtering plus advanced-search timings; latest local run loaded the library in 1055ms and advanced search in 346ms.
@@ -171,6 +171,7 @@ Latest mature V1 acceptance pass. For the repeatable release checklist, see `REL
 - `export_library_archive_zip(options)`
 - `preview_library_archive(path)`
 - `import_library_archive(options)`
+- `restore_library_archive(options)`
 - `add_library_root(path)`
 - `list_library_roots()`
 - `update_library_root(id, recursive, enabled)`
@@ -307,13 +308,15 @@ The Reports page computes status distribution, tag/developer rankings, playtime 
 
 ## Tasks And Backups
 
-The Dashboard shows a recent-task summary so failed, running, or pending work is visible immediately. Each recent task has a log shortcut that opens the Tasks page, expands the matching task, and scrolls it into view. Settings, Saves, Reports, and game detail task notices also show a non-disruptive `查看日志` action for newly created tasks. The Tasks page listens for `task://updated` events in Tauri and keeps the older polling fallback for browser preview or missed events. Long-running or recoverable operations such as scanner runs, path checks, batch metadata matching, database backup, report export, save backup, save restore, and library archive flows write progress and logs. Failed or cancelled directory scans, database backups, path checks, save backups, and save restores can be retried from the Tasks page. Report export keeps logs but is not retryable so exported Markdown content is not retained in retry payloads. Settings includes an app-data self-check for the active data directory, database health, image references, app-data file counts, and safe database-backup cleanup. It also includes a manual SQLite database backup action using SQLite `VACUUM INTO` for a consistent backup file, a safe restore scheduler that applies on next startup after a protection backup, and a diagnostic log preview/prune surface.
+The Dashboard shows a recent-task summary so failed, running, or pending work is visible immediately. Each recent task has a log shortcut that opens the Tasks page, expands the matching task, and scrolls it into view. Settings, Saves, Reports, and game detail task notices also show a non-disruptive `查看日志` action for newly created tasks. The Tasks page listens for `task://updated` events in Tauri and keeps the older polling fallback for browser preview or missed events. Long-running or recoverable operations such as scanner runs, path checks, batch metadata matching, database backup, report export, save backup, save restore, and library archive flows write progress and logs. Failed or cancelled directory scans, database backups, path checks, save backups, save restores, and library archive operations can be retried from the Tasks page. Report export keeps logs but is not retryable so exported Markdown content is not retained in retry payloads. Settings includes an app-data self-check for the active data directory, database health, image references, app-data file counts, and safe database-backup cleanup. It also includes a manual SQLite database backup action using SQLite `VACUUM INTO` for a consistent backup file, a safe restore scheduler that applies on next startup after a protection backup, and a diagnostic log preview/prune surface.
 
 ## Library Archives
 
 Settings can export either a directory-style library archive or a `.zip` library archive. Each archive contains `manifest.json`, a SQLite consistency backup as `mikavn.db`, and optional copies of local image cache and save-backup folders. Archives never include real game installation directories.
 
 Archive preview reads manifest and file counts from either a directory or a `.zip` file. Safe import first creates a protection backup of the current database, then reads the archive database and imports only non-conflicting game records. Entries with the same ID, normalized title, or normalized install path are skipped and logged in the task timeline. Optional image and save-backup cache copies can be merged into the app data directory. Safe import does not replace the live database file.
+
+Full archive restore is a separate high-risk action in Settings. It validates the archive `mikavn.db`, copies it into the pending restore slot, and applies the database replacement only on the next app startup through the existing restore protection path. If selected, archive image and save-backup cache folders are mirrored into the active app-data cache after protecting the current cache under `archive-restore-protection/`. Cache restore is limited to MikaVN app data folders and never touches real game installation directories.
 
 ## Current Boundaries
 
@@ -323,7 +326,6 @@ Not included yet:
 - Plugin system
 - Complex privacy mode beyond local hide/blur/report filters
 - Bangumi / YMGal providers
-- Full replacement restore for library archives
 - Rich save diff/preview tooling before mirror restore
 - Normalized log indexing beyond file preview/pruning
 - A dedicated `domain/` crate/module split

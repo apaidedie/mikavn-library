@@ -60,6 +60,14 @@ struct ArchiveImportRetryPayload {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+struct ArchiveRestoreRetryPayload {
+    archive_dir: String,
+    restore_images: Option<bool>,
+    restore_save_backups: Option<bool>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct PathCheckRetryPayload {
     game_id: String,
 }
@@ -207,6 +215,18 @@ pub fn retry_task(app: AppHandle, db: &Database, id: String) -> DbResult<TaskRec
                     archive_dir: payload.archive_dir,
                     include_images: payload.include_images,
                     include_save_backups: payload.include_save_backups,
+                },
+            )
+        }
+        "library.archive_restore" => {
+            let payload: ArchiveRestoreRetryPayload = serde_json::from_str(payload)?;
+            archive_service::enqueue_library_archive_restore_task(
+                app,
+                db,
+                archive_service::LibraryArchiveRestoreOptions {
+                    archive_dir: payload.archive_dir,
+                    restore_images: payload.restore_images,
+                    restore_save_backups: payload.restore_save_backups,
                 },
             )
         }

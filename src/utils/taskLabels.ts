@@ -8,6 +8,7 @@ export function taskLabel(taskType: string) {
   if (taskType === 'database.restore') return '数据库恢复';
   if (taskType === 'library.archive_export') return '库归档导出';
   if (taskType === 'library.archive_import') return '库归档导入';
+  if (taskType === 'library.archive_restore') return '库归档完整恢复';
   if (taskType === 'report.export_markdown') return '报告导出';
   if (taskType === 'game.path_check') return '路径检查';
   if (taskType === 'save.backup') return '存档备份';

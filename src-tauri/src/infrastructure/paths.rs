@@ -103,6 +103,10 @@ impl AppPaths {
         self.root.join("archive-import-protection")
     }
 
+    pub fn archive_restore_protection(&self) -> PathBuf {
+        self.root.join("archive-restore-protection")
+    }
+
     pub fn database_restore_pending(&self) -> PathBuf {
         self.root.join("pending-restore")
     }
@@ -118,6 +122,7 @@ impl AppPaths {
         fs::create_dir_all(self.logs())?;
         fs::create_dir_all(self.save_backups())?;
         fs::create_dir_all(self.database_backups())?;
+        fs::create_dir_all(self.archive_restore_protection())?;
         fs::create_dir_all(self.database_restore_pending())?;
         fs::create_dir_all(self.database_restore_protection())?;
         Ok(())

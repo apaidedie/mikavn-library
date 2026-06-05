@@ -7,6 +7,7 @@ use crate::AppState;
 
 pub use archive_service::{
     LibraryArchiveExportOptions, LibraryArchiveImportOptions, LibraryArchivePreview,
+    LibraryArchiveRestoreOptions,
 };
 
 #[tauri::command]
@@ -42,4 +43,14 @@ pub fn import_library_archive(
 ) -> DbResult<TaskRecord> {
     let db = state.db()?;
     archive_service::enqueue_library_archive_import_task(app, &db, options)
+}
+
+#[tauri::command]
+pub fn restore_library_archive(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    options: LibraryArchiveRestoreOptions,
+) -> DbResult<TaskRecord> {
+    let db = state.db()?;
+    archive_service::enqueue_library_archive_restore_task(app, &db, options)
 }

@@ -4,7 +4,7 @@ This roadmap maps the current implementation to the phases in `galgame-library-c
 
 ## Current Status
 
-The app has moved beyond the original MVP into the mature local V1 shape. It has the local library loop, metadata search and batch matching, save backup/restore workflows, privacy settings, reports, themes, collections, advanced filters, advanced saved search, normalized assets/tags with maintenance UI, task events, ZIP archive export/import, database restore scheduling, diagnostic logs, richer launch profiles, a feature-sliced `Database` compatibility facade, and Windows NSIS bundling.
+The app has moved beyond the original MVP into the mature local V1 shape. It has the local library loop, metadata search and batch matching, save backup/restore workflows, privacy settings, reports, themes, collections, advanced filters, advanced saved search, normalized assets/tags with maintenance UI, task events, ZIP archive export/import/restore, database restore scheduling, diagnostic logs, richer launch profiles, a feature-sliced `Database` compatibility facade, and Windows NSIS bundling.
 
 The main remaining work is no longer feature coverage for mature V1. It is hardening: a dedicated domain boundary when conversion pressure justifies it, richer recovery/audit reports, deeper integration tests, and optional post-V1 capabilities such as WebDAV/cloud sync or plugins.
 
@@ -25,7 +25,7 @@ Done:
 - Task logs and retry metadata for supported recoverable tasks.
 - Basic `infrastructure::paths::AppPaths` centralizes app data/database/cache/images/save-backup directories for new and high-frequency filesystem flows.
 - Basic `infrastructure::logger` writes local daily diagnostic logs and redacts API-like tokens plus Windows user profile names before task/log storage on the shared logger path.
-- Directory-style and ZIP library archive export, safe preview, and non-destructive import with current database protection backup.
+- Directory-style and ZIP library archive export, safe preview, non-destructive import with current database protection backup, and full archive restore scheduling with app-data cache protection.
 - Safe database restore scheduling with pending restore file and next-start protection backup.
 - Diagnostic log preview and retention pruning commands/UI in Settings.
 - Metadata source registry and normalized external ID table with legacy column compatibility.

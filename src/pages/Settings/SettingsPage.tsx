@@ -262,6 +262,9 @@ export function SettingsPage({ onAccentPreview, onThemePreview, onSaved, onOpenT
               <ConfigItem title="安全导入归档" description="支持目录归档与 ZIP 归档。导入前会自动备份当前数据库，只合并不冲突的新游戏记录。">
                 <Button disabled={!archivePreview?.databasePresent} variant="secondary" onClick={importArchive}><Download className="h-4 w-4" />安全导入</Button>
               </ConfigItem>
+              <ConfigItem title="完整恢复归档" description="高风险：安排下次启动用归档数据库替换当前数据库，可镜像恢复图片/存档缓存；会创建保护备份，不会触碰真实游戏安装目录。">
+                <Button disabled={!archivePreview?.databasePresent} variant="danger" onClick={restoreArchive}><RotateCcw className="h-4 w-4" />完整恢复</Button>
+              </ConfigItem>
               <ConfigItem title="图片缓存" description="应用数据目录 / images">
                 <Folder className="h-4 w-4 text-slate-500" />
               </ConfigItem>
@@ -688,6 +691,27 @@ export function SettingsPage({ onAccentPreview, onThemePreview, onSaved, onOpenT
       setArchiveDir(targetDir);
       const task = await api.importLibraryArchive({ archiveDir: targetDir, includeImages, includeSaveBackups });
       setMessage({ text: `库归档安全导入任务已创建：${task.id}`, taskId: task.id });
+      onSaved?.();
+    } catch (reason) {
+      setError(errorMessage(reason));
+    }
+  }
+
+  async function restoreArchive() {
+    setError(null);
+    setMessage(null);
+    try {
+      const targetDir = archivePreview?.archiveDir || archiveDir.trim() || await chooseArchiveDirectory(archiveDir);
+      if (!targetDir) return;
+      if (!archivePreview?.databasePresent) {
+        setError('请先预览包含 mikavn.db 的有效库归档。');
+        return;
+      }
+      const ok = window.confirm('完整恢复会在下次启动前用归档数据库替换当前数据库，并按当前勾选项镜像恢复图片/存档缓存。应用会先创建保护备份。确认安排完整恢复吗？');
+      if (!ok) return;
+      setArchiveDir(targetDir);
+      const task = await api.restoreLibraryArchive({ archiveDir: targetDir, restoreImages: includeImages, restoreSaveBackups: includeSaveBackups });
+      setMessage({ text: `库归档完整恢复任务已创建：${task.id}。请重启应用以应用数据库恢复。`, taskId: task.id });
       onSaved?.();
     } catch (reason) {
       setError(errorMessage(reason));

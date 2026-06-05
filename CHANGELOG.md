@@ -14,6 +14,7 @@ Updated release candidate with the mature local V1 hardening pass.
 - Windows signing check/sign helper scripts and 0.1.1 release notes.
 - Isolated desktop smoke validation using `MIKAVN_APP_DATA_DIR` so smoke runs never touch the real user profile.
 - Settings page module split for appearance, metadata/AI configuration, and shared setting indicators.
+- Full library archive restore scheduling with archive database validation, next-start database replacement, retryable task logs, and optional app-data image/save-backup cache mirroring.
 
 ### Changed
 
@@ -27,6 +28,7 @@ Updated release candidate with the mature local V1 hardening pass.
 ### Safety Notes
 
 - Save path and backup record deletion remove only MikaVN database records; real save directories and backup folders are not deleted.
+- Full archive restore creates protection backups and mirrors only MikaVN app-data cache folders; it never touches real game installation directories.
 - Desktop smoke verifies the release executable creates `mikavn.db` only under an isolated `output/desktop-smoke/run-*/isolated-app-data` root.
 
 ## 0.1.0 - Mature Local V1
@@ -57,4 +59,4 @@ Initial public-ready release candidate.
 
 - Windows is the only supported target.
 - Cloud sync, WebDAV, plugin ecosystem, CLI/local API, and community features are out of scope for this release.
-- Rich indexed log search and full archive database replacement remain future work.
+- Rich indexed log search remains future work.

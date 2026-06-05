@@ -12,6 +12,12 @@ export type LibraryArchiveImportOptions = {
   includeSaveBackups?: boolean | null;
 };
 
+export type LibraryArchiveRestoreOptions = {
+  archiveDir: string;
+  restoreImages?: boolean | null;
+  restoreSaveBackups?: boolean | null;
+};
+
 export type LibraryArchiveManifest = {
   app: string;
   archiveVersion: number;

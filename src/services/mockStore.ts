@@ -1,5 +1,5 @@
 import type { AddGameInput, AssetCacheCleanupResult, AssetDownloadInput, AssetImportInput, AssetInput, CollectionGameLink, CollectionInput, DashboardData, Game, GameAsset, GameCollection, GameFilter, GamePathHealth, ImportCandidate, ImportScanReport, ImportScanReportItem, LibraryRoot, PathCheckItem, PlaySession, PlayStatus, ScanCandidate, ScanConflict, TagRecord, UpdateGameInput } from '@/types/game';
-import type { AppDataDiagnostics, DatabaseBackupCleanupPolicy, DatabaseBackupCleanupReport, LibraryArchiveExportOptions, LibraryArchiveImportOptions, LibraryArchivePreview, LogRecord, LogRetentionPolicy } from '@/types/archive';
+import type { AppDataDiagnostics, DatabaseBackupCleanupPolicy, DatabaseBackupCleanupReport, LibraryArchiveExportOptions, LibraryArchiveImportOptions, LibraryArchivePreview, LibraryArchiveRestoreOptions, LogRecord, LogRetentionPolicy } from '@/types/archive';
 import type { LaunchProfile, LaunchProfileInput, LaunchProfileUpdate } from '@/types/launch';
 import type { AdvancedSearchInput, AdvancedSearchResult, AiConnectionTestResult, AiRecognitionResult, ApplyMetadataFields, ArtworkRepairOptions, ArtworkRepairPreview, BatchMatchJob, BatchMatchStatus, DescriptionImageRepairOptions, DescriptionImageRepairPreview, DuplicateExternalIdAuditOptions, DuplicateExternalIdGroup, DuplicateExternalIdPreview, DuplicateGameMergeExternalId, DuplicateGameMergeOptions, DuplicateGameMergePreview, DuplicateGameMergeResult, ExternalIdRecord, FieldLock, MatchSuggestion, MetadataProvider, MetadataSearchResponse, MetadataSearchResult, MetadataSourceRecord, NormalizedMetadata, SavedSearch, SavedSearchInput, SearchClause, SearchQueryValidation } from '@/types/metadata';
 import type { SaveBackup, SavePath, SavePathCandidate } from '@/types/saves';
@@ -1438,6 +1438,23 @@ export const mockStore = {
     return Promise.resolve(task);
   },
 
+  restoreLibraryArchive(options: LibraryArchiveRestoreOptions): Promise<TaskRecord> {
+    const restoreImages = options.restoreImages ?? true;
+    const restoreSaveBackups = options.restoreSaveBackups ?? false;
+    const task = makeTask({
+      taskType: 'library.archive_restore',
+      status: 'completed',
+      progress: 1,
+      message: `浏览器预览已模拟安排库归档完整恢复：图片 ${restoreImages ? '镜像恢复' : '跳过'}，存档备份 ${restoreSaveBackups ? '镜像恢复' : '跳过'}。`,
+      error: null,
+      retryPayload: JSON.stringify({ ...options, restoreImages, restoreSaveBackups }),
+      retryable: true,
+    });
+    addTaskLog(task.id, 'warn', '完整恢复已安排：数据库将在下次启动前替换，当前数据库会先创建保护备份。');
+    addTaskLog(task.id, 'info', '归档恢复保护目录：mock://archive-restore-protection/before-archive-restore');
+    return Promise.resolve(task);
+  },
+
   searchMetadata(query: string, providers: MetadataProvider[]): Promise<MetadataSearchResponse> {
     const cleanedQuery = cleanTitle(query);
     const variants = [...new Set([query, cleanedQuery].filter(Boolean))];
@@ -1994,6 +2011,11 @@ export const mockStore = {
       archiveDir: String(payload.archiveDir ?? ''),
       includeImages: Boolean(payload.includeImages),
       includeSaveBackups: Boolean(payload.includeSaveBackups),
+    });
+    if (task.taskType === 'library.archive_restore') return this.restoreLibraryArchive({
+      archiveDir: String(payload.archiveDir ?? ''),
+      restoreImages: Boolean(payload.restoreImages),
+      restoreSaveBackups: Boolean(payload.restoreSaveBackups),
     });
     if (task.taskType === 'save.backup') return this.createSaveBackupTask(String(payload.savePathId ?? ''), String(payload.label ?? ''));
     if (task.taskType === 'save.restore') return this.restoreSaveBackupTask(String(payload.backupId ?? ''), payload.mode === 'mirror' ? 'mirror' : 'merge');

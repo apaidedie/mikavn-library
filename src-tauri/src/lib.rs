@@ -53,6 +53,7 @@ pub fn run() {
             commands::archives::export_library_archive_zip,
             commands::archives::preview_library_archive,
             commands::archives::import_library_archive,
+            commands::archives::restore_library_archive,
             commands::assets::list_game_assets,
             commands::assets::upsert_game_asset,
             commands::assets::remove_game_asset,
