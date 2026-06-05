@@ -1,7 +1,7 @@
 import type { AddGameInput, AssetCacheCleanupResult, AssetDownloadInput, AssetImportInput, AssetInput, CollectionGameLink, CollectionInput, DashboardData, Game, GameAsset, GameCollection, GameFilter, GamePathHealth, ImportCandidate, ImportScanReport, ImportScanReportItem, LibraryRoot, PathCheckItem, PlaySession, PlayStatus, ScanCandidate, ScanConflict, TagRecord, UpdateGameInput } from '@/types/game';
 import type { AppDataDiagnostics, DatabaseBackupCleanupPolicy, DatabaseBackupCleanupReport, LibraryArchiveExportOptions, LibraryArchiveImportOptions, LibraryArchivePreview, LogRecord, LogRetentionPolicy } from '@/types/archive';
 import type { LaunchProfile, LaunchProfileInput, LaunchProfileUpdate } from '@/types/launch';
-import type { AdvancedSearchInput, AdvancedSearchResult, AiConnectionTestResult, AiRecognitionResult, ApplyMetadataFields, BatchMatchJob, BatchMatchStatus, ExternalIdRecord, FieldLock, MatchSuggestion, MetadataProvider, MetadataSearchResponse, MetadataSearchResult, MetadataSourceRecord, NormalizedMetadata, SavedSearch, SavedSearchInput, SearchClause, SearchQueryValidation } from '@/types/metadata';
+import type { AdvancedSearchInput, AdvancedSearchResult, AiConnectionTestResult, AiRecognitionResult, ApplyMetadataFields, BatchMatchJob, BatchMatchStatus, DescriptionImageRepairOptions, DescriptionImageRepairPreview, ExternalIdRecord, FieldLock, MatchSuggestion, MetadataProvider, MetadataSearchResponse, MetadataSearchResult, MetadataSourceRecord, NormalizedMetadata, SavedSearch, SavedSearchInput, SearchClause, SearchQueryValidation } from '@/types/metadata';
 import type { SaveBackup, SavePath, SavePathCandidate } from '@/types/saves';
 import type { ScanTaskStatus, TaskDetail, TaskLogEntry, TaskRecord } from '@/types/task';
 import sampleHeroUrl from '@/assets/hero.png';
@@ -381,6 +381,23 @@ function externalIdCount(game: Game) {
 
 function hasMockDescriptionImage(value?: string | null) {
   return Boolean(value?.match(/!\[[^\]]*\]\([^)]+\)|<img\b|\[img\]|https?:\/\/\S+\.(?:png|jpe?g|webp|gif)/i));
+}
+
+function mockDescriptionImageCandidates(options: DescriptionImageRepairOptions = {}) {
+  const provider = String(options.provider ?? 'all').toLowerCase();
+  const limit = Math.max(1, Math.min(Number(options.limit ?? 20) || 20, 200));
+  return readGames().map(ensureGameDefaults)
+    .filter((game) => game.description?.trim() && !hasMockDescriptionImage(game.description))
+    .flatMap((game) => {
+      if ((provider === 'all' || provider === 'dlsite') && game.dlsiteId) {
+        return [{ gameId: game.id, title: game.title, provider: 'dlsite', providerId: game.dlsiteId }];
+      }
+      if ((provider === 'all' || provider === 'fanza') && game.fanzaId) {
+        return [{ gameId: game.id, title: game.title, provider: 'fanza', providerId: game.fanzaId }];
+      }
+      return [];
+    })
+    .slice(0, limit);
 }
 
 function metadataStatusMatches(game: Game, status?: string) {
@@ -1380,6 +1397,33 @@ export const mockStore = {
     }));
     localStorage.setItem(BATCH_KEY, JSON.stringify({ job, results }));
     return job;
+  },
+
+  previewDescriptionImageRepair(options: DescriptionImageRepairOptions = {}): Promise<DescriptionImageRepairPreview> {
+    const candidates = mockDescriptionImageCandidates(options);
+    return Promise.resolve({ candidates, totalCandidates: candidates.length });
+  },
+
+  async repairDescriptionImages(options: DescriptionImageRepairOptions = {}): Promise<TaskRecord> {
+    const candidates = mockDescriptionImageCandidates(options);
+    if (candidates.length === 0) return Promise.reject(new Error('no description image repair candidates'));
+    const games = readGames().map(ensureGameDefaults);
+    const updatedIds = new Set(candidates.map((candidate) => candidate.gameId));
+    writeGames(games.map((game) => updatedIds.has(game.id) ? {
+      ...game,
+      description: `${game.description?.trim() ?? ''}\n\n![简介图片](mock://metadata/${game.id}/description-1.webp)`,
+      updatedAt: new Date().toISOString(),
+    } : game));
+    const task = makeTask({
+      taskType: 'metadata.description_image_repair',
+      status: 'completed',
+      progress: 1,
+      message: `浏览器预览已修复 ${candidates.length} 个条目的简介图片`,
+      retryPayload: JSON.stringify({ provider: options.provider ?? 'all', limit: options.limit ?? 20, maxImages: options.maxImages ?? 3, retryAttempted: Boolean(options.retryAttempted) }),
+      retryable: true,
+    });
+    addTaskLog(task.id, 'info', `简介图片修复候选：${candidates.map((candidate) => `${candidate.provider}:${candidate.providerId}`).join(', ')}`);
+    return task;
   },
 
   getBatchMatchStatus(jobId: string): Promise<BatchMatchStatus> {

@@ -41,6 +41,19 @@ const games = [
     id: 'qa-2', title: '天使☆騒々 RE-BOOT!', originalTitle: null, aliases: ['天使騒々'], developer: 'Yuzusoft', publisher: null, brand: 'ゆずソフト', releaseDate: '2023-04-28', description: '路径异常样例，用于检查 warning 和修复入口。', notes: '', tags: ['恋爱', '校园'], genres: ['Visual Novel'], rating: 82, ageRating: 'R18', playStatus: 'planned', favorite: false, hidden: false, installPath: 'D:\\Games\\VN\\天使騒々', executablePath: 'D:\\Games\\VN\\天使騒々\\game.exe', workingDirectory: 'D:\\Games\\VN\\天使騒々', launchArgs: null, pathStatus: 'broken', lastPathCheckedAt: now, coverImage: null, bannerImage: null, backgroundImage: null, vndbId: null, bangumiId: null, dlsiteId: null, fanzaId: null, ymgalId: null, totalPlaySeconds: 0, lastPlayedAt: null, createdAt: now, updatedAt: now,
   },
 ];
+const descriptionRepairGame = {
+  ...games[1],
+  id: 'qa-description-repair',
+  title: '简介图片修复候选',
+  originalTitle: '紹介画像修復候補',
+  aliases: [],
+  description: 'DLsite 来源条目，当前简介里没有图片，用于维护中心修复入口 QA。',
+  dlsiteId: 'RJ01000001',
+  fanzaId: null,
+  installPath: 'D:\\Games\\VN\\简介图片修复候选',
+  executablePath: 'D:\\Games\\VN\\简介图片修复候选\\game.exe',
+  workingDirectory: 'D:\\Games\\VN\\简介图片修复候选',
+};
 const tasks = [
   { id: 'qa-task-failed', taskType: 'library.scan', status: 'failed', progress: 1, message: '扫描失败：路径不存在', error: 'PATH_NOT_FOUND: D:\\Missing', retryPayload: JSON.stringify({ path: 'D:\\Missing', recursive: true }), retryable: true, createdAt: now, updatedAt: now },
   { id: 'qa-task-running', taskType: 'metadata.batch_match', status: 'running', progress: 0.42, message: '正在匹配 2 个游戏', error: null, retryPayload: JSON.stringify({ gameIds: ['qa-1', 'qa-2'] }), retryable: true, createdAt: now, updatedAt: now },
@@ -144,6 +157,11 @@ async function runCase(browser, name, view, overrides = {}, interact) {
   }
 }
 
+async function clickMaintenanceStart(page, label) {
+  const row = page.locator('.items-center.justify-between').filter({ has: page.getByText(label, { exact: true }) }).filter({ has: page.getByRole('button', { name: /开始/ }) }).first();
+  await row.getByRole('button', { name: /开始/ }).click();
+}
+
 async function main() {
   const browser = await chromium.launch({ headless: true });
   try {
@@ -159,13 +177,20 @@ async function main() {
       ['metadata-batch', 'metadata'],
       ['reports-populated', 'reports'],
       ['saves-backup-restore', 'saves'],
-      ['maintenance-health', 'maintenance', {}, async (page) => {
+      ['maintenance-health-description-repair', 'maintenance', { games: [...games, descriptionRepairGame] }, async (page) => {
         await page.getByText('维护中心').first().waitFor({ timeout: 5000 });
         await page.getByText('简介图片覆盖').first().waitFor({ timeout: 5000 });
         await page.getByText('维护队列').first().waitFor({ timeout: 5000 });
+        await page.getByText('简介图片修复').first().waitFor({ timeout: 5000 });
+        await clickMaintenanceStart(page, '简介图片修复');
+        await page.getByText(/浏览器预览已修复|已创建简介图片修复任务/).first().waitFor({ timeout: 5000 });
+      }],
+      ['maintenance-health-metadata-match', 'maintenance', {}, async (page) => {
+        await page.getByText('维护中心').first().waitFor({ timeout: 5000 });
+        await page.getByText('维护队列').first().waitFor({ timeout: 5000 });
         await page.getByText('批量元数据匹配').first().waitFor({ timeout: 5000 });
-        await page.getByRole('button', { name: /开始/ }).click();
-        await page.getByText(/批量元数据匹配|正在批量匹配/).first().waitFor({ timeout: 5000 });
+        await clickMaintenanceStart(page, '批量元数据匹配');
+        await page.getByText(/批量匹配完成|已创建批量元数据匹配任务/).first().waitFor({ timeout: 5000 });
       }],
       ['settings-local-privacy-backup', 'settings'],
     ];

@@ -2,11 +2,14 @@ use tauri::{AppHandle, State};
 
 use crate::db::models::{
     AiRecognitionResult, BatchMatchJob, BatchMatchStatus, ExternalIdRecord, FieldLock, Game,
-    MatchSuggestion, MetadataSearchResponse, MetadataSourceRecord, NormalizedMetadata,
+    MatchSuggestion, MetadataSearchResponse, MetadataSourceRecord, NormalizedMetadata, TaskRecord,
 };
 use crate::db::DbResult;
 use crate::services::metadata;
 use crate::services::metadata::ai::AiConnectionTestResult;
+use crate::services::metadata_description_images::{
+    self, DescriptionImageRepairOptions, DescriptionImageRepairPreview,
+};
 use crate::AppState;
 
 #[tauri::command]
@@ -109,6 +112,25 @@ pub fn batch_match_metadata(
     let db = state.db()?;
     let (job, _) = metadata::enqueue_batch_match_metadata(app, &db, game_ids)?;
     Ok(job)
+}
+
+#[tauri::command]
+pub fn preview_description_image_repair(
+    state: State<'_, AppState>,
+    options: DescriptionImageRepairOptions,
+) -> DbResult<DescriptionImageRepairPreview> {
+    let db = state.db()?;
+    metadata_description_images::preview_description_image_repair(&db, options)
+}
+
+#[tauri::command]
+pub fn repair_description_images(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    options: DescriptionImageRepairOptions,
+) -> DbResult<TaskRecord> {
+    let db = state.db()?;
+    metadata_description_images::enqueue_description_image_repair_task(app, &db, options)
 }
 
 #[tauri::command]

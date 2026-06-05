@@ -88,6 +88,25 @@ export type BatchMatchStatus = {
   results: BatchMatchResult[];
 };
 
+export type DescriptionImageRepairOptions = {
+  provider?: 'all' | MetadataProvider | string | null;
+  limit?: number | null;
+  maxImages?: number | null;
+  retryAttempted?: boolean | null;
+};
+
+export type DescriptionImageRepairCandidate = {
+  gameId: string;
+  title: string;
+  provider: string;
+  providerId: string;
+};
+
+export type DescriptionImageRepairPreview = {
+  candidates: DescriptionImageRepairCandidate[];
+  totalCandidates: number;
+};
+
 export type AiRecognitionResult = {
   title: string;
   rawText: string;

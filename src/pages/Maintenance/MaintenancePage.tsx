@@ -17,6 +17,7 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
   const [loading, setLoading] = useState(false);
   const [cleanupLoading, setCleanupLoading] = useState(false);
   const [metadataRepairLoading, setMetadataRepairLoading] = useState(false);
+  const [descriptionRepairLoading, setDescriptionRepairLoading] = useState(false);
   const [message, setMessage] = useState<TaskMessage | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -158,9 +159,14 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
           <PanelHeader title="维护队列" description="已落地的统计基础和下一批整理入口。" icon={<ListChecks className="h-4 w-4" />} />
           <PanelContent className="grid gap-2 xl:grid-cols-3">
             <MaintenanceAction
+              action={(
+                <Button disabled={descriptionRepairLoading || ((descriptionImages?.providerGamesWithoutImagesCount ?? 0) + (descriptionImages?.providerGamesEmptyDescriptionCount ?? 0)) === 0} size="sm" variant="secondary" onClick={startDescriptionImageRepair}>
+                  <PlayCircle className="h-4 w-4" />{descriptionRepairLoading ? '创建中' : '开始'}
+                </Button>
+              )}
               detail={`${formatCount((descriptionImages?.providerGamesWithoutImagesCount ?? 0) + (descriptionImages?.providerGamesEmptyDescriptionCount ?? 0))} 个条目待补简介图片`}
               label="简介图片修复"
-              status="统计已接入"
+              status="可创建任务"
             />
             <MaintenanceAction
               detail={`${formatCount(externalIds?.duplicateExternalIdGroupsCount ?? 0)} 组重复外部 ID`}
@@ -232,6 +238,28 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
       setError(errorMessage(reason));
     } finally {
       setMetadataRepairLoading(false);
+    }
+  }
+
+  async function startDescriptionImageRepair() {
+    setDescriptionRepairLoading(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const preview = await api.previewDescriptionImageRepair({ provider: 'all', limit: 20, maxImages: 3 });
+      if (preview.totalCandidates === 0) {
+        setMessage({ text: '没有需要修复简介图片的条目。' });
+        await loadDiagnostics();
+        return;
+      }
+      const task = await api.repairDescriptionImages({ provider: 'all', limit: 20, maxImages: 3 });
+      setMessage({ text: `已创建简介图片修复任务：本轮 ${formatCount(preview.candidates.length)} 个条目。`, taskId: task.id });
+      onOpenTasks?.(task.id);
+      await loadDiagnostics();
+    } catch (reason) {
+      setError(errorMessage(reason));
+    } finally {
+      setDescriptionRepairLoading(false);
     }
   }
 

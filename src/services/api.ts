@@ -2,7 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import type { AddGameInput, AssetCacheCleanupResult, AssetDownloadInput, AssetImportInput, AssetInput, CollectionGameLink, CollectionInput, DashboardData, Game, GameAsset, GameCollection, GameFilter, GamePathHealth, ImportCandidate, ImportScanReport, LibraryRoot, PlaySession, ScanCandidate, TagRecord, UpdateGameInput } from '@/types/game';
 import type { AppDataDiagnostics, DatabaseBackupCleanupPolicy, DatabaseBackupCleanupReport, LibraryArchiveExportOptions, LibraryArchiveImportOptions, LibraryArchivePreview, LogRecord, LogRetentionPolicy } from '@/types/archive';
 import type { LaunchProfile, LaunchProfileInput, LaunchProfileUpdate } from '@/types/launch';
-import type { AdvancedSearchInput, AdvancedSearchResult, AiConnectionTestResult, AiRecognitionResult, ApplyMetadataFields, BatchMatchJob, BatchMatchStatus, ExternalIdRecord, FieldLock, MatchSuggestion, MetadataProvider, MetadataSearchResponse, MetadataSourceRecord, NormalizedMetadata, SavedSearch, SavedSearchInput, SearchQueryValidation } from '@/types/metadata';
+import type { AdvancedSearchInput, AdvancedSearchResult, AiConnectionTestResult, AiRecognitionResult, ApplyMetadataFields, BatchMatchJob, BatchMatchStatus, DescriptionImageRepairOptions, DescriptionImageRepairPreview, ExternalIdRecord, FieldLock, MatchSuggestion, MetadataProvider, MetadataSearchResponse, MetadataSourceRecord, NormalizedMetadata, SavedSearch, SavedSearchInput, SearchQueryValidation } from '@/types/metadata';
 import type { SaveBackup, SavePath, SavePathCandidate } from '@/types/saves';
 import { normalizeAppError } from '@/types/error';
 import type { ScanTaskStatus, TaskDetail, TaskLogEntry, TaskRecord } from '@/types/task';
@@ -285,6 +285,14 @@ export const api = {
 
   batchMatchMetadata(gameIds: string[]) {
     return command<BatchMatchJob>('batch_match_metadata', { gameIds }, () => mockStore.batchMatchMetadata(gameIds));
+  },
+
+  previewDescriptionImageRepair(options: DescriptionImageRepairOptions = {}) {
+    return command<DescriptionImageRepairPreview>('preview_description_image_repair', { options }, () => mockStore.previewDescriptionImageRepair(options));
+  },
+
+  repairDescriptionImages(options: DescriptionImageRepairOptions = {}) {
+    return command<TaskRecord>('repair_description_images', { options }, () => mockStore.repairDescriptionImages(options));
   },
 
   getBatchMatchStatus(jobId: string) {

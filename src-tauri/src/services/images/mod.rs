@@ -17,6 +17,16 @@ pub fn cache_cover_image(
     id: &str,
     image_url: &str,
 ) -> DbResult<String> {
+    cache_remote_image(app_data_dir, provider, id, image_url, "cover")
+}
+
+pub fn cache_remote_image(
+    app_data_dir: &Path,
+    provider: &str,
+    id: &str,
+    image_url: &str,
+    filename_prefix: &str,
+) -> DbResult<String> {
     if !is_remote_url(image_url) {
         return Ok(image_url.to_string());
     }
@@ -27,7 +37,7 @@ pub fn cache_cover_image(
         .send()
         .and_then(|resp| resp.error_for_status())
         .map_err(|error| {
-            DbError::asset_download_failed(format!("cover image download failed: {error}"))
+            DbError::asset_download_failed(format!("image download failed: {error}"))
         })?;
 
     let content_type = response
@@ -44,19 +54,15 @@ pub fn cache_cover_image(
     let mut limited = response.by_ref().take(MAX_IMAGE_BYTES + 1);
     limited.read_to_end(&mut bytes)?;
     if bytes.len() as u64 > MAX_IMAGE_BYTES {
-        return Err(DbError::asset_download_failed(
-            "cover image is larger than 10MB",
-        ));
+        return Err(DbError::asset_download_failed("image is larger than 10MB"));
     }
     if bytes.is_empty() {
-        return Err(DbError::asset_download_failed(
-            "cover image response is empty",
-        ));
+        return Err(DbError::asset_download_failed("image response is empty"));
     }
 
     let image_dir = app_data_dir.join("images");
     fs::create_dir_all(&image_dir)?;
-    let filename = safe_image_filename(provider, id, &extension);
+    let filename = safe_image_filename(provider, id, &extension, filename_prefix);
     let path = image_dir.join(filename);
     fs::write(&path, bytes)?;
     Ok(path.to_string_lossy().to_string())
@@ -91,10 +97,11 @@ pub fn extension_from_url(value: &str) -> Option<String> {
     }
 }
 
-fn safe_image_filename(provider: &str, id: &str, extension: &str) -> String {
+fn safe_image_filename(provider: &str, id: &str, extension: &str, prefix: &str) -> String {
     let provider = safe_part(provider);
     let id = safe_part(id);
-    format!("{provider}-{id}-{}.{}", Uuid::new_v4(), extension)
+    let prefix = safe_part(prefix);
+    format!("{provider}-{id}-{prefix}-{}.{}", Uuid::new_v4(), extension)
 }
 
 fn safe_part(value: &str) -> String {

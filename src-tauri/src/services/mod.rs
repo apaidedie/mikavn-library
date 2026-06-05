@@ -11,6 +11,7 @@ pub mod launcher;
 pub mod library_paths;
 pub mod logs;
 pub mod metadata;
+pub mod metadata_description_images;
 pub mod reports;
 pub mod saves;
 pub mod scanner;

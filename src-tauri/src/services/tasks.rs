@@ -7,6 +7,7 @@ use crate::services::archives as archive_service;
 use crate::services::backups as backup_service;
 use crate::services::library_paths as path_service;
 use crate::services::metadata as metadata_service;
+use crate::services::metadata_description_images as description_image_service;
 use crate::services::saves as save_service;
 use crate::services::scanner as scanner_service;
 
@@ -216,6 +217,9 @@ pub fn retry_task(app: AppHandle, db: &Database, id: String) -> DbResult<TaskRec
             let (_, task) =
                 metadata_service::enqueue_batch_match_metadata(app, db, payload.game_ids)?;
             Ok(task)
+        }
+        "metadata.description_image_repair" => {
+            description_image_service::retry_description_image_repair_task(app, db, payload)
         }
         _ => Err(DbError::validation(
             "this task type does not support retry yet",
