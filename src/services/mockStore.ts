@@ -619,7 +619,12 @@ function metadataStatusMatches(game: Game, status?: string) {
   const hasDeveloper = Boolean(game.developer?.trim() || game.brand?.trim());
   const complete = Boolean(game.description?.trim() && game.releaseDate?.trim() && hasDeveloper && game.coverImage?.trim() && externalIdCount(game) > 0);
   if (status === 'complete') return complete;
+  if (status === 'missing_description') return !game.description?.trim();
   if (status === 'missing_cover') return !game.coverImage?.trim();
+  if (status === 'missing_banner') return !game.bannerImage?.trim();
+  if (status === 'missing_background') return !game.backgroundImage?.trim();
+  if (status === 'missing_artwork') return !game.coverImage?.trim() || !game.bannerImage?.trim() || !game.backgroundImage?.trim();
+  if (status === 'missing_description_image') return Boolean((game.dlsiteId?.trim() || game.fanzaId?.trim()) && !hasMockDescriptionImage(game.description));
   if (status === 'missing_external_id') return externalIdCount(game) === 0;
   if (status === 'needs_metadata') return !complete;
   return true;

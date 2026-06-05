@@ -249,7 +249,12 @@ export function LibraryPage({ refreshKey, selectedGameId, onSelectedGameChange, 
                   <option value="all">全部元数据</option>
                   <option value="complete">元数据完整</option>
                   <option value="needs_metadata">需要补全</option>
+                  <option value="missing_description">缺少简介</option>
                   <option value="missing_cover">缺少封面</option>
+                  <option value="missing_banner">缺少横幅</option>
+                  <option value="missing_background">缺少背景</option>
+                  <option value="missing_artwork">媒体图不完整</option>
+                  <option value="missing_description_image">缺少简介图片</option>
                   <option value="missing_external_id">缺少外部 ID</option>
                 </Select>
                 <Select value={pathStatus} onChange={(event) => setPathStatus(event.target.value)}>

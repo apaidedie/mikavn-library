@@ -16,12 +16,13 @@ import { formatPlayTime } from '@/utils/time';
 const quickSearches = [
   { label: '高分作品', description: '评分 80 以上', query: 'rating>=80' },
   { label: '最近发售', description: '2020 年后的条目', query: 'released>=2020-01-01' },
-  { label: '缺少封面', description: '需要补图的条目', query: 'meta:missing_cover' },
+  { label: '媒体不完整', description: '封面、横幅或背景待补', query: 'meta:missing_artwork' },
+  { label: '缺简介图片', description: 'DLsite / FANZA 图片待补', query: 'meta:missing_description_image' },
   { label: '路径异常', description: '需要修复路径', query: 'path:broken' },
   { label: '玩过 10 小时', description: '游玩时间较长', query: 'playtime>=10h' },
 ];
 
-const syntaxHints = ['tag:纯爱', 'dev:Key', '-status:archived', 'rating>=80', 'released>=2020-01-01', 'OR'];
+const syntaxHints = ['tag:纯爱', 'dev:Key', 'meta:missing_artwork', '-status:archived', 'rating>=80', 'released>=2020-01-01', 'OR'];
 
 export function AdvancedSearchPage({ refreshKey, onOpenGame }: { refreshKey: number; onOpenGame?: (id: string) => void }) {
   const [query, setQuery] = useState('');

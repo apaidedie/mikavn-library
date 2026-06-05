@@ -465,27 +465,59 @@ fn sort_key(game: &Game, sort_by: &str) -> String {
 }
 
 fn metadata_status_matches(game: &Game, status: &str) -> bool {
-    match status {
-        "complete" => {
-            trim_optional(game.description.clone()).is_some()
-                && trim_optional(game.release_date.clone()).is_some()
-                && (trim_optional(game.developer.clone()).is_some()
-                    || trim_optional(game.brand.clone()).is_some())
-                && trim_optional(game.cover_image.clone()).is_some()
-                && external_id_count(game) > 0
+    match metadata_status_key(status).as_str() {
+        "complete" => has_complete_metadata(game),
+        "missingdescription" => !has_text(&game.description),
+        "missingcover" => !has_text(&game.cover_image),
+        "missingbanner" => !has_text(&game.banner_image),
+        "missingbackground" => !has_text(&game.background_image),
+        "missingartwork" => {
+            !has_text(&game.cover_image)
+                || !has_text(&game.banner_image)
+                || !has_text(&game.background_image)
         }
-        "missing_cover" => trim_optional(game.cover_image.clone()).is_none(),
-        "missing_external_id" => external_id_count(game) == 0,
-        "needs_metadata" => {
-            trim_optional(game.description.clone()).is_none()
-                || trim_optional(game.release_date.clone()).is_none()
-                || (trim_optional(game.developer.clone()).is_none()
-                    && trim_optional(game.brand.clone()).is_none())
-                || trim_optional(game.cover_image.clone()).is_none()
-                || external_id_count(game) == 0
+        "missingdescriptionimage" => {
+            has_provider_id(game) && !has_description_image(&game.description)
         }
+        "missingexternalid" => external_id_count(game) == 0,
+        "needsmetadata" | "missing" => !has_complete_metadata(game),
         _ => true,
     }
+}
+
+fn metadata_status_key(value: &str) -> String {
+    value.to_lowercase().replace([' ', '　', '-', '_'], "")
+}
+
+fn has_complete_metadata(game: &Game) -> bool {
+    has_text(&game.description)
+        && has_text(&game.release_date)
+        && (has_text(&game.developer) || has_text(&game.brand))
+        && has_text(&game.cover_image)
+        && external_id_count(game) > 0
+}
+
+fn has_provider_id(game: &Game) -> bool {
+    has_text(&game.dlsite_id) || has_text(&game.fanza_id)
+}
+
+fn has_description_image(value: &Option<String>) -> bool {
+    let Some(value) = value.as_deref() else {
+        return false;
+    };
+    let lower = value.to_lowercase();
+    lower.contains("![")
+        || lower.contains("<img")
+        || lower.contains("[img]")
+        || [".jpg", ".jpeg", ".png", ".webp", ".gif"]
+            .iter()
+            .any(|extension| lower.contains(extension))
+}
+
+fn has_text(value: &Option<String>) -> bool {
+    value
+        .as_deref()
+        .is_some_and(|value| !value.trim().is_empty())
 }
 
 fn external_id_count(game: &Game) -> usize {

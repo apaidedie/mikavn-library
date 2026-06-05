@@ -381,40 +381,59 @@ fn matches_field(game: &Game, field: &str, value: &str, collection_ids: &HashSet
 }
 
 fn matches_metadata_status(game: &Game, status: &str) -> bool {
-    match status {
+    match metadata_status_key(status).as_str() {
         "complete" => has_metadata(game),
-        "needs_metadata" | "missing" => !has_metadata(game),
-        "missing_cover" => game
-            .cover_image
-            .as_deref()
-            .map(|value| value.trim().is_empty())
-            .unwrap_or(true),
-        "missing_external_id" => external_id_count(game) == 0,
+        "needsmetadata" | "missing" => !has_metadata(game),
+        "missingdescription" => !has_text(&game.description),
+        "missingcover" => !has_text(&game.cover_image),
+        "missingbanner" => !has_text(&game.banner_image),
+        "missingbackground" => !has_text(&game.background_image),
+        "missingartwork" => {
+            !has_text(&game.cover_image)
+                || !has_text(&game.banner_image)
+                || !has_text(&game.background_image)
+        }
+        "missingdescriptionimage" => {
+            has_provider_id(game) && !has_description_image(&game.description)
+        }
+        "missingexternalid" => external_id_count(game) == 0,
         _ => false,
     }
 }
 
+fn metadata_status_key(value: &str) -> String {
+    value.to_lowercase().replace([' ', '　', '-', '_'], "")
+}
+
 fn has_metadata(game: &Game) -> bool {
-    game.description
+    has_text(&game.description)
+        && has_text(&game.release_date)
+        && (has_text(&game.developer) || has_text(&game.brand))
+        && has_text(&game.cover_image)
+        && external_id_count(game) > 0
+}
+
+fn has_provider_id(game: &Game) -> bool {
+    has_text(&game.dlsite_id) || has_text(&game.fanza_id)
+}
+
+fn has_description_image(value: &Option<String>) -> bool {
+    let Some(value) = value.as_deref() else {
+        return false;
+    };
+    let lower = value.to_lowercase();
+    lower.contains("![")
+        || lower.contains("<img")
+        || lower.contains("[img]")
+        || [".jpg", ".jpeg", ".png", ".webp", ".gif"]
+            .iter()
+            .any(|extension| lower.contains(extension))
+}
+
+fn has_text(value: &Option<String>) -> bool {
+    value
         .as_deref()
         .is_some_and(|value| !value.trim().is_empty())
-        && game
-            .release_date
-            .as_deref()
-            .is_some_and(|value| !value.trim().is_empty())
-        && (game
-            .developer
-            .as_deref()
-            .is_some_and(|value| !value.trim().is_empty())
-            || game
-                .brand
-                .as_deref()
-                .is_some_and(|value| !value.trim().is_empty()))
-        && game
-            .cover_image
-            .as_deref()
-            .is_some_and(|value| !value.trim().is_empty())
-        && external_id_count(game) > 0
 }
 
 fn external_id_count(game: &Game) -> usize {
@@ -611,6 +630,15 @@ mod tests {
                 ..add_game_input("Bright Moe", "D:\\Games\\Bright Moe")
             })
             .unwrap();
+        let provider_gap = db
+            .add_game(AddGameInput {
+                title: "Provider Gap".to_string(),
+                description: Some("DLsite detail without image tokens".to_string()),
+                dlsite_id: Some("RJ123456".to_string()),
+                install_path: "D:\\Games\\Provider Gap".to_string(),
+                ..add_game_input("Provider Gap", "D:\\Games\\Provider Gap")
+            })
+            .unwrap();
         db.add_game_to_collection(collection.id.clone(), first.id.clone())
             .unwrap();
         db.add_game_to_collection(collection.id, second.id.clone())
@@ -645,6 +673,34 @@ mod tests {
         assert_eq!(collection_result.total, 1);
         assert_eq!(collection_result.games.len(), 1);
         assert_eq!(collection_result.games[0].title, "Stella Pure");
+
+        let missing_artwork = search_games(
+            &db,
+            AdvancedSearchInput {
+                query: "meta:missing_artwork".to_string(),
+                sort_by: Some("title".to_string()),
+                sort_direction: Some("asc".to_string()),
+                limit: None,
+            },
+        )
+        .unwrap();
+        assert!(missing_artwork
+            .games
+            .iter()
+            .any(|game| game.id == provider_gap.id));
+
+        let missing_description_images = search_games(
+            &db,
+            AdvancedSearchInput {
+                query: "meta:missing_description_image".to_string(),
+                sort_by: Some("title".to_string()),
+                sort_direction: Some("asc".to_string()),
+                limit: None,
+            },
+        )
+        .unwrap();
+        assert_eq!(missing_description_images.total, 1);
+        assert_eq!(missing_description_images.games[0].id, provider_gap.id);
 
         let invalid = search_games(
             &db,

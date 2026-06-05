@@ -35,7 +35,7 @@ The current implementation focuses on a complete local desktop workflow:
 - Report statistics with Markdown export through the task queue
 - Dashboard task summary plus task center with expandable logs and retry for supported failed/cancelled operations
 - Library archive export/import with directory and ZIP formats, manifest, database backup, optional cache copies, safe preview, and non-destructive conflict skipping
-- Custom collections plus advanced library filters for tag, developer/brand, favorite, hidden state, metadata completeness, path health, and collection membership
+- Custom collections plus advanced library filters for tag, developer/brand, favorite, hidden state, metadata and media gaps, path health, and collection membership
 - Advanced local search with field clauses, negation, comparisons, validation chips, and saved searches
 - Tag rename, merge, and delete UI in Settings for normalized tag maintenance
 - Normalized metadata source and external ID registry while preserving legacy `games.*_id` fields for compatibility
@@ -278,9 +278,9 @@ In browser preview mode, native dialogs fall back to prompt-based path input.
 
 Settings can register one or more local library root directories. Each root can be enabled/disabled and configured for recursive or one-level scanning. Starting a scan from a library root creates a normal scan task; results still flow through the scan candidate review UI before anything is imported. Removing a library root only deletes that root record and never deletes real files or imported games.
 
-The Collections page creates local custom collections and lets users add or remove games without touching real files. Game detail pages can also add the current game to a collection. The Library page includes advanced filters for tag, developer/brand/publisher, collection, favorite-only, hidden state, and metadata completeness (`complete`, `needs_metadata`, missing cover, or missing external ID).
+The Collections page creates local custom collections and lets users add or remove games without touching real files. Game detail pages can also add the current game to a collection. The Library page includes advanced filters for tag, developer/brand/publisher, collection, favorite-only, hidden state, path health, and metadata/media gaps (`complete`, `needs_metadata`, missing description, missing cover/banner/background, missing artwork, missing description images, or missing external ID).
 
-The Advanced Search page starts with a simple search box and shortcut searches such as high-rated games, recent releases, missing covers, broken paths, and long-played titles. Query chips show how the input was parsed, validation errors stay inline, and searches can be saved locally for repeat use. The full syntax is tucked behind the page's advanced grammar disclosure: plain terms search title, aliases, developer/brand, description, notes, tags, genres, and paths. Field clauses include `tag:`, `genre:`, `dev:`, `publisher:`, `brand:`, `status:`, `path:`, `meta:`, `collection:`, and `age:`. Comparisons include `rating>=80`, `released>=2020-01-01`, `played>=2026-01-01`, and `playtime>=10h`.
+The Advanced Search page starts with a simple search box and shortcut searches such as high-rated games, recent releases, incomplete artwork, missing description images, broken paths, and long-played titles. Query chips show how the input was parsed, validation errors stay inline, and searches can be saved locally for repeat use. The full syntax is tucked behind the page's advanced grammar disclosure: plain terms search title, aliases, developer/brand, description, notes, tags, genres, and paths. Field clauses include `tag:`, `genre:`, `dev:`, `publisher:`, `brand:`, `status:`, `path:`, `meta:`, `collection:`, and `age:`; `meta:` accepts values such as `missing_artwork` and `missing_description_image`. Comparisons include `rating>=80`, `released>=2020-01-01`, `played>=2026-01-01`, and `playtime>=10h`.
 
 ## Assets And Tags
 

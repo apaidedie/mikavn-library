@@ -53,8 +53,8 @@ Done:
 - Launch executable and record play time.
 - Multiple launch profiles with legacy game-field fallback.
 - Search/filter by title and status.
-- Advanced filters by tag, developer/brand/publisher, favorite, hidden state, metadata completeness, path health, and collection membership.
-- Advanced local search page with field clauses, negation, comparisons, validation chips, and saved searches.
+- Advanced filters by tag, developer/brand/publisher, favorite, hidden state, metadata/media gaps, path health, and collection membership.
+- Advanced local search page with field clauses, metadata/media gap filters, negation, comparisons, validation chips, and saved searches.
 - Custom collections with add/remove membership from both collection and game detail views.
 - Normalized asset/tag tables with compatibility sync from existing game fields.
 - Tag rename, merge, and delete commands plus Settings maintenance UI for normalized tag cleanup.

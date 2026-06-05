@@ -415,6 +415,8 @@ mod tests {
                 developer: Some("Palette".to_string()),
                 favorite: Some(true),
                 cover_image: Some("cover.jpg".to_string()),
+                banner_image: Some("banner.jpg".to_string()),
+                background_image: Some("background.jpg".to_string()),
                 vndb_id: Some("v1".to_string()),
                 description: Some("desc".to_string()),
                 release_date: Some("2024-01-01".to_string()),
@@ -426,6 +428,27 @@ mod tests {
                 title: "Needs Metadata".to_string(),
                 install_path: "D:\\Games\\Needs Metadata".to_string(),
                 hidden: Some(true),
+                ..empty_game_input()
+            })
+            .unwrap();
+        let missing_artwork = db
+            .add_game(AddGameInput {
+                title: "Missing Artwork".to_string(),
+                install_path: "D:\\Games\\Missing Artwork".to_string(),
+                cover_image: Some("cover.jpg".to_string()),
+                description: Some("Story".to_string()),
+                release_date: Some("2025-01-01".to_string()),
+                developer: Some("Art Dev".to_string()),
+                dlsite_id: Some("RJ123456".to_string()),
+                ..empty_game_input()
+            })
+            .unwrap();
+        let provider_without_images = db
+            .add_game(AddGameInput {
+                title: "Provider Without Images".to_string(),
+                install_path: "D:\\Games\\Provider Without Images".to_string(),
+                description: Some("Provider story without image tokens".to_string()),
+                dlsite_id: Some("RJ654321".to_string()),
                 ..empty_game_input()
             })
             .unwrap();
@@ -442,6 +465,73 @@ mod tests {
             .unwrap()
             .len(),
             1
+        );
+        assert_eq!(
+            db.list_games(GameFilter {
+                metadata_status: Some("missing_banner".to_string()),
+                sort_by: Some("title".to_string()),
+                sort_direction: Some("asc".to_string()),
+                ..Default::default()
+            })
+            .unwrap()
+            .iter()
+            .map(|game| game.id.as_str())
+            .collect::<Vec<_>>(),
+            vec![
+                missing_artwork.id.as_str(),
+                needs_metadata.id.as_str(),
+                provider_without_images.id.as_str(),
+            ]
+        );
+        assert_eq!(
+            db.list_games(GameFilter {
+                metadata_status: Some("missing_background".to_string()),
+                sort_by: Some("title".to_string()),
+                sort_direction: Some("asc".to_string()),
+                ..Default::default()
+            })
+            .unwrap()
+            .iter()
+            .map(|game| game.id.as_str())
+            .collect::<Vec<_>>(),
+            vec![
+                missing_artwork.id.as_str(),
+                needs_metadata.id.as_str(),
+                provider_without_images.id.as_str(),
+            ]
+        );
+        assert_eq!(
+            db.list_games(GameFilter {
+                metadata_status: Some("missing_artwork".to_string()),
+                sort_by: Some("title".to_string()),
+                sort_direction: Some("asc".to_string()),
+                ..Default::default()
+            })
+            .unwrap()
+            .iter()
+            .map(|game| game.id.as_str())
+            .collect::<Vec<_>>(),
+            vec![
+                missing_artwork.id.as_str(),
+                needs_metadata.id.as_str(),
+                provider_without_images.id.as_str(),
+            ]
+        );
+        assert_eq!(
+            db.list_games(GameFilter {
+                metadata_status: Some("missing_description_image".to_string()),
+                sort_by: Some("title".to_string()),
+                sort_direction: Some("asc".to_string()),
+                ..Default::default()
+            })
+            .unwrap()
+            .iter()
+            .map(|game| game.id.as_str())
+            .collect::<Vec<_>>(),
+            vec![
+                missing_artwork.id.as_str(),
+                provider_without_images.id.as_str()
+            ]
         );
         assert_eq!(
             db.list_games(GameFilter {
@@ -477,7 +567,7 @@ mod tests {
             })
             .unwrap()
             .len(),
-            1
+            2
         );
         assert_eq!(
             db.list_games(GameFilter {
@@ -486,7 +576,7 @@ mod tests {
             })
             .unwrap()
             .len(),
-            1
+            2
         );
         assert_eq!(
             db.list_games(GameFilter {
