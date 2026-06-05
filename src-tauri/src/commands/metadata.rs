@@ -1,7 +1,8 @@
 use tauri::{AppHandle, State};
 
 use crate::db::models::{
-    AiRecognitionResult, BatchMatchJob, BatchMatchStatus, ExternalIdRecord, FieldLock, Game,
+    AiRecognitionResult, BatchMatchJob, BatchMatchStatus, DuplicateGameMergeOptions,
+    DuplicateGameMergePreview, DuplicateGameMergeResult, ExternalIdRecord, FieldLock, Game,
     MatchSuggestion, MetadataSearchResponse, MetadataSourceRecord, NormalizedMetadata, TaskRecord,
 };
 use crate::db::DbResult;
@@ -14,6 +15,7 @@ use crate::services::metadata_description_images::{
 use crate::services::metadata_duplicate_ids::{
     self, DuplicateExternalIdAuditOptions, DuplicateExternalIdPreview,
 };
+use crate::services::metadata_duplicate_merge;
 use crate::AppState;
 
 #[tauri::command]
@@ -173,6 +175,24 @@ pub fn audit_duplicate_external_ids(
 ) -> DbResult<TaskRecord> {
     let db = state.db()?;
     metadata_duplicate_ids::enqueue_duplicate_external_id_audit_task(app, &db, options)
+}
+
+#[tauri::command]
+pub fn preview_duplicate_game_merge(
+    state: State<'_, AppState>,
+    options: DuplicateGameMergeOptions,
+) -> DbResult<DuplicateGameMergePreview> {
+    let db = state.db()?;
+    metadata_duplicate_merge::preview_duplicate_game_merge(&db, options)
+}
+
+#[tauri::command]
+pub fn merge_duplicate_games(
+    state: State<'_, AppState>,
+    options: DuplicateGameMergeOptions,
+) -> DbResult<DuplicateGameMergeResult> {
+    let db = state.db()?;
+    metadata_duplicate_merge::merge_duplicate_games(&db, options)
 }
 
 #[tauri::command]

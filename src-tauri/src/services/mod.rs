@@ -14,6 +14,7 @@ pub mod metadata;
 pub mod metadata_artwork_repair;
 pub mod metadata_description_images;
 pub mod metadata_duplicate_ids;
+pub mod metadata_duplicate_merge;
 pub mod reports;
 pub mod saves;
 pub mod scanner;

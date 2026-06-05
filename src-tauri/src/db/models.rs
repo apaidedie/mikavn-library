@@ -328,6 +328,66 @@ pub struct ExternalIdRecord {
     pub updated_at: String,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DuplicateGameMergeOptions {
+    pub target_game_id: String,
+    pub source_game_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct DuplicateGameMergeExternalId {
+    pub provider: String,
+    pub external_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DuplicateGameMergeGameSummary {
+    pub game_id: String,
+    pub title: String,
+    pub install_path: String,
+    pub external_ids: Vec<DuplicateGameMergeExternalId>,
+    pub total_play_seconds: i64,
+    pub last_played_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct DuplicateGameMergeMovedCounts {
+    pub source_games: i64,
+    pub play_sessions: i64,
+    pub launch_profiles: i64,
+    pub save_paths: i64,
+    pub save_backups: i64,
+    pub external_ids: i64,
+    pub collection_links: i64,
+    pub assets: i64,
+    pub tags: i64,
+    pub field_locks: i64,
+    pub metadata_match_results: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DuplicateGameMergePreview {
+    pub target: DuplicateGameMergeGameSummary,
+    pub sources: Vec<DuplicateGameMergeGameSummary>,
+    pub shared_external_ids: Vec<DuplicateGameMergeExternalId>,
+    pub moved_counts: DuplicateGameMergeMovedCounts,
+    pub warnings: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DuplicateGameMergeResult {
+    pub merged_game: Game,
+    pub deleted_source_game_ids: Vec<String>,
+    pub moved_counts: DuplicateGameMergeMovedCounts,
+    pub warnings: Vec<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LibraryRoot {

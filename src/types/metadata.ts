@@ -158,6 +158,54 @@ export type DuplicateExternalIdPreview = {
   totalGames: number;
 };
 
+export type DuplicateGameMergeOptions = {
+  targetGameId: string;
+  sourceGameIds: string[];
+};
+
+export type DuplicateGameMergeExternalId = {
+  provider: string;
+  externalId: string;
+};
+
+export type DuplicateGameMergeGameSummary = {
+  gameId: string;
+  title: string;
+  installPath: string;
+  externalIds: DuplicateGameMergeExternalId[];
+  totalPlaySeconds: number;
+  lastPlayedAt?: string | null;
+};
+
+export type DuplicateGameMergeMovedCounts = {
+  sourceGames: number;
+  playSessions: number;
+  launchProfiles: number;
+  savePaths: number;
+  saveBackups: number;
+  externalIds: number;
+  collectionLinks: number;
+  assets: number;
+  tags: number;
+  fieldLocks: number;
+  metadataMatchResults: number;
+};
+
+export type DuplicateGameMergePreview = {
+  target: DuplicateGameMergeGameSummary;
+  sources: DuplicateGameMergeGameSummary[];
+  sharedExternalIds: DuplicateGameMergeExternalId[];
+  movedCounts: DuplicateGameMergeMovedCounts;
+  warnings: string[];
+};
+
+export type DuplicateGameMergeResult = {
+  mergedGame: Game;
+  deletedSourceGameIds: string[];
+  movedCounts: DuplicateGameMergeMovedCounts;
+  warnings: string[];
+};
+
 export type AiRecognitionResult = {
   title: string;
   rawText: string;

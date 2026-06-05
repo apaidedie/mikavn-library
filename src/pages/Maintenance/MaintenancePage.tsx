@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2, Database, FolderOpen, HardDrive, Image, ListChecks, PlayCircle, RefreshCw, ShieldCheck, Trash2, Wrench } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Combine, Database, FolderOpen, HardDrive, Image, ListChecks, PlayCircle, RefreshCw, ShieldCheck, Trash2, Wrench } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -8,7 +8,9 @@ import { MetricTile, PageFrame, PageHeader, PageShell, Panel, PanelContent, Pane
 import { TaskNotice } from '@/components/ui/task-notice';
 import { api } from '@/services/api';
 import type { AppDataDiagnostics } from '@/types/archive';
+import type { DuplicateExternalIdGroup, DuplicateGameMergePreview } from '@/types/metadata';
 import { errorMessage } from '@/utils/errorMessage';
+import { Select } from '@/components/ui/select';
 
 type TaskMessage = { text: string; taskId?: string | null };
 
@@ -20,6 +22,12 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
   const [descriptionRepairLoading, setDescriptionRepairLoading] = useState(false);
   const [artworkRepairLoading, setArtworkRepairLoading] = useState(false);
   const [duplicateAuditLoading, setDuplicateAuditLoading] = useState(false);
+  const [duplicateGroups, setDuplicateGroups] = useState<DuplicateExternalIdGroup[]>([]);
+  const [duplicateGroupsLoading, setDuplicateGroupsLoading] = useState(false);
+  const [selectedDuplicateKey, setSelectedDuplicateKey] = useState('');
+  const [mergeTargetId, setMergeTargetId] = useState('');
+  const [mergePreview, setMergePreview] = useState<DuplicateGameMergePreview | null>(null);
+  const [mergeLoading, setMergeLoading] = useState(false);
   const [message, setMessage] = useState<TaskMessage | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,6 +52,21 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
       + database.cDriveImageRefsCount
       + database.playniteImageRefsCount;
   }, [database]);
+  const selectedDuplicateGroup = useMemo(() => duplicateGroups.find((group) => duplicateGroupKey(group) === selectedDuplicateKey) ?? duplicateGroups[0] ?? null, [duplicateGroups, selectedDuplicateKey]);
+  const mergeSourceIds = useMemo(() => selectedDuplicateGroup?.games.map((game) => game.gameId).filter((id) => id !== mergeTargetId) ?? [], [mergeTargetId, selectedDuplicateGroup]);
+
+  useEffect(() => {
+    if (!selectedDuplicateGroup) {
+      setMergeTargetId('');
+      setMergePreview(null);
+      return;
+    }
+    if (!selectedDuplicateKey) setSelectedDuplicateKey(duplicateGroupKey(selectedDuplicateGroup));
+    if (!mergeTargetId || !selectedDuplicateGroup.games.some((game) => game.gameId === mergeTargetId)) {
+      setMergeTargetId(selectedDuplicateGroup.games[0]?.gameId ?? '');
+    }
+    setMergePreview(null);
+  }, [mergeTargetId, selectedDuplicateGroup, selectedDuplicateKey]);
 
   return (
     <PageShell>
@@ -156,6 +179,89 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
             </PanelContent>
           </Panel>
         </div>
+
+        <Panel>
+          <PanelHeader
+            title="重复游戏安全合并"
+            description="只允许合并共享外部 ID 的条目，执行前会预览搬迁数据。"
+            icon={<Combine className="h-4 w-4" />}
+            actions={<Button disabled={duplicateGroupsLoading} size="sm" variant="ghost" onClick={() => loadDuplicateGroups()}><RefreshCw className="h-4 w-4" />{duplicateGroupsLoading ? '读取中' : '读取重复组'}</Button>}
+          />
+          <PanelContent className="space-y-3">
+            {duplicateGroups.length === 0 ? (
+              <SoftRow className="flex items-center justify-between gap-3 px-3 py-3">
+                <div className="min-w-0 text-sm text-slate-400">还没有载入重复组。先读取重复组，或运行重复 ID 审查后再回来处理。</div>
+                <Button disabled={duplicateGroupsLoading || (externalIds?.duplicateExternalIdGroupsCount ?? 0) === 0} size="sm" variant="secondary" onClick={() => loadDuplicateGroups()}><ListChecks className="h-4 w-4" />读取</Button>
+              </SoftRow>
+            ) : (
+              <div className="grid gap-3 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+                <div className="space-y-2">
+                  <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(12rem,18rem)]">
+                    <label className="min-w-0 text-xs text-slate-500">
+                      重复组
+                      <Select className="mt-1 w-full" value={selectedDuplicateKey} onChange={(event) => { setSelectedDuplicateKey(event.target.value); setMergePreview(null); }}>
+                        {duplicateGroups.map((group) => (
+                          <option key={duplicateGroupKey(group)} value={duplicateGroupKey(group)}>{group.provider} {group.externalId} · {group.gameCount} 条</option>
+                        ))}
+                      </Select>
+                    </label>
+                    <label className="min-w-0 text-xs text-slate-500">
+                      保留为目标
+                      <Select className="mt-1 w-full" value={mergeTargetId} onChange={(event) => { setMergeTargetId(event.target.value); setMergePreview(null); }}>
+                        {selectedDuplicateGroup?.games.map((game) => <option key={game.gameId} value={game.gameId}>{game.title}</option>)}
+                      </Select>
+                    </label>
+                  </div>
+                  <div className="space-y-2">
+                    {selectedDuplicateGroup?.games.map((game) => (
+                      <SoftRow className="grid gap-2 px-3 py-2 md:grid-cols-[minmax(0,1fr)_auto]" key={game.gameId}>
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="truncate text-sm font-medium text-slate-100">{game.title}</span>
+                            {game.gameId === mergeTargetId ? <Badge>保留</Badge> : <Badge>并入</Badge>}
+                          </div>
+                          <div className="mt-1 break-all font-mono text-[11px] text-slate-600">{game.installPath}</div>
+                        </div>
+                        <div className="text-right text-[11px] text-slate-500">{game.sources.join(' / ')}</div>
+                      </SoftRow>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button disabled={mergeLoading || !mergeTargetId || mergeSourceIds.length === 0} size="sm" variant="secondary" onClick={previewDuplicateMerge}><ShieldCheck className="h-4 w-4" />{mergeLoading && !mergePreview ? '预览中' : '预览合并'}</Button>
+                    <Button disabled={mergeLoading || !mergePreview || mergeSourceIds.length === 0} size="sm" variant="danger" onClick={mergeDuplicateGroup}><Combine className="h-4 w-4" />{mergeLoading && mergePreview ? '合并中' : '确认合并'}</Button>
+                  </div>
+                  {mergePreview ? (
+                    <div className="space-y-2">
+                      <SoftRow className="px-3 py-2">
+                        <div className="text-xs text-slate-500">共享外部 ID</div>
+                        <div className="mt-1 text-sm text-slate-200">{mergePreview.sharedExternalIds.map((item) => `${item.provider} ${item.externalId}`).join('，')}</div>
+                      </SoftRow>
+                      <div className="grid grid-cols-2 gap-2">
+                        <CompactStat label="删除源条目" value={mergePreview.movedCounts.sourceGames} tone="warn" />
+                        <CompactStat label="搬迁资产" value={mergePreview.movedCounts.assets} />
+                        <CompactStat label="收藏关系" value={mergePreview.movedCounts.collectionLinks} />
+                        <CompactStat label="启动配置" value={mergePreview.movedCounts.launchProfiles} />
+                        <CompactStat label="存档路径" value={mergePreview.movedCounts.savePaths} />
+                        <CompactStat label="游玩记录" value={mergePreview.movedCounts.playSessions} />
+                      </div>
+                      {mergePreview.warnings.length > 0 && (
+                        <Notice className="py-2" tone="warning">
+                          <div className="flex flex-col gap-1 text-xs leading-5">
+                            {mergePreview.warnings.slice(0, 4).map((warning) => <span key={warning}>{warning}</span>)}
+                          </div>
+                        </Notice>
+                      )}
+                    </div>
+                  ) : (
+                    <SoftRow className="px-3 py-3 text-xs leading-5 text-slate-500">预览后会显示将要移动的收藏、资产、标签、启动配置、存档和游玩记录数量。</SoftRow>
+                  )}
+                </div>
+              </div>
+            )}
+          </PanelContent>
+        </Panel>
 
         <Panel>
           <PanelHeader title="维护队列" description="已落地的统计基础和下一批整理入口。" icon={<ListChecks className="h-4 w-4" />} />
@@ -325,6 +431,61 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
     }
   }
 
+  async function loadDuplicateGroups(announceEmpty = true) {
+    setDuplicateGroupsLoading(true);
+    setError(null);
+    try {
+      const preview = await api.previewDuplicateExternalIds({ providers: ['all'], limit: 50 });
+      setDuplicateGroups(preview.groups);
+      const first = preview.groups[0] ?? null;
+      setSelectedDuplicateKey(first ? duplicateGroupKey(first) : '');
+      setMergeTargetId(first?.games[0]?.gameId ?? '');
+      setMergePreview(null);
+      if (announceEmpty && preview.totalGroups === 0) setMessage({ text: '没有发现可合并的重复外部 ID 组。' });
+    } catch (reason) {
+      setError(errorMessage(reason));
+    } finally {
+      setDuplicateGroupsLoading(false);
+    }
+  }
+
+  async function previewDuplicateMerge() {
+    if (!selectedDuplicateGroup || !mergeTargetId || mergeSourceIds.length === 0) return;
+    setMergeLoading(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const preview = await api.previewDuplicateGameMerge({ targetGameId: mergeTargetId, sourceGameIds: mergeSourceIds });
+      setMergePreview(preview);
+    } catch (reason) {
+      setError(errorMessage(reason));
+    } finally {
+      setMergeLoading(false);
+    }
+  }
+
+  async function mergeDuplicateGroup() {
+    if (!mergePreview || !selectedDuplicateGroup || !mergeTargetId || mergeSourceIds.length === 0) return;
+    const target = selectedDuplicateGroup.games.find((game) => game.gameId === mergeTargetId);
+    if (!window.confirm(`把 ${mergeSourceIds.length} 条重复游戏并入「${target?.title ?? mergeTargetId}」？源游戏记录会删除，但关联数据会先迁移。`)) return;
+    setMergeLoading(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const result = await api.mergeDuplicateGames({ targetGameId: mergeTargetId, sourceGameIds: mergeSourceIds });
+      const successText = `已合并重复游戏：删除 ${formatCount(result.deletedSourceGameIds.length)} 条源记录，保留「${result.mergedGame.title}」。`;
+      setMessage({ text: successText });
+      setMergePreview(null);
+      await loadDiagnostics();
+      await loadDuplicateGroups(false);
+      setMessage({ text: successText });
+    } catch (reason) {
+      setError(errorMessage(reason));
+    } finally {
+      setMergeLoading(false);
+    }
+  }
+
   async function revealPath(path: string) {
     setError(null);
     try {
@@ -417,6 +578,10 @@ function formatBytes(value: number) {
 function percent(value: number, total: number) {
   if (!Number.isFinite(value) || !Number.isFinite(total) || total <= 0) return '0%';
   return `${Math.round((value / total) * 100)}%`;
+}
+
+function duplicateGroupKey(group: DuplicateExternalIdGroup) {
+  return `${group.provider}:${group.externalId}`;
 }
 
 function dataDirSourceLabel(value: string) {

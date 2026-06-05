@@ -1,6 +1,7 @@
 mod assets_ext;
 mod collections_ext;
 mod dashboard_ext;
+mod game_merge_ext;
 mod games_ext;
 mod launch_ext;
 mod library_roots_ext;
