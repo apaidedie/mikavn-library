@@ -583,8 +583,8 @@ function mockDescriptionImageCandidates(options: DescriptionImageRepairOptions =
 
 function normalizeMockArtworkFields(fields: ArtworkRepairOptions['fields'] = null) {
   const raw = (fields ?? []).map((field) => String(field).trim().toLowerCase()).filter(Boolean);
-  if (raw.length === 0 || raw.includes('all')) return ['cover', 'background'];
-  return [...new Set(raw.filter((field) => field === 'cover' || field === 'background'))];
+  if (raw.length === 0 || raw.includes('all')) return ['cover', 'banner', 'background'];
+  return [...new Set(raw.filter((field) => field === 'cover' || field === 'banner' || field === 'background'))];
 }
 
 function normalizeMockArtworkProviders(providers: ArtworkRepairOptions['providers'] = null) {
@@ -598,7 +598,11 @@ function mockArtworkRepairPreview(options: ArtworkRepairOptions = {}): ArtworkRe
   const providers = normalizeMockArtworkProviders(options.providers);
   const limit = Math.max(1, Math.min(Number(options.limit ?? 20) || 20, 200));
   const candidates = readGames().map(ensureGameDefaults).flatMap((game) => {
-    const missingFields = fields.filter((field) => field === 'cover' ? !game.coverImage?.trim() : !game.backgroundImage?.trim());
+    const missingFields = fields.filter((field) => {
+      if (field === 'cover') return !game.coverImage?.trim();
+      if (field === 'banner') return !game.bannerImage?.trim();
+      return !game.backgroundImage?.trim();
+    });
     if (missingFields.length === 0) return [];
     const refs = providers.flatMap((provider) => {
       const providerId = provider === 'vndb' ? game.vndbId : provider === 'dlsite' ? game.dlsiteId : game.fanzaId;
@@ -1771,6 +1775,7 @@ export const mockStore = {
       return {
         ...game,
         coverImage: fields.includes('cover') ? `mock://metadata/${game.id}/artwork-cover.webp` : game.coverImage,
+        bannerImage: fields.includes('banner') ? `mock://metadata/${game.id}/artwork-banner.webp` : game.bannerImage,
         backgroundImage: fields.includes('background') ? `mock://metadata/${game.id}/artwork-background.webp` : game.backgroundImage,
         updatedAt: new Date().toISOString(),
       };
@@ -1780,7 +1785,7 @@ export const mockStore = {
       status: 'completed',
       progress: 1,
       message: `浏览器预览已补全 ${preview.totalCandidates} 个条目的媒体图片`,
-      retryPayload: JSON.stringify({ providers: options.providers ?? ['all'], fields: options.fields ?? ['cover', 'background'], limit: options.limit ?? 20, retryAttempted: Boolean(options.retryAttempted) }),
+      retryPayload: JSON.stringify({ providers: options.providers ?? ['all'], fields: options.fields ?? ['cover', 'banner', 'background'], limit: options.limit ?? 20, retryAttempted: Boolean(options.retryAttempted) }),
       retryable: true,
     });
     for (const candidate of preview.candidates) {

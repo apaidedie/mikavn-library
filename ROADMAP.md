@@ -59,6 +59,7 @@ Done:
 - Normalized asset/tag tables with compatibility sync from existing game fields.
 - Tag rename, merge, and delete commands plus Settings maintenance UI for normalized tag cleanup.
 - Game detail asset gallery for cover, banner, background, screenshots, primary selection, user image import, remote asset download, removal, and unreferenced image cache cleanup with Maintenance preview and protection for game fields, asset records, and local description images.
+- Maintenance media artwork repair fills missing cover, banner, and background images from available metadata providers.
 - Maintenance image-reference audit with per-game/source details for missing local files, C-drive leftovers, Playnite leftovers, raw values, and resolved local paths.
 - Basic settings.
 - Broken path check and install directory relocation.

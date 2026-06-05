@@ -45,6 +45,7 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
   const descriptionImages = database?.descriptionImages;
   const externalIds = database?.externalIds;
   const pathStatus = database?.pathStatus;
+  const missingArtworkFieldCount = (metadata?.missingCoverCount ?? 0) + (metadata?.missingBannerCount ?? 0) + (metadata?.missingBackgroundCount ?? 0);
   const providerDescriptionCoverage = useMemo(() => percent(descriptionImages?.providerGamesWithImagesCount ?? 0, descriptionImages?.providerGamesCount ?? 0), [descriptionImages]);
   const metadataCoverage = useMemo(() => percent(metadata?.completeGameCount ?? 0, database?.gameCount ?? 0), [database, metadata]);
   const issueCount = useMemo(() => {
@@ -178,7 +179,7 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
 
         <div className="grid gap-5 xl:grid-cols-2">
           <Panel>
-            <PanelHeader title="媒体与简介" description="封面、背景和简介图片的当前覆盖情况。" icon={<Image className="h-4 w-4" />} />
+            <PanelHeader title="媒体与简介" description="封面、横幅、背景和简介图片的当前覆盖情况。" icon={<Image className="h-4 w-4" />} />
             <PanelContent className="space-y-4">
               <ProgressBlock label="DLsite / FANZA 简介图片" value={descriptionImages?.providerGamesWithImagesCount ?? 0} total={descriptionImages?.providerGamesCount ?? 0} />
               <div className="grid gap-2 sm:grid-cols-2">
@@ -187,6 +188,7 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
                 <CompactStat label="简介图片引用" value={descriptionImages?.imageRefsCount ?? 0} />
                 <CompactStat label="缺失本地简介图" value={descriptionImages?.missingLocalImageRefsCount ?? 0} tone={(descriptionImages?.missingLocalImageRefsCount ?? 0) > 0 ? 'warn' : 'ok'} />
                 <CompactStat label="缺封面" value={metadata?.missingCoverCount ?? 0} tone={(metadata?.missingCoverCount ?? 0) > 0 ? 'warn' : 'ok'} />
+                <CompactStat label="缺横幅" value={metadata?.missingBannerCount ?? 0} tone={(metadata?.missingBannerCount ?? 0) > 0 ? 'warn' : 'ok'} />
                 <CompactStat label="缺背景" value={metadata?.missingBackgroundCount ?? 0} tone={(metadata?.missingBackgroundCount ?? 0) > 0 ? 'warn' : 'ok'} />
               </div>
             </PanelContent>
@@ -341,11 +343,11 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
             />
             <MaintenanceAction
               action={(
-                <Button disabled={artworkRepairLoading || ((metadata?.missingCoverCount ?? 0) + (metadata?.missingBackgroundCount ?? 0)) === 0} size="sm" variant="secondary" onClick={startArtworkRepair}>
+                <Button disabled={artworkRepairLoading || missingArtworkFieldCount === 0} size="sm" variant="secondary" onClick={startArtworkRepair}>
                   <PlayCircle className="h-4 w-4" />{artworkRepairLoading ? '创建中' : '开始'}
                 </Button>
               )}
-              detail={`${formatCount((metadata?.missingCoverCount ?? 0) + (metadata?.missingBackgroundCount ?? 0))} 个媒体字段待补`}
+              detail={`${formatCount(missingArtworkFieldCount)} 个媒体字段待补`}
               label="媒体图片补全"
               status="可创建任务"
             />
@@ -519,7 +521,7 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
     setError(null);
     setMessage(null);
     try {
-      const options = { providers: ['all'], fields: ['cover', 'background'], limit: 20 };
+      const options = { providers: ['all'], fields: ['cover', 'banner', 'background'], limit: 20 };
       const preview = await api.previewArtworkRepair(options);
       if (preview.totalCandidates === 0) {
         setMessage({ text: '没有可补全媒体图片的条目。' });

@@ -18,6 +18,7 @@ Updated release candidate with the mature local V1 hardening pass.
 - Maintenance image-cache cleanup preview with removable file counts and byte totals.
 - Maintenance image-reference audit details for locating missing files, C-drive leftovers, and Playnite leftovers by game, source field, raw value, and resolved path.
 - Library and Advanced Search filters for missing description, cover, banner, background, incomplete artwork, missing description images, and missing external IDs.
+- Batch media artwork repair now includes missing banner images alongside cover and background images.
 
 ### Changed
 

@@ -109,7 +109,7 @@ export type DescriptionImageRepairPreview = {
 
 export type ArtworkRepairOptions = {
   providers?: Array<string | MetadataProvider> | null;
-  fields?: Array<'cover' | 'background' | 'all' | string> | null;
+  fields?: Array<'cover' | 'banner' | 'background' | 'all' | string> | null;
   limit?: number | null;
   retryAttempted?: boolean | null;
 };

@@ -17,7 +17,7 @@ use crate::services::tasks;
 const DEFAULT_LIMIT: usize = 20;
 const MAX_LIMIT: usize = 200;
 const DEFAULT_PROVIDERS: [&str; 3] = ["vndb", "dlsite", "fanza"];
-const DEFAULT_FIELDS: [&str; 2] = ["cover", "background"];
+const DEFAULT_FIELDS: [&str; 3] = ["cover", "banner", "background"];
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -319,6 +319,10 @@ fn repair_candidate(
                     input.cover_image = Some(path.clone());
                     fields.push("封面".to_string());
                 }
+                if missing_fields.iter().any(|field| field == "banner") {
+                    input.banner_image = Some(path.clone());
+                    fields.push("横幅".to_string());
+                }
                 if missing_fields.iter().any(|field| field == "background") {
                     input.background_image = Some(path.clone());
                     fields.push("背景".to_string());
@@ -413,6 +417,9 @@ fn missing_artwork_fields(game: &Game, fields: &[String]) -> Vec<String> {
     let mut missing = Vec::new();
     if fields.iter().any(|field| field == "cover") && is_empty(game.cover_image.as_deref()) {
         missing.push("cover".to_string());
+    }
+    if fields.iter().any(|field| field == "banner") && is_empty(game.banner_image.as_deref()) {
+        missing.push("banner".to_string());
     }
     if fields.iter().any(|field| field == "background")
         && is_empty(game.background_image.as_deref())
@@ -598,7 +605,7 @@ fn normalize_fields(input: Option<Vec<String>>) -> DbResult<Vec<String>> {
     for field in values {
         if !DEFAULT_FIELDS.contains(&field.as_str()) {
             return Err(DbError::validation(
-                "fields must be all, cover, or background",
+                "fields must be all, cover, banner, or background",
             ));
         }
         if !fields.contains(&field) {
@@ -617,7 +624,11 @@ fn normalize_fields(input: Option<Vec<String>>) -> DbResult<Vec<String>> {
 mod tests {
     use super::*;
 
-    fn game_with_artwork(cover: Option<&str>, background: Option<&str>) -> Game {
+    fn game_with_artwork(
+        cover: Option<&str>,
+        banner: Option<&str>,
+        background: Option<&str>,
+    ) -> Game {
         Game {
             id: "game".to_string(),
             title: "Game".to_string(),
@@ -643,7 +654,7 @@ mod tests {
             path_status: "unknown".to_string(),
             last_path_checked_at: None,
             cover_image: cover.map(ToString::to_string),
-            banner_image: None,
+            banner_image: banner.map(ToString::to_string),
             background_image: background.map(ToString::to_string),
             vndb_id: Some("v123".to_string()),
             bangumi_id: None,
@@ -659,13 +670,27 @@ mod tests {
 
     #[test]
     fn missing_artwork_fields_only_reports_empty_targets() {
-        let fields = vec!["cover".to_string(), "background".to_string()];
+        let fields = vec![
+            "cover".to_string(),
+            "banner".to_string(),
+            "background".to_string(),
+        ];
         assert_eq!(
-            missing_artwork_fields(&game_with_artwork(None, Some("bg.png")), &fields),
+            missing_artwork_fields(
+                &game_with_artwork(None, Some("banner.png"), Some("bg.png")),
+                &fields
+            ),
             vec!["cover".to_string()]
         );
+        assert_eq!(
+            missing_artwork_fields(
+                &game_with_artwork(Some("cover.png"), None, Some("bg.png")),
+                &fields
+            ),
+            vec!["banner".to_string()]
+        );
         assert!(missing_artwork_fields(
-            &game_with_artwork(Some("cover.png"), Some("bg.png")),
+            &game_with_artwork(Some("cover.png"), Some("banner.png"), Some("bg.png")),
             &fields
         )
         .is_empty());
@@ -673,6 +698,23 @@ mod tests {
 
     #[test]
     fn normalize_options_defaults_and_deduplicates() {
+        let defaults = normalize_options(ArtworkRepairOptions {
+            providers: None,
+            fields: None,
+            limit: None,
+            retry_attempted: None,
+        })
+        .unwrap();
+
+        assert_eq!(
+            defaults.fields,
+            vec![
+                "cover".to_string(),
+                "banner".to_string(),
+                "background".to_string()
+            ]
+        );
+
         let options = normalize_options(ArtworkRepairOptions {
             providers: Some(vec!["VNDB".to_string(), "vndb".to_string()]),
             fields: Some(vec!["cover".to_string(), "cover".to_string()]),
