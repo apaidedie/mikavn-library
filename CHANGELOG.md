@@ -16,6 +16,7 @@ Updated release candidate with the mature local V1 hardening pass.
 - Settings page module split for appearance, metadata/AI configuration, and shared setting indicators.
 - Full library archive restore scheduling with archive database validation, next-start database replacement, retryable task logs, and optional app-data image/save-backup cache mirroring.
 - Maintenance image-cache cleanup preview with removable file counts and byte totals.
+- Maintenance image-reference audit details for locating missing files, C-drive leftovers, and Playnite leftovers by game, source field, raw value, and resolved path.
 
 ### Changed
 
@@ -32,6 +33,7 @@ Updated release candidate with the mature local V1 hardening pass.
 - Save path and backup record deletion remove only MikaVN database records; real save directories and backup folders are not deleted.
 - Full archive restore creates protection backups and mirrors only MikaVN app-data cache folders; it never touches real game installation directories.
 - Image-cache cleanup is limited to MikaVN `app-data/images` and previews unreferenced files before deletion from Maintenance.
+- Image-reference audit is read-only and does not move, rewrite, download, or delete any files.
 - Desktop smoke verifies the release executable creates `mikavn.db` only under an isolated `output/desktop-smoke/run-*/isolated-app-data` root.
 
 ## 0.1.0 - Mature Local V1

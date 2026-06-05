@@ -7,7 +7,7 @@ import { Notice } from '@/components/ui/notice';
 import { MetricTile, PageFrame, PageHeader, PageShell, Panel, PanelContent, PanelHeader, SoftRow } from '@/components/ui/page';
 import { TaskNotice } from '@/components/ui/task-notice';
 import { api } from '@/services/api';
-import type { AppDataDiagnostics } from '@/types/archive';
+import type { AppDataDiagnostics, ImageReferenceAudit, ImageReferenceAuditItem } from '@/types/archive';
 import type { AssetCacheCleanupResult } from '@/types/game';
 import type { DuplicateExternalIdGroup, DuplicateGameMergePreview } from '@/types/metadata';
 import { errorMessage } from '@/utils/errorMessage';
@@ -21,6 +21,8 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
   const [cleanupLoading, setCleanupLoading] = useState(false);
   const [assetCleanupLoading, setAssetCleanupLoading] = useState(false);
   const [assetCleanupPreview, setAssetCleanupPreview] = useState<AssetCacheCleanupResult | null>(null);
+  const [imageAudit, setImageAudit] = useState<ImageReferenceAudit | null>(null);
+  const [imageAuditLoading, setImageAuditLoading] = useState(false);
   const [metadataRepairLoading, setMetadataRepairLoading] = useState(false);
   const [descriptionRepairLoading, setDescriptionRepairLoading] = useState(false);
   const [artworkRepairLoading, setArtworkRepairLoading] = useState(false);
@@ -208,6 +210,41 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
 
         <Panel>
           <PanelHeader
+            title="图片引用问题"
+            description="定位缺失、C 盘残留和 Playnite 残留图片引用。"
+            icon={<Image className="h-4 w-4" />}
+            actions={<Button disabled={imageAuditLoading || !diagnostics} size="sm" variant="ghost" onClick={loadImageAudit}><ListChecks className="h-4 w-4" />{imageAuditLoading ? '读取中' : '读取明细'}</Button>}
+          />
+          <PanelContent className="space-y-3">
+            {imageAudit ? (
+              <>
+                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+                  <CompactStat label="图片引用" value={imageAudit.totalRefs} />
+                  <CompactStat label="问题引用" value={imageAudit.issueCount} tone={imageAudit.issueCount > 0 ? 'warn' : 'ok'} />
+                  <CompactStat label="缺失本地文件" value={imageAudit.missingCount} tone={imageAudit.missingCount > 0 ? 'warn' : 'ok'} />
+                  <CompactStat label="C 盘残留" value={imageAudit.cDriveCount} tone={imageAudit.cDriveCount > 0 ? 'warn' : 'ok'} />
+                  <CompactStat label="Playnite 残留" value={imageAudit.playniteCount} tone={imageAudit.playniteCount > 0 ? 'warn' : 'ok'} />
+                </div>
+                {imageAudit.items.length > 0 ? (
+                  <div className="space-y-2">
+                    {imageAudit.items.map((item, index) => <ImageAuditRow item={item} key={`${item.gameId ?? 'game'}-${item.sourceKind}-${item.fieldName ?? 'field'}-${item.value}-${index}`} />)}
+                    {imageAudit.truncated && <div className="px-1 text-xs text-slate-500">结果较多，当前只显示前 80 条问题引用。</div>}
+                  </div>
+                ) : (
+                  <SoftRow className="px-3 py-3 text-sm text-slate-400">没有发现需要处理的图片引用。</SoftRow>
+                )}
+              </>
+            ) : (
+              <SoftRow className="flex items-center justify-between gap-3 px-3 py-3">
+                <div className="min-w-0 text-sm text-slate-400">读取后会列出具体游戏、来源字段、原始路径和已解析到的文件路径。</div>
+                <Button disabled={imageAuditLoading || !diagnostics} size="sm" variant="secondary" onClick={loadImageAudit}><ListChecks className="h-4 w-4" />读取</Button>
+              </SoftRow>
+            )}
+          </PanelContent>
+        </Panel>
+
+        <Panel>
+          <PanelHeader
             title="重复游戏安全合并"
             description="只允许合并共享外部 ID 的条目，执行前会预览搬迁数据。"
             icon={<Combine className="h-4 w-4" />}
@@ -347,6 +384,20 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
       setError(errorMessage(reason));
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadImageAudit() {
+    setImageAuditLoading(true);
+    setError(null);
+    try {
+      const audit = await api.auditImageReferences({ limit: 80, includeOk: false });
+      setImageAudit(audit);
+      setMessage({ text: audit.issueCount > 0 ? `图片引用审计完成：发现 ${formatCount(audit.issueCount)} 条问题引用。` : '图片引用审计完成，没有发现问题引用。' });
+    } catch (reason) {
+      setError(errorMessage(reason));
+    } finally {
+      setImageAuditLoading(false);
     }
   }
 
@@ -596,6 +647,37 @@ function StorageStat({ label, count, size, path, onReveal }: { label: string; co
   );
 }
 
+function ImageAuditRow({ item }: { item: ImageReferenceAuditItem }) {
+  const title = item.gameTitle?.trim() || item.gameId || '未知游戏';
+  const issues = item.issues.length > 0 ? item.issues : [item.status];
+  return (
+    <SoftRow className="grid gap-3 px-3 py-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="truncate text-sm font-medium text-slate-100" title={title}>{title}</span>
+          <Badge>{item.sourceLabel}</Badge>
+          {item.fieldName && <Badge>{imageFieldLabel(item.fieldName)}</Badge>}
+        </div>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {issues.map((issue) => <Badge className={imageBadgeClass(issue)} key={issue}>{imageIssueLabel(issue)}</Badge>)}
+        </div>
+      </div>
+      <div className="min-w-0 space-y-1 text-[11px] leading-5">
+        <div className="grid gap-1 sm:grid-cols-[4.5rem_minmax(0,1fr)]">
+          <span className="text-slate-600">原始值</span>
+          <span className="break-all font-mono text-slate-300">{item.value}</span>
+        </div>
+        {item.resolvedPath && (
+          <div className="grid gap-1 sm:grid-cols-[4.5rem_minmax(0,1fr)]">
+            <span className="text-slate-600">解析路径</span>
+            <span className="break-all font-mono text-slate-500">{item.resolvedPath}</span>
+          </div>
+        )}
+      </div>
+    </SoftRow>
+  );
+}
+
 function ProgressBlock({ label, value, total }: { label: string; value: number; total: number }) {
   const ratio = total > 0 ? Math.max(0, Math.min(100, (value / total) * 100)) : 0;
   return (
@@ -660,6 +742,32 @@ function percent(value: number, total: number) {
 
 function duplicateGroupKey(group: DuplicateExternalIdGroup) {
   return `${group.provider}:${group.externalId}`;
+}
+
+function imageIssueLabel(value: string) {
+  if (value === 'missing') return '缺失';
+  if (value === 'c_drive') return 'C 盘';
+  if (value === 'playnite') return 'Playnite';
+  if (value === 'remote') return '远程';
+  if (value === 'ok') return '正常';
+  if (value === 'warning') return '警告';
+  return value;
+}
+
+function imageFieldLabel(value: string) {
+  if (value === 'cover_image' || value === 'coverImage') return '封面字段';
+  if (value === 'banner_image' || value === 'bannerImage') return '横幅字段';
+  if (value === 'background_image' || value === 'backgroundImage') return '背景字段';
+  if (value === 'description') return '简介';
+  if (value === 'game_assets.uri') return '图库 URI';
+  return value;
+}
+
+function imageBadgeClass(value: string) {
+  if (value === 'missing') return 'border-amber-300/25 bg-amber-300/10 text-amber-100';
+  if (value === 'c_drive' || value === 'playnite') return 'border-rose-300/25 bg-rose-300/10 text-rose-100';
+  if (value === 'ok' || value === 'remote') return 'border-emerald-300/25 bg-emerald-300/10 text-emerald-100';
+  return 'border-white/10 bg-white/[0.045] text-slate-300';
 }
 
 function dataDirSourceLabel(value: string) {

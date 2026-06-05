@@ -5,13 +5,16 @@ use std::sync::OnceLock;
 use chrono::{DateTime, Utc};
 use regex::Regex;
 use rusqlite::{Connection, OpenFlags};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tauri::AppHandle;
 
 use crate::db::DbResult;
 use crate::infrastructure::paths::AppPaths;
 use crate::services::backups;
 use crate::services::images;
+
+const DEFAULT_IMAGE_AUDIT_LIMIT: usize = 200;
+const MAX_IMAGE_AUDIT_LIMIT: usize = 1000;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -111,11 +114,76 @@ pub struct AppDataDiagnostics {
     pub warnings: Vec<String>,
 }
 
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImageReferenceAuditOptions {
+    pub limit: Option<usize>,
+    pub include_ok: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImageReferenceAudit {
+    pub total_refs: usize,
+    pub issue_count: usize,
+    pub local_count: usize,
+    pub remote_count: usize,
+    pub missing_count: usize,
+    pub c_drive_count: usize,
+    pub playnite_count: usize,
+    pub items: Vec<ImageReferenceAuditItem>,
+    pub truncated: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImageReferenceAuditItem {
+    pub game_id: Option<String>,
+    pub game_title: Option<String>,
+    pub source_kind: String,
+    pub source_label: String,
+    pub field_name: Option<String>,
+    pub value: String,
+    pub resolved_path: Option<String>,
+    pub status: String,
+    pub issues: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+struct ImageReference {
+    game_id: Option<String>,
+    game_title: Option<String>,
+    source_kind: String,
+    source_label: String,
+    field_name: Option<String>,
+    value: String,
+}
+
+#[derive(Debug, Clone)]
+struct ImageReferenceEvaluation {
+    resolved_path: Option<String>,
+    status: String,
+    issues: Vec<String>,
+    local: bool,
+    remote: bool,
+    missing: bool,
+    c_drive: bool,
+    playnite: bool,
+}
+
 pub fn get_app_data_diagnostics(app: &AppHandle) -> DbResult<AppDataDiagnostics> {
     let resolution = AppPaths::resolve_from_app(app)?;
     let data_dir_source = resolution.source.as_str().to_string();
     let paths = AppPaths::from_root(resolution.root)?;
     get_app_data_diagnostics_with_paths(&paths, data_dir_source)
+}
+
+pub fn audit_image_references(
+    app: &AppHandle,
+    options: ImageReferenceAuditOptions,
+) -> DbResult<ImageReferenceAudit> {
+    let paths = AppPaths::from_app(app)?;
+    audit_image_references_with_paths(&paths, options)
 }
 
 fn get_app_data_diagnostics_with_paths(
@@ -252,22 +320,23 @@ fn database_health(paths: &AppPaths) -> DbResult<DatabaseHealth> {
     health.game_count = table_count(&conn, "games")?;
     health.asset_count = table_count(&conn, "game_assets")?;
     health.metadata_coverage = metadata_coverage_health(&conn)?;
-    health.description_images = description_image_health(&conn)?;
+    health.description_images = description_image_health(paths, &conn)?;
     health.external_ids = external_id_health(&conn)?;
     health.path_status = path_status_health(&conn)?;
 
-    let image_refs = image_references(&conn)?;
+    let image_refs = image_references(&conn, false)?;
     health.image_refs_count = image_refs.len() as i64;
-    for value in image_refs {
-        if looks_like_c_drive_path(&value) {
+    for reference in image_refs {
+        let evaluation = evaluate_image_reference(paths, &reference.value);
+        if evaluation.c_drive {
             health.c_drive_image_refs_count += 1;
         }
-        if looks_like_playnite_path(&value) {
+        if evaluation.playnite {
             health.playnite_image_refs_count += 1;
         }
-        if is_local_file_ref(&value) {
+        if evaluation.local {
             health.local_image_refs_count += 1;
-            if !PathBuf::from(value.trim()).is_file() {
+            if evaluation.missing {
                 health.missing_image_refs_count += 1;
             }
         }
@@ -390,7 +459,10 @@ fn metadata_coverage_health(conn: &Connection) -> DbResult<MetadataCoverageHealt
     })
 }
 
-fn description_image_health(conn: &Connection) -> DbResult<DescriptionImageHealth> {
+fn description_image_health(
+    paths: &AppPaths,
+    conn: &Connection,
+) -> DbResult<DescriptionImageHealth> {
     if !table_exists(conn, "games")? || !column_exists(conn, "games", "description")? {
         return Ok(DescriptionImageHealth::default());
     }
@@ -429,9 +501,10 @@ fn description_image_health(conn: &Connection) -> DbResult<DescriptionImageHealt
         }
         health.image_refs_count += image_sources.len() as i64;
         for source in image_sources {
-            if is_local_file_ref(&source) {
+            let evaluation = evaluate_image_reference(paths, &source);
+            if evaluation.local {
                 health.local_image_refs_count += 1;
-                if !PathBuf::from(source.trim()).is_file() {
+                if evaluation.missing {
                     health.missing_local_image_refs_count += 1;
                 }
             }
@@ -690,33 +763,317 @@ fn decode_description_html(value: &str) -> String {
         .replace("&gt;", ">")
 }
 
-fn image_references(conn: &Connection) -> DbResult<Vec<String>> {
-    let mut refs = Vec::new();
-    if table_exists(conn, "games")? {
-        for column in ["cover_image", "banner_image", "background_image"] {
-            if column_exists(conn, "games", column)? {
-                collect_string_column(conn, &format!("SELECT {column} FROM games"), &mut refs)?;
+fn audit_image_references_with_paths(
+    paths: &AppPaths,
+    options: ImageReferenceAuditOptions,
+) -> DbResult<ImageReferenceAudit> {
+    let database_path = paths.database();
+    if !database_path.is_file() {
+        return Ok(ImageReferenceAudit {
+            total_refs: 0,
+            issue_count: 0,
+            local_count: 0,
+            remote_count: 0,
+            missing_count: 0,
+            c_drive_count: 0,
+            playnite_count: 0,
+            items: Vec::new(),
+            truncated: false,
+        });
+    }
+
+    let conn = Connection::open_with_flags(&database_path, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+    let include_ok = options.include_ok.unwrap_or(false);
+    let limit = options
+        .limit
+        .unwrap_or(DEFAULT_IMAGE_AUDIT_LIMIT)
+        .clamp(1, MAX_IMAGE_AUDIT_LIMIT);
+    let refs = image_references(&conn, true)?;
+
+    let mut audit = ImageReferenceAudit {
+        total_refs: refs.len(),
+        issue_count: 0,
+        local_count: 0,
+        remote_count: 0,
+        missing_count: 0,
+        c_drive_count: 0,
+        playnite_count: 0,
+        items: Vec::new(),
+        truncated: false,
+    };
+
+    for reference in refs {
+        let evaluation = evaluate_image_reference(paths, &reference.value);
+        if evaluation.local {
+            audit.local_count += 1;
+        }
+        if evaluation.remote {
+            audit.remote_count += 1;
+        }
+        if evaluation.missing {
+            audit.missing_count += 1;
+        }
+        if evaluation.c_drive {
+            audit.c_drive_count += 1;
+        }
+        if evaluation.playnite {
+            audit.playnite_count += 1;
+        }
+        if !evaluation.issues.is_empty() {
+            audit.issue_count += 1;
+        }
+
+        if include_ok || !evaluation.issues.is_empty() {
+            if audit.items.len() < limit {
+                audit.items.push(ImageReferenceAuditItem {
+                    game_id: reference.game_id,
+                    game_title: reference.game_title,
+                    source_kind: reference.source_kind,
+                    source_label: reference.source_label,
+                    field_name: reference.field_name,
+                    value: reference.value,
+                    resolved_path: evaluation.resolved_path,
+                    status: evaluation.status,
+                    issues: evaluation.issues,
+                });
+            } else {
+                audit.truncated = true;
             }
         }
     }
+
+    Ok(audit)
+}
+
+fn image_references(conn: &Connection, include_description: bool) -> DbResult<Vec<ImageReference>> {
+    let mut refs = Vec::new();
+    if table_exists(conn, "games")? {
+        for (column, label) in [
+            ("cover_image", "封面"),
+            ("banner_image", "横幅"),
+            ("background_image", "背景"),
+        ] {
+            if column_exists(conn, "games", column)? {
+                collect_game_image_column(conn, column, label, &mut refs)?;
+            }
+        }
+        if include_description && column_exists(conn, "games", "description")? {
+            collect_description_image_references(conn, &mut refs)?;
+        }
+    }
     if table_exists(conn, "game_assets")? && column_exists(conn, "game_assets", "uri")? {
-        collect_string_column(conn, "SELECT uri FROM game_assets", &mut refs)?;
+        collect_game_asset_image_references(conn, &mut refs)?;
     }
     Ok(refs)
 }
 
-fn collect_string_column(conn: &Connection, sql: &str, refs: &mut Vec<String>) -> DbResult<()> {
-    let mut stmt = conn.prepare(sql)?;
-    let rows = stmt.query_map([], |row| row.get::<_, Option<String>>(0))?;
-    for value in rows {
-        if let Some(value) = value? {
-            let value = value.trim().to_string();
-            if !value.is_empty() {
-                refs.push(value);
-            }
+fn collect_game_image_column(
+    conn: &Connection,
+    column: &str,
+    label: &str,
+    refs: &mut Vec<ImageReference>,
+) -> DbResult<()> {
+    let id_expr = if column_exists(conn, "games", "id")? {
+        "id"
+    } else {
+        "NULL"
+    };
+    let title_expr = if column_exists(conn, "games", "title")? {
+        "title"
+    } else {
+        "NULL"
+    };
+    let sql = format!("SELECT {id_expr}, {title_expr}, {column} FROM games");
+    let mut stmt = conn.prepare(&sql)?;
+    let rows = stmt.query_map([], |row| {
+        Ok((
+            row.get::<_, Option<String>>(0)?,
+            row.get::<_, Option<String>>(1)?,
+            row.get::<_, Option<String>>(2)?,
+        ))
+    })?;
+    for row in rows {
+        let (game_id, game_title, value) = row?;
+        if let Some(value) = clean_ref_value(value) {
+            refs.push(ImageReference {
+                game_id,
+                game_title,
+                source_kind: "game_field".to_string(),
+                source_label: label.to_string(),
+                field_name: Some(column.to_string()),
+                value,
+            });
         }
     }
     Ok(())
+}
+
+fn collect_game_asset_image_references(
+    conn: &Connection,
+    refs: &mut Vec<ImageReference>,
+) -> DbResult<()> {
+    let game_id_expr = if column_exists(conn, "game_assets", "game_id")? {
+        "game_assets.game_id"
+    } else {
+        "NULL"
+    };
+    let asset_type_expr = if column_exists(conn, "game_assets", "asset_type")? {
+        "game_assets.asset_type"
+    } else {
+        "NULL"
+    };
+    let title_join = if table_exists(conn, "games")?
+        && column_exists(conn, "games", "id")?
+        && column_exists(conn, "games", "title")?
+        && column_exists(conn, "game_assets", "game_id")?
+    {
+        "LEFT JOIN games ON games.id = game_assets.game_id"
+    } else {
+        ""
+    };
+    let title_expr = if title_join.is_empty() {
+        "NULL"
+    } else {
+        "games.title"
+    };
+    let sql = format!(
+        "SELECT {game_id_expr}, {title_expr}, {asset_type_expr}, game_assets.uri FROM game_assets {title_join}"
+    );
+    let mut stmt = conn.prepare(&sql)?;
+    let rows = stmt.query_map([], |row| {
+        Ok((
+            row.get::<_, Option<String>>(0)?,
+            row.get::<_, Option<String>>(1)?,
+            row.get::<_, Option<String>>(2)?,
+            row.get::<_, Option<String>>(3)?,
+        ))
+    })?;
+    for row in rows {
+        let (game_id, game_title, asset_type, value) = row?;
+        if let Some(value) = clean_ref_value(value) {
+            refs.push(ImageReference {
+                game_id,
+                game_title,
+                source_kind: "game_asset".to_string(),
+                source_label: asset_type
+                    .filter(|value| !value.trim().is_empty())
+                    .unwrap_or_else(|| "媒体图库".to_string()),
+                field_name: Some("game_assets.uri".to_string()),
+                value,
+            });
+        }
+    }
+    Ok(())
+}
+
+fn collect_description_image_references(
+    conn: &Connection,
+    refs: &mut Vec<ImageReference>,
+) -> DbResult<()> {
+    let id_expr = if column_exists(conn, "games", "id")? {
+        "id"
+    } else {
+        "NULL"
+    };
+    let title_expr = if column_exists(conn, "games", "title")? {
+        "title"
+    } else {
+        "NULL"
+    };
+    let mut stmt = conn.prepare(&format!(
+        "SELECT {id_expr}, {title_expr}, description FROM games"
+    ))?;
+    let rows = stmt.query_map([], |row| {
+        Ok((
+            row.get::<_, Option<String>>(0)?,
+            row.get::<_, Option<String>>(1)?,
+            row.get::<_, Option<String>>(2)?,
+        ))
+    })?;
+    for row in rows {
+        let (game_id, game_title, description) = row?;
+        for source in description_image_sources(&description.unwrap_or_default()) {
+            refs.push(ImageReference {
+                game_id: game_id.clone(),
+                game_title: game_title.clone(),
+                source_kind: "description".to_string(),
+                source_label: "简介图片".to_string(),
+                field_name: Some("description".to_string()),
+                value: source,
+            });
+        }
+    }
+    Ok(())
+}
+
+fn clean_ref_value(value: Option<String>) -> Option<String> {
+    value
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+}
+
+fn evaluate_image_reference(paths: &AppPaths, value: &str) -> ImageReferenceEvaluation {
+    let clean = value.trim();
+    let remote = images::is_remote_url(clean);
+    let local = is_local_file_ref(clean);
+    let c_drive = looks_like_c_drive_path(clean);
+    let playnite = looks_like_playnite_path(clean);
+    let resolved_path = resolve_local_image_path(paths, clean);
+    let missing = local && resolved_path.is_none();
+    let mut issues = Vec::new();
+    if missing {
+        issues.push("missing".to_string());
+    }
+    if c_drive {
+        issues.push("c_drive".to_string());
+    }
+    if playnite {
+        issues.push("playnite".to_string());
+    }
+    let status = if missing {
+        "missing"
+    } else if !issues.is_empty() {
+        "warning"
+    } else if remote {
+        "remote"
+    } else {
+        "ok"
+    }
+    .to_string();
+
+    ImageReferenceEvaluation {
+        resolved_path,
+        status,
+        issues,
+        local,
+        remote,
+        missing,
+        c_drive,
+        playnite,
+    }
+}
+
+fn resolve_local_image_path(paths: &AppPaths, value: &str) -> Option<String> {
+    let clean = value.trim().trim_matches(['\'', '"']);
+    if !is_local_file_ref(clean) {
+        return None;
+    }
+    let path = PathBuf::from(clean);
+    if path.is_absolute() {
+        return path.is_file().then(|| path.to_string_lossy().to_string());
+    }
+    let mut candidates = Vec::new();
+    let normalized = clean.replace('/', "\\");
+    let lower = normalized.to_lowercase();
+    if lower.starts_with("images\\") && normalized.len() > "images\\".len() {
+        candidates.push(paths.images().join(&normalized["images\\".len()..]));
+    }
+    candidates.push(paths.root().join(clean));
+    candidates.push(paths.images().join(clean));
+    candidates
+        .into_iter()
+        .find(|path| path.is_file())
+        .map(|path| path.to_string_lossy().to_string())
 }
 
 fn is_local_file_ref(value: &str) -> bool {
@@ -969,6 +1326,104 @@ mod tests {
             .warnings
             .iter()
             .any(|warning| warning.contains("简介图片")));
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn image_reference_audit_reports_specific_sources_and_resolved_paths() {
+        let root = std::env::temp_dir().join(format!("mikavn-image-audit-{}", Uuid::new_v4()));
+        let paths = AppPaths::from_root(root.join("app-data")).unwrap();
+        fs::create_dir_all(paths.images()).unwrap();
+        let relative_image = paths.images().join("relative.webp");
+        fs::write(&relative_image, b"image").unwrap();
+
+        let conn = Connection::open(paths.database()).unwrap();
+        conn.execute_batch(
+            r#"
+            CREATE TABLE games (
+              id TEXT PRIMARY KEY,
+              title TEXT NOT NULL,
+              description TEXT,
+              cover_image TEXT,
+              banner_image TEXT,
+              background_image TEXT
+            );
+            CREATE TABLE game_assets (
+              id TEXT PRIMARY KEY,
+              game_id TEXT NOT NULL,
+              asset_type TEXT,
+              uri TEXT NOT NULL
+            );
+            INSERT INTO games (id, title, description, cover_image, banner_image, background_image)
+            VALUES (
+              'game',
+              'Audit VN',
+              'Intro ![relative](images/relative.webp)',
+              'missing-cover.webp',
+              'D:\Playnite\banner.jpg',
+              'https://example.com/background.jpg'
+            );
+            INSERT INTO game_assets (id, game_id, asset_type, uri)
+            VALUES ('asset', 'game', 'cover', 'C:\Users\tester\old-cover.jpg');
+            "#,
+        )
+        .unwrap();
+
+        let audit = audit_image_references_with_paths(
+            &paths,
+            ImageReferenceAuditOptions {
+                limit: Some(10),
+                include_ok: Some(true),
+            },
+        )
+        .unwrap();
+
+        assert_eq!(audit.total_refs, 5);
+        assert_eq!(audit.local_count, 4);
+        assert_eq!(audit.remote_count, 1);
+        assert_eq!(audit.missing_count, 3);
+        assert_eq!(audit.c_drive_count, 1);
+        assert_eq!(audit.playnite_count, 1);
+        assert_eq!(audit.issue_count, 3);
+        assert!(!audit.truncated);
+
+        let relative = audit
+            .items
+            .iter()
+            .find(|item| item.value == "images/relative.webp")
+            .unwrap();
+        assert_eq!(relative.status, "ok");
+        assert_eq!(relative.source_kind, "description");
+        let relative_image_text = relative_image.to_string_lossy().to_string();
+        assert_eq!(
+            relative.resolved_path.as_deref(),
+            Some(relative_image_text.as_str())
+        );
+
+        let cover = audit
+            .items
+            .iter()
+            .find(|item| item.field_name.as_deref() == Some("cover_image"))
+            .unwrap();
+        assert_eq!(cover.game_title.as_deref(), Some("Audit VN"));
+        assert!(cover.issues.iter().any(|issue| issue == "missing"));
+
+        let playnite = audit
+            .items
+            .iter()
+            .find(|item| item.value.contains("Playnite"))
+            .unwrap();
+        assert!(playnite.issues.iter().any(|issue| issue == "playnite"));
+        assert!(playnite.issues.iter().any(|issue| issue == "missing"));
+
+        let c_drive = audit
+            .items
+            .iter()
+            .find(|item| item.value.starts_with("C:\\"))
+            .unwrap();
+        assert_eq!(c_drive.source_kind, "game_asset");
+        assert!(c_drive.issues.iter().any(|issue| issue == "c_drive"));
+
         let _ = fs::remove_dir_all(root);
     }
 }

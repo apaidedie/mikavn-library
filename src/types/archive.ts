@@ -152,6 +152,35 @@ export type AppDataDiagnostics = {
   warnings: string[];
 };
 
+export type ImageReferenceAuditOptions = {
+  limit?: number | null;
+  includeOk?: boolean | null;
+};
+
+export type ImageReferenceAuditItem = {
+  gameId?: string | null;
+  gameTitle?: string | null;
+  sourceKind: string;
+  sourceLabel: string;
+  fieldName?: string | null;
+  value: string;
+  resolvedPath?: string | null;
+  status: string;
+  issues: string[];
+};
+
+export type ImageReferenceAudit = {
+  totalRefs: number;
+  issueCount: number;
+  localCount: number;
+  remoteCount: number;
+  missingCount: number;
+  cDriveCount: number;
+  playniteCount: number;
+  items: ImageReferenceAuditItem[];
+  truncated: boolean;
+};
+
 export type DatabaseBackupCleanupPolicy = {
   retainCount?: number | null;
   retainDays?: number | null;

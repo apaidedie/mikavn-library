@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { AddGameInput, AssetCacheCleanupResult, AssetDownloadInput, AssetImportInput, AssetInput, CollectionGameLink, CollectionInput, DashboardData, Game, GameAsset, GameCollection, GameFilter, GamePathHealth, ImportCandidate, ImportScanReport, LibraryRoot, PlaySession, ScanCandidate, TagRecord, UpdateGameInput } from '@/types/game';
-import type { AppDataDiagnostics, DatabaseBackupCleanupPolicy, DatabaseBackupCleanupReport, LibraryArchiveExportOptions, LibraryArchiveImportOptions, LibraryArchivePreview, LibraryArchiveRestoreOptions, LogRecord, LogRetentionPolicy } from '@/types/archive';
+import type { AppDataDiagnostics, DatabaseBackupCleanupPolicy, DatabaseBackupCleanupReport, ImageReferenceAudit, ImageReferenceAuditOptions, LibraryArchiveExportOptions, LibraryArchiveImportOptions, LibraryArchivePreview, LibraryArchiveRestoreOptions, LogRecord, LogRetentionPolicy } from '@/types/archive';
 import type { LaunchProfile, LaunchProfileInput, LaunchProfileUpdate } from '@/types/launch';
 import type { AdvancedSearchInput, AdvancedSearchResult, AiConnectionTestResult, AiRecognitionResult, ApplyMetadataFields, ArtworkRepairOptions, ArtworkRepairPreview, BatchMatchJob, BatchMatchStatus, DescriptionImageRepairOptions, DescriptionImageRepairPreview, DuplicateExternalIdAuditOptions, DuplicateExternalIdPreview, DuplicateGameMergeOptions, DuplicateGameMergePreview, DuplicateGameMergeResult, ExternalIdRecord, FieldLock, MatchSuggestion, MetadataProvider, MetadataSearchResponse, MetadataSourceRecord, NormalizedMetadata, SavedSearch, SavedSearchInput, SearchQueryValidation } from '@/types/metadata';
 import type { SaveBackup, SavePath, SavePathCandidate } from '@/types/saves';
@@ -161,6 +161,10 @@ export const api = {
 
   getAppDataDiagnostics() {
     return command<AppDataDiagnostics>('get_app_data_diagnostics', undefined, () => mockStore.getAppDataDiagnostics());
+  },
+
+  auditImageReferences(options: ImageReferenceAuditOptions = {}) {
+    return command<ImageReferenceAudit>('audit_image_references', { options }, () => mockStore.auditImageReferences(options));
   },
 
   cleanupOldDatabaseBackups(policy: DatabaseBackupCleanupPolicy = {}) {

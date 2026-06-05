@@ -69,6 +69,7 @@ pub fn run() {
             commands::backups::backup_database,
             commands::backups::restore_database_backup,
             commands::diagnostics::get_app_data_diagnostics,
+            commands::diagnostics::audit_image_references,
             commands::diagnostics::cleanup_old_database_backups,
             commands::collections::list_collections,
             commands::collections::create_collection,

@@ -39,7 +39,7 @@ The current implementation focuses on a complete local desktop workflow:
 - Advanced local search with field clauses, negation, comparisons, validation chips, and saved searches
 - Tag rename, merge, and delete UI in Settings for normalized tag maintenance
 - Normalized metadata source and external ID registry while preserving legacy `games.*_id` fields for compatibility
-- Local app-data diagnostics, diagnostic log preview/pruning, old database-backup cleanup, and safe database restore scheduling with next-start protection backup
+- Local app-data diagnostics, image-reference audit details, diagnostic log preview/pruning, old database-backup cleanup, and safe database restore scheduling with next-start protection backup
 - Tauri commands for games, dashboard, scanning roots, importing scan candidates, and launching executables with play-session timing
 
 ## Tech Stack
@@ -167,6 +167,7 @@ Latest mature V1 acceptance pass. For the repeatable release checklist, see `REL
 - `backup_database(path)`
 - `restore_database_backup(path)`
 - `get_app_data_diagnostics()`
+- `audit_image_references(options)`
 - `cleanup_old_database_backups(policy)`
 - `export_library_archive(options)`
 - `export_library_archive_zip(options)`
@@ -309,7 +310,7 @@ The Reports page computes status distribution, tag/developer rankings, playtime 
 
 ## Tasks And Backups
 
-The Dashboard shows a recent-task summary so failed, running, or pending work is visible immediately. Each recent task has a log shortcut that opens the Tasks page, expands the matching task, and scrolls it into view. Settings, Saves, Reports, and game detail task notices also show a non-disruptive `查看日志` action for newly created tasks. The Tasks page listens for `task://updated` events in Tauri and keeps the older polling fallback for browser preview or missed events. Long-running or recoverable operations such as scanner runs, path checks, batch metadata matching, database backup, report export, save backup, save restore, and library archive flows write progress and logs. Failed or cancelled directory scans, database backups, path checks, save backups, save restores, and library archive operations can be retried from the Tasks page. Report export keeps logs but is not retryable so exported Markdown content is not retained in retry payloads. Settings includes an app-data self-check for the active data directory, database health, image references, app-data file counts, and safe database-backup cleanup. It also includes a manual SQLite database backup action using SQLite `VACUUM INTO` for a consistent backup file, a safe restore scheduler that applies on next startup after a protection backup, and a diagnostic log preview/prune surface.
+The Dashboard shows a recent-task summary so failed, running, or pending work is visible immediately. Each recent task has a log shortcut that opens the Tasks page, expands the matching task, and scrolls it into view. Settings, Saves, Reports, and game detail task notices also show a non-disruptive `查看日志` action for newly created tasks. The Tasks page listens for `task://updated` events in Tauri and keeps the older polling fallback for browser preview or missed events. Long-running or recoverable operations such as scanner runs, path checks, batch metadata matching, database backup, report export, save backup, save restore, and library archive flows write progress and logs. Failed or cancelled directory scans, database backups, path checks, save backups, save restores, and library archive operations can be retried from the Tasks page. Report export keeps logs but is not retryable so exported Markdown content is not retained in retry payloads. Settings includes an app-data self-check for the active data directory, database health, image-reference totals, app-data file counts, safe database-backup cleanup, and a Maintenance image-reference audit that lists the affected game, source field, raw value, resolved path, and missing/C-drive/Playnite issues. It also includes a manual SQLite database backup action using SQLite `VACUUM INTO` for a consistent backup file, a safe restore scheduler that applies on next startup after a protection backup, and a diagnostic log preview/prune surface.
 
 ## Library Archives
 

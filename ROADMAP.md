@@ -4,7 +4,7 @@ This roadmap maps the current implementation to the phases in `galgame-library-c
 
 ## Current Status
 
-The app has moved beyond the original MVP into the mature local V1 shape. It has the local library loop, metadata search and batch matching, save backup/restore workflows, privacy settings, reports, themes, collections, advanced filters, advanced saved search, normalized assets/tags with maintenance UI, safe image-cache cleanup preview, task events, ZIP archive export/import/restore, database restore scheduling, diagnostic logs, richer launch profiles, a feature-sliced `Database` compatibility facade, and Windows NSIS bundling.
+The app has moved beyond the original MVP into the mature local V1 shape. It has the local library loop, metadata search and batch matching, save backup/restore workflows, privacy settings, reports, themes, collections, advanced filters, advanced saved search, normalized assets/tags with maintenance UI, safe image-cache cleanup preview, image-reference audit details, task events, ZIP archive export/import/restore, database restore scheduling, diagnostic logs, richer launch profiles, a feature-sliced `Database` compatibility facade, and Windows NSIS bundling.
 
 The main remaining work is no longer feature coverage for mature V1. It is hardening: a dedicated domain boundary when conversion pressure justifies it, richer recovery/audit reports, deeper integration tests, and optional post-V1 capabilities such as WebDAV/cloud sync or plugins.
 
@@ -59,6 +59,7 @@ Done:
 - Normalized asset/tag tables with compatibility sync from existing game fields.
 - Tag rename, merge, and delete commands plus Settings maintenance UI for normalized tag cleanup.
 - Game detail asset gallery for cover, banner, background, screenshots, primary selection, user image import, remote asset download, removal, and unreferenced image cache cleanup with Maintenance preview and protection for game fields, asset records, and local description images.
+- Maintenance image-reference audit with per-game/source details for missing local files, C-drive leftovers, Playnite leftovers, raw values, and resolved local paths.
 - Basic settings.
 - Broken path check and install directory relocation.
 - Library list/grid mark broken or incomplete path status, and detail pages show repair guidance.
