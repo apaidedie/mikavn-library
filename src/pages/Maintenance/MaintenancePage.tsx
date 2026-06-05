@@ -9,7 +9,7 @@ import { TaskNotice } from '@/components/ui/task-notice';
 import { api } from '@/services/api';
 import type { AppDataDiagnostics, ImageReferenceAudit, ImageReferenceAuditItem } from '@/types/archive';
 import type { AssetCacheCleanupResult } from '@/types/game';
-import type { DuplicateExternalIdGroup, DuplicateGameMergePreview } from '@/types/metadata';
+import type { ArtworkRepairDiagnosis, ArtworkRepairDiagnosisItem, DuplicateExternalIdGroup, DuplicateGameMergePreview } from '@/types/metadata';
 import { errorMessage } from '@/utils/errorMessage';
 import { Select } from '@/components/ui/select';
 
@@ -23,6 +23,8 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
   const [assetCleanupPreview, setAssetCleanupPreview] = useState<AssetCacheCleanupResult | null>(null);
   const [imageAudit, setImageAudit] = useState<ImageReferenceAudit | null>(null);
   const [imageAuditLoading, setImageAuditLoading] = useState(false);
+  const [artworkDiagnosis, setArtworkDiagnosis] = useState<ArtworkRepairDiagnosis | null>(null);
+  const [artworkDiagnosisLoading, setArtworkDiagnosisLoading] = useState(false);
   const [metadataRepairLoading, setMetadataRepairLoading] = useState(false);
   const [descriptionRepairLoading, setDescriptionRepairLoading] = useState(false);
   const [artworkRepairLoading, setArtworkRepairLoading] = useState(false);
@@ -209,6 +211,41 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
             </PanelContent>
           </Panel>
         </div>
+
+        <Panel>
+          <PanelHeader
+            title="媒体补全诊断"
+            description="在创建补图任务前，查看缺图条目为什么能补或补不了。"
+            icon={<Image className="h-4 w-4" />}
+            actions={<Button disabled={artworkDiagnosisLoading || missingArtworkFieldCount === 0} size="sm" variant="ghost" onClick={loadArtworkDiagnosis}><ListChecks className="h-4 w-4" />{artworkDiagnosisLoading ? '读取中' : '读取诊断'}</Button>}
+          />
+          <PanelContent className="space-y-3">
+            {artworkDiagnosis ? (
+              <>
+                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+                  <CompactStat label="缺图游戏" value={artworkDiagnosis.totalMissingGames} tone={artworkDiagnosis.totalMissingGames > 0 ? 'warn' : 'ok'} />
+                  <CompactStat label="缺图字段" value={artworkDiagnosis.totalMissingFields} tone={artworkDiagnosis.totalMissingFields > 0 ? 'warn' : 'ok'} />
+                  <CompactStat label="可补全" value={artworkDiagnosis.repairableCount} tone={artworkDiagnosis.repairableCount > 0 ? 'ok' : 'neutral'} />
+                  <CompactStat label="缺外部 ID" value={artworkDiagnosis.missingExternalIdCount} tone={artworkDiagnosis.missingExternalIdCount > 0 ? 'warn' : 'ok'} />
+                  <CompactStat label="来源异常" value={artworkDiagnosis.noRemoteImageCount + artworkDiagnosis.providerErrorCount} tone={(artworkDiagnosis.noRemoteImageCount + artworkDiagnosis.providerErrorCount) > 0 ? 'warn' : 'ok'} />
+                </div>
+                {artworkDiagnosis.items.length > 0 ? (
+                  <div className="space-y-2">
+                    {artworkDiagnosis.items.map((item) => <ArtworkDiagnosisRow item={item} key={item.gameId} />)}
+                    {artworkDiagnosis.truncated && <div className="px-1 text-xs text-slate-500">结果较多，当前只诊断前 {formatCount(artworkDiagnosis.diagnosedGames)} 个缺图游戏。</div>}
+                  </div>
+                ) : (
+                  <SoftRow className="px-3 py-3 text-sm text-slate-400">没有发现需要诊断的缺图条目。</SoftRow>
+                )}
+              </>
+            ) : (
+              <SoftRow className="flex items-center justify-between gap-3 px-3 py-3">
+                <div className="min-w-0 text-sm text-slate-400">读取后会检查前 50 个缺图游戏，列出缺字段、外部 ID 和来源图片状态。</div>
+                <Button disabled={artworkDiagnosisLoading || missingArtworkFieldCount === 0} size="sm" variant="secondary" onClick={loadArtworkDiagnosis}><ListChecks className="h-4 w-4" />读取</Button>
+              </SoftRow>
+            )}
+          </PanelContent>
+        </Panel>
 
         <Panel>
           <PanelHeader
@@ -400,6 +437,20 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
       setError(errorMessage(reason));
     } finally {
       setImageAuditLoading(false);
+    }
+  }
+
+  async function loadArtworkDiagnosis() {
+    setArtworkDiagnosisLoading(true);
+    setError(null);
+    try {
+      const diagnosis = await api.diagnoseArtworkRepair({ providers: ['all'], fields: ['cover', 'banner', 'background'], limit: 50 });
+      setArtworkDiagnosis(diagnosis);
+      setMessage({ text: diagnosis.totalMissingGames > 0 ? `媒体补全诊断完成：${formatCount(diagnosis.repairableCount)} 个可补全，${formatCount(diagnosis.missingExternalIdCount)} 个缺外部 ID。` : '媒体补全诊断完成，没有发现缺图条目。' });
+    } catch (reason) {
+      setError(errorMessage(reason));
+    } finally {
+      setArtworkDiagnosisLoading(false);
     }
   }
 
@@ -680,6 +731,37 @@ function ImageAuditRow({ item }: { item: ImageReferenceAuditItem }) {
   );
 }
 
+function ArtworkDiagnosisRow({ item }: { item: ArtworkRepairDiagnosisItem }) {
+  return (
+    <SoftRow className="grid gap-3 px-3 py-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="truncate text-sm font-medium text-slate-100" title={item.title}>{item.title}</span>
+          <Badge className={artworkStatusBadgeClass(item.status)}>{artworkStatusLabel(item.status)}</Badge>
+        </div>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {item.missingFields.map((field) => <Badge key={field}>{artworkFieldLabel(field)}</Badge>)}
+        </div>
+        <div className="mt-2 text-xs leading-5 text-slate-500">{item.reason}</div>
+      </div>
+      <div className="min-w-0 space-y-2 text-[11px] leading-5">
+        {item.providerResults.length > 0 ? item.providerResults.map((result) => (
+          <div className="grid gap-1 sm:grid-cols-[7rem_minmax(0,1fr)]" key={`${result.provider}:${result.providerId}`}>
+            <span className="text-slate-600">{providerLabel(result.provider)} {result.providerId}</span>
+            <span className="min-w-0">
+              <Badge className={artworkProviderBadgeClass(result.status)}>{artworkProviderStatusLabel(result.status)}</Badge>
+              {result.imageUrl && <span className="ml-2 break-all font-mono text-slate-500">{result.imageUrl}</span>}
+              {result.reason && <span className="ml-2 break-all text-slate-500">{result.reason}</span>}
+            </span>
+          </div>
+        )) : (
+          <div className="text-xs text-slate-500">没有可用外部 ID。</div>
+        )}
+      </div>
+    </SoftRow>
+  );
+}
+
 function ProgressBlock({ label, value, total }: { label: string; value: number; total: number }) {
   const ratio = total > 0 ? Math.max(0, Math.min(100, (value / total) * 100)) : 0;
   return (
@@ -769,6 +851,49 @@ function imageBadgeClass(value: string) {
   if (value === 'missing') return 'border-amber-300/25 bg-amber-300/10 text-amber-100';
   if (value === 'c_drive' || value === 'playnite') return 'border-rose-300/25 bg-rose-300/10 text-rose-100';
   if (value === 'ok' || value === 'remote') return 'border-emerald-300/25 bg-emerald-300/10 text-emerald-100';
+  return 'border-white/10 bg-white/[0.045] text-slate-300';
+}
+
+function artworkStatusLabel(value: string) {
+  if (value === 'repairable') return '可补全';
+  if (value === 'missing_external_id') return '缺外部 ID';
+  if (value === 'no_remote_image') return '远程无图';
+  if (value === 'provider_error') return '来源失败';
+  return value;
+}
+
+function artworkProviderStatusLabel(value: string) {
+  if (value === 'has_image') return '有主图';
+  if (value === 'no_image') return '无主图';
+  if (value === 'error') return '失败';
+  return value;
+}
+
+function artworkFieldLabel(value: string) {
+  if (value === 'cover') return '封面';
+  if (value === 'banner') return '横幅';
+  if (value === 'background') return '背景';
+  return value;
+}
+
+function providerLabel(value: string) {
+  if (value === 'vndb') return 'VNDB';
+  if (value === 'dlsite') return 'DLsite';
+  if (value === 'fanza') return 'FANZA';
+  return value;
+}
+
+function artworkStatusBadgeClass(value: string) {
+  if (value === 'repairable') return 'border-emerald-300/25 bg-emerald-300/10 text-emerald-100';
+  if (value === 'missing_external_id' || value === 'no_remote_image') return 'border-amber-300/25 bg-amber-300/10 text-amber-100';
+  if (value === 'provider_error') return 'border-rose-300/25 bg-rose-300/10 text-rose-100';
+  return 'border-white/10 bg-white/[0.045] text-slate-300';
+}
+
+function artworkProviderBadgeClass(value: string) {
+  if (value === 'has_image') return 'border-emerald-300/25 bg-emerald-300/10 text-emerald-100';
+  if (value === 'no_image') return 'border-amber-300/25 bg-amber-300/10 text-amber-100';
+  if (value === 'error') return 'border-rose-300/25 bg-rose-300/10 text-rose-100';
   return 'border-white/10 bg-white/[0.045] text-slate-300';
 }
 

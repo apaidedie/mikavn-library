@@ -8,7 +8,9 @@ use crate::db::models::{
 use crate::db::DbResult;
 use crate::services::metadata;
 use crate::services::metadata::ai::AiConnectionTestResult;
-use crate::services::metadata_artwork_repair::{self, ArtworkRepairOptions, ArtworkRepairPreview};
+use crate::services::metadata_artwork_repair::{
+    self, ArtworkRepairDiagnosis, ArtworkRepairOptions, ArtworkRepairPreview,
+};
 use crate::services::metadata_description_images::{
     self, DescriptionImageRepairOptions, DescriptionImageRepairPreview,
 };
@@ -146,6 +148,15 @@ pub fn preview_artwork_repair(
 ) -> DbResult<ArtworkRepairPreview> {
     let db = state.db()?;
     metadata_artwork_repair::preview_artwork_repair(&db, options)
+}
+
+#[tauri::command]
+pub fn diagnose_artwork_repair(
+    state: State<'_, AppState>,
+    options: ArtworkRepairOptions,
+) -> DbResult<ArtworkRepairDiagnosis> {
+    let db = state.db()?;
+    metadata_artwork_repair::diagnose_artwork_repair(&db, options)
 }
 
 #[tauri::command]

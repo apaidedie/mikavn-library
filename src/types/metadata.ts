@@ -132,6 +132,36 @@ export type ArtworkRepairPreview = {
   totalMissingFields: number;
 };
 
+export type ArtworkProviderDiagnosis = {
+  provider: string;
+  providerId: string;
+  status: 'has_image' | 'no_image' | 'error' | string;
+  reason?: string | null;
+  imageUrl?: string | null;
+};
+
+export type ArtworkRepairDiagnosisItem = {
+  gameId: string;
+  title: string;
+  missingFields: string[];
+  providers: ArtworkProviderRef[];
+  providerResults: ArtworkProviderDiagnosis[];
+  status: 'repairable' | 'missing_external_id' | 'no_remote_image' | 'provider_error' | string;
+  reason: string;
+};
+
+export type ArtworkRepairDiagnosis = {
+  items: ArtworkRepairDiagnosisItem[];
+  totalMissingGames: number;
+  totalMissingFields: number;
+  diagnosedGames: number;
+  repairableCount: number;
+  missingExternalIdCount: number;
+  noRemoteImageCount: number;
+  providerErrorCount: number;
+  truncated: boolean;
+};
+
 export type DuplicateExternalIdAuditOptions = {
   providers?: Array<string | MetadataProvider> | null;
   limit?: number | null;

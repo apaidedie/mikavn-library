@@ -28,6 +28,7 @@ The current implementation focuses on a complete local desktop workflow:
 - Normalized asset/tag tables with compatibility sync from existing game fields
 - Asset gallery on game detail pages for cover, banner, background, screenshots, local import, remote download, primary selection, removal, and cache cleanup
 - Batch media artwork repair from metadata providers for missing cover, banner, and background images
+- Maintenance media artwork diagnosis for missing external IDs, remote no-image results, provider errors, and repairable artwork candidates
 - Asset commands for importing local image files into app data, downloading remote image assets, previewing image cache cleanup, and cleaning files not referenced by game image fields, gallery records, or local description images
 - Save-path management, manual backups, restore-before-protection backups, and backup history
 - Optional automatic save backups before launch and after game exit, visible in the task timeline

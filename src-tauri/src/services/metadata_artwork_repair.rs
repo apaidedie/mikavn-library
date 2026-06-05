@@ -38,6 +38,42 @@ pub struct ArtworkRepairPreview {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ArtworkRepairDiagnosis {
+    pub items: Vec<ArtworkRepairDiagnosisItem>,
+    pub total_missing_games: usize,
+    pub total_missing_fields: usize,
+    pub diagnosed_games: usize,
+    pub repairable_count: usize,
+    pub missing_external_id_count: usize,
+    pub no_remote_image_count: usize,
+    pub provider_error_count: usize,
+    pub truncated: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ArtworkRepairDiagnosisItem {
+    pub game_id: String,
+    pub title: String,
+    pub missing_fields: Vec<String>,
+    pub providers: Vec<ArtworkProviderRef>,
+    pub provider_results: Vec<ArtworkProviderDiagnosis>,
+    pub status: String,
+    pub reason: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ArtworkProviderDiagnosis {
+    pub provider: String,
+    pub provider_id: String,
+    pub status: String,
+    pub reason: Option<String>,
+    pub image_url: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ArtworkRepairCandidate {
     pub game_id: String,
     pub title: String,
@@ -93,6 +129,60 @@ pub fn preview_artwork_repair(
         candidates: all_candidates.into_iter().take(run_options.limit).collect(),
         total_candidates,
         total_missing_fields,
+    })
+}
+
+pub fn diagnose_artwork_repair(
+    db: &Database,
+    options: ArtworkRepairOptions,
+) -> DbResult<ArtworkRepairDiagnosis> {
+    let run_options = normalize_options(options)?;
+    let games = db.list_games(GameFilter {
+        sort_by: Some("updated_at".to_string()),
+        sort_direction: Some("desc".to_string()),
+        ..GameFilter::default()
+    })?;
+    let mut total_missing_games = 0usize;
+    let mut total_missing_fields = 0usize;
+    let mut items = Vec::new();
+
+    for game in games {
+        let missing_fields = missing_artwork_fields(&game, &run_options.fields);
+        if missing_fields.is_empty() {
+            continue;
+        }
+        total_missing_games += 1;
+        total_missing_fields += missing_fields.len();
+        if items.len() >= run_options.limit {
+            continue;
+        }
+        let providers = provider_refs_for_game(db, &game, &run_options.providers)?;
+        items.push(diagnose_artwork_item(db, &game, missing_fields, providers));
+    }
+
+    let diagnosed_games = items.len();
+    Ok(ArtworkRepairDiagnosis {
+        repairable_count: items
+            .iter()
+            .filter(|item| item.status == "repairable")
+            .count(),
+        missing_external_id_count: items
+            .iter()
+            .filter(|item| item.status == "missing_external_id")
+            .count(),
+        no_remote_image_count: items
+            .iter()
+            .filter(|item| item.status == "no_remote_image")
+            .count(),
+        provider_error_count: items
+            .iter()
+            .filter(|item| item.status == "provider_error")
+            .count(),
+        truncated: total_missing_games > diagnosed_games,
+        items,
+        total_missing_games,
+        total_missing_fields,
+        diagnosed_games,
     })
 }
 
@@ -384,6 +474,90 @@ fn cached_artwork_from_provider(
     Ok(Some(cached))
 }
 
+fn diagnose_artwork_item(
+    db: &Database,
+    game: &Game,
+    missing_fields: Vec<String>,
+    providers: Vec<ArtworkProviderRef>,
+) -> ArtworkRepairDiagnosisItem {
+    if providers.is_empty() {
+        return ArtworkRepairDiagnosisItem {
+            game_id: game.id.clone(),
+            title: game.title.clone(),
+            missing_fields,
+            providers,
+            provider_results: Vec::new(),
+            status: "missing_external_id".to_string(),
+            reason: "没有可用的 VNDB/DLsite/FANZA 外部 ID".to_string(),
+        };
+    }
+
+    let mut provider_results = Vec::new();
+    for provider in &providers {
+        match metadata::get_metadata_detail(
+            db,
+            provider.provider.clone(),
+            provider.provider_id.clone(),
+        ) {
+            Ok(detail) => {
+                let image_url = detail
+                    .images
+                    .iter()
+                    .find(|value| !value.trim().is_empty())
+                    .cloned();
+                if image_url.is_some() {
+                    provider_results.push(ArtworkProviderDiagnosis {
+                        provider: provider.provider.clone(),
+                        provider_id: provider.provider_id.clone(),
+                        status: "has_image".to_string(),
+                        reason: None,
+                        image_url,
+                    });
+                } else {
+                    provider_results.push(ArtworkProviderDiagnosis {
+                        provider: provider.provider.clone(),
+                        provider_id: provider.provider_id.clone(),
+                        status: "no_image".to_string(),
+                        reason: Some("元数据详情没有主图".to_string()),
+                        image_url: None,
+                    });
+                }
+            }
+            Err(error) => provider_results.push(ArtworkProviderDiagnosis {
+                provider: provider.provider.clone(),
+                provider_id: provider.provider_id.clone(),
+                status: "error".to_string(),
+                reason: Some(error.to_string()),
+                image_url: None,
+            }),
+        }
+    }
+
+    let has_image = provider_results
+        .iter()
+        .any(|result| result.status == "has_image");
+    let has_error = provider_results
+        .iter()
+        .any(|result| result.status == "error");
+    let (status, reason) = if has_image {
+        ("repairable", "找到可用于补全的远程主图")
+    } else if has_error {
+        ("provider_error", "读取元数据来源失败")
+    } else {
+        ("no_remote_image", "元数据来源没有可用主图")
+    };
+
+    ArtworkRepairDiagnosisItem {
+        game_id: game.id.clone(),
+        title: game.title.clone(),
+        missing_fields,
+        providers,
+        provider_results,
+        status: status.to_string(),
+        reason: reason.to_string(),
+    }
+}
+
 fn artwork_candidates(
     db: &Database,
     options: &ArtworkRunOptions,
@@ -629,6 +803,17 @@ mod tests {
         banner: Option<&str>,
         background: Option<&str>,
     ) -> Game {
+        game_with_artwork_and_ids(cover, banner, background, Some("v123"), None, None)
+    }
+
+    fn game_with_artwork_and_ids(
+        cover: Option<&str>,
+        banner: Option<&str>,
+        background: Option<&str>,
+        vndb_id: Option<&str>,
+        dlsite_id: Option<&str>,
+        fanza_id: Option<&str>,
+    ) -> Game {
         Game {
             id: "game".to_string(),
             title: "Game".to_string(),
@@ -656,10 +841,10 @@ mod tests {
             cover_image: cover.map(ToString::to_string),
             banner_image: banner.map(ToString::to_string),
             background_image: background.map(ToString::to_string),
-            vndb_id: Some("v123".to_string()),
+            vndb_id: vndb_id.map(ToString::to_string),
             bangumi_id: None,
-            dlsite_id: None,
-            fanza_id: None,
+            dlsite_id: dlsite_id.map(ToString::to_string),
+            fanza_id: fanza_id.map(ToString::to_string),
             ymgal_id: None,
             total_play_seconds: 0,
             last_played_at: None,
@@ -694,6 +879,27 @@ mod tests {
             &fields
         )
         .is_empty());
+    }
+
+    #[test]
+    fn diagnosis_reports_missing_external_id_without_provider_results() {
+        let game = game_with_artwork_and_ids(None, None, Some("bg.png"), None, None, None);
+        let item = diagnose_artwork_item(
+            // Not used when providers are empty.
+            &Database::new_from_path(std::env::temp_dir().join(format!(
+                "mikavn-artwork-diagnosis-{}.db",
+                uuid::Uuid::new_v4()
+            )))
+            .unwrap(),
+            &game,
+            vec!["cover".to_string(), "banner".to_string()],
+            Vec::new(),
+        );
+
+        assert_eq!(item.status, "missing_external_id");
+        assert_eq!(item.missing_fields, vec!["cover", "banner"]);
+        assert!(item.providers.is_empty());
+        assert!(item.provider_results.is_empty());
     }
 
     #[test]

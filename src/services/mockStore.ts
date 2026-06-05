@@ -1,7 +1,7 @@
 import type { AddGameInput, AssetCacheCleanupResult, AssetDownloadInput, AssetImportInput, AssetInput, CollectionGameLink, CollectionInput, DashboardData, Game, GameAsset, GameCollection, GameFilter, GamePathHealth, ImportCandidate, ImportScanReport, ImportScanReportItem, LibraryRoot, PathCheckItem, PlaySession, PlayStatus, ScanCandidate, ScanConflict, TagRecord, UpdateGameInput } from '@/types/game';
 import type { AppDataDiagnostics, DatabaseBackupCleanupPolicy, DatabaseBackupCleanupReport, ImageReferenceAudit, ImageReferenceAuditOptions, ImageReferenceAuditItem, LibraryArchiveExportOptions, LibraryArchiveImportOptions, LibraryArchivePreview, LibraryArchiveRestoreOptions, LogRecord, LogRetentionPolicy } from '@/types/archive';
 import type { LaunchProfile, LaunchProfileInput, LaunchProfileUpdate } from '@/types/launch';
-import type { AdvancedSearchInput, AdvancedSearchResult, AiConnectionTestResult, AiRecognitionResult, ApplyMetadataFields, ArtworkRepairOptions, ArtworkRepairPreview, BatchMatchJob, BatchMatchStatus, DescriptionImageRepairOptions, DescriptionImageRepairPreview, DuplicateExternalIdAuditOptions, DuplicateExternalIdGroup, DuplicateExternalIdPreview, DuplicateGameMergeExternalId, DuplicateGameMergeOptions, DuplicateGameMergePreview, DuplicateGameMergeResult, ExternalIdRecord, FieldLock, MatchSuggestion, MetadataProvider, MetadataSearchResponse, MetadataSearchResult, MetadataSourceRecord, NormalizedMetadata, SavedSearch, SavedSearchInput, SearchClause, SearchQueryValidation } from '@/types/metadata';
+import type { AdvancedSearchInput, AdvancedSearchResult, AiConnectionTestResult, AiRecognitionResult, ApplyMetadataFields, ArtworkRepairDiagnosis, ArtworkRepairOptions, ArtworkRepairPreview, BatchMatchJob, BatchMatchStatus, DescriptionImageRepairOptions, DescriptionImageRepairPreview, DuplicateExternalIdAuditOptions, DuplicateExternalIdGroup, DuplicateExternalIdPreview, DuplicateGameMergeExternalId, DuplicateGameMergeOptions, DuplicateGameMergePreview, DuplicateGameMergeResult, ExternalIdRecord, FieldLock, MatchSuggestion, MetadataProvider, MetadataSearchResponse, MetadataSearchResult, MetadataSourceRecord, NormalizedMetadata, SavedSearch, SavedSearchInput, SearchClause, SearchQueryValidation } from '@/types/metadata';
 import type { SaveBackup, SavePath, SavePathCandidate } from '@/types/saves';
 import type { ScanTaskStatus, TaskDetail, TaskLogEntry, TaskRecord } from '@/types/task';
 import sampleHeroUrl from '@/assets/hero.png';
@@ -615,6 +615,46 @@ function mockArtworkRepairPreview(options: ArtworkRepairOptions = {}): ArtworkRe
     candidates: candidates.slice(0, limit),
     totalCandidates: candidates.length,
     totalMissingFields: candidates.reduce((count, candidate) => count + candidate.missingFields.length, 0),
+  };
+}
+
+function mockArtworkRepairDiagnosis(options: ArtworkRepairOptions = {}): ArtworkRepairDiagnosis {
+  const fields = normalizeMockArtworkFields(options.fields);
+  const providers = normalizeMockArtworkProviders(options.providers);
+  const limit = Math.max(1, Math.min(Number(options.limit ?? 50) || 50, 200));
+  const missingGames = readGames().map(ensureGameDefaults).flatMap((game) => {
+    const missingFields = fields.filter((field) => {
+      if (field === 'cover') return !game.coverImage?.trim();
+      if (field === 'banner') return !game.bannerImage?.trim();
+      return !game.backgroundImage?.trim();
+    });
+    if (missingFields.length === 0) return [];
+    const refs = providers.flatMap((provider) => {
+      const providerId = provider === 'vndb' ? game.vndbId : provider === 'dlsite' ? game.dlsiteId : game.fanzaId;
+      return providerId ? [{ provider, providerId }] : [];
+    });
+    const repairable = refs.length > 0;
+    return [{
+      gameId: game.id,
+      title: game.title,
+      missingFields,
+      providers: refs,
+      providerResults: refs.map((ref) => ({ provider: ref.provider, providerId: ref.providerId, status: 'has_image', reason: null, imageUrl: `mock://metadata/${game.id}/${ref.provider}-artwork.webp` })),
+      status: repairable ? 'repairable' : 'missing_external_id',
+      reason: repairable ? '找到可用于补全的远程主图' : '没有可用的 VNDB/DLsite/FANZA 外部 ID',
+    }];
+  });
+  const items = missingGames.slice(0, limit);
+  return {
+    items,
+    totalMissingGames: missingGames.length,
+    totalMissingFields: missingGames.reduce((count, item) => count + item.missingFields.length, 0),
+    diagnosedGames: items.length,
+    repairableCount: items.filter((item) => item.status === 'repairable').length,
+    missingExternalIdCount: items.filter((item) => item.status === 'missing_external_id').length,
+    noRemoteImageCount: items.filter((item) => item.status === 'no_remote_image').length,
+    providerErrorCount: items.filter((item) => item.status === 'provider_error').length,
+    truncated: missingGames.length > items.length,
   };
 }
 
@@ -1763,6 +1803,10 @@ export const mockStore = {
 
   previewArtworkRepair(options: ArtworkRepairOptions = {}): Promise<ArtworkRepairPreview> {
     return Promise.resolve(mockArtworkRepairPreview(options));
+  },
+
+  diagnoseArtworkRepair(options: ArtworkRepairOptions = {}): Promise<ArtworkRepairDiagnosis> {
+    return Promise.resolve(mockArtworkRepairDiagnosis(options));
   },
 
   repairArtwork(options: ArtworkRepairOptions = {}): Promise<TaskRecord> {
