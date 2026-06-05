@@ -261,6 +261,8 @@ pub struct AssetCacheCleanupResult {
     pub scanned_files: i64,
     pub removed_files: i64,
     pub kept_files: i64,
+    pub removed_bytes: u64,
+    pub kept_bytes: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

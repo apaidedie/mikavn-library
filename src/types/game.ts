@@ -159,6 +159,8 @@ export type AssetCacheCleanupResult = {
   scannedFiles: number;
   removedFiles: number;
   keptFiles: number;
+  removedBytes: number;
+  keptBytes: number;
 };
 
 export type TagRecord = {

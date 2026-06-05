@@ -15,6 +15,7 @@ Updated release candidate with the mature local V1 hardening pass.
 - Isolated desktop smoke validation using `MIKAVN_APP_DATA_DIR` so smoke runs never touch the real user profile.
 - Settings page module split for appearance, metadata/AI configuration, and shared setting indicators.
 - Full library archive restore scheduling with archive database validation, next-start database replacement, retryable task logs, and optional app-data image/save-backup cache mirroring.
+- Maintenance image-cache cleanup preview with removable file counts and byte totals.
 
 ### Changed
 
@@ -22,6 +23,7 @@ Updated release candidate with the mature local V1 hardening pass.
 - Built release executables as Windows GUI applications to avoid opening an extra console window.
 - Browser smoke scripts now start or reuse Vite automatically instead of requiring a manually started dev server.
 - Strengthened scanner, archive, save restore, database restore, task-log, and diagnostic-log audit behavior.
+- Hardened image-cache cleanup so it preserves game image fields, normalized asset records, and local images embedded in descriptions.
 - Added explicit record-only confirmations for saved searches, save paths, and save-backup records.
 - Expanded CI and release workflows with strict release metadata, Rust formatting, Clippy, browser smoke, large-library smoke, desktop smoke, and artifact uploads.
 
@@ -29,6 +31,7 @@ Updated release candidate with the mature local V1 hardening pass.
 
 - Save path and backup record deletion remove only MikaVN database records; real save directories and backup folders are not deleted.
 - Full archive restore creates protection backups and mirrors only MikaVN app-data cache folders; it never touches real game installation directories.
+- Image-cache cleanup is limited to MikaVN `app-data/images` and previews unreferenced files before deletion from Maintenance.
 - Desktop smoke verifies the release executable creates `mikavn.db` only under an isolated `output/desktop-smoke/run-*/isolated-app-data` root.
 
 ## 0.1.0 - Mature Local V1

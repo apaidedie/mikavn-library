@@ -68,6 +68,15 @@ pub fn cleanup_asset_cache(
 }
 
 #[tauri::command]
+pub fn preview_asset_cache_cleanup(
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> DbResult<AssetCacheCleanupResult> {
+    let db = state.db()?;
+    asset_service::preview_asset_cache_cleanup(&app, &db)
+}
+
+#[tauri::command]
 pub fn list_tags(state: State<'_, AppState>, kind: Option<String>) -> DbResult<Vec<TagRecord>> {
     let db = state.db()?;
     asset_service::list_tags(&db, kind)

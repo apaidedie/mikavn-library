@@ -677,6 +677,17 @@ function syncGameCompatibilityAssets(game: Game) {
   writeAssets([...assets, ...existing]);
 }
 
+function mockAssetCacheCleanupResult(assets: GameAsset[]): AssetCacheCleanupResult {
+  const keptBytes = Math.max(assets.length, 0) * 96 * 1024;
+  return {
+    scannedFiles: assets.length,
+    removedFiles: 0,
+    keptFiles: assets.length,
+    removedBytes: 0,
+    keptBytes,
+  };
+}
+
 function syncGameTags(games = readGames()) {
   const counts = new Map<string, TagRecord>();
   for (const game of games) {
@@ -931,7 +942,11 @@ export const mockStore = {
 
   cleanupAssetCache(): Promise<AssetCacheCleanupResult> {
     const assets = readAssets();
-    return Promise.resolve({ scannedFiles: assets.length, removedFiles: 0, keptFiles: assets.length });
+    return Promise.resolve(mockAssetCacheCleanupResult(assets));
+  },
+
+  previewAssetCacheCleanup(): Promise<AssetCacheCleanupResult> {
+    return Promise.resolve(mockAssetCacheCleanupResult(readAssets()));
   },
 
   listTags(kind?: string) {

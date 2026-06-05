@@ -95,6 +95,10 @@ export const api = {
     return command<AssetCacheCleanupResult>('cleanup_asset_cache', undefined, () => mockStore.cleanupAssetCache());
   },
 
+  previewAssetCacheCleanup() {
+    return command<AssetCacheCleanupResult>('preview_asset_cache_cleanup', undefined, () => mockStore.previewAssetCacheCleanup());
+  },
+
   listTags(kind?: string) {
     return command<TagRecord[]>('list_tags', { kind }, () => mockStore.listTags(kind));
   },

@@ -8,6 +8,7 @@ import { MetricTile, PageFrame, PageHeader, PageShell, Panel, PanelContent, Pane
 import { TaskNotice } from '@/components/ui/task-notice';
 import { api } from '@/services/api';
 import type { AppDataDiagnostics } from '@/types/archive';
+import type { AssetCacheCleanupResult } from '@/types/game';
 import type { DuplicateExternalIdGroup, DuplicateGameMergePreview } from '@/types/metadata';
 import { errorMessage } from '@/utils/errorMessage';
 import { Select } from '@/components/ui/select';
@@ -18,6 +19,8 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
   const [diagnostics, setDiagnostics] = useState<AppDataDiagnostics | null>(null);
   const [loading, setLoading] = useState(false);
   const [cleanupLoading, setCleanupLoading] = useState(false);
+  const [assetCleanupLoading, setAssetCleanupLoading] = useState(false);
+  const [assetCleanupPreview, setAssetCleanupPreview] = useState<AssetCacheCleanupResult | null>(null);
   const [metadataRepairLoading, setMetadataRepairLoading] = useState(false);
   const [descriptionRepairLoading, setDescriptionRepairLoading] = useState(false);
   const [artworkRepairLoading, setArtworkRepairLoading] = useState(false);
@@ -145,6 +148,29 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
               <StorageStat label="存档备份" path={diagnostics?.saveBackups.path} size={diagnostics?.saveBackups.totalBytes ?? 0} count={diagnostics?.saveBackups.fileCount ?? 0} onReveal={diagnostics ? () => void revealPath(diagnostics.saveBackups.path) : undefined} />
               <StorageStat label="数据库备份" path={diagnostics?.databaseBackups.rootPath} size={diagnostics?.databaseBackups.totalBytes ?? 0} count={diagnostics?.databaseBackups.fileCount ?? 0} onReveal={diagnostics ? () => void revealPath(diagnostics.databaseBackups.rootPath) : undefined} />
             </div>
+            <SoftRow className="grid gap-3 px-3 py-3 xl:grid-cols-[minmax(0,1fr)_auto]">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-slate-100">
+                  <span>图片缓存清理</span>
+                  <Badge>先预览</Badge>
+                </div>
+                <div className="mt-1 text-xs leading-5 text-slate-500">只清理未被主图、媒体图库或简介本地图引用的 app-data/images 文件。</div>
+                {assetCleanupPreview ? (
+                  <div className="mt-3 grid gap-2 sm:grid-cols-4">
+                    <CompactStat label="扫描文件" value={assetCleanupPreview.scannedFiles} />
+                    <CompactStat label="可清理" value={assetCleanupPreview.removedFiles} tone={assetCleanupPreview.removedFiles > 0 ? 'warn' : 'ok'} />
+                    <CompactStat label="可释放" value={formatBytes(assetCleanupPreview.removedBytes)} tone={assetCleanupPreview.removedBytes > 0 ? 'warn' : 'ok'} />
+                    <CompactStat label="保留文件" value={assetCleanupPreview.keptFiles} />
+                  </div>
+                ) : (
+                  <div className="mt-2 text-xs text-slate-600">预览会扫描图片缓存，不会删除文件。</div>
+                )}
+              </div>
+              <div className="flex shrink-0 flex-wrap items-start gap-2 xl:justify-end">
+                <Button disabled={assetCleanupLoading || !diagnostics} size="sm" variant="outline" onClick={previewAssetCacheCleanup}><ShieldCheck className="h-4 w-4" />{assetCleanupLoading ? '检查中' : '预览'}</Button>
+                <Button disabled={assetCleanupLoading || !diagnostics || (assetCleanupPreview ? assetCleanupPreview.removedFiles === 0 : false)} size="sm" variant="danger" onClick={cleanupAssetCache}><Trash2 className="h-4 w-4" />{assetCleanupLoading ? '处理中' : '清理'}</Button>
+              </div>
+            </SoftRow>
           </PanelContent>
         </Panel>
 
@@ -337,6 +363,57 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
       setError(errorMessage(reason));
     } finally {
       setCleanupLoading(false);
+    }
+  }
+
+  async function previewAssetCacheCleanup() {
+    setAssetCleanupLoading(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const result = await api.previewAssetCacheCleanup();
+      setAssetCleanupPreview(result);
+      setMessage({ text: result.removedFiles > 0 ? `图片缓存预览完成：可清理 ${formatCount(result.removedFiles)} 个文件，预计释放 ${formatBytes(result.removedBytes)}。` : '图片缓存预览完成，没有发现可清理文件。' });
+    } catch (reason) {
+      setError(errorMessage(reason));
+    } finally {
+      setAssetCleanupLoading(false);
+    }
+  }
+
+  async function cleanupAssetCache() {
+    setError(null);
+    setMessage(null);
+    let preview = assetCleanupPreview;
+    if (!preview) {
+      setAssetCleanupLoading(true);
+      try {
+        preview = await api.previewAssetCacheCleanup();
+        setAssetCleanupPreview(preview);
+      } catch (reason) {
+        setError(errorMessage(reason));
+        setAssetCleanupLoading(false);
+        return;
+      }
+      setAssetCleanupLoading(false);
+    }
+
+    if (preview.removedFiles === 0) {
+      setMessage({ text: '没有需要清理的图片缓存文件。' });
+      return;
+    }
+    if (!window.confirm(`清理 ${formatCount(preview.removedFiles)} 个未引用图片缓存文件，预计释放 ${formatBytes(preview.removedBytes)}？`)) return;
+
+    setAssetCleanupLoading(true);
+    try {
+      const result = await api.cleanupAssetCache();
+      setMessage({ text: result.removedFiles > 0 ? `已清理 ${formatCount(result.removedFiles)} 个图片缓存文件，释放 ${formatBytes(result.removedBytes)}。` : '没有需要清理的图片缓存文件。' });
+      setAssetCleanupPreview(await api.previewAssetCacheCleanup());
+      await loadDiagnostics();
+    } catch (reason) {
+      setError(errorMessage(reason));
+    } finally {
+      setAssetCleanupLoading(false);
     }
   }
 
@@ -534,12 +611,13 @@ function ProgressBlock({ label, value, total }: { label: string; value: number; 
   );
 }
 
-function CompactStat({ label, value, tone = 'neutral' }: { label: string; value: number; tone?: 'neutral' | 'ok' | 'warn' }) {
+function CompactStat({ label, value, tone = 'neutral' }: { label: string; value: number | string; tone?: 'neutral' | 'ok' | 'warn' }) {
   const toneClass = tone === 'ok' ? 'text-emerald-200' : tone === 'warn' ? 'text-amber-200' : 'text-slate-200';
+  const displayValue = typeof value === 'number' ? formatCount(value) : value;
   return (
     <div className="rounded-md border border-white/10 bg-black/[0.10] px-3 py-2">
       <div className="text-[11px] text-slate-500">{label}</div>
-      <div className={`mt-1 font-mono text-sm ${toneClass}`}>{formatCount(value)}</div>
+      <div className={`mt-1 font-mono text-sm ${toneClass}`}>{displayValue}</div>
     </div>
   );
 }

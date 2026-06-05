@@ -27,7 +27,7 @@ The current implementation focuses on a complete local desktop workflow:
 - Portable-first app data resolution for installed user-writable builds, keeping SQLite, images, logs, save backups, and cache under the app-adjacent `app-data/` directory when available
 - Normalized asset/tag tables with compatibility sync from existing game fields
 - Asset gallery on game detail pages for cover, banner, background, screenshots, local import, remote download, primary selection, removal, and cache cleanup
-- Asset commands for importing local image files into app data, downloading remote image assets, and cleaning unreferenced image cache files
+- Asset commands for importing local image files into app data, downloading remote image assets, previewing image cache cleanup, and cleaning files not referenced by game image fields, gallery records, or local description images
 - Save-path management, manual backups, restore-before-protection backups, and backup history
 - Optional automatic save backups before launch and after game exit, visible in the task timeline
 - Manual SQLite database backup from Settings using a task record
@@ -123,7 +123,7 @@ Use `RELEASE_CHECKLIST.md` before tagging or publishing a GitHub release.
 Latest mature V1 acceptance pass. For the repeatable release checklist, see `RELEASE_CHECKLIST.md`.
 
 - `npm run release:check` verifies version alignment, release metadata, Tauri security hardening, browser/large smoke gates, and release desktop-smoke gating; `npm run release:check:strict` also verifies public GitHub release links. `npm run release:validate:strict` runs the local release validation chain end to end, and `npm run release:validate:core` reruns the strict non-smoke core checks.
-- `cargo fmt --check`, `cargo clippy -- -D warnings`, and `cargo test` under `src-tauri` pass with 112 Rust tests.
+- `cargo fmt --check`, `cargo clippy -- -D warnings`, and `cargo test` under `src-tauri` pass with 114 Rust tests.
 - `npm run build` passes TypeScript and Vite production build checks.
 - `npm run smoke:browser` starts or reuses a local Vite server, then runs page-level Playwright QA plus core workflow smoke.
 - `npm run smoke:large` starts or reuses a local Vite server, seeds 1500 browser-preview records, and verifies library rendering/filtering plus advanced-search timings; latest local run loaded the library in 1055ms and advanced search in 346ms.
@@ -151,6 +151,7 @@ Latest mature V1 acceptance pass. For the repeatable release checklist, see `REL
 - `import_game_asset_from_path(game_id, input)`
 - `download_game_asset(game_id, input)`
 - `cleanup_asset_cache()`
+- `preview_asset_cache_cleanup()`
 - `list_tags(kind)`
 - `rename_tag(id, name)`
 - `merge_tags(source_ids, target_id)`
@@ -282,7 +283,7 @@ The Advanced Search page starts with a simple search box and shortcut searches s
 
 ## Assets And Tags
 
-`game_assets`, `tags`, and `game_tags` now provide normalized records while `games.cover_image`, `games.banner_image`, `games.background_image`, `games.tags`, and `games.genres` remain the compatibility fields for current UI and imports. Game detail pages include an asset gallery for cover, banner, background, and screenshot records. The gallery can import user image files, download remote image assets into the local cache, set the primary image for compatibility fields, remove asset records without deleting real game files, and run unreferenced image cache cleanup. Settings includes tag maintenance for renaming, merging, and deleting normalized tag or genre records.
+`game_assets`, `tags`, and `game_tags` now provide normalized records while `games.cover_image`, `games.banner_image`, `games.background_image`, `games.tags`, and `games.genres` remain the compatibility fields for current UI and imports. Game detail pages include an asset gallery for cover, banner, background, and screenshot records. The gallery can import user image files, download remote image assets into the local cache, set the primary image for compatibility fields, remove asset records without deleting real game files, and run unreferenced image cache cleanup. The cleanup scanner keeps files referenced by game image fields, `game_assets`, and local Markdown/HTML/BBCode image references in descriptions; Maintenance can preview removable file count and size before deleting from `app-data/images`. Settings includes tag maintenance for renaming, merging, and deleting normalized tag or genre records.
 
 ## Save Backups
 

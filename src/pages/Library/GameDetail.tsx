@@ -861,7 +861,7 @@ function AssetGallery({ game, blurCover, onChanged, onMessage }: { game: Game; b
     try {
       const result = await api.cleanupAssetCache();
       await refreshAssets();
-      onMessage(`缓存清理完成：扫描 ${result.scannedFiles} 个，删除 ${result.removedFiles} 个，保留 ${result.keptFiles} 个。`);
+      onMessage(`缓存清理完成：扫描 ${result.scannedFiles} 个，删除 ${result.removedFiles} 个，保留 ${result.keptFiles} 个，释放 ${formatBytes(result.removedBytes)}。`);
     } catch (reason) {
       onMessage(errorMessage(reason));
     } finally {
@@ -904,6 +904,18 @@ function assetTypeLabel(type: string) {
     other: '其他',
   };
   return labels[type] ?? type;
+}
+
+function formatBytes(value: number) {
+  if (!Number.isFinite(value) || value <= 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let size = value;
+  let unit = 0;
+  while (size >= 1024 && unit < units.length - 1) {
+    size /= 1024;
+    unit += 1;
+  }
+  return `${unit === 0 ? Math.round(size) : size.toFixed(size >= 10 ? 1 : 2)} ${units[unit]}`;
 }
 
 function InfoStack({ title, children }: { title: string; children: ReactNode }) {
