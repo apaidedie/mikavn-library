@@ -10,6 +10,9 @@ use crate::services::metadata::ai::AiConnectionTestResult;
 use crate::services::metadata_description_images::{
     self, DescriptionImageRepairOptions, DescriptionImageRepairPreview,
 };
+use crate::services::metadata_duplicate_ids::{
+    self, DuplicateExternalIdAuditOptions, DuplicateExternalIdPreview,
+};
 use crate::AppState;
 
 #[tauri::command]
@@ -131,6 +134,25 @@ pub fn repair_description_images(
 ) -> DbResult<TaskRecord> {
     let db = state.db()?;
     metadata_description_images::enqueue_description_image_repair_task(app, &db, options)
+}
+
+#[tauri::command]
+pub fn preview_duplicate_external_ids(
+    state: State<'_, AppState>,
+    options: DuplicateExternalIdAuditOptions,
+) -> DbResult<DuplicateExternalIdPreview> {
+    let db = state.db()?;
+    metadata_duplicate_ids::preview_duplicate_external_ids(&db, options)
+}
+
+#[tauri::command]
+pub fn audit_duplicate_external_ids(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    options: DuplicateExternalIdAuditOptions,
+) -> DbResult<TaskRecord> {
+    let db = state.db()?;
+    metadata_duplicate_ids::enqueue_duplicate_external_id_audit_task(app, &db, options)
 }
 
 #[tauri::command]

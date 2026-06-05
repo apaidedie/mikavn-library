@@ -1,7 +1,7 @@
 import type { AddGameInput, AssetCacheCleanupResult, AssetDownloadInput, AssetImportInput, AssetInput, CollectionGameLink, CollectionInput, DashboardData, Game, GameAsset, GameCollection, GameFilter, GamePathHealth, ImportCandidate, ImportScanReport, ImportScanReportItem, LibraryRoot, PathCheckItem, PlaySession, PlayStatus, ScanCandidate, ScanConflict, TagRecord, UpdateGameInput } from '@/types/game';
 import type { AppDataDiagnostics, DatabaseBackupCleanupPolicy, DatabaseBackupCleanupReport, LibraryArchiveExportOptions, LibraryArchiveImportOptions, LibraryArchivePreview, LogRecord, LogRetentionPolicy } from '@/types/archive';
 import type { LaunchProfile, LaunchProfileInput, LaunchProfileUpdate } from '@/types/launch';
-import type { AdvancedSearchInput, AdvancedSearchResult, AiConnectionTestResult, AiRecognitionResult, ApplyMetadataFields, BatchMatchJob, BatchMatchStatus, DescriptionImageRepairOptions, DescriptionImageRepairPreview, ExternalIdRecord, FieldLock, MatchSuggestion, MetadataProvider, MetadataSearchResponse, MetadataSearchResult, MetadataSourceRecord, NormalizedMetadata, SavedSearch, SavedSearchInput, SearchClause, SearchQueryValidation } from '@/types/metadata';
+import type { AdvancedSearchInput, AdvancedSearchResult, AiConnectionTestResult, AiRecognitionResult, ApplyMetadataFields, BatchMatchJob, BatchMatchStatus, DescriptionImageRepairOptions, DescriptionImageRepairPreview, DuplicateExternalIdAuditOptions, DuplicateExternalIdGroup, DuplicateExternalIdPreview, ExternalIdRecord, FieldLock, MatchSuggestion, MetadataProvider, MetadataSearchResponse, MetadataSearchResult, MetadataSourceRecord, NormalizedMetadata, SavedSearch, SavedSearchInput, SearchClause, SearchQueryValidation } from '@/types/metadata';
 import type { SaveBackup, SavePath, SavePathCandidate } from '@/types/saves';
 import type { ScanTaskStatus, TaskDetail, TaskLogEntry, TaskRecord } from '@/types/task';
 import sampleHeroUrl from '@/assets/hero.png';
@@ -377,6 +377,48 @@ function ensureGameDefaults(game: Game): Game {
 
 function externalIdCount(game: Game) {
   return [game.vndbId, game.bangumiId, game.dlsiteId, game.fanzaId, game.ymgalId].filter((value) => value?.trim()).length;
+}
+
+function mockExternalIdEntries(options: DuplicateExternalIdAuditOptions = {}) {
+  const providers = (options.providers ?? []).map((provider) => String(provider).trim().toLowerCase()).filter(Boolean);
+  const providerSet = providers.length && !providers.includes('all') ? new Set(providers) : null;
+  const entries: Array<{ provider: string; externalId: string; normalizedExternalId: string; game: Game; source: string }> = [];
+  const push = (game: Game, provider: string, externalId: string | null | undefined, source: string) => {
+    const cleanProvider = provider.trim().toLowerCase();
+    const cleanId = externalId?.trim();
+    if (!cleanId || (providerSet && !providerSet.has(cleanProvider))) return;
+    entries.push({ provider: cleanProvider, externalId: cleanId, normalizedExternalId: cleanId.toLowerCase(), game, source });
+  };
+  for (const game of readGames().map(ensureGameDefaults)) {
+    push(game, 'vndb', game.vndbId, 'games.vndbId');
+    push(game, 'bangumi', game.bangumiId, 'games.bangumiId');
+    push(game, 'dlsite', game.dlsiteId, 'games.dlsiteId');
+    push(game, 'fanza', game.fanzaId, 'games.fanzaId');
+    push(game, 'ymgal', game.ymgalId, 'games.ymgalId');
+  }
+  return entries;
+}
+
+function mockDuplicateExternalIdPreview(options: DuplicateExternalIdAuditOptions = {}): DuplicateExternalIdPreview {
+  const limit = Math.max(1, Math.min(Number(options.limit ?? 50) || 50, 500));
+  const groups = new Map<string, DuplicateExternalIdGroup>();
+  for (const entry of mockExternalIdEntries(options)) {
+    const key = `${entry.provider}:${entry.normalizedExternalId}`;
+    const group = groups.get(key) ?? { provider: entry.provider, externalId: entry.externalId, gameCount: 0, games: [] };
+    const existing = group.games.find((game) => game.gameId === entry.game.id);
+    if (existing) {
+      if (!existing.sources.includes(entry.source)) existing.sources.push(entry.source);
+    } else {
+      group.games.push({ gameId: entry.game.id, title: entry.game.title, installPath: entry.game.installPath, sources: [entry.source] });
+      group.gameCount = group.games.length;
+    }
+    groups.set(key, group);
+  }
+  const duplicateGroups = [...groups.values()]
+    .filter((group) => group.games.length > 1)
+    .sort((left, right) => right.gameCount - left.gameCount || left.provider.localeCompare(right.provider) || left.externalId.localeCompare(right.externalId));
+  const totalGames = new Set(duplicateGroups.flatMap((group) => group.games.map((game) => game.gameId))).size;
+  return { groups: duplicateGroups.slice(0, limit), totalGroups: duplicateGroups.length, totalGames };
 }
 
 function hasMockDescriptionImage(value?: string | null) {
@@ -1041,6 +1083,7 @@ export const mockStore = {
     const externalIdLinkedCount = games.filter((game) => externalIdCount(game) > 0).length;
     const descriptionImageGames = games.filter((game) => hasMockDescriptionImage(game.description)).length;
     const providerGames = games.filter((game) => game.dlsiteId || game.fanzaId);
+    const duplicateExternalIds = mockDuplicateExternalIdPreview();
     return Promise.resolve({
       appDataDir: 'E:\\MikaVN Library\\app-data',
       dataDirSource: 'mock',
@@ -1087,11 +1130,11 @@ export const mockStore = {
           vndbIdCount: games.filter((game) => game.vndbId).length,
           dlsiteIdCount: games.filter((game) => game.dlsiteId).length,
           fanzaIdCount: games.filter((game) => game.fanzaId).length,
-          duplicateExternalIdGroupsCount: 0,
-          duplicateExternalIdGamesCount: 0,
-          duplicateVndbIdGroupsCount: 0,
-          duplicateDlsiteIdGroupsCount: 0,
-          duplicateFanzaIdGroupsCount: 0,
+          duplicateExternalIdGroupsCount: duplicateExternalIds.totalGroups,
+          duplicateExternalIdGamesCount: duplicateExternalIds.totalGames,
+          duplicateVndbIdGroupsCount: mockDuplicateExternalIdPreview({ providers: ['vndb'] }).totalGroups,
+          duplicateDlsiteIdGroupsCount: mockDuplicateExternalIdPreview({ providers: ['dlsite'] }).totalGroups,
+          duplicateFanzaIdGroupsCount: mockDuplicateExternalIdPreview({ providers: ['fanza'] }).totalGroups,
         },
         pathStatus: {
           okCount: games.filter((game) => game.pathStatus === 'ok').length,
@@ -1424,6 +1467,27 @@ export const mockStore = {
     });
     addTaskLog(task.id, 'info', `简介图片修复候选：${candidates.map((candidate) => `${candidate.provider}:${candidate.providerId}`).join(', ')}`);
     return task;
+  },
+
+  previewDuplicateExternalIds(options: DuplicateExternalIdAuditOptions = {}): Promise<DuplicateExternalIdPreview> {
+    return Promise.resolve(mockDuplicateExternalIdPreview(options));
+  },
+
+  auditDuplicateExternalIds(options: DuplicateExternalIdAuditOptions = {}): Promise<TaskRecord> {
+    const preview = mockDuplicateExternalIdPreview(options);
+    if (preview.totalGroups === 0) return Promise.reject(new Error('no duplicate external ids'));
+    const task = makeTask({
+      taskType: 'metadata.duplicate_id_audit',
+      status: 'completed',
+      progress: 1,
+      message: `重复外部 ID 审查完成：发现 ${preview.totalGroups} 组，涉及 ${preview.totalGames} 个游戏记录`,
+      retryPayload: JSON.stringify({ providers: options.providers ?? null, limit: options.limit ?? 50, retryAttempted: Boolean(options.retryAttempted) }),
+      retryable: true,
+    });
+    for (const group of preview.groups) {
+      addTaskLog(task.id, 'warn', `重复组：${group.provider} ${group.externalId}，${group.gameCount} 个游戏：${group.games.map((game) => `${game.title} [${game.gameId}]`).join(' | ')}`);
+    }
+    return Promise.resolve(task);
   },
 
   getBatchMatchStatus(jobId: string): Promise<BatchMatchStatus> {

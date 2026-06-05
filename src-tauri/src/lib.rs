@@ -117,6 +117,8 @@ pub fn run() {
             commands::metadata::batch_match_metadata,
             commands::metadata::preview_description_image_repair,
             commands::metadata::repair_description_images,
+            commands::metadata::preview_duplicate_external_ids,
+            commands::metadata::audit_duplicate_external_ids,
             commands::metadata::get_batch_match_status,
             commands::metadata::cancel_batch_match,
             commands::metadata::recognize_game_from_image,

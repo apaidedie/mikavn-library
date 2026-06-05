@@ -54,6 +54,20 @@ const descriptionRepairGame = {
   executablePath: 'D:\\Games\\VN\\简介图片修复候选\\game.exe',
   workingDirectory: 'D:\\Games\\VN\\简介图片修复候选',
 };
+const duplicateExternalIdGame = {
+  ...games[1],
+  id: 'qa-duplicate-id',
+  title: '星之终途 重复记录',
+  originalTitle: '終のステラ duplicate',
+  aliases: [],
+  description: '重复外部 ID 审查候选。',
+  vndbId: 'v29443',
+  dlsiteId: null,
+  fanzaId: null,
+  installPath: 'D:\\Games\\VN\\星之终途-重复记录',
+  executablePath: 'D:\\Games\\VN\\星之终途-重复记录\\stella.exe',
+  workingDirectory: 'D:\\Games\\VN\\星之终途-重复记录',
+};
 const tasks = [
   { id: 'qa-task-failed', taskType: 'library.scan', status: 'failed', progress: 1, message: '扫描失败：路径不存在', error: 'PATH_NOT_FOUND: D:\\Missing', retryPayload: JSON.stringify({ path: 'D:\\Missing', recursive: true }), retryable: true, createdAt: now, updatedAt: now },
   { id: 'qa-task-running', taskType: 'metadata.batch_match', status: 'running', progress: 0.42, message: '正在匹配 2 个游戏', error: null, retryPayload: JSON.stringify({ gameIds: ['qa-1', 'qa-2'] }), retryable: true, createdAt: now, updatedAt: now },
@@ -191,6 +205,13 @@ async function main() {
         await page.getByText('批量元数据匹配').first().waitFor({ timeout: 5000 });
         await clickMaintenanceStart(page, '批量元数据匹配');
         await page.getByText(/批量匹配完成|已创建批量元数据匹配任务/).first().waitFor({ timeout: 5000 });
+      }],
+      ['maintenance-health-duplicate-id-audit', 'maintenance', { games: [...games, duplicateExternalIdGame] }, async (page) => {
+        await page.getByText('维护中心').first().waitFor({ timeout: 5000 });
+        await page.getByText('维护队列').first().waitFor({ timeout: 5000 });
+        await page.getByText('重复 ID 审查').first().waitFor({ timeout: 5000 });
+        await clickMaintenanceStart(page, '重复 ID 审查');
+        await page.getByText(/重复外部 ID 审查完成|已创建重复 ID 审查任务/).first().waitFor({ timeout: 5000 });
       }],
       ['settings-local-privacy-backup', 'settings'],
     ];

@@ -107,6 +107,32 @@ export type DescriptionImageRepairPreview = {
   totalCandidates: number;
 };
 
+export type DuplicateExternalIdAuditOptions = {
+  providers?: Array<string | MetadataProvider> | null;
+  limit?: number | null;
+  retryAttempted?: boolean | null;
+};
+
+export type DuplicateExternalIdGame = {
+  gameId: string;
+  title: string;
+  installPath: string;
+  sources: string[];
+};
+
+export type DuplicateExternalIdGroup = {
+  provider: string;
+  externalId: string;
+  gameCount: number;
+  games: DuplicateExternalIdGame[];
+};
+
+export type DuplicateExternalIdPreview = {
+  groups: DuplicateExternalIdGroup[];
+  totalGroups: number;
+  totalGames: number;
+};
+
 export type AiRecognitionResult = {
   title: string;
   rawText: string;

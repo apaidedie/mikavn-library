@@ -18,6 +18,7 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
   const [cleanupLoading, setCleanupLoading] = useState(false);
   const [metadataRepairLoading, setMetadataRepairLoading] = useState(false);
   const [descriptionRepairLoading, setDescriptionRepairLoading] = useState(false);
+  const [duplicateAuditLoading, setDuplicateAuditLoading] = useState(false);
   const [message, setMessage] = useState<TaskMessage | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -169,9 +170,14 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
               status="可创建任务"
             />
             <MaintenanceAction
+              action={(
+                <Button disabled={duplicateAuditLoading || (externalIds?.duplicateExternalIdGroupsCount ?? 0) === 0} size="sm" variant="secondary" onClick={startDuplicateExternalIdAudit}>
+                  <PlayCircle className="h-4 w-4" />{duplicateAuditLoading ? '创建中' : '开始'}
+                </Button>
+              )}
               detail={`${formatCount(externalIds?.duplicateExternalIdGroupsCount ?? 0)} 组重复外部 ID`}
-              label="重复项合并"
-              status="待接入处理器"
+              label="重复 ID 审查"
+              status="可创建任务"
             />
             <MaintenanceAction
               action={(
@@ -260,6 +266,28 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
       setError(errorMessage(reason));
     } finally {
       setDescriptionRepairLoading(false);
+    }
+  }
+
+  async function startDuplicateExternalIdAudit() {
+    setDuplicateAuditLoading(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const preview = await api.previewDuplicateExternalIds({ providers: ['all'], limit: 50 });
+      if (preview.totalGroups === 0) {
+        setMessage({ text: '没有发现重复外部 ID。' });
+        await loadDiagnostics();
+        return;
+      }
+      const task = await api.auditDuplicateExternalIds({ providers: ['all'], limit: 50 });
+      setMessage({ text: `已创建重复 ID 审查任务：${formatCount(preview.totalGroups)} 组，涉及 ${formatCount(preview.totalGames)} 个游戏。`, taskId: task.id });
+      onOpenTasks?.(task.id);
+      await loadDiagnostics();
+    } catch (reason) {
+      setError(errorMessage(reason));
+    } finally {
+      setDuplicateAuditLoading(false);
     }
   }
 

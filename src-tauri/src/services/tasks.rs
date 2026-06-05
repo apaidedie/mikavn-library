@@ -8,6 +8,7 @@ use crate::services::backups as backup_service;
 use crate::services::library_paths as path_service;
 use crate::services::metadata as metadata_service;
 use crate::services::metadata_description_images as description_image_service;
+use crate::services::metadata_duplicate_ids as duplicate_id_service;
 use crate::services::saves as save_service;
 use crate::services::scanner as scanner_service;
 
@@ -220,6 +221,9 @@ pub fn retry_task(app: AppHandle, db: &Database, id: String) -> DbResult<TaskRec
         }
         "metadata.description_image_repair" => {
             description_image_service::retry_description_image_repair_task(app, db, payload)
+        }
+        "metadata.duplicate_id_audit" => {
+            duplicate_id_service::retry_duplicate_external_id_audit_task(app, db, payload)
         }
         _ => Err(DbError::validation(
             "this task type does not support retry yet",
