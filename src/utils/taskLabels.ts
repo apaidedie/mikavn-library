@@ -1,6 +1,7 @@
 export function taskLabel(taskType: string) {
   if (taskType === 'metadata.batch_match') return '批量元数据匹配';
   if (taskType === 'metadata.description_image_repair') return '简介图片修复';
+  if (taskType === 'metadata.artwork_repair') return '媒体图片补全';
   if (taskType === 'metadata.duplicate_id_audit') return '重复 ID 审查';
   if (taskType === 'library.scan') return '目录扫描';
   if (taskType === 'database.backup') return '数据库备份';

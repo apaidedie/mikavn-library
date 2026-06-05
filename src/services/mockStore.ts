@@ -1,7 +1,7 @@
 import type { AddGameInput, AssetCacheCleanupResult, AssetDownloadInput, AssetImportInput, AssetInput, CollectionGameLink, CollectionInput, DashboardData, Game, GameAsset, GameCollection, GameFilter, GamePathHealth, ImportCandidate, ImportScanReport, ImportScanReportItem, LibraryRoot, PathCheckItem, PlaySession, PlayStatus, ScanCandidate, ScanConflict, TagRecord, UpdateGameInput } from '@/types/game';
 import type { AppDataDiagnostics, DatabaseBackupCleanupPolicy, DatabaseBackupCleanupReport, LibraryArchiveExportOptions, LibraryArchiveImportOptions, LibraryArchivePreview, LogRecord, LogRetentionPolicy } from '@/types/archive';
 import type { LaunchProfile, LaunchProfileInput, LaunchProfileUpdate } from '@/types/launch';
-import type { AdvancedSearchInput, AdvancedSearchResult, AiConnectionTestResult, AiRecognitionResult, ApplyMetadataFields, BatchMatchJob, BatchMatchStatus, DescriptionImageRepairOptions, DescriptionImageRepairPreview, DuplicateExternalIdAuditOptions, DuplicateExternalIdGroup, DuplicateExternalIdPreview, ExternalIdRecord, FieldLock, MatchSuggestion, MetadataProvider, MetadataSearchResponse, MetadataSearchResult, MetadataSourceRecord, NormalizedMetadata, SavedSearch, SavedSearchInput, SearchClause, SearchQueryValidation } from '@/types/metadata';
+import type { AdvancedSearchInput, AdvancedSearchResult, AiConnectionTestResult, AiRecognitionResult, ApplyMetadataFields, ArtworkRepairOptions, ArtworkRepairPreview, BatchMatchJob, BatchMatchStatus, DescriptionImageRepairOptions, DescriptionImageRepairPreview, DuplicateExternalIdAuditOptions, DuplicateExternalIdGroup, DuplicateExternalIdPreview, ExternalIdRecord, FieldLock, MatchSuggestion, MetadataProvider, MetadataSearchResponse, MetadataSearchResult, MetadataSourceRecord, NormalizedMetadata, SavedSearch, SavedSearchInput, SearchClause, SearchQueryValidation } from '@/types/metadata';
 import type { SaveBackup, SavePath, SavePathCandidate } from '@/types/saves';
 import type { ScanTaskStatus, TaskDetail, TaskLogEntry, TaskRecord } from '@/types/task';
 import sampleHeroUrl from '@/assets/hero.png';
@@ -440,6 +440,39 @@ function mockDescriptionImageCandidates(options: DescriptionImageRepairOptions =
       return [];
     })
     .slice(0, limit);
+}
+
+function normalizeMockArtworkFields(fields: ArtworkRepairOptions['fields'] = null) {
+  const raw = (fields ?? []).map((field) => String(field).trim().toLowerCase()).filter(Boolean);
+  if (raw.length === 0 || raw.includes('all')) return ['cover', 'background'];
+  return [...new Set(raw.filter((field) => field === 'cover' || field === 'background'))];
+}
+
+function normalizeMockArtworkProviders(providers: ArtworkRepairOptions['providers'] = null) {
+  const raw = (providers ?? []).map((provider) => String(provider).trim().toLowerCase()).filter(Boolean);
+  if (raw.length === 0 || raw.includes('all')) return ['vndb', 'dlsite', 'fanza'];
+  return [...new Set(raw.filter((provider) => provider === 'vndb' || provider === 'dlsite' || provider === 'fanza'))];
+}
+
+function mockArtworkRepairPreview(options: ArtworkRepairOptions = {}): ArtworkRepairPreview {
+  const fields = normalizeMockArtworkFields(options.fields);
+  const providers = normalizeMockArtworkProviders(options.providers);
+  const limit = Math.max(1, Math.min(Number(options.limit ?? 20) || 20, 200));
+  const candidates = readGames().map(ensureGameDefaults).flatMap((game) => {
+    const missingFields = fields.filter((field) => field === 'cover' ? !game.coverImage?.trim() : !game.backgroundImage?.trim());
+    if (missingFields.length === 0) return [];
+    const refs = providers.flatMap((provider) => {
+      const providerId = provider === 'vndb' ? game.vndbId : provider === 'dlsite' ? game.dlsiteId : game.fanzaId;
+      return providerId ? [{ provider, providerId }] : [];
+    });
+    if (refs.length === 0) return [];
+    return [{ gameId: game.id, title: game.title, missingFields, providers: refs }];
+  });
+  return {
+    candidates: candidates.slice(0, limit),
+    totalCandidates: candidates.length,
+    totalMissingFields: candidates.reduce((count, candidate) => count + candidate.missingFields.length, 0),
+  };
 }
 
 function metadataStatusMatches(game: Game, status?: string) {
@@ -1467,6 +1500,38 @@ export const mockStore = {
     });
     addTaskLog(task.id, 'info', `简介图片修复候选：${candidates.map((candidate) => `${candidate.provider}:${candidate.providerId}`).join(', ')}`);
     return task;
+  },
+
+  previewArtworkRepair(options: ArtworkRepairOptions = {}): Promise<ArtworkRepairPreview> {
+    return Promise.resolve(mockArtworkRepairPreview(options));
+  },
+
+  repairArtwork(options: ArtworkRepairOptions = {}): Promise<TaskRecord> {
+    const preview = mockArtworkRepairPreview(options);
+    if (preview.totalCandidates === 0) return Promise.reject(new Error('no artwork repair candidates'));
+    const updatedIds = new Map(preview.candidates.map((candidate) => [candidate.gameId, candidate.missingFields]));
+    writeGames(readGames().map(ensureGameDefaults).map((game) => {
+      const fields = updatedIds.get(game.id);
+      if (!fields) return game;
+      return {
+        ...game,
+        coverImage: fields.includes('cover') ? `mock://metadata/${game.id}/artwork-cover.webp` : game.coverImage,
+        backgroundImage: fields.includes('background') ? `mock://metadata/${game.id}/artwork-background.webp` : game.backgroundImage,
+        updatedAt: new Date().toISOString(),
+      };
+    }));
+    const task = makeTask({
+      taskType: 'metadata.artwork_repair',
+      status: 'completed',
+      progress: 1,
+      message: `浏览器预览已补全 ${preview.totalCandidates} 个条目的媒体图片`,
+      retryPayload: JSON.stringify({ providers: options.providers ?? ['all'], fields: options.fields ?? ['cover', 'background'], limit: options.limit ?? 20, retryAttempted: Boolean(options.retryAttempted) }),
+      retryable: true,
+    });
+    for (const candidate of preview.candidates) {
+      addTaskLog(task.id, 'info', `已补全：${candidate.title} [${candidate.gameId}]，字段 ${candidate.missingFields.join('/')}`);
+    }
+    return Promise.resolve(task);
   },
 
   previewDuplicateExternalIds(options: DuplicateExternalIdAuditOptions = {}): Promise<DuplicateExternalIdPreview> {

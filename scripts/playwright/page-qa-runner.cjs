@@ -68,6 +68,22 @@ const duplicateExternalIdGame = {
   executablePath: 'D:\\Games\\VN\\星之终途-重复记录\\stella.exe',
   workingDirectory: 'D:\\Games\\VN\\星之终途-重复记录',
 };
+const artworkRepairGame = {
+  ...games[1],
+  id: 'qa-artwork-repair',
+  title: '媒体图片补全候选',
+  originalTitle: 'Artwork Repair Candidate',
+  aliases: [],
+  description: '已有 VNDB ID，但缺封面和背景，用于维护中心补图入口 QA。',
+  vndbId: 'v29443',
+  dlsiteId: null,
+  fanzaId: null,
+  coverImage: null,
+  backgroundImage: null,
+  installPath: 'D:\\Games\\VN\\媒体图片补全候选',
+  executablePath: 'D:\\Games\\VN\\媒体图片补全候选\\game.exe',
+  workingDirectory: 'D:\\Games\\VN\\媒体图片补全候选',
+};
 const tasks = [
   { id: 'qa-task-failed', taskType: 'library.scan', status: 'failed', progress: 1, message: '扫描失败：路径不存在', error: 'PATH_NOT_FOUND: D:\\Missing', retryPayload: JSON.stringify({ path: 'D:\\Missing', recursive: true }), retryable: true, createdAt: now, updatedAt: now },
   { id: 'qa-task-running', taskType: 'metadata.batch_match', status: 'running', progress: 0.42, message: '正在匹配 2 个游戏', error: null, retryPayload: JSON.stringify({ gameIds: ['qa-1', 'qa-2'] }), retryable: true, createdAt: now, updatedAt: now },
@@ -205,6 +221,13 @@ async function main() {
         await page.getByText('批量元数据匹配').first().waitFor({ timeout: 5000 });
         await clickMaintenanceStart(page, '批量元数据匹配');
         await page.getByText(/批量匹配完成|已创建批量元数据匹配任务/).first().waitFor({ timeout: 5000 });
+      }],
+      ['maintenance-health-artwork-repair', 'maintenance', { games: [...games, artworkRepairGame] }, async (page) => {
+        await page.getByText('维护中心').first().waitFor({ timeout: 5000 });
+        await page.getByText('维护队列').first().waitFor({ timeout: 5000 });
+        await page.getByText('媒体图片补全').first().waitFor({ timeout: 5000 });
+        await clickMaintenanceStart(page, '媒体图片补全');
+        await page.getByText(/浏览器预览已补全|已创建媒体图片补全任务/).first().waitFor({ timeout: 5000 });
       }],
       ['maintenance-health-duplicate-id-audit', 'maintenance', { games: [...games, duplicateExternalIdGame] }, async (page) => {
         await page.getByText('维护中心').first().waitFor({ timeout: 5000 });

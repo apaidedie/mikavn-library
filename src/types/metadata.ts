@@ -107,6 +107,31 @@ export type DescriptionImageRepairPreview = {
   totalCandidates: number;
 };
 
+export type ArtworkRepairOptions = {
+  providers?: Array<string | MetadataProvider> | null;
+  fields?: Array<'cover' | 'background' | 'all' | string> | null;
+  limit?: number | null;
+  retryAttempted?: boolean | null;
+};
+
+export type ArtworkProviderRef = {
+  provider: string;
+  providerId: string;
+};
+
+export type ArtworkRepairCandidate = {
+  gameId: string;
+  title: string;
+  missingFields: string[];
+  providers: ArtworkProviderRef[];
+};
+
+export type ArtworkRepairPreview = {
+  candidates: ArtworkRepairCandidate[];
+  totalCandidates: number;
+  totalMissingFields: number;
+};
+
 export type DuplicateExternalIdAuditOptions = {
   providers?: Array<string | MetadataProvider> | null;
   limit?: number | null;

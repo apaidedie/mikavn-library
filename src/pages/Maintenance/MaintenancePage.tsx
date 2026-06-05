@@ -18,6 +18,7 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
   const [cleanupLoading, setCleanupLoading] = useState(false);
   const [metadataRepairLoading, setMetadataRepairLoading] = useState(false);
   const [descriptionRepairLoading, setDescriptionRepairLoading] = useState(false);
+  const [artworkRepairLoading, setArtworkRepairLoading] = useState(false);
   const [duplicateAuditLoading, setDuplicateAuditLoading] = useState(false);
   const [message, setMessage] = useState<TaskMessage | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -158,7 +159,7 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
 
         <Panel>
           <PanelHeader title="维护队列" description="已落地的统计基础和下一批整理入口。" icon={<ListChecks className="h-4 w-4" />} />
-          <PanelContent className="grid gap-2 xl:grid-cols-3">
+          <PanelContent className="grid gap-2 xl:grid-cols-4">
             <MaintenanceAction
               action={(
                 <Button disabled={descriptionRepairLoading || ((descriptionImages?.providerGamesWithoutImagesCount ?? 0) + (descriptionImages?.providerGamesEmptyDescriptionCount ?? 0)) === 0} size="sm" variant="secondary" onClick={startDescriptionImageRepair}>
@@ -167,6 +168,16 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
               )}
               detail={`${formatCount((descriptionImages?.providerGamesWithoutImagesCount ?? 0) + (descriptionImages?.providerGamesEmptyDescriptionCount ?? 0))} 个条目待补简介图片`}
               label="简介图片修复"
+              status="可创建任务"
+            />
+            <MaintenanceAction
+              action={(
+                <Button disabled={artworkRepairLoading || ((metadata?.missingCoverCount ?? 0) + (metadata?.missingBackgroundCount ?? 0)) === 0} size="sm" variant="secondary" onClick={startArtworkRepair}>
+                  <PlayCircle className="h-4 w-4" />{artworkRepairLoading ? '创建中' : '开始'}
+                </Button>
+              )}
+              detail={`${formatCount((metadata?.missingCoverCount ?? 0) + (metadata?.missingBackgroundCount ?? 0))} 个媒体字段待补`}
+              label="媒体图片补全"
               status="可创建任务"
             />
             <MaintenanceAction
@@ -266,6 +277,29 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
       setError(errorMessage(reason));
     } finally {
       setDescriptionRepairLoading(false);
+    }
+  }
+
+  async function startArtworkRepair() {
+    setArtworkRepairLoading(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const options = { providers: ['all'], fields: ['cover', 'background'], limit: 20 };
+      const preview = await api.previewArtworkRepair(options);
+      if (preview.totalCandidates === 0) {
+        setMessage({ text: '没有可补全媒体图片的条目。' });
+        await loadDiagnostics();
+        return;
+      }
+      const task = await api.repairArtwork(options);
+      setMessage({ text: `已创建媒体图片补全任务：本轮 ${formatCount(preview.candidates.length)} 个条目，${formatCount(preview.totalMissingFields)} 个字段。`, taskId: task.id });
+      onOpenTasks?.(task.id);
+      await loadDiagnostics();
+    } catch (reason) {
+      setError(errorMessage(reason));
+    } finally {
+      setArtworkRepairLoading(false);
     }
   }
 

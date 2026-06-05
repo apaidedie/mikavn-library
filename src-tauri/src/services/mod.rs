@@ -11,6 +11,7 @@ pub mod launcher;
 pub mod library_paths;
 pub mod logs;
 pub mod metadata;
+pub mod metadata_artwork_repair;
 pub mod metadata_description_images;
 pub mod metadata_duplicate_ids;
 pub mod reports;
