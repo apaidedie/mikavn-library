@@ -61,6 +61,7 @@ Done:
 - Game detail asset gallery for cover, banner, background, screenshots, primary selection, user image import, remote asset download, removal, and unreferenced image cache cleanup with Maintenance preview and protection for game fields, asset records, and local description images.
 - Maintenance media artwork repair fills missing cover, banner, and background images from available metadata providers.
 - Maintenance media artwork diagnosis shows why missing artwork can or cannot be repaired before launching a batch task.
+- Maintenance media artwork result summaries show recent repair outcomes, skipped reasons, and failed entries from task logs.
 - Maintenance image-reference audit with per-game/source details for missing local files, C-drive leftovers, Playnite leftovers, raw values, and resolved local paths.
 - Basic settings.
 - Broken path check and install directory relocation.

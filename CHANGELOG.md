@@ -20,6 +20,7 @@ Updated release candidate with the mature local V1 hardening pass.
 - Library and Advanced Search filters for missing description, cover, banner, background, incomplete artwork, missing description images, and missing external IDs.
 - Batch media artwork repair now includes missing banner images alongside cover and background images.
 - Maintenance media artwork diagnosis for checking repairable artwork candidates, missing external IDs, no-image metadata results, and provider errors before starting a repair task.
+- Maintenance media artwork result summaries for recent repair tasks, including updated, skipped, and failed entries with reasons.
 
 ### Changed
 

@@ -10,10 +10,29 @@ import { api } from '@/services/api';
 import type { AppDataDiagnostics, ImageReferenceAudit, ImageReferenceAuditItem } from '@/types/archive';
 import type { AssetCacheCleanupResult } from '@/types/game';
 import type { ArtworkRepairDiagnosis, ArtworkRepairDiagnosisItem, DuplicateExternalIdGroup, DuplicateGameMergePreview } from '@/types/metadata';
+import type { TaskDetail, TaskLogEntry, TaskRecord } from '@/types/task';
 import { errorMessage } from '@/utils/errorMessage';
+import { taskStatusClass, taskStatusLabel } from '@/utils/taskLabels';
+import { formatDateTime } from '@/utils/time';
 import { Select } from '@/components/ui/select';
 
 type TaskMessage = { text: string; taskId?: string | null };
+type ArtworkRepairLogStatus = 'updated' | 'skipped' | 'failed';
+type ArtworkRepairLogSummary = {
+  status: ArtworkRepairLogStatus;
+  title: string;
+  gameId?: string | null;
+  message: string;
+  fields?: string[];
+  provider?: string | null;
+  providerId?: string | null;
+};
+type ArtworkRepairTaskSummary = {
+  task: TaskRecord;
+  updated: ArtworkRepairLogSummary[];
+  skipped: ArtworkRepairLogSummary[];
+  failed: ArtworkRepairLogSummary[];
+};
 
 export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: number; onOpenTasks?: (taskId?: string | null) => void }) {
   const [diagnostics, setDiagnostics] = useState<AppDataDiagnostics | null>(null);
@@ -25,6 +44,8 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
   const [imageAuditLoading, setImageAuditLoading] = useState(false);
   const [artworkDiagnosis, setArtworkDiagnosis] = useState<ArtworkRepairDiagnosis | null>(null);
   const [artworkDiagnosisLoading, setArtworkDiagnosisLoading] = useState(false);
+  const [artworkHistory, setArtworkHistory] = useState<ArtworkRepairTaskSummary[] | null>(null);
+  const [artworkHistoryLoading, setArtworkHistoryLoading] = useState(false);
   const [metadataRepairLoading, setMetadataRepairLoading] = useState(false);
   const [descriptionRepairLoading, setDescriptionRepairLoading] = useState(false);
   const [artworkRepairLoading, setArtworkRepairLoading] = useState(false);
@@ -249,6 +270,31 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
 
         <Panel>
           <PanelHeader
+            title="媒体补全结果"
+            description="汇总最近媒体图片补全任务的成功、跳过和失败明细。"
+            icon={<ListChecks className="h-4 w-4" />}
+            actions={<Button disabled={artworkHistoryLoading} size="sm" variant="ghost" onClick={loadArtworkHistory}><RefreshCw className="h-4 w-4" />{artworkHistoryLoading ? '读取中' : '读取结果'}</Button>}
+          />
+          <PanelContent className="space-y-3">
+            {artworkHistory ? (
+              artworkHistory.length > 0 ? (
+                <div className="space-y-3">
+                  {artworkHistory.map((summary) => <ArtworkRepairTaskRow key={summary.task.id} onOpenTask={onOpenTasks} summary={summary} />)}
+                </div>
+              ) : (
+                <SoftRow className="px-3 py-3 text-sm text-slate-400">还没有媒体图片补全任务记录。</SoftRow>
+              )
+            ) : (
+              <SoftRow className="flex items-center justify-between gap-3 px-3 py-3">
+                <div className="min-w-0 text-sm text-slate-400">读取后会解析最近 5 个媒体补全任务日志，展示成功、跳过和失败原因。</div>
+                <Button disabled={artworkHistoryLoading} size="sm" variant="secondary" onClick={loadArtworkHistory}><ListChecks className="h-4 w-4" />读取</Button>
+              </SoftRow>
+            )}
+          </PanelContent>
+        </Panel>
+
+        <Panel>
+          <PanelHeader
             title="图片引用问题"
             description="定位缺失、C 盘残留和 Playnite 残留图片引用。"
             icon={<Image className="h-4 w-4" />}
@@ -451,6 +497,21 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
       setError(errorMessage(reason));
     } finally {
       setArtworkDiagnosisLoading(false);
+    }
+  }
+
+  async function loadArtworkHistory() {
+    setArtworkHistoryLoading(true);
+    setError(null);
+    try {
+      const tasks = (await api.listTasks(100)).filter((task) => task.taskType === 'metadata.artwork_repair').slice(0, 5);
+      const summaries = await Promise.all(tasks.map(async (task) => summarizeArtworkRepairTask(await api.getTaskDetail(task.id))));
+      setArtworkHistory(summaries);
+      setMessage({ text: summaries.length > 0 ? `已读取 ${formatCount(summaries.length)} 个媒体补全任务结果。` : '还没有媒体图片补全任务记录。' });
+    } catch (reason) {
+      setError(errorMessage(reason));
+    } finally {
+      setArtworkHistoryLoading(false);
     }
   }
 
@@ -762,6 +823,127 @@ function ArtworkDiagnosisRow({ item }: { item: ArtworkRepairDiagnosisItem }) {
   );
 }
 
+function ArtworkRepairTaskRow({ summary, onOpenTask }: { summary: ArtworkRepairTaskSummary; onOpenTask?: (taskId?: string | null) => void }) {
+  const task = summary.task;
+  const detailItems = [...summary.failed, ...summary.skipped, ...summary.updated].slice(0, 8);
+  const hiddenCount = summary.updated.length + summary.skipped.length + summary.failed.length - detailItems.length;
+
+  return (
+    <SoftRow className="space-y-3 px-3 py-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-medium text-slate-100">{task.message || '媒体图片补全任务'}</span>
+            <Badge className={taskStatusClass(task.status)}>{taskStatusLabel(task.status)}</Badge>
+          </div>
+          <div className="mt-1 text-xs text-slate-500">更新于 {formatDateTime(task.updatedAt)}</div>
+          {task.error && <div className="mt-2 break-all text-xs text-rose-200">{task.error}</div>}
+        </div>
+        {onOpenTask && <Button size="sm" variant="ghost" onClick={() => onOpenTask(task.id)}>日志</Button>}
+      </div>
+      <div className="grid gap-2 sm:grid-cols-3">
+        <CompactStat label="已补全" value={summary.updated.length} tone={summary.updated.length > 0 ? 'ok' : 'neutral'} />
+        <CompactStat label="跳过" value={summary.skipped.length} tone={summary.skipped.length > 0 ? 'warn' : 'ok'} />
+        <CompactStat label="失败" value={summary.failed.length} tone={summary.failed.length > 0 ? 'warn' : 'ok'} />
+      </div>
+      {detailItems.length > 0 ? (
+        <div className="space-y-2">
+          {detailItems.map((item, index) => <ArtworkRepairLogRow item={item} key={`${item.status}-${item.gameId ?? item.title}-${index}`} />)}
+          {hiddenCount > 0 && <div className="px-1 text-xs text-slate-500">还有 {formatCount(hiddenCount)} 条明细，可打开日志查看完整记录。</div>}
+        </div>
+      ) : (
+        <div className="text-xs text-slate-500">这条任务没有可解析的补图明细。</div>
+      )}
+    </SoftRow>
+  );
+}
+
+function ArtworkRepairLogRow({ item }: { item: ArtworkRepairLogSummary }) {
+  return (
+    <div className="grid gap-2 rounded-md border border-white/[0.07] bg-black/[0.10] px-3 py-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge className={artworkLogBadgeClass(item.status)}>{artworkLogStatusLabel(item.status)}</Badge>
+          <span className="truncate text-xs font-medium text-slate-200" title={item.title}>{item.title}</span>
+        </div>
+        {item.gameId && <div className="mt-1 truncate font-mono text-[11px] text-slate-600">{item.gameId}</div>}
+      </div>
+      <div className="min-w-0 text-xs leading-5 text-slate-500">
+        {item.fields && item.fields.length > 0 && (
+          <div className="mb-1 flex flex-wrap gap-1.5">
+            {item.fields.map((field) => <Badge key={field}>{artworkFieldLabel(field)}</Badge>)}
+          </div>
+        )}
+        <span className="break-words">{item.message}</span>
+        {item.provider && (
+          <span className="ml-2 whitespace-nowrap text-slate-600">{providerLabel(item.provider)} {item.providerId ?? ''}</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function summarizeArtworkRepairTask(detail: TaskDetail): ArtworkRepairTaskSummary {
+  const items = detail.logs
+    .map(parseArtworkRepairLog)
+    .filter((item): item is ArtworkRepairLogSummary => Boolean(item));
+
+  return {
+    task: detail.task,
+    updated: items.filter((item) => item.status === 'updated'),
+    skipped: items.filter((item) => item.status === 'skipped'),
+    failed: items.filter((item) => item.status === 'failed'),
+  };
+}
+
+function parseArtworkRepairLog(log: TaskLogEntry): ArtworkRepairLogSummary | null {
+  const message = log.message.trim();
+  const updated = message.match(/^已补全：(.+) \[([^\]]+)\]，字段 (.+?)(?:，来源\s+([^\s。]+)\s+([^。]+))?。?$/);
+  if (updated) {
+    const [, title, gameId, fieldsText, provider, providerId] = updated;
+    return {
+      status: 'updated',
+      title: title.trim(),
+      gameId: gameId.trim(),
+      message: '已补全目标媒体字段。',
+      fields: splitArtworkFields(fieldsText),
+      provider: provider?.trim() ?? null,
+      providerId: providerId?.trim() ?? null,
+    };
+  }
+
+  const skipped = message.match(/^跳过：(.+) \[([^\]]+)\]，(.+?)。?$/);
+  if (skipped) {
+    const [, title, gameId, reason] = skipped;
+    return {
+      status: 'skipped',
+      title: title.trim(),
+      gameId: gameId.trim(),
+      message: reason.trim(),
+    };
+  }
+
+  const failed = message.match(/^失败：(.+) \[([^\]]+)\]，(.+?)。?$/);
+  if (failed) {
+    const [, title, gameId, reason] = failed;
+    return {
+      status: 'failed',
+      title: title.trim(),
+      gameId: gameId.trim(),
+      message: reason.trim(),
+    };
+  }
+
+  return null;
+}
+
+function splitArtworkFields(value: string) {
+  return value
+    .split(/[\/、，,]/)
+    .map((field) => field.trim())
+    .filter(Boolean);
+}
+
 function ProgressBlock({ label, value, total }: { label: string; value: number; total: number }) {
   const ratio = total > 0 ? Math.max(0, Math.min(100, (value / total) * 100)) : 0;
   return (
@@ -894,6 +1076,20 @@ function artworkProviderBadgeClass(value: string) {
   if (value === 'has_image') return 'border-emerald-300/25 bg-emerald-300/10 text-emerald-100';
   if (value === 'no_image') return 'border-amber-300/25 bg-amber-300/10 text-amber-100';
   if (value === 'error') return 'border-rose-300/25 bg-rose-300/10 text-rose-100';
+  return 'border-white/10 bg-white/[0.045] text-slate-300';
+}
+
+function artworkLogStatusLabel(value: ArtworkRepairLogStatus) {
+  if (value === 'updated') return '已补全';
+  if (value === 'skipped') return '跳过';
+  if (value === 'failed') return '失败';
+  return value;
+}
+
+function artworkLogBadgeClass(value: ArtworkRepairLogStatus) {
+  if (value === 'updated') return 'border-emerald-300/25 bg-emerald-300/10 text-emerald-100';
+  if (value === 'skipped') return 'border-amber-300/25 bg-amber-300/10 text-amber-100';
+  if (value === 'failed') return 'border-rose-300/25 bg-rose-300/10 text-rose-100';
   return 'border-white/10 bg-white/[0.045] text-slate-300';
 }
 
