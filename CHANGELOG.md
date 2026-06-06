@@ -22,6 +22,7 @@ Updated release candidate with the mature local V1 hardening pass.
 - Maintenance media artwork diagnosis for checking repairable artwork candidates, missing external IDs, no-image metadata results, and provider errors before starting a repair task.
 - Maintenance media artwork result summaries for recent repair tasks, including updated, skipped, and failed entries with reasons.
 - Save restore previews for merge and mirror restore, including new, overwritten, kept, and mirror-removed file counts before task creation.
+- Scanner import audit panel with filterable per-candidate results, conflict reasons, target titles, record IDs, and install paths.
 
 ### Changed
 
@@ -37,6 +38,7 @@ Updated release candidate with the mature local V1 hardening pass.
 
 - Save path and backup record deletion remove only MikaVN database records; real save directories and backup folders are not deleted.
 - Save restore preview is read-only and scans the selected backup plus registered save directory before any restore task is created.
+- Scanner import audit is read-only after import and reports database actions without touching real game folders.
 - Full archive restore creates protection backups and mirrors only MikaVN app-data cache folders; it never touches real game installation directories.
 - Image-cache cleanup is limited to MikaVN `app-data/images` and previews unreferenced files before deletion from Maintenance.
 - Image-reference audit is read-only and does not move, rewrite, download, or delete any files.

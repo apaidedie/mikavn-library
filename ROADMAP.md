@@ -83,6 +83,7 @@ Done:
 - Batch import review UI.
 - Scanner duplicate/conflict warnings for existing install paths, executables, and titles.
 - Scanner conflict actions for skip, merge into existing database record, replace the existing database record, or explicit duplicate import.
+- Scanner import audit panel summarizes requested, written, added, merged, replaced, duplicated, and skipped candidates with conflict reasons and target records.
 - Directory scan runs through the general task system with progress, status polling, and cancellation.
 - Global keyboard shortcuts for quick navigation, library search focus, add-game, and refresh.
 - Database backup, report export, save backup, and save restore create task records.
@@ -96,7 +97,7 @@ Done:
 
 Remaining:
 
-- Deeper scanner reconciliation reports beyond database-record replacement, such as multi-record explanations and import audit summaries.
+- Deeper scanner reconciliation reports beyond the current import audit, such as multi-record explanations for unusual conflict chains.
 
 ## Phase 3: Galgame Differentiation
 

@@ -32,6 +32,7 @@ export function ScannerPage({ onOpenTask }: { onOpenTask?: (taskId: string) => v
   const [scanStatus, setScanStatus] = useState<ScanTaskStatus | null>(null);
   const [conflictActions, setConflictActions] = useState<Record<string, ConflictAction>>({});
   const [importReport, setImportReport] = useState<ImportScanReport | null>(null);
+  const [reportActionFilter, setReportActionFilter] = useState('all');
 
   const scanning = scanStatus?.task.status === 'pending' || scanStatus?.task.status === 'running';
 
@@ -83,6 +84,7 @@ export function ScannerPage({ onOpenTask }: { onOpenTask?: (taskId: string) => v
     setSelectedIds([]);
     setConflictActions({});
     setImportReport(null);
+    setReportActionFilter('all');
     try {
       const task = await api.startScanTask(path, recursive);
       const status = await api.getScanTaskStatus(task.id);
@@ -131,6 +133,7 @@ export function ScannerPage({ onOpenTask }: { onOpenTask?: (taskId: string) => v
         }));
       const report = await api.importScanCandidates(payload);
       setImportReport(report);
+      setReportActionFilter('all');
       setImportedIds(report.imported.map((game) => game.id));
       setMatchStatus(null);
       setMessage({ text: importReportMessage(report) });
@@ -246,28 +249,7 @@ export function ScannerPage({ onOpenTask }: { onOpenTask?: (taskId: string) => v
                     </div>
                   </div>
                 )}
-                {importReport && (
-                  <div className="space-y-3 rounded-lg border border-white/10 bg-black/[0.12] p-3">
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 2xl:grid-cols-5">
-                      <MetricTile label="新增" value={importReport.added} />
-                      <MetricTile label="合并" value={importReport.merged} />
-                      <MetricTile label="替换" value={importReport.replaced} />
-                      <MetricTile label="副本" value={importReport.duplicated} />
-                      <MetricTile label="跳过" value={importReport.skipped} />
-                    </div>
-                    <div className="space-y-1.5">
-                      {importReport.items.slice(0, 4).map((item) => (
-                        <div className="rounded-md border border-white/10 bg-black/[0.10] px-3 py-2 text-xs" key={`${item.action}-${item.installPath}-${item.candidateTitle}`}>
-                          <div className="flex items-center justify-between gap-3">
-                            <span className="min-w-0 truncate text-slate-300">{item.candidateTitle}</span>
-                            <Badge>{importActionLabel(item.action)}</Badge>
-                          </div>
-                          <div className="mt-1 text-slate-500">{item.message}{item.targetTitle ? `：${item.targetTitle}` : ''}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                {importReport && <ImportReportPanel filter={reportActionFilter} onFilterChange={setReportActionFilter} report={importReport} />}
               </PanelContent>
             </Panel>
           </div>
@@ -335,6 +317,56 @@ export function ScannerPage({ onOpenTask }: { onOpenTask?: (taskId: string) => v
   );
 }
 
+function ImportReportPanel({ filter, onFilterChange, report }: { filter: string; onFilterChange: (value: string) => void; report: ImportScanReport }) {
+  const items = filter === 'all' ? report.items : report.items.filter((item) => item.action === filter);
+  return (
+    <div className="space-y-3 rounded-lg border border-white/10 bg-black/[0.12] p-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <div className="text-sm font-medium text-slate-100">导入审计</div>
+          <div className="mt-1 text-xs text-slate-500">请求 {formatCount(report.requested)} 个，写入 {formatCount(report.importedCount)} 个，记录 {formatCount(report.items.length)} 条处理明细。</div>
+        </div>
+        <Select className="h-8 w-36" value={filter} onChange={(event) => onFilterChange(event.target.value)}>
+          <option value="all">全部</option>
+          <option value="add">新增</option>
+          <option value="merge">合并</option>
+          <option value="replace">替换</option>
+          <option value="duplicate">副本</option>
+          <option value="skip">跳过</option>
+        </Select>
+      </div>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 2xl:grid-cols-6">
+        <MetricTile label="写入" value={report.importedCount} />
+        <MetricTile label="新增" value={report.added} />
+        <MetricTile label="合并" value={report.merged} />
+        <MetricTile label="替换" value={report.replaced} />
+        <MetricTile label="副本" value={report.duplicated} />
+        <MetricTile label="跳过" value={report.skipped} />
+      </div>
+      <div className="max-h-80 space-y-1.5 overflow-auto pr-1">
+        {items.length === 0 ? (
+          <div className="rounded-md border border-white/10 bg-black/[0.10] px-3 py-3 text-xs text-slate-500">当前筛选没有明细。</div>
+        ) : items.map((item) => <ImportReportRow item={item} key={`${item.action}-${item.installPath}-${item.candidateTitle}`} />)}
+      </div>
+    </div>
+  );
+}
+
+function ImportReportRow({ item }: { item: ImportScanReportItem }) {
+  return (
+    <div className="rounded-md border border-white/10 bg-black/[0.10] px-3 py-2 text-xs">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="min-w-0 truncate text-sm font-medium text-slate-200" title={item.candidateTitle}>{item.candidateTitle}</span>
+        <Badge className={importActionClass(item.action)}>{importActionLabel(item.action)}</Badge>
+      </div>
+      <div className="mt-1 text-slate-500">{item.message}{item.targetTitle ? `：${item.targetTitle}` : ''}</div>
+      {item.conflictReason && <div className="mt-1 text-amber-100">冲突原因：{item.conflictReason}</div>}
+      <div className="mt-2 break-all font-mono text-[11px] text-slate-600">{item.installPath}</div>
+      {item.gameId && <div className="mt-1 break-all font-mono text-[11px] text-slate-600">记录 ID：{item.gameId}</div>}
+    </div>
+  );
+}
+
 function defaultSelectedIds(candidates: ScanCandidate[]) {
   return candidates.filter((candidate) => !candidate.conflict).map((candidate) => candidate.id);
 }
@@ -361,4 +393,16 @@ function importActionLabel(action: ImportScanReportItem['action']) {
     case 'skip': return '跳过';
     default: return action;
   }
+}
+
+function importActionClass(action: ImportScanReportItem['action']) {
+  if (action === 'add' || action === 'duplicate') return 'border-emerald-300/25 bg-emerald-300/10 text-emerald-100';
+  if (action === 'merge') return 'border-sky-300/25 bg-sky-300/10 text-sky-100';
+  if (action === 'replace') return 'border-amber-300/25 bg-amber-300/10 text-amber-100';
+  if (action === 'skip') return 'border-white/10 bg-white/[0.045] text-slate-300';
+  return 'border-white/10 bg-white/[0.045] text-slate-300';
+}
+
+function formatCount(value: number) {
+  return new Intl.NumberFormat('zh-CN').format(value);
 }
