@@ -18,6 +18,7 @@ export function TasksPage({ refreshKey, focusTaskId, focusRequestKey = 0 }: { re
   const [tasks, setTasks] = useState<TaskRecord[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [logsByTask, setLogsByTask] = useState<Record<string, TaskLogEntry[]>>({});
+  const [logQueryByTask, setLogQueryByTask] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
@@ -221,6 +222,8 @@ export function TasksPage({ refreshKey, focusTaskId, focusRequestKey = 0 }: { re
             ) : filteredTasks.map((task) => {
               const expanded = expandedId === task.id;
               const logs = logsByTask[task.id] ?? [];
+              const logQuery = logQueryByTask[task.id] ?? '';
+              const filteredLogs = logs.filter((log) => matchesLogQuery(log, logQuery));
               return (
               <SoftRow ref={(node) => { rowRefs.current[task.id] = node; }} key={task.id} className={cn(expanded && 'border-[rgb(var(--accent-rgb)/0.32)] bg-[rgb(var(--accent-rgb)/0.08)]', focusTaskId === task.id && 'ring-2 ring-[rgb(var(--accent-rgb)/0.42)]')}>
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -237,12 +240,20 @@ export function TasksPage({ refreshKey, focusTaskId, focusRequestKey = 0 }: { re
                     </div>
                     {expanded && (
                       <div className="mt-3 rounded-md border border-white/10 bg-black/15 p-3">
-                        <div className="mb-2 flex items-center gap-2 text-xs font-medium text-slate-300"><FileText className="h-3.5 w-3.5 text-[rgb(var(--accent-rgb))]" />任务日志</div>
+                        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 text-xs font-medium text-slate-300"><FileText className="h-3.5 w-3.5 text-[rgb(var(--accent-rgb))]" />任务日志</div>
+                          <div className="flex min-w-[14rem] flex-1 items-center gap-2 sm:flex-initial">
+                            <Input aria-label={`日志搜索 ${taskLabel(task.taskType)}`} className="h-8 w-full sm:w-56" placeholder="搜索日志" value={logQuery} onChange={(event) => setLogQueryByTask((current) => ({ ...current, [task.id]: event.target.value }))} />
+                            <Button className="h-8 px-2" disabled={!logQuery.trim()} size="sm" variant="ghost" onClick={() => setLogQueryByTask((current) => ({ ...current, [task.id]: '' }))}>清空</Button>
+                          </div>
+                        </div>
                         {logs.length === 0 ? (
                           <div className="text-xs text-slate-500">暂无日志。</div>
+                        ) : filteredLogs.length === 0 ? (
+                          <div className="rounded-md border border-white/10 bg-black/10 px-3 py-2 text-xs text-slate-500">当前日志筛选无结果。</div>
                         ) : (
                           <div className="space-y-2">
-                            {logs.map((log) => (
+                            {filteredLogs.map((log) => (
                               <div key={log.id} className="grid gap-1 text-xs sm:grid-cols-[6.5rem_4rem_1fr]">
                                 <span className="text-slate-500">{formatDateTime(log.createdAt)}</span>
                                 <span className={cn('font-medium', log.level === 'error' ? 'text-rose-200' : log.level === 'warn' ? 'text-amber-200' : 'text-slate-400')}>{levelLabel(log.level)}</span>
@@ -301,6 +312,17 @@ function matchesTaskQuery(task: TaskRecord, query: string) {
     task.createdAt,
     task.updatedAt,
   ].some((item) => (item ?? '').toLocaleLowerCase().includes(value));
+}
+
+function matchesLogQuery(log: TaskLogEntry, query: string) {
+  const value = query.trim().toLocaleLowerCase();
+  if (!value) return true;
+  return [
+    log.level,
+    levelLabel(log.level),
+    log.message,
+    log.createdAt,
+  ].some((item) => item.toLocaleLowerCase().includes(value));
 }
 
 function boundedProgress(value: number) {

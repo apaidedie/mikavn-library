@@ -152,16 +152,21 @@ async function waitForApp(page) {
 
 async function openSeeded(browser, view, overrides = {}) {
   const context = await browser.newContext({ viewport: { width: 1440, height: 1050 }, deviceScaleFactor: 1 });
-  const page = await context.newPage();
-  const consoleErrors = [];
-  page.on('console', (message) => {
-    if (message.type() === 'error') consoleErrors.push(message.text());
-  });
-  page.on('pageerror', (error) => consoleErrors.push(error.message));
-  await seed(page, view, overrides);
-  await page.goto(baseUrl, { waitUntil: 'domcontentloaded', timeout: 45000 });
-  await waitForApp(page);
-  return { context, page, consoleErrors };
+  try {
+    const page = await context.newPage();
+    const consoleErrors = [];
+    page.on('console', (message) => {
+      if (message.type() === 'error') consoleErrors.push(message.text());
+    });
+    page.on('pageerror', (error) => consoleErrors.push(error.message));
+    await seed(page, view, overrides);
+    await page.goto(baseUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await waitForApp(page);
+    return { context, page, consoleErrors };
+  } catch (error) {
+    await context.close().catch(() => undefined);
+    throw error;
+  }
 }
 
 async function capture(page, name) {
@@ -366,6 +371,13 @@ async function main() {
       await page.getByRole('button', { name: /重置筛选/ }).first().click();
       await page.getByRole('button', { name: /日志/ }).first().click();
       await page.getByText(/任务日志|路径不存在/).first().waitFor({ timeout: 5000 });
+      await page.getByLabel(/日志搜索/).fill('开始扫描');
+      await page.getByText('开始扫描 D:\\Missing').first().waitFor({ timeout: 5000 });
+      if (await page.getByText('路径不存在，等待用户重试。').count() > 0) throw new Error('task log search did not filter log rows');
+      await page.getByLabel(/日志搜索/).fill('没有这种日志文本');
+      await page.getByText('当前日志筛选无结果。').first().waitFor({ timeout: 5000 });
+      await page.getByRole('button', { name: /清空/ }).last().click();
+      await page.getByText('路径不存在，等待用户重试。').first().waitFor({ timeout: 5000 });
     });
   } finally {
     await browser.close();
