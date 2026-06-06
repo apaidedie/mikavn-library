@@ -107,6 +107,10 @@ async function getStorage(page, key) {
   return page.evaluate((storageKey) => JSON.parse(localStorage.getItem(storageKey) || 'null'), key);
 }
 
+function importAuditFilter(page) {
+  return page.locator('select.h-8.w-36').first();
+}
+
 async function main() {
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ viewport: { width: 1440, height: 1050 }, deviceScaleFactor: 1 });
@@ -166,11 +170,16 @@ async function main() {
     await replaceRow.locator('select').selectOption('replace');
     await page.getByRole('button', { name: /导入选中/ }).click();
     await expectText(page, /导入处理完成：新增 0、合并 0、替换 1、副本 0、跳过 0/);
+    await expectText(page, /导入审计/);
+    await expectText(page, /请求 1 个，写入 1 个，记录 1 条处理明细/);
+    await expectText(page, /冲突原因：标题相同|冲突原因：安装目录已存在/);
+    await expectText(page, /记录 ID：qa-2/);
+    await importAuditFilter(page).selectOption('replace');
     await expectText(page, /已替换现有数据库记录/);
     const afterReplaceGames = await getStorage(page, 'mikavn-library.mock.games');
     const replacedGame = afterReplaceGames.find((item) => item.id === 'qa-2');
     if (!replacedGame || !normalizeMockPath(replacedGame.installPath).includes('ゆずソフト\\天使騒々'.toLowerCase())) throw new Error('scanner replace did not update the existing database record path');
-    console.log('OK scanner replace database-record only');
+    console.log('OK scanner replace database-record only and import audit');
 
     await page.getByPlaceholder(/例如/).fill('D:\\Games\\VN');
     await page.getByRole('button', { name: /开始扫描/ }).click();
@@ -180,10 +189,14 @@ async function main() {
     await conflictRow.locator('select').selectOption('duplicate');
     await page.getByRole('button', { name: /导入选中/ }).click();
     await expectText(page, /导入处理完成：新增 0、合并 0、替换 0、副本 1、跳过 0/);
+    await expectText(page, /导入审计/);
+    await importAuditFilter(page).selectOption('duplicate');
     await expectText(page, /已作为副本导入/);
+    await expectText(page, /冲突原因：安装目录已存在|冲突原因：标题相同/);
+    await expectText(page, /D:\\Games\\VN\\星之终途/);
     const afterImportGames = await getStorage(page, 'mikavn-library.mock.games');
     if (!Array.isArray(afterImportGames) || afterImportGames.length < 3) throw new Error('scanner duplicate import did not add a game');
-    console.log('OK scanner conflict review/duplicate import');
+    console.log('OK scanner conflict review/duplicate import audit');
 
     await navigate(page, 'saves');
     await expectText(page, /存档管理/);
