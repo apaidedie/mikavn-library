@@ -11,7 +11,7 @@ The current implementation focuses on a complete local desktop workflow:
 - Local game records with SQLite persistence
 - Manual add, edit, delete-record-only CRUD
 - Library list and detail view
-- Library bulk selection for applying play status, favorite, hidden flags, tags, and collection membership to the current filtered set
+- Library bulk selection for applying play status, favorite, hidden flags, tags, and collection add/remove actions to the current filtered set
 - Per-game local notes for攻略进度, patch notes, and completion thoughts
 - Per-game play-session records showing start/end time, duration, profile, and exit status
 - Dashboard and basic report metrics

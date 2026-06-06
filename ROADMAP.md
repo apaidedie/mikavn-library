@@ -48,7 +48,7 @@ Done:
 - Basic scan/import.
 - Library root management in Settings, including enable/disable, recursive scan toggle, remove-record-only behavior, and scan task creation.
 - Game list and detail page.
-- Library bulk selection for updating play status, favorite, hidden flags, tags, and collection membership across the current filtered set.
+- Library bulk selection for updating play status, favorite, hidden flags, tags, and collection membership add/remove actions across the current filtered set.
 - Per-game local notes tab and edit-form field for personal攻略进度, patch notes, and completion thoughts.
 - Per-game play-session records tab showing start/end time, duration, launch profile, and exit status.
 - Launch executable and record play time.

@@ -209,6 +209,11 @@ async function main() {
         await page.getByLabel('批量加入合集').selectOption('qa-col-1');
         await page.getByRole('button', { name: /加入合集/ }).click();
         await page.getByText(/已将 2 个游戏加入合集：Key 短篇/).first().waitFor({ timeout: 5000 });
+        let collectionLinks = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.collectionGames') || '[]'));
+        let linkedIds = new Set(collectionLinks.filter((link) => link.collectionId === 'qa-col-1').map((link) => link.gameId));
+        if (!['qa-1', 'qa-2'].every((id) => linkedIds.has(id))) throw new Error('library bulk edit did not add selected games to collection');
+        await page.getByRole('button', { name: /移出合集/ }).click();
+        await page.getByText(/已将 2 个游戏移出合集：Key 短篇/).first().waitFor({ timeout: 5000 });
         await page.getByLabel('批量标签').fill('测试标签，短篇');
         await page.getByRole('button', { name: /批量添加标签/ }).click();
         await page.getByText(/已为 2 个游戏添加标签：测试标签、短篇/).first().waitFor({ timeout: 5000 });
@@ -225,9 +230,9 @@ async function main() {
         const starTags = updatedGames.find((game) => game.id === 'qa-1')?.tags.filter((tag) => tag === '短篇') ?? [];
         if (starTags.length !== 1) throw new Error('library bulk tag add duplicated an existing tag');
         if (!updatedGames.find((game) => game.id === 'qa-2')?.tags.includes('短篇')) throw new Error('library bulk tag add did not update selected games');
-        const collectionLinks = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.collectionGames') || '[]'));
-        const linkedIds = new Set(collectionLinks.filter((link) => link.collectionId === 'qa-col-1').map((link) => link.gameId));
-        if (!['qa-1', 'qa-2'].every((id) => linkedIds.has(id))) throw new Error('library bulk edit did not add selected games to collection');
+        collectionLinks = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.collectionGames') || '[]'));
+        linkedIds = new Set(collectionLinks.filter((link) => link.collectionId === 'qa-col-1').map((link) => link.gameId));
+        if (['qa-1', 'qa-2'].some((id) => linkedIds.has(id))) throw new Error('library bulk edit did not remove selected games from collection');
       }],
       ['library-empty', 'library', { games: [] }],
       ['collections-populated', 'collections'],
