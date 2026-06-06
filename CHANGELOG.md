@@ -23,7 +23,7 @@ Updated release candidate with the mature local V1 hardening pass.
 - Maintenance media artwork result summaries for recent repair tasks, including updated, skipped, and failed entries with reasons.
 - Save restore previews for merge and mirror restore, including new, overwritten, kept, and mirror-removed file counts before task creation.
 - Scanner import audit panel with filterable per-candidate results, conflict reasons, target titles, record IDs, and install paths.
-- Task center overview with queue progress, active/attention/completed counts, status filters, and task-type filters.
+- Task center overview with queue progress, active/attention/completed counts, text search, status filters, and task-type filters.
 - Library bulk edit bar for selecting the current filtered games and applying play status, favorite, hidden flags, tags, or collection add/remove actions together.
 - Batch metadata matching queue search/provider-gap filters, result overview with success/review/no-result/error counts, status/write-state filters, and filtered bulk writeback.
 - Duplicate game safe merge now supports duplicate-group search/provider filters, highlights a recommended keep target, provides per-row keep-target switching, and previews all related-record move counts before merge.

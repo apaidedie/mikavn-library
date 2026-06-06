@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { EmptyState, Notice } from '@/components/ui/notice';
 import { MetricTile, PageFrame, PageHeader, PageShell, Panel, PanelContent, PanelHeader, SoftRow } from '@/components/ui/page';
 import { Select } from '@/components/ui/select';
@@ -21,6 +22,7 @@ export function TasksPage({ refreshKey, focusTaskId, focusRequestKey = 0 }: { re
   const [loading, setLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [taskQuery, setTaskQuery] = useState('');
   const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const handledFocusKeyRef = useRef<number | null>(null);
   const expandedIdRef = useRef<string | null>(null);
@@ -36,8 +38,14 @@ export function TasksPage({ refreshKey, focusTaskId, focusRequestKey = 0 }: { re
       || (statusFilter === 'attention' && needsAttentionTask(task))
       || task.status === statusFilter;
     const matchesType = typeFilter === 'all' || task.taskType === typeFilter;
-    return matchesStatus && matchesType;
-  }), [statusFilter, tasks, typeFilter]);
+    const matchesQuery = matchesTaskQuery(task, taskQuery);
+    return matchesStatus && matchesType && matchesQuery;
+  }), [statusFilter, taskQuery, tasks, typeFilter]);
+  const resetFilters = () => {
+    setStatusFilter('all');
+    setTypeFilter('all');
+    setTaskQuery('');
+  };
 
   useEffect(() => {
     expandedIdRef.current = expandedId;
@@ -163,7 +171,7 @@ export function TasksPage({ refreshKey, focusTaskId, focusRequestKey = 0 }: { re
               <MetricTile icon={<AlertTriangle className="h-3.5 w-3.5" />} label="需处理" value={formatCount(attentionCount)} detail="失败 / 已取消" />
               <MetricTile icon={<CheckCircle2 className="h-3.5 w-3.5" />} label="已完成" value={formatCount(completedCount)} detail={`队列进度 ${queueProgress}%`} />
             </div>
-            <SoftRow className="grid gap-3 px-3 py-3 lg:grid-cols-[minmax(0,1fr)_minmax(12rem,16rem)_minmax(14rem,18rem)_auto] lg:items-end">
+            <SoftRow className="grid gap-3 px-3 py-3 lg:grid-cols-[minmax(0,1fr)_minmax(12rem,16rem)_minmax(14rem,18rem)_minmax(14rem,18rem)_auto] lg:items-end">
               <div className="min-w-0">
                 <div className="flex items-center justify-between gap-3 text-xs text-slate-400">
                   <span>队列总体进度</span>
@@ -191,7 +199,11 @@ export function TasksPage({ refreshKey, focusTaskId, focusRequestKey = 0 }: { re
                   {taskTypes.map((taskType) => <option key={taskType} value={taskType}>{taskLabel(taskType)}</option>)}
                 </Select>
               </label>
-              <Button disabled={statusFilter === 'all' && typeFilter === 'all'} size="sm" variant="outline" onClick={() => { setStatusFilter('all'); setTypeFilter('all'); }}>重置筛选</Button>
+              <label className="text-xs text-slate-500">
+                任务搜索
+                <Input aria-label="任务搜索" className="mt-1 w-full" placeholder="消息 / 错误 / 类型" value={taskQuery} onChange={(event) => setTaskQuery(event.target.value)} />
+              </label>
+              <Button disabled={statusFilter === 'all' && typeFilter === 'all' && !taskQuery.trim()} size="sm" variant="outline" onClick={resetFilters}>重置筛选</Button>
             </SoftRow>
           </PanelContent>
         </Panel>
@@ -204,7 +216,7 @@ export function TasksPage({ refreshKey, focusTaskId, focusRequestKey = 0 }: { re
             ) : filteredTasks.length === 0 ? (
               <EmptyState className="flex min-h-[12rem] flex-col items-center justify-center gap-3 py-8">
                 <span>当前筛选没有匹配任务。</span>
-                <Button size="sm" variant="outline" onClick={() => { setStatusFilter('all'); setTypeFilter('all'); }}>重置筛选</Button>
+                <Button size="sm" variant="outline" onClick={resetFilters}>重置筛选</Button>
               </EmptyState>
             ) : filteredTasks.map((task) => {
               const expanded = expandedId === task.id;
@@ -274,6 +286,21 @@ function isActiveTask(task: TaskRecord) {
 
 function needsAttentionTask(task: TaskRecord) {
   return task.status === 'failed' || task.status === 'cancelled';
+}
+
+function matchesTaskQuery(task: TaskRecord, query: string) {
+  const value = query.trim().toLocaleLowerCase();
+  if (!value) return true;
+  return [
+    task.id,
+    task.taskType,
+    taskLabel(task.taskType),
+    taskStatusLabel(task.status),
+    task.message,
+    task.error,
+    task.createdAt,
+    task.updatedAt,
+  ].some((item) => (item ?? '').toLocaleLowerCase().includes(value));
 }
 
 function boundedProgress(value: number) {

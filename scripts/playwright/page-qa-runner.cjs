@@ -339,6 +339,13 @@ async function main() {
       await page.getByText('进行中').first().waitFor({ timeout: 5000 });
       await page.getByText('需处理').first().waitFor({ timeout: 5000 });
       await page.getByText('队列总体进度').first().waitFor({ timeout: 5000 });
+      await page.getByLabel('任务搜索').fill('路径不存在');
+      await page.getByText('扫描失败：路径不存在').first().waitFor({ timeout: 5000 });
+      if (await page.getByText('正在匹配 2 个游戏').count() > 0) throw new Error('running task should be hidden by task search');
+      await page.getByLabel('任务搜索').fill('没有这种任务文本');
+      await page.getByText('当前筛选没有匹配任务。').first().waitFor({ timeout: 5000 });
+      await page.getByRole('button', { name: /重置筛选/ }).first().click();
+      await page.getByText('正在匹配 2 个游戏').first().waitFor({ timeout: 5000 });
       await page.getByLabel('任务状态筛选').selectOption('attention');
       await page.getByText('扫描失败：路径不存在').first().waitFor({ timeout: 5000 });
       if (await page.getByText('正在匹配 2 个游戏').count() > 0) throw new Error('running task should be hidden by attention filter');
