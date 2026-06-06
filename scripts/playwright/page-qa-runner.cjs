@@ -472,6 +472,18 @@ async function main() {
       await page.getByText(/已运行/).first().waitFor({ timeout: 5000 });
       await page.getByText(/预计剩余/).first().waitFor({ timeout: 5000 });
       await page.getByText(/耗时/).first().waitFor({ timeout: 5000 });
+      const taskStatusShortcuts = page.locator('[aria-label="任务状态快捷筛选"]');
+      await taskStatusShortcuts.getByRole('button', { name: /需处理\s+2/ }).click();
+      if (await page.getByLabel('任务状态筛选').inputValue() !== 'attention') throw new Error('task status shortcut did not select attention filter');
+      await page.getByText('扫描失败：路径不存在').first().waitFor({ timeout: 5000 });
+      if (await page.getByText('正在匹配 2 个游戏').count() > 0) throw new Error('running task should be hidden by attention shortcut');
+      await taskStatusShortcuts.getByRole('button', { name: /进行中\s+1/ }).click();
+      if (await page.getByLabel('任务状态筛选').inputValue() !== 'active') throw new Error('task status shortcut did not select active filter');
+      await page.getByText('正在匹配 2 个游戏').first().waitFor({ timeout: 5000 });
+      if (await page.getByText('扫描失败：路径不存在').count() > 0) throw new Error('failed task should be hidden by active shortcut');
+      await taskStatusShortcuts.getByRole('button', { name: /全部\s+3/ }).click();
+      if (await page.getByLabel('任务状态筛选').inputValue() !== 'all') throw new Error('task status shortcut did not reset to all');
+      await page.getByText('扫描失败：路径不存在').first().waitFor({ timeout: 5000 });
       await page.getByLabel('任务搜索').fill('路径不存在');
       await page.getByText('扫描失败：路径不存在').first().waitFor({ timeout: 5000 });
       if (await page.getByText('正在匹配 2 个游戏').count() > 0) throw new Error('running task should be hidden by task search');

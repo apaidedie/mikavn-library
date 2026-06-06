@@ -8,7 +8,7 @@ import { EmptyState, Notice } from '@/components/ui/notice';
 import { MetricTile, PageFrame, PageHeader, PageShell, Panel, PanelContent, PanelHeader, SoftRow } from '@/components/ui/page';
 import { Select } from '@/components/ui/select';
 import { api } from '@/services/api';
-import type { TaskLogEntry, TaskRecord } from '@/types/task';
+import type { TaskLogEntry, TaskRecord, TaskStatus } from '@/types/task';
 import { cn } from '@/utils/cn';
 import { errorMessage } from '@/utils/errorMessage';
 import { taskLabel, taskStatusClass, taskStatusLabel } from '@/utils/taskLabels';
@@ -33,6 +33,12 @@ export function TasksPage({ refreshKey, focusTaskId, focusRequestKey = 0 }: { re
   const attentionCount = useMemo(() => tasks.filter(needsAttentionTask).length, [tasks]);
   const completedCount = useMemo(() => tasks.filter((task) => task.status === 'completed').length, [tasks]);
   const queueProgress = useMemo(() => tasks.length === 0 ? 0 : Math.round((tasks.reduce((sum, task) => sum + boundedProgress(task.progress), 0) / tasks.length) * 100), [tasks]);
+  const statusShortcuts = useMemo(() => [
+    { id: 'all', label: '全部', count: tasks.length },
+    { id: 'active', label: '进行中', count: activeCount },
+    { id: 'attention', label: '需处理', count: attentionCount },
+    { id: 'completed', label: '已完成', count: completedCount },
+  ] as const, [activeCount, attentionCount, completedCount, tasks.length]);
   const filteredTasks = useMemo(() => tasks.filter((task) => {
     const matchesStatus = statusFilter === 'all'
       || (statusFilter === 'active' && isActiveTask(task))
@@ -45,6 +51,10 @@ export function TasksPage({ refreshKey, focusTaskId, focusRequestKey = 0 }: { re
   const resetFilters = () => {
     setStatusFilter('all');
     setTypeFilter('all');
+    setTaskQuery('');
+  };
+  const applyStatusShortcut = (status: TaskStatus | 'all' | 'active' | 'attention') => {
+    setStatusFilter(status);
     setTaskQuery('');
   };
 
@@ -171,6 +181,24 @@ export function TasksPage({ refreshKey, focusTaskId, focusRequestKey = 0 }: { re
               <MetricTile icon={<Timer className="h-3.5 w-3.5" />} label="进行中" value={formatCount(activeCount)} detail="运行中 / 等待中" />
               <MetricTile icon={<AlertTriangle className="h-3.5 w-3.5" />} label="需处理" value={formatCount(attentionCount)} detail="失败 / 已取消" />
               <MetricTile icon={<CheckCircle2 className="h-3.5 w-3.5" />} label="已完成" value={formatCount(completedCount)} detail={`队列进度 ${queueProgress}%`} />
+            </div>
+            <div className="grid gap-1.5 sm:grid-cols-4" aria-label="任务状态快捷筛选">
+              {statusShortcuts.map((shortcut) => {
+                const active = statusFilter === shortcut.id;
+                return (
+                  <Button
+                    aria-pressed={active}
+                    className={active ? 'border-[rgb(var(--accent-rgb)/0.42)] bg-[rgb(var(--accent-rgb)/0.16)] text-slate-100' : 'text-slate-300'}
+                    key={shortcut.id}
+                    size="sm"
+                    variant="outline"
+                    onClick={() => applyStatusShortcut(shortcut.id)}
+                  >
+                    <span>{shortcut.label}</span>
+                    <span className="font-mono text-[11px] text-slate-400">{formatCount(shortcut.count)}</span>
+                  </Button>
+                );
+              })}
             </div>
             <SoftRow className="grid gap-3 px-3 py-3 lg:grid-cols-[minmax(0,1fr)_minmax(12rem,16rem)_minmax(14rem,18rem)_minmax(14rem,18rem)_auto] lg:items-end">
               <div className="min-w-0">
