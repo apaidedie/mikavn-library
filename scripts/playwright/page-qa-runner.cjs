@@ -289,6 +289,14 @@ async function main() {
       ['library-empty', 'library', { games: [] }],
       ['collections-populated', 'collections'],
       ['metadata-batch', 'metadata', {}, async (page) => {
+        const queueGapShortcuts = page.locator('[aria-label="缺口快捷筛选"]');
+        await queueGapShortcuts.getByRole('button', { name: /缺全部 ID\s+1/ }).click();
+        if (await page.getByLabel('缺失来源筛选').inputValue() !== 'external_id') throw new Error('metadata quick gap filter did not select missing external ID filter');
+        await page.getByText('天使☆騒々 RE-BOOT!').first().waitFor({ timeout: 5000 });
+        await queueGapShortcuts.getByRole('button', { name: /FANZA\s+2/ }).click();
+        if (await page.getByLabel('缺失来源筛选').inputValue() !== 'fanza') throw new Error('metadata quick gap filter did not select FANZA filter');
+        await queueGapShortcuts.getByRole('button', { name: /全部\s+2/ }).click();
+        if (await page.getByLabel('缺失来源筛选').inputValue() !== 'all') throw new Error('metadata quick gap filter did not reset to all missing providers');
         await page.getByLabel('匹配队列搜索').fill('天使');
         await page.getByRole('button', { name: /选择当前筛选/ }).click();
         await page.getByRole('button', { name: /开始匹配 1 个条目/ }).first().waitFor({ timeout: 5000 });

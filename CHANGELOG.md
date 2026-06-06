@@ -28,7 +28,7 @@ Updated release candidate with the mature local V1 hardening pass.
 - Task center overview with queue progress, active/attention/completed counts, elapsed/remaining time estimates, text search, status filters, task-type filters, and searchable expanded logs.
 - Library bulk edit bar for selecting, inverting, and clearing the current filtered games before applying play status, favorite, hidden flags, tags, or collection add/remove actions together.
 - Batch metadata matching resettable queue search/provider-gap filters, field write presets, result overview with success/review/no-result/error counts, result text/status/write-state filters, and filtered bulk writeback.
-- Batch metadata matching now includes a missing-all-external-IDs queue filter, plus Maintenance shortcuts that open the preset directly from the queue overview and missing-external-ID artwork diagnosis rows.
+- Batch metadata matching now includes missing-source count shortcuts and a missing-all-external-IDs queue filter, plus Maintenance shortcuts that open the preset directly from the queue overview and missing-external-ID artwork diagnosis rows.
 - Duplicate game safe merge now supports resettable duplicate-group search/provider filters, highlights a recommended keep target, provides per-row keep-target switching, and previews all related-record move counts before merge.
 
 ### Changed

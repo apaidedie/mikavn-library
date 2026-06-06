@@ -20,6 +20,15 @@ const mediaFields: ApplyMetadataFields = ['coverImage', 'externalIds'];
 const textFields: ApplyMetadataFields = ['originalTitle', 'description', 'releaseDate', 'developer', 'tags', 'genres'];
 type TaskMessage = { text: string; taskId?: string | null };
 type QueuePresetRequest = { key: number; query?: string; missingProvider?: string };
+type MissingProviderFilter = 'all' | 'external_id' | 'vndb' | 'dlsite' | 'fanza';
+
+const missingProviderOptions: { id: MissingProviderFilter; label: string; shortLabel: string }[] = [
+  { id: 'all', label: '全部缺失来源', shortLabel: '全部' },
+  { id: 'external_id', label: '缺全部外部 ID', shortLabel: '缺全部 ID' },
+  { id: 'vndb', label: '缺 VNDB', shortLabel: 'VNDB' },
+  { id: 'dlsite', label: '缺 DLsite', shortLabel: 'DLsite' },
+  { id: 'fanza', label: '缺 FANZA', shortLabel: 'FANZA' },
+];
 
 export function BatchMetadataPage({ refreshKey, queuePresetRequest, onOpenTask }: { refreshKey: number; queuePresetRequest?: QueuePresetRequest | null; onOpenTask?: (taskId: string) => void }) {
   const [games, setGames] = useState<Game[]>([]);
@@ -31,7 +40,7 @@ export function BatchMetadataPage({ refreshKey, queuePresetRequest, onOpenTask }
   const [expandedIds, setExpandedIds] = useState<string[]>([]);
   const [selectedCandidates, setSelectedCandidates] = useState<Record<string, MetadataSearchResult>>({});
   const [queueQuery, setQueueQuery] = useState('');
-  const [missingProviderFilter, setMissingProviderFilter] = useState('all');
+  const [missingProviderFilter, setMissingProviderFilter] = useState<MissingProviderFilter>('all');
   const [resultQuery, setResultQuery] = useState('');
   const [resultStatusFilter, setResultStatusFilter] = useState('all');
   const [writeFilter, setWriteFilter] = useState('all');
@@ -46,7 +55,7 @@ export function BatchMetadataPage({ refreshKey, queuePresetRequest, onOpenTask }
   useEffect(() => {
     if (!queuePresetRequest?.key) return;
     setQueueQuery(queuePresetRequest.query ?? '');
-    setMissingProviderFilter(queuePresetRequest.missingProvider ?? 'all');
+    setMissingProviderFilter(normalizeMissingProviderFilter(queuePresetRequest.missingProvider));
     setSelectedIds([]);
   }, [queuePresetRequest?.key]);
 
@@ -61,6 +70,13 @@ export function BatchMetadataPage({ refreshKey, queuePresetRequest, onOpenTask }
   }, [status]);
 
   const incompleteGames = useMemo(() => games.filter((game) => !game.vndbId || !game.dlsiteId || !game.fanzaId), [games]);
+  const queueGapCounts = useMemo(() => ({
+    all: incompleteGames.length,
+    external_id: incompleteGames.filter((game) => !game.vndbId && !game.dlsiteId && !game.fanzaId).length,
+    vndb: incompleteGames.filter((game) => !game.vndbId).length,
+    dlsite: incompleteGames.filter((game) => !game.dlsiteId).length,
+    fanza: incompleteGames.filter((game) => !game.fanzaId).length,
+  }), [incompleteGames]);
   const filteredIncompleteGames = useMemo(() => incompleteGames.filter((game) => {
     const queryText = queueQuery.trim().toLowerCase();
     const matchesQuery = !queryText || [game.title, game.originalTitle, game.developer, game.brand, game.publisher, game.installPath]
@@ -216,13 +232,27 @@ export function BatchMetadataPage({ refreshKey, queuePresetRequest, onOpenTask }
               <Input aria-label="匹配队列搜索" placeholder="搜索标题 / 会社 / 路径" value={queueQuery} onChange={(event) => setQueueQuery(event.target.value)} />
               <Button disabled={!queueQuery.trim() && missingProviderFilter === 'all'} size="sm" variant="outline" onClick={resetQueueFilters}>重置队列</Button>
             </div>
-            <Select aria-label="缺失来源筛选" value={missingProviderFilter} onChange={(event) => setMissingProviderFilter(event.target.value)}>
-              <option value="all">全部缺失来源</option>
-              <option value="external_id">缺全部外部 ID</option>
-              <option value="vndb">缺 VNDB</option>
-              <option value="dlsite">缺 DLsite</option>
-              <option value="fanza">缺 FANZA</option>
+            <Select aria-label="缺失来源筛选" value={missingProviderFilter} onChange={(event) => setMissingProviderFilter(normalizeMissingProviderFilter(event.target.value))}>
+              {missingProviderOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
             </Select>
+            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-5" aria-label="缺口快捷筛选">
+              {missingProviderOptions.map((option) => {
+                const active = missingProviderFilter === option.id;
+                return (
+                  <Button
+                    aria-pressed={active}
+                    className={active ? 'border-[rgb(var(--accent-rgb)/0.42)] bg-[rgb(var(--accent-rgb)/0.16)] text-slate-100' : 'text-slate-300'}
+                    key={option.id}
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setMissingProviderFilter(option.id)}
+                  >
+                    <span>{option.shortLabel}</span>
+                    <span className="font-mono text-[11px] text-slate-400">{queueGapCounts[option.id]}</span>
+                  </Button>
+                );
+              })}
+            </div>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="secondary" onClick={() => setSelectedIds(filteredIncompleteGames.map((game) => game.id))}>选择当前筛选</Button>
@@ -446,4 +476,8 @@ function providerLabel(value?: string | null) {
     return PROVIDER_LABEL[value];
   }
   return value ?? '未知来源';
+}
+
+function normalizeMissingProviderFilter(value?: string | null): MissingProviderFilter {
+  return missingProviderOptions.some((option) => option.id === value) ? value as MissingProviderFilter : 'all';
 }
