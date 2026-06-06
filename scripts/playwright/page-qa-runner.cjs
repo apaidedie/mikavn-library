@@ -240,8 +240,9 @@ async function main() {
         await page.getByLabel('匹配队列搜索').fill('天使');
         await page.getByRole('button', { name: /选择当前筛选/ }).click();
         await page.getByRole('button', { name: /开始匹配 1 个条目/ }).first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: /重置队列/ }).click();
         await page.getByRole('button', { name: /清空/ }).first().click();
-        await page.getByLabel('匹配队列搜索').fill('');
+        await page.getByRole('button', { name: /开始匹配 0 个条目/ }).first().waitFor({ timeout: 5000 });
         await page.getByLabel('缺失来源筛选').selectOption('dlsite');
         await page.getByRole('button', { name: /选择当前筛选/ }).click();
         await page.getByRole('button', { name: /开始匹配/ }).click();

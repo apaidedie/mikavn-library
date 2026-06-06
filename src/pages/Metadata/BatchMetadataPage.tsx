@@ -166,6 +166,16 @@ export function BatchMetadataPage({ refreshKey, onOpenTask }: { refreshKey: numb
     setMessage({ text: failed > 0 ? `已写入 ${success} 个推荐，${failed} 个失败。` : `已写入 ${success} 个推荐结果。`, taskId: status?.job.taskId });
   };
 
+  const resetQueueFilters = () => {
+    setQueueQuery('');
+    setMissingProviderFilter('all');
+  };
+
+  const resetResultFilters = () => {
+    setResultStatusFilter('all');
+    setWriteFilter('all');
+  };
+
   return (
     <PageShell>
       <PageFrame>
@@ -187,7 +197,10 @@ export function BatchMetadataPage({ refreshKey, onOpenTask }: { refreshKey: numb
             <MetricTile label="当前筛选" value={`${filteredIncompleteGames.length}`} />
           </div>
           <div className="grid gap-2">
-            <Input aria-label="匹配队列搜索" placeholder="搜索标题 / 会社 / 路径" value={queueQuery} onChange={(event) => setQueueQuery(event.target.value)} />
+            <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+              <Input aria-label="匹配队列搜索" placeholder="搜索标题 / 会社 / 路径" value={queueQuery} onChange={(event) => setQueueQuery(event.target.value)} />
+              <Button disabled={!queueQuery.trim() && missingProviderFilter === 'all'} size="sm" variant="outline" onClick={resetQueueFilters}>重置队列</Button>
+            </div>
             <Select aria-label="缺失来源筛选" value={missingProviderFilter} onChange={(event) => setMissingProviderFilter(event.target.value)}>
               <option value="all">全部缺失来源</option>
               <option value="vndb">缺 VNDB</option>
@@ -279,13 +292,13 @@ export function BatchMetadataPage({ refreshKey, onOpenTask }: { refreshKey: numb
                     <option value="needs_review">无可写候选</option>
                   </Select>
                 </label>
-                <Button disabled={resultStatusFilter === 'all' && writeFilter === 'all'} size="sm" variant="outline" onClick={() => { setResultStatusFilter('all'); setWriteFilter('all'); }}>重置筛选</Button>
+                <Button disabled={resultStatusFilter === 'all' && writeFilter === 'all'} size="sm" variant="outline" onClick={resetResultFilters}>重置筛选</Button>
               </SoftRow>
               <div className="max-h-[calc(100vh-16rem)] space-y-2 overflow-auto pr-1">
                 {filteredResults.length === 0 ? (
                   <EmptyState className="flex min-h-[12rem] flex-col items-center justify-center gap-3 py-8">
                     <span>当前筛选没有匹配结果。</span>
-                    <Button size="sm" variant="outline" onClick={() => { setResultStatusFilter('all'); setWriteFilter('all'); }}>重置筛选</Button>
+                    <Button size="sm" variant="outline" onClick={resetResultFilters}>重置筛选</Button>
                   </EmptyState>
                 ) : filteredResults.map((result) => (
                   <SoftRow className="px-3 py-2.5" key={result.id}>
