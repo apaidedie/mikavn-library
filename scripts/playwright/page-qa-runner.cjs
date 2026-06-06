@@ -253,6 +253,12 @@ async function main() {
         await page.getByRole('button', { name: /重置队列/ }).click();
         await page.getByRole('button', { name: /清空/ }).first().click();
         await page.getByRole('button', { name: /开始匹配 0 个条目/ }).first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: /只补媒体/ }).click();
+        if (await page.getByLabel('简介').isChecked()) throw new Error('metadata media preset should not include description');
+        if (!(await page.getByLabel('封面').isChecked()) || !(await page.getByLabel('外部 ID').isChecked())) throw new Error('metadata media preset should include cover and external IDs');
+        await page.getByRole('button', { name: /只补文本/ }).click();
+        if (!(await page.getByLabel('简介').isChecked()) || await page.getByLabel('封面').isChecked()) throw new Error('metadata text preset did not toggle fields');
+        await page.getByRole('button', { name: /安全补全/ }).click();
         await page.getByLabel('缺失来源筛选').selectOption('dlsite');
         await page.getByRole('button', { name: /选择当前筛选/ }).click();
         await page.getByRole('button', { name: /开始匹配/ }).click();

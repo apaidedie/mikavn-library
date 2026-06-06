@@ -16,6 +16,8 @@ import { errorMessage } from '@/utils/errorMessage';
 import { friendlyMetadataError, metadataErrorMessage } from '@/utils/metadataErrors';
 
 const defaultFields: ApplyMetadataFields = ['originalTitle', 'description', 'releaseDate', 'developer', 'tags', 'genres', 'coverImage', 'externalIds'];
+const mediaFields: ApplyMetadataFields = ['coverImage', 'externalIds'];
+const textFields: ApplyMetadataFields = ['originalTitle', 'description', 'releaseDate', 'developer', 'tags', 'genres'];
 type TaskMessage = { text: string; taskId?: string | null };
 
 export function BatchMetadataPage({ refreshKey, onOpenTask }: { refreshKey: number; onOpenTask?: (taskId: string) => void }) {
@@ -232,7 +234,14 @@ export function BatchMetadataPage({ refreshKey, onOpenTask }: { refreshKey: numb
             ))}
           </div>
           <div className="space-y-2">
-            <div className="text-xs font-medium text-slate-500">写入字段</div>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="text-xs font-medium text-slate-500">写入字段</div>
+              <div className="flex flex-wrap gap-1.5">
+                <Button size="sm" variant="ghost" onClick={() => setFields(defaultFields)}>安全补全</Button>
+                <Button size="sm" variant="ghost" onClick={() => setFields(mediaFields)}>只补媒体</Button>
+                <Button size="sm" variant="ghost" onClick={() => setFields(textFields)}>只补文本</Button>
+              </div>
+            </div>
             <div className="flex flex-wrap gap-2">
               {fieldOptions.map((option) => (
                 <label className="flex items-center gap-1 rounded-md border border-white/10 bg-black/[0.12] px-2 py-1 text-xs text-slate-400" key={option.id}>
