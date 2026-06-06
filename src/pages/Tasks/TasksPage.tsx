@@ -39,6 +39,14 @@ export function TasksPage({ refreshKey, focusTaskId, focusRequestKey = 0 }: { re
     { id: 'attention', label: '需处理', count: attentionCount },
     { id: 'completed', label: '已完成', count: completedCount },
   ] as const, [activeCount, attentionCount, completedCount, tasks.length]);
+  const taskTypeShortcuts = useMemo(() => [
+    { id: 'all', label: '全部类型', count: tasks.length },
+    ...taskTypes.map((taskType) => ({
+      id: taskType,
+      label: taskLabel(taskType),
+      count: tasks.filter((task) => task.taskType === taskType).length,
+    })),
+  ], [taskTypes, tasks]);
   const filteredTasks = useMemo(() => tasks.filter((task) => {
     const matchesStatus = statusFilter === 'all'
       || (statusFilter === 'active' && isActiveTask(task))
@@ -55,6 +63,10 @@ export function TasksPage({ refreshKey, focusTaskId, focusRequestKey = 0 }: { re
   };
   const applyStatusShortcut = (status: TaskStatus | 'all' | 'active' | 'attention') => {
     setStatusFilter(status);
+    setTaskQuery('');
+  };
+  const applyTypeShortcut = (taskType: string) => {
+    setTypeFilter(taskType);
     setTaskQuery('');
   };
 
@@ -195,6 +207,24 @@ export function TasksPage({ refreshKey, focusTaskId, focusRequestKey = 0 }: { re
                     onClick={() => applyStatusShortcut(shortcut.id)}
                   >
                     <span>{shortcut.label}</span>
+                    <span className="font-mono text-[11px] text-slate-400">{formatCount(shortcut.count)}</span>
+                  </Button>
+                );
+              })}
+            </div>
+            <div className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-4" aria-label="任务类型快捷筛选">
+              {taskTypeShortcuts.map((shortcut) => {
+                const active = typeFilter === shortcut.id;
+                return (
+                  <Button
+                    aria-pressed={active}
+                    className={cn('justify-between', active ? 'border-[rgb(var(--accent-rgb)/0.42)] bg-[rgb(var(--accent-rgb)/0.16)] text-slate-100' : 'text-slate-300')}
+                    key={shortcut.id}
+                    size="sm"
+                    variant="outline"
+                    onClick={() => applyTypeShortcut(shortcut.id)}
+                  >
+                    <span className="truncate">{shortcut.label}</span>
                     <span className="font-mono text-[11px] text-slate-400">{formatCount(shortcut.count)}</span>
                   </Button>
                 );

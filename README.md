@@ -39,7 +39,7 @@ The current implementation focuses on a complete local desktop workflow:
 - Manual SQLite database backup from Settings using a task record
 - Privacy settings for hidden entries, blurred covers, and report filtering
 - Report statistics with Markdown export through the task queue
-- Dashboard task summary, Maintenance task overview, and task center with queue progress overview, elapsed/remaining time estimates, status count shortcuts, text search, status/type filters, searchable expandable logs, retry, and cancellation for supported operations
+- Dashboard task summary, Maintenance task overview, and task center with queue progress overview, elapsed/remaining time estimates, status/type count shortcuts, text search, status/type filters, searchable expandable logs, retry, and cancellation for supported operations
 - Library archive export/import with directory and ZIP formats, manifest, database backup, optional cache copies, safe preview, and non-destructive conflict skipping
 - Custom collections plus advanced library filters for tag, developer/brand, favorite, hidden state, metadata and media gaps, path health, and collection membership
 - Advanced local search with field clauses, negation, comparisons, validation chips, and saved searches

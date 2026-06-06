@@ -166,22 +166,34 @@ async function waitForApp(page) {
 }
 
 async function openSeeded(browser, view, overrides = {}) {
-  const context = await browser.newContext({ viewport: { width: 1440, height: 1050 }, deviceScaleFactor: 1 });
-  try {
-    const page = await context.newPage();
-    const consoleErrors = [];
-    page.on('console', (message) => {
-      if (message.type() === 'error') consoleErrors.push(message.text());
-    });
-    page.on('pageerror', (error) => consoleErrors.push(error.message));
-    await seed(page, view, overrides);
-    await page.goto(baseUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
-    await waitForApp(page);
-    return { context, page, consoleErrors };
-  } catch (error) {
-    await context.close().catch(() => undefined);
-    throw error;
+  const maxAttempts = 3;
+  let lastError = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const context = await browser.newContext({ viewport: { width: 1440, height: 1050 }, deviceScaleFactor: 1 });
+    try {
+      const page = await context.newPage();
+      const consoleErrors = [];
+      page.on('console', (message) => {
+        if (message.type() === 'error') consoleErrors.push(message.text());
+      });
+      page.on('pageerror', (error) => consoleErrors.push(error.message));
+      await seed(page, view, overrides);
+      await page.goto(baseUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+      await waitForApp(page);
+      return { context, page, consoleErrors };
+    } catch (error) {
+      lastError = error;
+      await context.close().catch(() => undefined);
+      if (!isRetryableOpenError(error) || attempt === maxAttempts) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
+    }
   }
+  throw lastError;
+}
+
+function isRetryableOpenError(error) {
+  const message = String(error?.message ?? error);
+  return /page\.goto: Timeout|Timeout \d+ms exceeded|Navigation timeout|net::ERR_CONNECTION|Target closed/i.test(message);
 }
 
 async function capture(page, name) {
@@ -483,6 +495,18 @@ async function main() {
       if (await page.getByText('扫描失败：路径不存在').count() > 0) throw new Error('failed task should be hidden by active shortcut');
       await taskStatusShortcuts.getByRole('button', { name: /全部\s+3/ }).click();
       if (await page.getByLabel('任务状态筛选').inputValue() !== 'all') throw new Error('task status shortcut did not reset to all');
+      await page.getByText('扫描失败：路径不存在').first().waitFor({ timeout: 5000 });
+      const taskTypeShortcuts = page.locator('[aria-label="任务类型快捷筛选"]');
+      await taskTypeShortcuts.getByRole('button', { name: /目录扫描\s+1/ }).click();
+      if (await page.getByLabel('任务类型筛选').inputValue() !== 'library.scan') throw new Error('task type shortcut did not select scan filter');
+      await page.getByText('扫描失败：路径不存在').first().waitFor({ timeout: 5000 });
+      if (await page.getByText('正在匹配 2 个游戏').count() > 0) throw new Error('metadata task should be hidden by scan type shortcut');
+      await taskTypeShortcuts.getByRole('button', { name: /批量元数据匹配\s+1/ }).click();
+      if (await page.getByLabel('任务类型筛选').inputValue() !== 'metadata.batch_match') throw new Error('task type shortcut did not select metadata filter');
+      await page.getByText('正在匹配 2 个游戏').first().waitFor({ timeout: 5000 });
+      if (await page.getByText('扫描失败：路径不存在').count() > 0) throw new Error('scan task should be hidden by metadata type shortcut');
+      await taskTypeShortcuts.getByRole('button', { name: /全部类型\s+3/ }).click();
+      if (await page.getByLabel('任务类型筛选').inputValue() !== 'all') throw new Error('task type shortcut did not reset to all');
       await page.getByText('扫描失败：路径不存在').first().waitFor({ timeout: 5000 });
       await page.getByLabel('任务搜索').fill('路径不存在');
       await page.getByText('扫描失败：路径不存在').first().waitFor({ timeout: 5000 });
