@@ -244,6 +244,19 @@ export function LibraryPage({ refreshKey, selectedGameId, onSelectedGameChange, 
     setBulkSelectedIds(new Set(visibleGames.map((game) => game.id)));
   };
 
+  const invertVisibleBulkSelection = () => {
+    setBulkSelectedIds((current) => {
+      const visibleIds = new Set(visibleGames.map((game) => game.id));
+      const next = new Set(current);
+      for (const id of visibleIds) {
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+      }
+      return next;
+    });
+    setBulkMessage(null);
+  };
+
   const clearBulkSelection = () => {
     setBulkSelectedIds(new Set());
     setBulkMessage(null);
@@ -345,6 +358,7 @@ export function LibraryPage({ refreshKey, selectedGameId, onSelectedGameChange, 
                 <span>已选 {formatCount(bulkSelectedVisibleCount)}</span>
                 <div className="flex shrink-0 gap-1">
                   <Button className="h-7 px-2" disabled={bulkBusy || visibleGames.length === 0} size="sm" variant="ghost" onClick={selectVisibleGames}>选中当前</Button>
+                  <Button className="h-7 px-2" disabled={bulkBusy || visibleGames.length === 0} size="sm" variant="ghost" onClick={invertVisibleBulkSelection}>反选当前</Button>
                   <Button className="h-7 px-2" disabled={bulkBusy || bulkSelectedVisibleCount === 0} size="sm" variant="ghost" onClick={clearBulkSelection}>清空</Button>
                 </div>
               </div>

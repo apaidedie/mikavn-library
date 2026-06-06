@@ -203,6 +203,11 @@ async function main() {
         if (await descriptionImages.count() < 1) throw new Error('library detail description image was not rendered');
         await page.getByRole('button', { name: '批量', exact: true }).click();
         await page.getByRole('button', { name: /选中当前/ }).click();
+        await page.getByText(/已选 2/).first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: /反选当前/ }).click();
+        await page.getByText(/已选 0/).first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: /反选当前/ }).click();
+        await page.getByText(/已选 2/).first().waitFor({ timeout: 5000 });
         await page.getByLabel('批量游玩状态').selectOption('completed');
         await page.getByRole('button', { name: /应用状态/ }).click();
         await page.getByText(/已更新 2 个游戏：游玩状态：已通关/).first().waitFor({ timeout: 5000 });
