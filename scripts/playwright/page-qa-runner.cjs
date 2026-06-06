@@ -265,6 +265,20 @@ async function main() {
     });
 
     await runCase(browser, 'tasks-running-failed-expanded', 'tasks', {}, async (page) => {
+      await page.getByText('任务概览').first().waitFor({ timeout: 5000 });
+      await page.getByText('任务总数').first().waitFor({ timeout: 5000 });
+      await page.getByText('进行中').first().waitFor({ timeout: 5000 });
+      await page.getByText('需处理').first().waitFor({ timeout: 5000 });
+      await page.getByText('队列总体进度').first().waitFor({ timeout: 5000 });
+      await page.getByLabel('任务状态筛选').selectOption('attention');
+      await page.getByText('扫描失败：路径不存在').first().waitFor({ timeout: 5000 });
+      if (await page.getByText('正在匹配 2 个游戏').count() > 0) throw new Error('running task should be hidden by attention filter');
+      await page.getByLabel('任务状态筛选').selectOption('active');
+      await page.getByText('正在匹配 2 个游戏').first().waitFor({ timeout: 5000 });
+      if (await page.getByText('扫描失败：路径不存在').count() > 0) throw new Error('failed task should be hidden by active filter');
+      await page.getByLabel('任务类型筛选').selectOption('library.scan');
+      await page.getByText('当前筛选没有匹配任务。').first().waitFor({ timeout: 5000 });
+      await page.getByRole('button', { name: /重置筛选/ }).first().click();
       await page.getByRole('button', { name: /日志/ }).first().click();
       await page.getByText(/任务日志|路径不存在/).first().waitFor({ timeout: 5000 });
     });

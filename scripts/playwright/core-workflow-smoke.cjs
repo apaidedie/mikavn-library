@@ -111,6 +111,10 @@ function importAuditFilter(page) {
   return page.locator('select.h-8.w-36').first();
 }
 
+function taskQueueRow(page, label) {
+  return page.locator('.motion-soft-row').filter({ hasText: label }).filter({ has: page.getByRole('button', { name: /日志/ }) }).first();
+}
+
 async function main() {
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ viewport: { width: 1440, height: 1050 }, deviceScaleFactor: 1 });
@@ -268,17 +272,17 @@ async function main() {
     console.log('OK settings logs/archive import zip task');
 
     await navigate(page, 'tasks');
-    const databaseRestoreRow = page.locator('.motion-soft-row').filter({ hasText: /数据库恢复/ }).first();
+    const databaseRestoreRow = taskQueueRow(page, /数据库恢复/);
     await databaseRestoreRow.getByRole('button', { name: /日志/ }).click();
     await expectText(page, /数据库恢复来源/);
     await expectText(page, /数据库恢复待应用/);
     console.log('OK database restore audit logs');
-    const saveRestoreRow = page.locator('.motion-soft-row').filter({ hasText: /存档恢复/ }).first();
+    const saveRestoreRow = taskQueueRow(page, /存档恢复/);
     await saveRestoreRow.getByRole('button', { name: /日志/ }).click();
     await expectText(page, /存档恢复保护备份/);
     await expectText(page, /存档恢复报告：模式/);
     console.log('OK save restore audit logs');
-    const archiveImportRow = page.locator('.motion-soft-row').filter({ hasText: /库归档导入/ }).first();
+    const archiveImportRow = taskQueueRow(page, /库归档导入/);
     await archiveImportRow.getByRole('button', { name: /日志/ }).click();
     await expectText(page, /归档导入保护备份/);
     await expectText(page, /归档导入新增/);

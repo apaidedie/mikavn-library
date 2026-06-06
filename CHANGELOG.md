@@ -23,6 +23,7 @@ Updated release candidate with the mature local V1 hardening pass.
 - Maintenance media artwork result summaries for recent repair tasks, including updated, skipped, and failed entries with reasons.
 - Save restore previews for merge and mirror restore, including new, overwritten, kept, and mirror-removed file counts before task creation.
 - Scanner import audit panel with filterable per-candidate results, conflict reasons, target titles, record IDs, and install paths.
+- Task center overview with queue progress, active/attention/completed counts, status filters, and task-type filters.
 
 ### Changed
 

@@ -1,10 +1,11 @@
-import { Activity, ChevronDown, FileText, RefreshCw, RotateCcw, StopCircle } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { Activity, AlertTriangle, CheckCircle2, ChevronDown, FileText, ListFilter, RefreshCw, RotateCcw, StopCircle, Timer } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EmptyState, Notice } from '@/components/ui/notice';
-import { PageFrame, PageHeader, PageShell, Panel, PanelContent, PanelHeader, SoftRow } from '@/components/ui/page';
+import { MetricTile, PageFrame, PageHeader, PageShell, Panel, PanelContent, PanelHeader, SoftRow } from '@/components/ui/page';
+import { Select } from '@/components/ui/select';
 import { api } from '@/services/api';
 import type { TaskLogEntry, TaskRecord } from '@/types/task';
 import { cn } from '@/utils/cn';
@@ -18,9 +19,25 @@ export function TasksPage({ refreshKey, focusTaskId, focusRequestKey = 0 }: { re
   const [logsByTask, setLogsByTask] = useState<Record<string, TaskLogEntry[]>>({});
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
   const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const handledFocusKeyRef = useRef<number | null>(null);
   const expandedIdRef = useRef<string | null>(null);
+
+  const taskTypes = useMemo(() => [...new Set(tasks.map((task) => task.taskType))].sort((a, b) => taskLabel(a).localeCompare(taskLabel(b), 'zh-CN')), [tasks]);
+  const activeCount = useMemo(() => tasks.filter(isActiveTask).length, [tasks]);
+  const attentionCount = useMemo(() => tasks.filter(needsAttentionTask).length, [tasks]);
+  const completedCount = useMemo(() => tasks.filter((task) => task.status === 'completed').length, [tasks]);
+  const queueProgress = useMemo(() => tasks.length === 0 ? 0 : Math.round((tasks.reduce((sum, task) => sum + boundedProgress(task.progress), 0) / tasks.length) * 100), [tasks]);
+  const filteredTasks = useMemo(() => tasks.filter((task) => {
+    const matchesStatus = statusFilter === 'all'
+      || (statusFilter === 'active' && isActiveTask(task))
+      || (statusFilter === 'attention' && needsAttentionTask(task))
+      || task.status === statusFilter;
+    const matchesType = typeFilter === 'all' || task.taskType === typeFilter;
+    return matchesStatus && matchesType;
+  }), [statusFilter, tasks, typeFilter]);
 
   useEffect(() => {
     expandedIdRef.current = expandedId;
@@ -138,11 +155,58 @@ export function TasksPage({ refreshKey, focusTaskId, focusRequestKey = 0 }: { re
         {error && <Notice tone="error">{error}</Notice>}
 
         <Panel>
-          <PanelHeader title="任务队列" icon={<Activity className="h-4 w-4" />} />
+          <PanelHeader title="任务概览" description="按状态和类型快速定位需要处理的长任务。" icon={<Activity className="h-4 w-4" />} />
+          <PanelContent className="space-y-3">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <MetricTile icon={<ListFilter className="h-3.5 w-3.5" />} label="任务总数" value={formatCount(tasks.length)} detail={`当前显示 ${formatCount(filteredTasks.length)} 个`} />
+              <MetricTile icon={<Timer className="h-3.5 w-3.5" />} label="进行中" value={formatCount(activeCount)} detail="运行中 / 等待中" />
+              <MetricTile icon={<AlertTriangle className="h-3.5 w-3.5" />} label="需处理" value={formatCount(attentionCount)} detail="失败 / 已取消" />
+              <MetricTile icon={<CheckCircle2 className="h-3.5 w-3.5" />} label="已完成" value={formatCount(completedCount)} detail={`队列进度 ${queueProgress}%`} />
+            </div>
+            <SoftRow className="grid gap-3 px-3 py-3 lg:grid-cols-[minmax(0,1fr)_minmax(12rem,16rem)_minmax(14rem,18rem)_auto] lg:items-end">
+              <div className="min-w-0">
+                <div className="flex items-center justify-between gap-3 text-xs text-slate-400">
+                  <span>队列总体进度</span>
+                  <span className="font-mono text-slate-200">{queueProgress}%</span>
+                </div>
+                <div className="mt-2 h-2 overflow-hidden rounded-full bg-black/25">
+                  <div className="h-full rounded-full bg-[rgb(var(--accent-rgb))]" style={{ width: `${queueProgress}%` }} />
+                </div>
+              </div>
+              <label className="text-xs text-slate-500">
+                状态筛选
+                <Select aria-label="任务状态筛选" className="mt-1 w-full" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+                  <option value="all">全部状态</option>
+                  <option value="active">运行中 / 等待中</option>
+                  <option value="attention">需要处理</option>
+                  <option value="completed">已完成</option>
+                  <option value="failed">失败</option>
+                  <option value="cancelled">已取消</option>
+                </Select>
+              </label>
+              <label className="text-xs text-slate-500">
+                类型筛选
+                <Select aria-label="任务类型筛选" className="mt-1 w-full" value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
+                  <option value="all">全部类型</option>
+                  {taskTypes.map((taskType) => <option key={taskType} value={taskType}>{taskLabel(taskType)}</option>)}
+                </Select>
+              </label>
+              <Button disabled={statusFilter === 'all' && typeFilter === 'all'} size="sm" variant="outline" onClick={() => { setStatusFilter('all'); setTypeFilter('all'); }}>重置筛选</Button>
+            </SoftRow>
+          </PanelContent>
+        </Panel>
+
+        <Panel>
+          <PanelHeader title="任务队列" description={`显示 ${formatCount(filteredTasks.length)} / ${formatCount(tasks.length)} 个任务`} icon={<Activity className="h-4 w-4" />} />
           <PanelContent className="space-y-2">
             {tasks.length === 0 ? (
               <EmptyState>还没有任务记录。启动批量匹配后会在这里看到任务进度。</EmptyState>
-            ) : tasks.map((task) => {
+            ) : filteredTasks.length === 0 ? (
+              <EmptyState className="flex min-h-[12rem] flex-col items-center justify-center gap-3 py-8">
+                <span>当前筛选没有匹配任务。</span>
+                <Button size="sm" variant="outline" onClick={() => { setStatusFilter('all'); setTypeFilter('all'); }}>重置筛选</Button>
+              </EmptyState>
+            ) : filteredTasks.map((task) => {
               const expanded = expandedId === task.id;
               const logs = logsByTask[task.id] ?? [];
               return (
@@ -152,12 +216,12 @@ export function TasksPage({ refreshKey, focusTaskId, focusRequestKey = 0 }: { re
                     <div className="flex flex-wrap items-center gap-2">
                       <div className="truncate text-sm font-medium text-slate-100">{taskLabel(task.taskType)}</div>
                       <Badge className={taskStatusClass(task.status)}>{taskStatusLabel(task.status)}</Badge>
-                      <span className="text-xs text-slate-500">{Math.round(task.progress * 100)}%</span>
+                      <span className="text-xs text-slate-500">{Math.round(boundedProgress(task.progress) * 100)}%</span>
                     </div>
                     <div className="mt-1 text-xs text-slate-500">{task.message || '无消息'} · {formatDateTime(task.updatedAt)}</div>
                     {task.error && <div className="mt-2 text-xs text-rose-200">{task.error}</div>}
                     <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-black/20">
-                      <div className="h-full rounded-full bg-[rgb(var(--accent-rgb))]" style={{ width: `${Math.round(task.progress * 100)}%` }} />
+                      <div className="h-full rounded-full bg-[rgb(var(--accent-rgb))]" style={{ width: `${Math.round(boundedProgress(task.progress) * 100)}%` }} />
                     </div>
                     {expanded && (
                       <div className="mt-3 rounded-md border border-white/10 bg-black/15 p-3">
@@ -202,4 +266,21 @@ function levelLabel(level: string) {
     error: '错误',
   };
   return labels[level] ?? level;
+}
+
+function isActiveTask(task: TaskRecord) {
+  return task.status === 'running' || task.status === 'pending';
+}
+
+function needsAttentionTask(task: TaskRecord) {
+  return task.status === 'failed' || task.status === 'cancelled';
+}
+
+function boundedProgress(value: number) {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(1, value));
+}
+
+function formatCount(value: number) {
+  return new Intl.NumberFormat('zh-CN').format(value);
 }
