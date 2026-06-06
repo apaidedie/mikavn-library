@@ -31,6 +31,7 @@ const outDir = path.resolve(process.env.MIKAVN_QA_OUT_DIR || path.join(repoRoot,
 fs.mkdirSync(outDir, { recursive: true });
 
 const now = new Date().toISOString();
+const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
 const hero = '/src/assets/hero.png';
 const richDescription = `末世旅途题材的短篇视觉小说。这里用于成熟 V1 页面 QA。\n\n![作品介绍图](${hero})\n\n图片下方的正文也应该继续显示。`;
 const games = [
@@ -86,7 +87,7 @@ const artworkRepairGame = {
 };
 const tasks = [
   { id: 'qa-task-failed', taskType: 'library.scan', status: 'failed', progress: 1, message: '扫描失败：路径不存在', error: 'PATH_NOT_FOUND: D:\\Missing', retryPayload: JSON.stringify({ path: 'D:\\Missing', recursive: true }), retryable: true, createdAt: now, updatedAt: now },
-  { id: 'qa-task-running', taskType: 'metadata.batch_match', status: 'running', progress: 0.42, message: '正在匹配 2 个游戏', error: null, retryPayload: JSON.stringify({ gameIds: ['qa-1', 'qa-2'] }), retryable: true, createdAt: now, updatedAt: now },
+  { id: 'qa-task-running', taskType: 'metadata.batch_match', status: 'running', progress: 0.42, message: '正在匹配 2 个游戏', error: null, retryPayload: JSON.stringify({ gameIds: ['qa-1', 'qa-2'] }), retryable: true, createdAt: tenMinutesAgo, updatedAt: now },
 ];
 const taskLogs = {
   'qa-task-failed': [
@@ -368,6 +369,9 @@ async function main() {
       await page.getByText('进行中').first().waitFor({ timeout: 5000 });
       await page.getByText('需处理').first().waitFor({ timeout: 5000 });
       await page.getByText('队列总体进度').first().waitFor({ timeout: 5000 });
+      await page.getByText(/已运行/).first().waitFor({ timeout: 5000 });
+      await page.getByText(/预计剩余/).first().waitFor({ timeout: 5000 });
+      await page.getByText(/耗时/).first().waitFor({ timeout: 5000 });
       await page.getByLabel('任务搜索').fill('路径不存在');
       await page.getByText('扫描失败：路径不存在').first().waitFor({ timeout: 5000 });
       if (await page.getByText('正在匹配 2 个游戏').count() > 0) throw new Error('running task should be hidden by task search');

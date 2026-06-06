@@ -224,6 +224,7 @@ export function TasksPage({ refreshKey, focusTaskId, focusRequestKey = 0 }: { re
               const logs = logsByTask[task.id] ?? [];
               const logQuery = logQueryByTask[task.id] ?? '';
               const filteredLogs = logs.filter((log) => matchesLogQuery(log, logQuery));
+              const timing = taskTiming(task);
               return (
               <SoftRow ref={(node) => { rowRefs.current[task.id] = node; }} key={task.id} className={cn(expanded && 'border-[rgb(var(--accent-rgb)/0.32)] bg-[rgb(var(--accent-rgb)/0.08)]', focusTaskId === task.id && 'ring-2 ring-[rgb(var(--accent-rgb)/0.42)]')}>
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -233,7 +234,12 @@ export function TasksPage({ refreshKey, focusTaskId, focusRequestKey = 0 }: { re
                       <Badge className={taskStatusClass(task.status)}>{taskStatusLabel(task.status)}</Badge>
                       <span className="text-xs text-slate-500">{Math.round(boundedProgress(task.progress) * 100)}%</span>
                     </div>
-                    <div className="mt-1 text-xs text-slate-500">{task.message || '无消息'} · {formatDateTime(task.updatedAt)}</div>
+                    <div className="mt-1 text-xs text-slate-500">{task.message || '无消息'} · 更新 {formatDateTime(task.updatedAt)}</div>
+                    <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-500">
+                      <span>开始 {formatDateTime(task.createdAt)}</span>
+                      <span>{timing.elapsedLabel}</span>
+                      {timing.remainingLabel && <span title="根据已运行时间和当前进度估算">{timing.remainingLabel}</span>}
+                    </div>
                     {task.error && <div className="mt-2 text-xs text-rose-200">{task.error}</div>}
                     <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-black/20">
                       <div className="h-full rounded-full bg-[rgb(var(--accent-rgb))]" style={{ width: `${Math.round(boundedProgress(task.progress) * 100)}%` }} />
@@ -328,6 +334,32 @@ function matchesLogQuery(log: TaskLogEntry, query: string) {
 function boundedProgress(value: number) {
   if (!Number.isFinite(value)) return 0;
   return Math.max(0, Math.min(1, value));
+}
+
+function taskTiming(task: TaskRecord) {
+  const startedAt = new Date(task.createdAt).getTime();
+  const updatedAt = new Date(task.updatedAt).getTime();
+  const now = Date.now();
+  const reference = isActiveTask(task) ? now : updatedAt;
+  const elapsedSeconds = Number.isFinite(startedAt) && Number.isFinite(reference) && reference > startedAt ? Math.max(0, Math.round((reference - startedAt) / 1000)) : 0;
+  const progress = boundedProgress(task.progress);
+  const remainingSeconds = isActiveTask(task) && progress > 0.02 && progress < 0.995
+    ? Math.max(0, Math.round((elapsedSeconds / progress) - elapsedSeconds))
+    : null;
+  return {
+    elapsedLabel: `${isActiveTask(task) ? '已运行' : '耗时'} ${formatDuration(elapsedSeconds)}`,
+    remainingLabel: remainingSeconds == null ? null : `预计剩余 ${formatDuration(remainingSeconds)}`,
+  };
+}
+
+function formatDuration(totalSeconds: number) {
+  if (!Number.isFinite(totalSeconds) || totalSeconds <= 0) return '不足 1 分钟';
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  if (days > 0) return hours > 0 ? `${days} 天 ${hours} 小时` : `${days} 天`;
+  if (hours > 0) return minutes > 0 ? `${hours} 小时 ${minutes} 分钟` : `${hours} 小时`;
+  return `${Math.max(1, minutes)} 分钟`;
 }
 
 function formatCount(value: number) {
