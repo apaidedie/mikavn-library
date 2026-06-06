@@ -29,13 +29,13 @@ export function PageHeader({ title, description, actions, className }: { title: 
   );
 }
 
-export function Panel({ className, children, ...props }: HTMLAttributes<HTMLDivElement>) {
+export const Panel = forwardRef<HTMLElement, HTMLAttributes<HTMLElement>>(function Panel({ className, children, ...props }, ref) {
   return (
-    <section className={cn('motion-panel overflow-hidden rounded-lg border border-white/10 bg-[rgb(var(--panel-rgb)/0.22)] backdrop-blur-xl', className)} {...props}>
+    <section ref={ref} className={cn('motion-panel overflow-hidden rounded-lg border border-white/10 bg-[rgb(var(--panel-rgb)/0.22)] backdrop-blur-xl', className)} {...props}>
       {children}
     </section>
   );
-}
+});
 
 export function PanelHeader({ title, description, icon, actions, className }: { title: string; description?: string; icon?: ReactNode; actions?: ReactNode; className?: string }) {
   return (

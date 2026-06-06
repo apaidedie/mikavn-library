@@ -21,6 +21,7 @@ type LibraryPageProps = {
   onSelectedGameChange: (id: string | null) => void;
   onChanged: () => void;
   onOpenTasks?: (taskId?: string | null) => void;
+  onOpenMaintenance?: (section?: string | null) => void;
   addRequestKey?: number | null;
   onAddRequestConsumed?: () => void;
   filterToggleKey?: number;
@@ -40,7 +41,7 @@ function clampLibraryPanelWidth(value: number) {
   return Math.max(minLibraryPanelWidth, Math.min(maxLibraryPanelWidth, value));
 }
 
-export function LibraryPage({ refreshKey, selectedGameId, onSelectedGameChange, onChanged, onOpenTasks, addRequestKey, onAddRequestConsumed, filterToggleKey = 0, toolbarQuery }: LibraryPageProps) {
+export function LibraryPage({ refreshKey, selectedGameId, onSelectedGameChange, onChanged, onOpenTasks, onOpenMaintenance, addRequestKey, onAddRequestConsumed, filterToggleKey = 0, toolbarQuery }: LibraryPageProps) {
   const [games, setGames] = useState<Game[]>([]);
   const [query, setQuery] = useState('');
   const dragStartRef = useRef({ x: 0, width: defaultLibraryPanelWidth });
@@ -458,7 +459,7 @@ export function LibraryPage({ refreshKey, selectedGameId, onSelectedGameChange, 
       </div>
 
       <section className="min-w-0 flex-1 overflow-hidden">
-        <GameDetail game={selectedGame} blurCover={blurCovers} onEdit={(game) => { setEditingGame(game); setDialogOpen(true); }} onDeleted={deleted} onChanged={() => onChanged()} onOpenTasks={onOpenTasks} />
+        <GameDetail game={selectedGame} blurCover={blurCovers} onEdit={(game) => { setEditingGame(game); setDialogOpen(true); }} onDeleted={deleted} onChanged={() => onChanged()} onOpenMaintenance={onOpenMaintenance} onOpenTasks={onOpenTasks} />
       </section>
 
       <Dialog.Root open={dialogOpen} onOpenChange={setDialogOpen}>

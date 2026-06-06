@@ -1,6 +1,6 @@
 import { AlertTriangle, CheckCircle2, Combine, Database, FolderOpen, HardDrive, Image, ListChecks, PlayCircle, RefreshCw, ShieldCheck, Trash2, Wrench } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,7 +35,9 @@ type ArtworkRepairTaskSummary = {
   failed: ArtworkRepairLogSummary[];
 };
 
-export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: number; onOpenTasks?: (taskId?: string | null) => void }) {
+export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0, onOpenTasks }: { refreshKey: number; focusSection?: string | null; focusRequestKey?: number; onOpenTasks?: (taskId?: string | null) => void }) {
+  const imageAuditRef = useRef<HTMLElement | null>(null);
+  const handledFocusKeyRef = useRef<number | null>(null);
   const [diagnostics, setDiagnostics] = useState<AppDataDiagnostics | null>(null);
   const [loading, setLoading] = useState(false);
   const [cleanupLoading, setCleanupLoading] = useState(false);
@@ -65,6 +67,17 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
   useEffect(() => {
     void loadDiagnostics();
   }, [refreshKey]);
+
+  useEffect(() => {
+    if (focusSection !== 'image-audit' || handledFocusKeyRef.current === focusRequestKey) return;
+    handledFocusKeyRef.current = focusRequestKey;
+    window.requestAnimationFrame(() => {
+      imageAuditRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    });
+    if (!imageAudit && !imageAuditLoading) {
+      void loadImageAudit();
+    }
+  }, [focusRequestKey, focusSection, imageAudit, imageAuditLoading]);
 
   const database = diagnostics?.database;
   const metadata = database?.metadataCoverage;
@@ -313,7 +326,7 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
           </PanelContent>
         </Panel>
 
-        <Panel>
+        <Panel ref={imageAuditRef}>
           <PanelHeader
             title="图片引用问题"
             description="定位缺失、C 盘残留和 Playnite 残留图片引用。"

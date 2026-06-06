@@ -268,6 +268,11 @@ async function main() {
         await page.getByText(/问题引用/).first().waitFor({ timeout: 5000 });
         await page.getByText('Playnite').first().waitFor({ timeout: 5000 });
         await page.getByText('D:\\Playnite\\library\\files\\missing-banner.jpg').first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: /到维护中心处理/ }).click();
+        await page.getByText('维护中心').first().waitFor({ timeout: 5000 });
+        await page.getByText('图片引用问题').first().waitFor({ timeout: 5000 });
+        await page.getByText(/图片引用审计完成：发现/).first().waitFor({ timeout: 5000 });
+        await page.getByText('D:\\Playnite\\library\\files\\missing-banner.jpg').first().waitFor({ timeout: 5000 });
       }],
       ['library-empty', 'library', { games: [] }],
       ['collections-populated', 'collections'],

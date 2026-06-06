@@ -52,6 +52,7 @@ export function App() {
   const [librarySearchValue, setLibrarySearchValue] = useState('');
   const topSearchRef = useRef<HTMLInputElement | null>(null);
   const [taskFocusRequest, setTaskFocusRequest] = useState<{ id: string | null; key: number }>({ id: null, key: 0 });
+  const [maintenanceFocusRequest, setMaintenanceFocusRequest] = useState<{ section: string | null; key: number }>({ section: null, key: 0 });
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [systemPrefersDark, setSystemPrefersDark] = useState(() => typeof window === 'undefined' ? true : window.matchMedia('(prefers-color-scheme: dark)').matches);
 
@@ -144,6 +145,11 @@ export function App() {
   const openTasks = useCallback((taskId?: string | null) => {
     setTaskFocusRequest((current) => ({ id: taskId ?? null, key: current.key + 1 }));
     setView('tasks');
+  }, []);
+
+  const openMaintenance = useCallback((section?: string | null) => {
+    setMaintenanceFocusRequest((current) => ({ section: section ?? null, key: current.key + 1 }));
+    setView('maintenance');
   }, []);
 
   useEffect(() => {
@@ -271,7 +277,7 @@ export function App() {
 
         <div className="min-h-0 flex-1 overflow-hidden">
           {view === 'dashboard' && <DashboardPage refreshKey={refreshKey} onOpenGame={(id) => { setSelectedGameId(id); setView('library'); }} onOpenTasks={openTasks} />}
-          {view === 'library' && <LibraryPage refreshKey={refreshKey} selectedGameId={selectedGameId} onSelectedGameChange={setSelectedGameId} onChanged={refresh} addRequestKey={addRequestKey} onAddRequestConsumed={() => setAddRequestKey(null)} filterToggleKey={libraryFilterToggleKey} toolbarQuery={librarySearchValue} onOpenTasks={openTasks} />}
+          {view === 'library' && <LibraryPage refreshKey={refreshKey} selectedGameId={selectedGameId} onSelectedGameChange={setSelectedGameId} onChanged={refresh} addRequestKey={addRequestKey} onAddRequestConsumed={() => setAddRequestKey(null)} filterToggleKey={libraryFilterToggleKey} toolbarQuery={librarySearchValue} onOpenTasks={openTasks} onOpenMaintenance={openMaintenance} />}
           {view === 'collections' && <CollectionsPage refreshKey={refreshKey} onOpenGame={(id) => { setSelectedGameId(id); setView('library'); }} onChanged={refresh} />}
           {view === 'advanced-search' && <AdvancedSearchPage refreshKey={refreshKey} onOpenGame={(id) => { setSelectedGameId(id); setView('library'); }} />}
           {view === 'scanner' && <ScannerPage onOpenTask={openTasks} />}
@@ -279,7 +285,7 @@ export function App() {
           {view === 'tasks' && <TasksPage focusTaskId={taskFocusRequest.id} focusRequestKey={taskFocusRequest.key} refreshKey={refreshKey} />}
           {view === 'reports' && <ReportsPage refreshKey={refreshKey} onOpenTask={openTasks} />}
           {view === 'saves' && <SavesPage refreshKey={refreshKey} onOpenTask={openTasks} />}
-          {view === 'maintenance' && <MaintenancePage refreshKey={refreshKey} onOpenTasks={openTasks} />}
+          {view === 'maintenance' && <MaintenancePage focusRequestKey={maintenanceFocusRequest.key} focusSection={maintenanceFocusRequest.section} refreshKey={refreshKey} onOpenTasks={openTasks} />}
           {view === 'settings' && <SettingsPage onAccentPreview={previewAccent} onThemePreview={previewTheme} onSaved={refresh} onOpenTask={openTasks} />}
         </div>
       </main>

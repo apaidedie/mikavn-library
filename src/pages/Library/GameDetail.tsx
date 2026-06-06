@@ -1,4 +1,4 @@
-import { AlertTriangle, CalendarDays, CheckCircle2, Clock3, Download, Edit3, ExternalLink, FolderOpen, FolderSync, ImagePlus, Layers3, ListTodo, NotebookText, Play, Plus, RefreshCw, Save, Star, Trash2, X } from 'lucide-react';
+import { AlertTriangle, CalendarDays, CheckCircle2, Clock3, Download, Edit3, ExternalLink, FolderOpen, FolderSync, ImagePlus, Layers3, ListTodo, NotebookText, Play, Plus, RefreshCw, Save, Star, Trash2, Wrench, X } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -30,13 +30,14 @@ type GameDetailProps = {
   onEdit: (game: Game) => void;
   onDeleted: () => void;
   onChanged?: (game: Game) => void;
+  onOpenMaintenance?: (section?: string | null) => void;
   onOpenTasks?: (taskId?: string | null) => void;
   blurCover?: boolean;
 };
 
 type TaskMessage = { text: string; taskId?: string | null };
 
-export function GameDetail({ game, onEdit, onDeleted, onChanged, onOpenTasks, blurCover = false }: GameDetailProps) {
+export function GameDetail({ game, onEdit, onDeleted, onChanged, onOpenMaintenance, onOpenTasks, blurCover = false }: GameDetailProps) {
   const [message, setMessage] = useState<TaskMessage | null>(null);
   const [profiles, setProfiles] = useState<LaunchProfile[]>([]);
   const [sessions, setSessions] = useState<PlaySession[]>([]);
@@ -244,7 +245,7 @@ export function GameDetail({ game, onEdit, onDeleted, onChanged, onOpenTasks, bl
             </div>
 
             <aside className="col-span-1 space-y-5 pt-0.5">
-              <MediaHealthStack audit={imageAudit} auditLoading={imageAuditLoading} items={mediaHealth.items} missingCount={mediaHealth.missingCount} onAudit={() => void checkImageReferences()} />
+              <MediaHealthStack audit={imageAudit} auditLoading={imageAuditLoading} items={mediaHealth.items} missingCount={mediaHealth.missingCount} onAudit={() => void checkImageReferences()} onOpenMaintenance={onOpenMaintenance ? () => onOpenMaintenance('image-audit') : undefined} />
 
               <InfoStack title="信息">
                 <InfoLine label="原名" value={game.originalTitle || '暂无'} />
@@ -956,7 +957,7 @@ type MediaHealthItem = {
   detail: string;
 };
 
-function MediaHealthStack({ audit, auditLoading, items, missingCount, onAudit }: { audit: ImageReferenceAudit | null; auditLoading: boolean; items: MediaHealthItem[]; missingCount: number; onAudit: () => void }) {
+function MediaHealthStack({ audit, auditLoading, items, missingCount, onAudit, onOpenMaintenance }: { audit: ImageReferenceAudit | null; auditLoading: boolean; items: MediaHealthItem[]; missingCount: number; onAudit: () => void; onOpenMaintenance?: () => void }) {
   const auditItems = audit?.items ?? [];
   return (
     <InfoStack title="媒体健康">
@@ -990,6 +991,9 @@ function MediaHealthStack({ audit, auditLoading, items, missingCount, onAudit }:
             <div className="rounded-md border border-white/10 bg-black/10 px-2 py-2 text-xs text-slate-500">没有发现图片引用问题。</div>
           ) : (
             <div className="space-y-1.5">
+              {onOpenMaintenance && (
+                <Button className="h-8 w-full justify-center" size="sm" variant="outline" onClick={onOpenMaintenance}><Wrench className="h-4 w-4" />到维护中心处理</Button>
+              )}
               {auditItems.map((item, index) => <MediaAuditIssue item={item} key={`${item.sourceKind}-${item.fieldName ?? 'field'}-${item.value}-${index}`} />)}
               {audit.truncated && <div className="text-[11px] text-slate-500">结果较多，当前只显示前 80 条。</div>}
             </div>
