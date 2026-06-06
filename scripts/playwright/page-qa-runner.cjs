@@ -357,6 +357,19 @@ async function main() {
       }],
       ['maintenance-health-artwork-repair', 'maintenance', { games: [...games, artworkRepairGame] }, async (page) => {
         await page.getByText('维护中心').first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: /读取诊断/ }).click();
+        const artworkDiagnosisPanel = page.locator('section').filter({ hasText: '媒体补全诊断' }).first();
+        await artworkDiagnosisPanel.getByText('媒体图片补全候选').first().waitFor({ timeout: 5000 });
+        await artworkDiagnosisPanel.getByLabel('媒体补全诊断搜索').fill('媒体图片补全候选');
+        await artworkDiagnosisPanel.getByText('媒体图片补全候选').first().waitFor({ timeout: 5000 });
+        await artworkDiagnosisPanel.getByLabel('媒体补全诊断状态筛选').selectOption('missing_external_id');
+        await artworkDiagnosisPanel.getByText('当前筛选没有匹配的媒体补全诊断。').first().waitFor({ timeout: 5000 });
+        await artworkDiagnosisPanel.getByRole('button', { name: /重置筛选/ }).click();
+        await artworkDiagnosisPanel.getByText('媒体图片补全候选').first().waitFor({ timeout: 5000 });
+        await artworkDiagnosisPanel.getByRole('button', { name: /^游戏$/ }).first().click();
+        await page.getByText('媒体健康').first().waitFor({ timeout: 5000 });
+        await page.getByText('媒体图片补全候选').first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: '维护' }).click();
         await page.getByText('维护队列').first().waitFor({ timeout: 5000 });
         await page.getByText('媒体图片补全').first().waitFor({ timeout: 5000 });
         await clickMaintenanceStart(page, '媒体图片补全');

@@ -30,7 +30,7 @@ The current implementation focuses on a complete local desktop workflow:
 - Game detail media health summary for cover, banner, background, inline description image references, per-game image-reference audit details for missing/C-drive/Playnite leftovers, and a shortcut into the searchable/filterable Maintenance image audit
 - Asset gallery on game detail pages for cover, banner, background, screenshots, local import, remote download, primary selection, removal, and cache cleanup
 - Batch media artwork repair from metadata providers for missing cover, banner, and background images
-- Maintenance media artwork diagnosis for missing external IDs, remote no-image results, provider errors, and repairable artwork candidates
+- Maintenance media artwork diagnosis for searchable/filterable missing external IDs, remote no-image results, provider errors, and repairable artwork candidates with game-detail shortcuts
 - Maintenance media artwork result summaries for recent repair tasks, including searchable/filterable updated, skipped, and failed entries with reasons and game-detail shortcuts
 - Maintenance recent-task overview for batch matching, description image repair, artwork repair, and duplicate ID audit jobs with status counts, progress, timing, log shortcuts, retry, and cancellation
 - Asset commands for importing local image files into app data, downloading remote image assets, previewing image cache cleanup, and cleaning files not referenced by game image fields, gallery records, or local description images

@@ -49,6 +49,8 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
   const [imageAuditIssueFilter, setImageAuditIssueFilter] = useState('all');
   const [artworkDiagnosis, setArtworkDiagnosis] = useState<ArtworkRepairDiagnosis | null>(null);
   const [artworkDiagnosisLoading, setArtworkDiagnosisLoading] = useState(false);
+  const [artworkDiagnosisQuery, setArtworkDiagnosisQuery] = useState('');
+  const [artworkDiagnosisStatusFilter, setArtworkDiagnosisStatusFilter] = useState('all');
   const [artworkHistory, setArtworkHistory] = useState<ArtworkRepairTaskSummary[] | null>(null);
   const [artworkHistoryLoading, setArtworkHistoryLoading] = useState(false);
   const [artworkHistoryQuery, setArtworkHistoryQuery] = useState('');
@@ -129,6 +131,7 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
   const mergeSourceIds = useMemo(() => selectedDuplicateGroup?.games.map((game) => game.gameId).filter((id) => id !== mergeTargetId) ?? [], [mergeTargetId, selectedDuplicateGroup]);
   const duplicateGroupFiltersActive = duplicateGroupQuery.trim().length > 0 || duplicateGroupProvider !== 'all';
   const maintenanceTaskSummary = useMemo(() => summarizeMaintenanceTasks(maintenanceTasks), [maintenanceTasks]);
+  const filteredArtworkDiagnosisItems = useMemo(() => artworkDiagnosis?.items.filter((item) => matchesArtworkDiagnosisItem(item, artworkDiagnosisQuery, artworkDiagnosisStatusFilter)) ?? [], [artworkDiagnosis, artworkDiagnosisQuery, artworkDiagnosisStatusFilter]);
   const filteredArtworkHistory = useMemo(() => artworkHistory?.map((summary) => filterArtworkRepairSummary(summary, artworkHistoryQuery, artworkHistoryStatusFilter)).filter((summary) => summary.updated.length + summary.skipped.length + summary.failed.length > 0) ?? [], [artworkHistory, artworkHistoryQuery, artworkHistoryStatusFilter]);
 
   const resetDuplicateGroupFilters = () => {
@@ -140,6 +143,11 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
   const resetImageAuditFilters = () => {
     setImageAuditQuery('');
     setImageAuditIssueFilter('all');
+  };
+
+  const resetArtworkDiagnosisFilters = () => {
+    setArtworkDiagnosisQuery('');
+    setArtworkDiagnosisStatusFilter('all');
   };
 
   const resetArtworkHistoryFilters = () => {
@@ -313,9 +321,27 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
                   <CompactStat label="缺外部 ID" value={artworkDiagnosis.missingExternalIdCount} tone={artworkDiagnosis.missingExternalIdCount > 0 ? 'warn' : 'ok'} />
                   <CompactStat label="来源异常" value={artworkDiagnosis.noRemoteImageCount + artworkDiagnosis.providerErrorCount} tone={(artworkDiagnosis.noRemoteImageCount + artworkDiagnosis.providerErrorCount) > 0 ? 'warn' : 'ok'} />
                 </div>
+                <SoftRow className="grid gap-2 px-3 py-3 md:grid-cols-[minmax(0,1fr)_minmax(10rem,14rem)_auto] md:items-end">
+                  <label className="min-w-0 text-xs text-slate-500">
+                    搜索诊断结果
+                    <Input aria-label="媒体补全诊断搜索" className="mt-1 w-full" placeholder="游戏 / ID / 字段 / 来源 / 原因" value={artworkDiagnosisQuery} onChange={(event) => setArtworkDiagnosisQuery(event.target.value)} />
+                  </label>
+                  <label className="min-w-0 text-xs text-slate-500">
+                    诊断状态
+                    <Select aria-label="媒体补全诊断状态筛选" className="mt-1 w-full" value={artworkDiagnosisStatusFilter} onChange={(event) => setArtworkDiagnosisStatusFilter(event.target.value)}>
+                      <option value="all">全部状态</option>
+                      <option value="repairable">可补全</option>
+                      <option value="missing_external_id">缺外部 ID</option>
+                      <option value="no_remote_image">远程无图</option>
+                      <option value="provider_error">来源失败</option>
+                    </Select>
+                  </label>
+                  <Button className="h-9" disabled={!artworkDiagnosisQuery.trim() && artworkDiagnosisStatusFilter === 'all'} size="sm" variant="outline" onClick={resetArtworkDiagnosisFilters}>重置筛选</Button>
+                </SoftRow>
                 {artworkDiagnosis.items.length > 0 ? (
                   <div className="space-y-2">
-                    {artworkDiagnosis.items.map((item) => <ArtworkDiagnosisRow item={item} key={item.gameId} />)}
+                    <div className="px-1 text-xs text-slate-500">当前显示 {formatCount(filteredArtworkDiagnosisItems.length)} / {formatCount(artworkDiagnosis.items.length)} 个诊断条目。</div>
+                    {filteredArtworkDiagnosisItems.length > 0 ? filteredArtworkDiagnosisItems.map((item) => <ArtworkDiagnosisRow item={item} key={item.gameId} onOpenGame={onOpenGame} />) : <SoftRow className="px-3 py-3 text-sm text-slate-400">当前筛选没有匹配的媒体补全诊断。</SoftRow>}
                     {artworkDiagnosis.truncated && <div className="px-1 text-xs text-slate-500">结果较多，当前只诊断前 {formatCount(artworkDiagnosis.diagnosedGames)} 个缺图游戏。</div>}
                   </div>
                 ) : (
@@ -1017,13 +1043,14 @@ function matchesImageAuditItem(item: ImageReferenceAuditItem, query: string, iss
   return matchesIssue && matchesQuery;
 }
 
-function ArtworkDiagnosisRow({ item }: { item: ArtworkRepairDiagnosisItem }) {
+function ArtworkDiagnosisRow({ item, onOpenGame }: { item: ArtworkRepairDiagnosisItem; onOpenGame?: (gameId: string) => void }) {
   return (
     <SoftRow className="grid gap-3 px-3 py-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <span className="truncate text-sm font-medium text-slate-100" title={item.title}>{item.title}</span>
           <Badge className={artworkStatusBadgeClass(item.status)}>{artworkStatusLabel(item.status)}</Badge>
+          {onOpenGame && <Button className="h-7 px-2" size="sm" variant="ghost" onClick={() => onOpenGame(item.gameId)}>游戏</Button>}
         </div>
         <div className="mt-2 flex flex-wrap gap-1.5">
           {item.missingFields.map((field) => <Badge key={field}>{artworkFieldLabel(field)}</Badge>)}
@@ -1046,6 +1073,23 @@ function ArtworkDiagnosisRow({ item }: { item: ArtworkRepairDiagnosisItem }) {
       </div>
     </SoftRow>
   );
+}
+
+function matchesArtworkDiagnosisItem(item: ArtworkRepairDiagnosisItem, query: string, statusFilter: string) {
+  if (statusFilter !== 'all' && item.status !== statusFilter) return false;
+  const value = query.trim().toLowerCase();
+  if (!value) return true;
+  return [
+    item.gameId,
+    item.title,
+    item.status,
+    artworkStatusLabel(item.status),
+    item.reason,
+    ...item.missingFields,
+    ...item.missingFields.map(artworkFieldLabel),
+    ...item.providers.flatMap((provider) => [provider.provider, providerLabel(provider.provider), provider.providerId]),
+    ...item.providerResults.flatMap((result) => [result.provider, providerLabel(result.provider), result.providerId, result.status, artworkProviderStatusLabel(result.status), result.reason, result.imageUrl]),
+  ].some((text) => String(text ?? '').toLowerCase().includes(value));
 }
 
 function ArtworkRepairTaskRow({ summary, onOpenGame, onOpenTask }: { summary: ArtworkRepairTaskSummary; onOpenGame?: (gameId: string) => void; onOpenTask?: (taskId?: string | null) => void }) {
