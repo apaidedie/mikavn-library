@@ -204,8 +204,16 @@ async function main() {
     await expectText(page, '默认存档');
     await page.getByRole('button', { name: /备份/ }).first().click();
     await expectText(page, /存档备份任务已创建/);
+    await page.getByRole('button', { name: /^预览$/ }).first().click();
+    await expectText(page, /合并恢复预览完成：新增 1，覆盖 2，保留 2/);
+    await expectText(page, /合并预览/);
+    await expectText(page, /将保留/);
     await page.getByRole('button', { name: /^恢复$/ }).first().click();
     await expectText(page, /合并存档恢复任务已创建/);
+    await page.getByRole('button', { name: /镜像预览/ }).first().click();
+    await expectText(page, /镜像恢复预览完成：新增 1，覆盖 2，清理 4/);
+    await expectText(page, /镜像预览/);
+    await expectText(page, /将清理/);
     await page.getByRole('button', { name: /镜像恢复/ }).first().click();
     await expectText(page, /镜像存档恢复任务已创建/);
     const backups = await getStorage(page, 'mikavn-library.mock.saveBackups');
