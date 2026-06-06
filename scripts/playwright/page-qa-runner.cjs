@@ -292,6 +292,10 @@ async function main() {
         await page.getByRole('button', { name: /预览合并/ }).click();
         await page.getByText('共享外部 ID').first().waitFor({ timeout: 5000 });
         await page.getByText('搬迁资产').first().waitFor({ timeout: 5000 });
+        await page.getByText('存档备份').first().waitFor({ timeout: 5000 });
+        await page.getByText('外部 ID').first().waitFor({ timeout: 5000 });
+        await page.getByText('字段锁').first().waitFor({ timeout: 5000 });
+        await page.getByText('匹配结果').first().waitFor({ timeout: 5000 });
       }],
       ['settings-local-privacy-backup', 'settings'],
     ];

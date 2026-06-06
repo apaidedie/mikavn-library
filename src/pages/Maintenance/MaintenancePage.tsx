@@ -391,13 +391,18 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
                         <div className="text-xs text-slate-500">共享外部 ID</div>
                         <div className="mt-1 text-sm text-slate-200">{mergePreview.sharedExternalIds.map((item) => `${item.provider} ${item.externalId}`).join('，')}</div>
                       </SoftRow>
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-2 gap-2 xl:grid-cols-3">
                         <CompactStat label="删除源条目" value={mergePreview.movedCounts.sourceGames} tone="warn" />
                         <CompactStat label="搬迁资产" value={mergePreview.movedCounts.assets} />
                         <CompactStat label="收藏关系" value={mergePreview.movedCounts.collectionLinks} />
                         <CompactStat label="启动配置" value={mergePreview.movedCounts.launchProfiles} />
                         <CompactStat label="存档路径" value={mergePreview.movedCounts.savePaths} />
+                        <CompactStat label="存档备份" value={mergePreview.movedCounts.saveBackups} />
                         <CompactStat label="游玩记录" value={mergePreview.movedCounts.playSessions} />
+                        <CompactStat label="外部 ID" value={mergePreview.movedCounts.externalIds} />
+                        <CompactStat label="标签关系" value={mergePreview.movedCounts.tags} />
+                        <CompactStat label="字段锁" value={mergePreview.movedCounts.fieldLocks} />
+                        <CompactStat label="匹配结果" value={mergePreview.movedCounts.metadataMatchResults} />
                       </div>
                       {mergePreview.warnings.length > 0 && (
                         <Notice className="py-2" tone="warning">
@@ -408,7 +413,7 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
                       )}
                     </div>
                   ) : (
-                    <SoftRow className="px-3 py-3 text-xs leading-5 text-slate-500">预览后会显示将要移动的收藏、资产、标签、启动配置、存档和游玩记录数量。</SoftRow>
+                    <SoftRow className="px-3 py-3 text-xs leading-5 text-slate-500">预览后会显示将要移动的收藏、资产、外部 ID、标签、字段锁、启动配置、存档、存档备份、游玩记录和匹配结果数量。</SoftRow>
                   )}
                 </div>
               </div>
