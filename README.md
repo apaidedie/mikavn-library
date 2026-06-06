@@ -17,7 +17,7 @@ The current implementation focuses on a complete local desktop workflow:
 - Dashboard and basic report metrics
 - Metadata search and matching surfaces for VNDB, DLsite, and FANZA
 - Metadata field locks so user-edited fields are not overwritten by default
-- Batch metadata matching with candidate review, stored job/result status, and user-confirmed writeback
+- Batch metadata matching with candidate review, result status/write filters, stored job/result status, and user-confirmed writeback
 - AI image-recognition command using OpenAI-compatible chat completions
 - Scanner preview and candidate import flow with duplicate/conflict review actions
 - Library root management in Settings, with user-confirmed scan tasks and candidate review before import

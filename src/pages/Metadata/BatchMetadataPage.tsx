@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { EmptyState, Notice } from '@/components/ui/notice';
 import { MetricTile, PageFrame, PageHeader, PageShell, Panel, PanelContent, PanelHeader, SoftRow } from '@/components/ui/page';
+import { Select } from '@/components/ui/select';
 import { TaskNotice } from '@/components/ui/task-notice';
 import { api } from '@/services/api';
 import type { Game } from '@/types/game';
@@ -25,6 +26,8 @@ export function BatchMetadataPage({ refreshKey, onOpenTask }: { refreshKey: numb
   const [applyingIds, setApplyingIds] = useState<string[]>([]);
   const [expandedIds, setExpandedIds] = useState<string[]>([]);
   const [selectedCandidates, setSelectedCandidates] = useState<Record<string, MetadataSearchResult>>({});
+  const [resultStatusFilter, setResultStatusFilter] = useState('all');
+  const [writeFilter, setWriteFilter] = useState('all');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<TaskMessage | null>(null);
@@ -45,6 +48,21 @@ export function BatchMetadataPage({ refreshKey, onOpenTask }: { refreshKey: numb
 
   const incompleteGames = useMemo(() => games.filter((game) => !game.vndbId || !game.dlsiteId || !game.fanzaId), [games]);
   const applicableResults = useMemo(() => status?.results.filter((result) => Boolean(candidateForResult(result))) ?? [], [status, selectedCandidates]);
+  const filteredResults = useMemo(() => status?.results.filter((result) => {
+    const candidate = candidateForResult(result);
+    const matchesStatus = resultStatusFilter === 'all' || result.status === resultStatusFilter;
+    const matchesWrite = writeFilter === 'all'
+      || (writeFilter === 'writable' && Boolean(candidate) && !appliedIds.includes(result.id))
+      || (writeFilter === 'applied' && appliedIds.includes(result.id))
+      || (writeFilter === 'needs_review' && !candidate);
+    return matchesStatus && matchesWrite;
+  }) ?? [], [appliedIds, resultStatusFilter, selectedCandidates, status, writeFilter]);
+  const resultCounts = useMemo(() => ({
+    success: status?.results.filter((result) => result.status === 'success').length ?? 0,
+    review: status?.results.filter((result) => result.status === 'review').length ?? 0,
+    noResult: status?.results.filter((result) => result.status === 'no_result').length ?? 0,
+    error: status?.results.filter((result) => result.status === 'error').length ?? 0,
+  }), [status]);
 
   const loadGames = async () => {
     try {
@@ -69,6 +87,8 @@ export function BatchMetadataPage({ refreshKey, onOpenTask }: { refreshKey: numb
     try {
       const job = await api.batchMatchMetadata(selectedIds);
       setStatus(await api.getBatchMatchStatus(job.id));
+      setResultStatusFilter('all');
+      setWriteFilter('all');
       setMessage({ text: `批量匹配任务已启动：${selectedIds.length} 个条目。`, taskId: job.taskId });
     } catch (reason) {
       setError(metadataErrorMessage(reason));
@@ -208,8 +228,41 @@ export function BatchMetadataPage({ refreshKey, onOpenTask }: { refreshKey: numb
                 <Badge>状态 {status.job.status}</Badge>
                 <Badge>{status.job.completed}/{status.job.total}</Badge>
               </div>
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <MetricTile label="成功" value={`${resultCounts.success}`} />
+                <MetricTile label="待复核" value={`${resultCounts.review}`} />
+                <MetricTile label="无结果" value={`${resultCounts.noResult}`} />
+                <MetricTile label="错误" value={`${resultCounts.error}`} />
+              </div>
+              <SoftRow className="grid gap-2 px-3 py-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
+                <label className="text-xs text-slate-500">
+                  结果状态
+                  <Select aria-label="匹配结果状态筛选" className="mt-1 w-full" value={resultStatusFilter} onChange={(event) => setResultStatusFilter(event.target.value)}>
+                    <option value="all">全部结果</option>
+                    <option value="success">成功</option>
+                    <option value="review">待复核</option>
+                    <option value="no_result">无结果</option>
+                    <option value="error">错误</option>
+                  </Select>
+                </label>
+                <label className="text-xs text-slate-500">
+                  写入状态
+                  <Select aria-label="匹配写入状态筛选" className="mt-1 w-full" value={writeFilter} onChange={(event) => setWriteFilter(event.target.value)}>
+                    <option value="all">全部写入状态</option>
+                    <option value="writable">可写入且未写入</option>
+                    <option value="applied">已写入</option>
+                    <option value="needs_review">无可写候选</option>
+                  </Select>
+                </label>
+                <Button disabled={resultStatusFilter === 'all' && writeFilter === 'all'} size="sm" variant="outline" onClick={() => { setResultStatusFilter('all'); setWriteFilter('all'); }}>重置筛选</Button>
+              </SoftRow>
               <div className="max-h-[calc(100vh-16rem)] space-y-2 overflow-auto pr-1">
-                {status.results.map((result) => (
+                {filteredResults.length === 0 ? (
+                  <EmptyState className="flex min-h-[12rem] flex-col items-center justify-center gap-3 py-8">
+                    <span>当前筛选没有匹配结果。</span>
+                    <Button size="sm" variant="outline" onClick={() => { setResultStatusFilter('all'); setWriteFilter('all'); }}>重置筛选</Button>
+                  </EmptyState>
+                ) : filteredResults.map((result) => (
                   <SoftRow className="px-3 py-2.5" key={result.id}>
                     <div className="flex items-center justify-between gap-3">
                       <div className="truncate text-sm font-medium text-slate-100">{result.originalTitle}</div>

@@ -113,7 +113,7 @@ Done:
 - Save backup and restore task records.
 - Save restore preview summarizes merge and mirror differences before execution, including copied, overwritten, kept, and mirror-removed file counts.
 - Optional auto backup before launch and after exit through local settings and `save.auto_backup` task logs.
-- Batch metadata updates.
+- Batch metadata updates with result status/write-state filters for reviewing large match result sets.
 - Metadata field locks with explicit override.
 - Launch profile data model, direct launch, shortcut launch, Locale Emulator-style wrapper launch, custom shell command launch, environment variables, pre/post hooks, and Windows `runAsAdmin` launch with UAC process-handle duration tracking.
 
