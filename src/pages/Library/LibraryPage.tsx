@@ -59,6 +59,7 @@ export function LibraryPage({ refreshKey, selectedGameId, onSelectedGameChange, 
   const [bulkMode, setBulkMode] = useState(false);
   const [bulkSelectedIds, setBulkSelectedIds] = useState<Set<string>>(() => new Set());
   const [bulkPlayStatus, setBulkPlayStatus] = useState<PlayStatus>('planned');
+  const [bulkCollectionId, setBulkCollectionId] = useState('');
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkMessage, setBulkMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -244,6 +245,8 @@ export function LibraryPage({ refreshKey, selectedGameId, onSelectedGameChange, 
     setBulkMessage(null);
   };
 
+  const selectedBulkCollection = collections.find((collection) => collection.id === bulkCollectionId) ?? null;
+
   async function applyBulkUpdate(input: UpdateGameInput, label: string) {
     const ids = visibleGames.map((game) => game.id).filter((id) => bulkSelectedIds.has(id));
     if (ids.length === 0) return;
@@ -255,6 +258,26 @@ export function LibraryPage({ refreshKey, selectedGameId, onSelectedGameChange, 
       const updatedById = new Map(updated.map((game) => [game.id, game]));
       setGames((current) => current.map((game) => updatedById.get(game.id) ?? game));
       setBulkMessage(`已更新 ${formatCount(updated.length)} 个游戏：${label}。`);
+      onChanged();
+    } catch (reason) {
+      setError(errorMessage(reason));
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
+  async function applyBulkCollection() {
+    if (!selectedBulkCollection) return;
+    const ids = visibleGames.map((game) => game.id).filter((id) => bulkSelectedIds.has(id));
+    if (ids.length === 0) return;
+    setBulkBusy(true);
+    setError(null);
+    setBulkMessage(null);
+    try {
+      await Promise.all(ids.map((id) => api.addGameToCollection(selectedBulkCollection.id, id)));
+      setBulkMessage(`已将 ${formatCount(ids.length)} 个游戏加入合集：${selectedBulkCollection.name}。`);
+      const nextCollections = await api.listCollections();
+      setCollections(nextCollections);
       onChanged();
     } catch (reason) {
       setError(errorMessage(reason));
@@ -301,6 +324,13 @@ export function LibraryPage({ refreshKey, selectedGameId, onSelectedGameChange, 
                   {statuses.filter((item): item is PlayStatus => item !== 'all').map((item) => <option key={item} value={item}>{PLAY_STATUS_LABEL[item]}</option>)}
                 </Select>
                 <Button className="h-8 px-2" disabled={bulkBusy || bulkSelectedVisibleCount === 0} size="sm" variant="secondary" onClick={() => void applyBulkUpdate({ playStatus: bulkPlayStatus }, `游玩状态：${PLAY_STATUS_LABEL[bulkPlayStatus]}`)}>应用状态</Button>
+              </div>
+              <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-1.5">
+                <Select aria-label="批量加入合集" className="w-full" disabled={bulkBusy || collections.length === 0} value={bulkCollectionId} onChange={(event) => setBulkCollectionId(event.target.value)}>
+                  <option value="">选择合集</option>
+                  {collections.map((collection) => <option key={collection.id} value={collection.id}>{collection.name}</option>)}
+                </Select>
+                <Button className="h-8 px-2" disabled={bulkBusy || bulkSelectedVisibleCount === 0 || !selectedBulkCollection} size="sm" variant="secondary" onClick={() => void applyBulkCollection()}>加入合集</Button>
               </div>
               <div className="grid grid-cols-2 gap-1.5">
                 <Button className="h-8 px-2" disabled={bulkBusy || bulkSelectedVisibleCount === 0} size="sm" variant="outline" onClick={() => void applyBulkUpdate({ favorite: true }, '标为收藏')}><Star className="h-4 w-4" />标为收藏</Button>

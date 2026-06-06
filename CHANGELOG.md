@@ -24,7 +24,7 @@ Updated release candidate with the mature local V1 hardening pass.
 - Save restore previews for merge and mirror restore, including new, overwritten, kept, and mirror-removed file counts before task creation.
 - Scanner import audit panel with filterable per-candidate results, conflict reasons, target titles, record IDs, and install paths.
 - Task center overview with queue progress, active/attention/completed counts, status filters, and task-type filters.
-- Library bulk edit bar for selecting the current filtered games and applying play status, favorite, or hidden flags together.
+- Library bulk edit bar for selecting the current filtered games and applying play status, favorite, hidden flags, or collection membership together.
 
 ### Changed
 

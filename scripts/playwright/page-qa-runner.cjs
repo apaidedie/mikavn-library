@@ -206,12 +206,18 @@ async function main() {
         await page.getByLabel('批量游玩状态').selectOption('completed');
         await page.getByRole('button', { name: /应用状态/ }).click();
         await page.getByText(/已更新 2 个游戏：游玩状态：已通关/).first().waitFor({ timeout: 5000 });
+        await page.getByLabel('批量加入合集').selectOption('qa-col-1');
+        await page.getByRole('button', { name: /加入合集/ }).click();
+        await page.getByText(/已将 2 个游戏加入合集：Key 短篇/).first().waitFor({ timeout: 5000 });
         await page.getByRole('button', { name: /^隐藏$/ }).click();
         await page.getByText(/已更新 2 个游戏：隐藏条目/).first().waitFor({ timeout: 5000 });
         await page.getByRole('button', { name: /取消隐藏/ }).click();
         await page.getByText(/已更新 2 个游戏：取消隐藏/).first().waitFor({ timeout: 5000 });
         const updatedGames = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.games') || '[]'));
         if (!updatedGames.every((game) => game.playStatus === 'completed' && game.hidden === false)) throw new Error('library bulk edit did not update selected games');
+        const collectionLinks = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.collectionGames') || '[]'));
+        const linkedIds = new Set(collectionLinks.filter((link) => link.collectionId === 'qa-col-1').map((link) => link.gameId));
+        if (!['qa-1', 'qa-2'].every((id) => linkedIds.has(id))) throw new Error('library bulk edit did not add selected games to collection');
       }],
       ['library-empty', 'library', { games: [] }],
       ['collections-populated', 'collections'],
