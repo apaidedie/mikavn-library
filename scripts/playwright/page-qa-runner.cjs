@@ -355,6 +355,12 @@ async function main() {
         await page.getByText('维护中心').first().waitFor({ timeout: 5000 });
         await page.getByText('维护队列').first().waitFor({ timeout: 5000 });
         await page.getByText('批量元数据匹配').first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: /处理缺 ID/ }).click();
+        await page.getByText('批量匹配').first().waitFor({ timeout: 5000 });
+        if (await page.getByLabel('缺失来源筛选').inputValue() !== 'external_id') throw new Error('metadata missing external ID preset did not select external_id filter');
+        await page.getByText('天使☆騒々 RE-BOOT!').first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: '维护' }).click();
+        await page.getByText('维护中心').first().waitFor({ timeout: 5000 });
         await clickMaintenanceStart(page, '批量元数据匹配');
         await page.getByText(/批量匹配完成|已创建批量元数据匹配任务/).first().waitFor({ timeout: 5000 });
       }],
@@ -362,6 +368,16 @@ async function main() {
         await page.getByText('维护中心').first().waitFor({ timeout: 5000 });
         await page.getByRole('button', { name: /读取诊断/ }).click();
         const artworkDiagnosisPanel = page.locator('section').filter({ hasText: '媒体补全诊断' }).first();
+        await artworkDiagnosisPanel.getByLabel('媒体补全诊断状态筛选').selectOption('missing_external_id');
+        await artworkDiagnosisPanel.getByText('天使☆騒々 RE-BOOT!').first().waitFor({ timeout: 5000 });
+        await artworkDiagnosisPanel.locator('.motion-soft-row').filter({ hasText: '天使☆騒々 RE-BOOT!' }).first().getByRole('button', { name: /^匹配$/ }).click();
+        await page.getByText('批量匹配').first().waitFor({ timeout: 5000 });
+        if (await page.getByLabel('缺失来源筛选').inputValue() !== 'external_id') throw new Error('diagnosis metadata shortcut did not select external_id filter');
+        if (await page.getByLabel('匹配队列搜索').inputValue() !== '天使☆騒々 RE-BOOT!') throw new Error('diagnosis metadata shortcut did not prefill queue search');
+        await page.getByText('天使☆騒々 RE-BOOT!').first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: '维护' }).click();
+        await page.getByText('维护中心').first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: /读取诊断/ }).click();
         await artworkDiagnosisPanel.getByText('媒体图片补全候选').first().waitFor({ timeout: 5000 });
         await artworkDiagnosisPanel.getByLabel('媒体补全诊断搜索').fill('媒体图片补全候选');
         await artworkDiagnosisPanel.getByText('媒体图片补全候选').first().waitFor({ timeout: 5000 });

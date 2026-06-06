@@ -17,7 +17,7 @@ The current implementation focuses on a complete local desktop workflow:
 - Dashboard and basic report metrics
 - Metadata search and matching surfaces for VNDB, DLsite, and FANZA
 - Metadata field locks so user-edited fields are not overwritten by default
-- Batch metadata matching with resettable queue search/provider-gap filters, field write presets, candidate review, result text/status/write filters, filtered bulk writeback, stored job/result status, and user-confirmed writeback
+- Batch metadata matching with resettable queue search/provider-gap filters including a missing-all-external-IDs preset, field write presets, candidate review, result text/status/write filters, filtered bulk writeback, stored job/result status, and user-confirmed writeback
 - AI image-recognition command using OpenAI-compatible chat completions
 - Scanner preview and candidate import flow with duplicate/conflict review actions
 - Library root management in Settings, with user-confirmed scan tasks and candidate review before import
@@ -30,9 +30,9 @@ The current implementation focuses on a complete local desktop workflow:
 - Game detail media health summary for cover, banner, background, inline description image references, per-game image-reference audit details for missing/C-drive/Playnite leftovers, and a shortcut into the searchable/filterable Maintenance image audit
 - Asset gallery on game detail pages for cover, banner, background, screenshots, local import, remote download, primary selection, removal, and cache cleanup
 - Batch media artwork repair from metadata providers for missing cover, banner, and background images
-- Maintenance media artwork diagnosis for searchable/filterable missing external IDs, remote no-image results, provider errors, and repairable artwork candidates with game-detail shortcuts
+- Maintenance media artwork diagnosis for searchable/filterable missing external IDs, remote no-image results, provider errors, and repairable artwork candidates with game-detail and batch-metadata shortcuts
 - Maintenance media artwork result summaries for recent repair tasks, including searchable/filterable updated, skipped, and failed entries with reasons and game-detail shortcuts
-- Maintenance recent-task overview for batch matching, description image repair, artwork repair, and duplicate ID audit jobs with status counts, progress, timing, log shortcuts, retry, and cancellation
+- Maintenance recent-task overview for batch matching, description image repair, artwork repair, and duplicate ID audit jobs with status counts, progress, timing, log shortcuts, missing-ID matching shortcuts, retry, and cancellation
 - Asset commands for importing local image files into app data, downloading remote image assets, previewing image cache cleanup, and cleaning files not referenced by game image fields, gallery records, or local description images
 - Save-path management, manual backups, restore-before-protection backups, and backup history
 - Optional automatic save backups before launch and after game exit, visible in the task timeline

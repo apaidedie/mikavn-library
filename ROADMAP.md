@@ -61,9 +61,9 @@ Done:
 - Tag rename, merge, and delete commands plus Settings maintenance UI for normalized tag cleanup.
 - Game detail media health summary for cover, banner, background, inline description image references, per-game image-reference audit details, and Maintenance image-audit shortcut, plus asset gallery for cover, banner, background, screenshots, primary selection, user image import, remote asset download, removal, and unreferenced image cache cleanup with Maintenance preview and protection for game fields, asset records, and local description images.
 - Maintenance media artwork repair fills missing cover, banner, and background images from available metadata providers.
-- Maintenance media artwork diagnosis shows searchable/filterable reasons why missing artwork can or cannot be repaired before launching a batch task, with game-detail shortcuts.
+- Maintenance media artwork diagnosis shows searchable/filterable reasons why missing artwork can or cannot be repaired before launching a batch task, with game-detail shortcuts and direct missing-external-ID handoff into batch metadata matching.
 - Maintenance media artwork result summaries show searchable/filterable recent repair outcomes, skipped reasons, failed entries, and game-detail shortcuts from task logs.
-- Maintenance recent-task overview shows batch matching, description image repair, artwork repair, and duplicate ID audit status counts, progress, timing, log shortcuts, retry, and cancellation.
+- Maintenance recent-task overview shows batch matching, description image repair, artwork repair, and duplicate ID audit status counts, progress, timing, log shortcuts, missing-ID matching shortcuts, retry, and cancellation.
 - Maintenance image-reference audit with searchable/filterable per-game/source details, game-detail shortcuts, missing local files, C-drive leftovers, Playnite leftovers, raw values, and resolved local paths.
 - Maintenance duplicate game merge supports resettable searchable/provider-filtered duplicate groups, suggests a keep target, and previews full related-record move counts before safe migration.
 - Basic settings.
@@ -115,7 +115,7 @@ Done:
 - Save backup and restore task records.
 - Save restore preview summarizes merge and mirror differences before execution, including copied, overwritten, kept, and mirror-removed file counts.
 - Optional auto backup before launch and after exit through local settings and `save.auto_backup` task logs.
-- Batch metadata updates with resettable queue search/provider-gap filters, field write presets, result text/status/write-state filters, and filtered bulk writeback for reviewing large match result sets.
+- Batch metadata updates with resettable queue search/provider-gap filters including missing-all-external-ID presets, field write presets, result text/status/write-state filters, and filtered bulk writeback for reviewing large match result sets.
 - Metadata field locks with explicit override.
 - Launch profile data model, direct launch, shortcut launch, Locale Emulator-style wrapper launch, custom shell command launch, environment variables, pre/post hooks, and Windows `runAsAdmin` launch with UAC process-handle duration tracking.
 

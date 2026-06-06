@@ -53,6 +53,7 @@ export function App() {
   const topSearchRef = useRef<HTMLInputElement | null>(null);
   const [taskFocusRequest, setTaskFocusRequest] = useState<{ id: string | null; key: number }>({ id: null, key: 0 });
   const [maintenanceFocusRequest, setMaintenanceFocusRequest] = useState<{ section: string | null; key: number }>({ section: null, key: 0 });
+  const [metadataQueuePresetRequest, setMetadataQueuePresetRequest] = useState<{ key: number; query?: string; missingProvider?: string }>({ key: 0 });
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [systemPrefersDark, setSystemPrefersDark] = useState(() => typeof window === 'undefined' ? true : window.matchMedia('(prefers-color-scheme: dark)').matches);
 
@@ -150,6 +151,11 @@ export function App() {
   const openMaintenance = useCallback((section?: string | null) => {
     setMaintenanceFocusRequest((current) => ({ section: section ?? null, key: current.key + 1 }));
     setView('maintenance');
+  }, []);
+
+  const openMetadata = useCallback((preset?: { query?: string; missingProvider?: string } | null) => {
+    setMetadataQueuePresetRequest((current) => ({ key: current.key + 1, query: preset?.query ?? '', missingProvider: preset?.missingProvider ?? 'all' }));
+    setView('metadata');
   }, []);
 
   useEffect(() => {
@@ -281,11 +287,11 @@ export function App() {
           {view === 'collections' && <CollectionsPage refreshKey={refreshKey} onOpenGame={(id) => { setSelectedGameId(id); setView('library'); }} onChanged={refresh} />}
           {view === 'advanced-search' && <AdvancedSearchPage refreshKey={refreshKey} onOpenGame={(id) => { setSelectedGameId(id); setView('library'); }} />}
           {view === 'scanner' && <ScannerPage onOpenTask={openTasks} />}
-          {view === 'metadata' && <BatchMetadataPage refreshKey={refreshKey} onOpenTask={openTasks} />}
+          {view === 'metadata' && <BatchMetadataPage queuePresetRequest={metadataQueuePresetRequest} refreshKey={refreshKey} onOpenTask={openTasks} />}
           {view === 'tasks' && <TasksPage focusTaskId={taskFocusRequest.id} focusRequestKey={taskFocusRequest.key} refreshKey={refreshKey} />}
           {view === 'reports' && <ReportsPage refreshKey={refreshKey} onOpenTask={openTasks} />}
           {view === 'saves' && <SavesPage refreshKey={refreshKey} onOpenTask={openTasks} />}
-          {view === 'maintenance' && <MaintenancePage focusRequestKey={maintenanceFocusRequest.key} focusSection={maintenanceFocusRequest.section} refreshKey={refreshKey} onOpenGame={(id) => { setSelectedGameId(id); setView('library'); }} onOpenTasks={openTasks} />}
+          {view === 'maintenance' && <MaintenancePage focusRequestKey={maintenanceFocusRequest.key} focusSection={maintenanceFocusRequest.section} refreshKey={refreshKey} onOpenGame={(id) => { setSelectedGameId(id); setView('library'); }} onOpenMetadata={openMetadata} onOpenTasks={openTasks} />}
           {view === 'settings' && <SettingsPage onAccentPreview={previewAccent} onThemePreview={previewTheme} onSaved={refresh} onOpenTask={openTasks} />}
         </div>
       </main>

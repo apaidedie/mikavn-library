@@ -35,7 +35,7 @@ type ArtworkRepairTaskSummary = {
   failed: ArtworkRepairLogSummary[];
 };
 
-export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0, onOpenGame, onOpenTasks }: { refreshKey: number; focusSection?: string | null; focusRequestKey?: number; onOpenGame?: (gameId: string) => void; onOpenTasks?: (taskId?: string | null) => void }) {
+export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0, onOpenGame, onOpenMetadata, onOpenTasks }: { refreshKey: number; focusSection?: string | null; focusRequestKey?: number; onOpenGame?: (gameId: string) => void; onOpenMetadata?: (preset?: { query?: string; missingProvider?: string } | null) => void; onOpenTasks?: (taskId?: string | null) => void }) {
   const imageAuditRef = useRef<HTMLElement | null>(null);
   const handledFocusKeyRef = useRef<number | null>(null);
   const [diagnostics, setDiagnostics] = useState<AppDataDiagnostics | null>(null);
@@ -341,7 +341,7 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
                 {artworkDiagnosis.items.length > 0 ? (
                   <div className="space-y-2">
                     <div className="px-1 text-xs text-slate-500">当前显示 {formatCount(filteredArtworkDiagnosisItems.length)} / {formatCount(artworkDiagnosis.items.length)} 个诊断条目。</div>
-                    {filteredArtworkDiagnosisItems.length > 0 ? filteredArtworkDiagnosisItems.map((item) => <ArtworkDiagnosisRow item={item} key={item.gameId} onOpenGame={onOpenGame} />) : <SoftRow className="px-3 py-3 text-sm text-slate-400">当前筛选没有匹配的媒体补全诊断。</SoftRow>}
+                    {filteredArtworkDiagnosisItems.length > 0 ? filteredArtworkDiagnosisItems.map((item) => <ArtworkDiagnosisRow item={item} key={item.gameId} onOpenGame={onOpenGame} onOpenMetadata={onOpenMetadata} />) : <SoftRow className="px-3 py-3 text-sm text-slate-400">当前筛选没有匹配的媒体补全诊断。</SoftRow>}
                     {artworkDiagnosis.truncated && <div className="px-1 text-xs text-slate-500">结果较多，当前只诊断前 {formatCount(artworkDiagnosis.diagnosedGames)} 个缺图游戏。</div>}
                   </div>
                 ) : (
@@ -631,9 +631,12 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
             />
             <MaintenanceAction
               action={(
-                <Button disabled={metadataRepairLoading || (metadata?.needsMetadataCount ?? 0) === 0} size="sm" variant="secondary" onClick={startMetadataRepair}>
-                  <PlayCircle className="h-4 w-4" />{metadataRepairLoading ? '创建中' : '开始'}
-                </Button>
+                <>
+                  {onOpenMetadata && <Button disabled={(metadata?.missingExternalIdCount ?? 0) === 0} size="sm" variant="outline" onClick={() => onOpenMetadata({ missingProvider: 'external_id' })}>处理缺 ID</Button>}
+                  <Button disabled={metadataRepairLoading || (metadata?.needsMetadataCount ?? 0) === 0} size="sm" variant="secondary" onClick={startMetadataRepair}>
+                    <PlayCircle className="h-4 w-4" />{metadataRepairLoading ? '创建中' : '开始'}
+                  </Button>
+                </>
               )}
               detail={`${formatCount(metadata?.needsMetadataCount ?? 0)} 个条目可批量匹配元数据`}
               label="批量元数据匹配"
@@ -1044,7 +1047,8 @@ function matchesImageAuditItem(item: ImageReferenceAuditItem, query: string, iss
   return matchesIssue && matchesQuery;
 }
 
-function ArtworkDiagnosisRow({ item, onOpenGame }: { item: ArtworkRepairDiagnosisItem; onOpenGame?: (gameId: string) => void }) {
+function ArtworkDiagnosisRow({ item, onOpenGame, onOpenMetadata }: { item: ArtworkRepairDiagnosisItem; onOpenGame?: (gameId: string) => void; onOpenMetadata?: (preset?: { query?: string; missingProvider?: string } | null) => void }) {
+  const canOpenMetadata = item.status === 'missing_external_id' && Boolean(onOpenMetadata);
   return (
     <SoftRow className="grid gap-3 px-3 py-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
       <div className="min-w-0">
@@ -1052,6 +1056,7 @@ function ArtworkDiagnosisRow({ item, onOpenGame }: { item: ArtworkRepairDiagnosi
           <span className="truncate text-sm font-medium text-slate-100" title={item.title}>{item.title}</span>
           <Badge className={artworkStatusBadgeClass(item.status)}>{artworkStatusLabel(item.status)}</Badge>
           {onOpenGame && <Button className="h-7 px-2" size="sm" variant="ghost" onClick={() => onOpenGame(item.gameId)}>游戏</Button>}
+          {canOpenMetadata && <Button className="h-7 px-2" size="sm" variant="outline" onClick={() => onOpenMetadata?.({ query: item.title, missingProvider: 'external_id' })}>匹配</Button>}
         </div>
         <div className="mt-2 flex flex-wrap gap-1.5">
           {item.missingFields.map((field) => <Badge key={field}>{artworkFieldLabel(field)}</Badge>)}

@@ -19,8 +19,9 @@ const defaultFields: ApplyMetadataFields = ['originalTitle', 'description', 'rel
 const mediaFields: ApplyMetadataFields = ['coverImage', 'externalIds'];
 const textFields: ApplyMetadataFields = ['originalTitle', 'description', 'releaseDate', 'developer', 'tags', 'genres'];
 type TaskMessage = { text: string; taskId?: string | null };
+type QueuePresetRequest = { key: number; query?: string; missingProvider?: string };
 
-export function BatchMetadataPage({ refreshKey, onOpenTask }: { refreshKey: number; onOpenTask?: (taskId: string) => void }) {
+export function BatchMetadataPage({ refreshKey, queuePresetRequest, onOpenTask }: { refreshKey: number; queuePresetRequest?: QueuePresetRequest | null; onOpenTask?: (taskId: string) => void }) {
   const [games, setGames] = useState<Game[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [status, setStatus] = useState<BatchMatchStatus | null>(null);
@@ -43,6 +44,13 @@ export function BatchMetadataPage({ refreshKey, onOpenTask }: { refreshKey: numb
   }, [refreshKey]);
 
   useEffect(() => {
+    if (!queuePresetRequest?.key) return;
+    setQueueQuery(queuePresetRequest.query ?? '');
+    setMissingProviderFilter(queuePresetRequest.missingProvider ?? 'all');
+    setSelectedIds([]);
+  }, [queuePresetRequest?.key]);
+
+  useEffect(() => {
     if (!status || status.job.status !== 'running') {
       return;
     }
@@ -59,6 +67,7 @@ export function BatchMetadataPage({ refreshKey, onOpenTask }: { refreshKey: numb
       .filter(Boolean)
       .some((value) => String(value).toLowerCase().includes(queryText));
     const matchesProvider = missingProviderFilter === 'all'
+      || (missingProviderFilter === 'external_id' && !game.vndbId && !game.dlsiteId && !game.fanzaId)
       || (missingProviderFilter === 'vndb' && !game.vndbId)
       || (missingProviderFilter === 'dlsite' && !game.dlsiteId)
       || (missingProviderFilter === 'fanza' && !game.fanzaId);
@@ -209,6 +218,7 @@ export function BatchMetadataPage({ refreshKey, onOpenTask }: { refreshKey: numb
             </div>
             <Select aria-label="缺失来源筛选" value={missingProviderFilter} onChange={(event) => setMissingProviderFilter(event.target.value)}>
               <option value="all">全部缺失来源</option>
+              <option value="external_id">缺全部外部 ID</option>
               <option value="vndb">缺 VNDB</option>
               <option value="dlsite">缺 DLsite</option>
               <option value="fanza">缺 FANZA</option>
