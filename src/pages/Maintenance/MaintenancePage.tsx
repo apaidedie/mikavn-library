@@ -45,6 +45,8 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
   const [assetCleanupPreview, setAssetCleanupPreview] = useState<AssetCacheCleanupResult | null>(null);
   const [imageAudit, setImageAudit] = useState<ImageReferenceAudit | null>(null);
   const [imageAuditLoading, setImageAuditLoading] = useState(false);
+  const [imageAuditQuery, setImageAuditQuery] = useState('');
+  const [imageAuditIssueFilter, setImageAuditIssueFilter] = useState('all');
   const [artworkDiagnosis, setArtworkDiagnosis] = useState<ArtworkRepairDiagnosis | null>(null);
   const [artworkDiagnosisLoading, setArtworkDiagnosisLoading] = useState(false);
   const [artworkHistory, setArtworkHistory] = useState<ArtworkRepairTaskSummary[] | null>(null);
@@ -106,6 +108,10 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
       || group.games.some((game) => [game.title, game.installPath].some((value) => value.toLowerCase().includes(query)));
     return matchesProvider && matchesQuery;
   }), [duplicateGroupProvider, duplicateGroupQuery, duplicateGroups]);
+  const filteredImageAuditItems = useMemo(
+    () => imageAudit?.items.filter((item) => matchesImageAuditItem(item, imageAuditQuery, imageAuditIssueFilter)) ?? [],
+    [imageAudit, imageAuditIssueFilter, imageAuditQuery]
+  );
   const selectedDuplicateGroup = useMemo(() => filteredDuplicateGroups.find((group) => duplicateGroupKey(group) === selectedDuplicateKey) ?? filteredDuplicateGroups[0] ?? null, [filteredDuplicateGroups, selectedDuplicateKey]);
   const recommendedMergeTargetId = useMemo(() => recommendDuplicateMergeTarget(selectedDuplicateGroup), [selectedDuplicateGroup]);
   const mergeSourceIds = useMemo(() => selectedDuplicateGroup?.games.map((game) => game.gameId).filter((id) => id !== mergeTargetId) ?? [], [mergeTargetId, selectedDuplicateGroup]);
@@ -115,6 +121,11 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
     setDuplicateGroupQuery('');
     setDuplicateGroupProvider('all');
     setMergePreview(null);
+  };
+
+  const resetImageAuditFilters = () => {
+    setImageAuditQuery('');
+    setImageAuditIssueFilter('all');
   };
 
   useEffect(() => {
@@ -343,9 +354,26 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
                   <CompactStat label="C 盘残留" value={imageAudit.cDriveCount} tone={imageAudit.cDriveCount > 0 ? 'warn' : 'ok'} />
                   <CompactStat label="Playnite 残留" value={imageAudit.playniteCount} tone={imageAudit.playniteCount > 0 ? 'warn' : 'ok'} />
                 </div>
+                <SoftRow className="grid gap-2 px-3 py-3 md:grid-cols-[minmax(0,1fr)_minmax(10rem,14rem)_auto] md:items-end">
+                  <label className="min-w-0 text-xs text-slate-500">
+                    搜索图片引用
+                    <Input aria-label="图片引用搜索" className="mt-1 w-full" placeholder="游戏 / 字段 / 路径 / 问题" value={imageAuditQuery} onChange={(event) => setImageAuditQuery(event.target.value)} />
+                  </label>
+                  <label className="min-w-0 text-xs text-slate-500">
+                    问题类型
+                    <Select aria-label="图片引用问题筛选" className="mt-1 w-full" value={imageAuditIssueFilter} onChange={(event) => setImageAuditIssueFilter(event.target.value)}>
+                      <option value="all">全部问题</option>
+                      <option value="missing">缺失本地文件</option>
+                      <option value="c_drive">C 盘残留</option>
+                      <option value="playnite">Playnite 残留</option>
+                    </Select>
+                  </label>
+                  <Button className="h-9" disabled={!imageAuditQuery.trim() && imageAuditIssueFilter === 'all'} size="sm" variant="outline" onClick={resetImageAuditFilters}>重置筛选</Button>
+                </SoftRow>
                 {imageAudit.items.length > 0 ? (
                   <div className="space-y-2">
-                    {imageAudit.items.map((item, index) => <ImageAuditRow item={item} key={`${item.gameId ?? 'game'}-${item.sourceKind}-${item.fieldName ?? 'field'}-${item.value}-${index}`} />)}
+                    <div className="px-1 text-xs text-slate-500">当前显示 {formatCount(filteredImageAuditItems.length)} / {formatCount(imageAudit.items.length)} 条引用。</div>
+                    {filteredImageAuditItems.length > 0 ? filteredImageAuditItems.map((item, index) => <ImageAuditRow item={item} key={`${item.gameId ?? 'game'}-${item.sourceKind}-${item.fieldName ?? 'field'}-${item.value}-${index}`} />) : <SoftRow className="px-3 py-3 text-sm text-slate-400">当前筛选没有匹配的图片引用。</SoftRow>}
                     {imageAudit.truncated && <div className="px-1 text-xs text-slate-500">结果较多，当前只显示前 80 条问题引用。</div>}
                   </div>
                 ) : (
@@ -852,6 +880,28 @@ function ImageAuditRow({ item }: { item: ImageReferenceAuditItem }) {
       </div>
     </SoftRow>
   );
+}
+
+function matchesImageAuditItem(item: ImageReferenceAuditItem, query: string, issueFilter: string) {
+  const issues = item.issues.length > 0 ? item.issues : [item.status];
+  const matchesIssue = issueFilter === 'all' || issues.includes(issueFilter);
+  const value = query.trim().toLowerCase();
+  const searchableValues = [
+    item.gameId,
+    item.gameTitle,
+    item.sourceKind,
+    item.sourceLabel,
+    item.fieldName,
+    item.fieldName ? imageFieldLabel(item.fieldName) : '',
+    item.value,
+    item.resolvedPath,
+    item.status,
+    imageIssueLabel(item.status),
+    ...issues,
+    ...issues.map(imageIssueLabel),
+  ];
+  const matchesQuery = !value || searchableValues.some((text) => String(text ?? '').toLowerCase().includes(value));
+  return matchesIssue && matchesQuery;
 }
 
 function ArtworkDiagnosisRow({ item }: { item: ArtworkRepairDiagnosisItem }) {

@@ -63,7 +63,7 @@ Done:
 - Maintenance media artwork repair fills missing cover, banner, and background images from available metadata providers.
 - Maintenance media artwork diagnosis shows why missing artwork can or cannot be repaired before launching a batch task.
 - Maintenance media artwork result summaries show recent repair outcomes, skipped reasons, and failed entries from task logs.
-- Maintenance image-reference audit with per-game/source details for missing local files, C-drive leftovers, Playnite leftovers, raw values, and resolved local paths.
+- Maintenance image-reference audit with searchable/filterable per-game/source details for missing local files, C-drive leftovers, Playnite leftovers, raw values, and resolved local paths.
 - Maintenance duplicate game merge supports resettable searchable/provider-filtered duplicate groups, suggests a keep target, and previews full related-record move counts before safe migration.
 - Basic settings.
 - Broken path check and install directory relocation.

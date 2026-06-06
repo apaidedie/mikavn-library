@@ -273,6 +273,13 @@ async function main() {
         await page.getByText('图片引用问题').first().waitFor({ timeout: 5000 });
         await page.getByText(/图片引用审计完成：发现/).first().waitFor({ timeout: 5000 });
         await page.getByText('D:\\Playnite\\library\\files\\missing-banner.jpg').first().waitFor({ timeout: 5000 });
+        const imageAuditPanel = page.locator('section').filter({ hasText: '图片引用问题' }).first();
+        await imageAuditPanel.getByLabel('图片引用搜索').fill('Playnite');
+        await imageAuditPanel.getByText('D:\\Playnite\\library\\files\\missing-banner.jpg').first().waitFor({ timeout: 5000 });
+        await imageAuditPanel.getByLabel('图片引用问题筛选').selectOption('c_drive');
+        await imageAuditPanel.getByText('当前筛选没有匹配的图片引用。').first().waitFor({ timeout: 5000 });
+        await imageAuditPanel.getByRole('button', { name: /重置筛选/ }).click();
+        await imageAuditPanel.getByText('D:\\Playnite\\library\\files\\missing-banner.jpg').first().waitFor({ timeout: 5000 });
       }],
       ['library-empty', 'library', { games: [] }],
       ['collections-populated', 'collections'],
