@@ -100,6 +100,7 @@ const brokenMediaReferenceAsset = { id: 'qa-broken-media-asset', gameId: 'qa-bro
 const tasks = [
   { id: 'qa-task-failed', taskType: 'library.scan', status: 'failed', progress: 1, message: '扫描失败：路径不存在', error: 'PATH_NOT_FOUND: D:\\Missing', retryPayload: JSON.stringify({ path: 'D:\\Missing', recursive: true }), retryable: true, createdAt: now, updatedAt: now },
   { id: 'qa-task-running', taskType: 'metadata.batch_match', status: 'running', progress: 0.42, message: '正在匹配 2 个游戏', error: null, retryPayload: JSON.stringify({ gameIds: ['qa-1', 'qa-2'] }), retryable: true, createdAt: tenMinutesAgo, updatedAt: now },
+  { id: 'qa-task-maintenance-failed', taskType: 'metadata.artwork_repair', status: 'failed', progress: 1, message: '媒体补图失败：来源无响应', error: 'PROVIDER_TIMEOUT: VNDB', retryPayload: JSON.stringify({ providers: ['all'], fields: ['cover', 'banner', 'background'], limit: 20 }), retryable: true, createdAt: tenMinutesAgo, updatedAt: now },
 ];
 const taskLogs = {
   'qa-task-failed': [
@@ -107,6 +108,7 @@ const taskLogs = {
     { id: 'log-2', taskId: 'qa-task-failed', level: 'error', message: '路径不存在，等待用户重试。', createdAt: now },
   ],
   'qa-task-running': [{ id: 'log-3', taskId: 'qa-task-running', level: 'info', message: 'VNDB 查询完成。', createdAt: now }],
+  'qa-task-maintenance-failed': [{ id: 'log-4', taskId: 'qa-task-maintenance-failed', level: 'error', message: '媒体补图失败：来源无响应。', createdAt: now }],
 };
 const savePaths = [{ id: 'qa-save-path', gameId: 'qa-1', label: '默认存档', path: 'D:\\Games\\VN\\星之终途\\save', createdAt: now }];
 const saveBackups = [{ id: 'qa-save-backup', gameId: 'qa-1', savePathId: 'qa-save-path', label: '手动备份', sourcePath: savePaths[0].path, backupPath: 'mock://save-backups/qa-1/manual', protection: false, createdAt: now }];
@@ -324,6 +326,15 @@ async function main() {
       ['saves-backup-restore', 'saves'],
       ['maintenance-health-description-repair', 'maintenance', { games: [...games, descriptionRepairGame] }, async (page) => {
         await page.getByText('维护中心').first().waitFor({ timeout: 5000 });
+        await page.getByText('最近维护任务').first().waitFor({ timeout: 5000 });
+        await page.getByText('正在匹配 2 个游戏').first().waitFor({ timeout: 5000 });
+        await page.getByText('媒体补图失败：来源无响应').first().waitFor({ timeout: 5000 });
+        if (await page.getByText('扫描失败：路径不存在').count() > 0) throw new Error('maintenance task panel should not show scan tasks');
+        await page.locator('section').filter({ hasText: '最近维护任务' }).first().getByRole('button', { name: /日志/ }).first().click();
+        await page.getByText('任务队列').first().waitFor({ timeout: 5000 });
+        await page.getByText('正在匹配 2 个游戏').first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: '维护' }).click();
+        await page.getByText('维护中心').first().waitFor({ timeout: 5000 });
         await page.getByText('简介图片覆盖').first().waitFor({ timeout: 5000 });
         await page.getByText('维护队列').first().waitFor({ timeout: 5000 });
         await page.getByText('简介图片修复').first().waitFor({ timeout: 5000 });
@@ -347,7 +358,7 @@ async function main() {
         await page.getByText('维护中心').first().waitFor({ timeout: 5000 });
         await page.getByRole('button', { name: /读取结果/ }).click();
         await page.getByText('媒体补全结果').first().waitFor({ timeout: 5000 });
-        await page.getByText(/已读取 1 个媒体补全任务结果/).first().waitFor({ timeout: 5000 });
+        await page.getByText(/已读取 \d+ 个媒体补全任务结果/).first().waitFor({ timeout: 5000 });
         await page.getByText('媒体图片补全候选').first().waitFor({ timeout: 5000 });
         await page.getByText('已补全目标媒体字段。').first().waitFor({ timeout: 5000 });
         await page.getByText('已补全').first().waitFor({ timeout: 5000 });

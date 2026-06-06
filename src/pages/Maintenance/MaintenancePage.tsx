@@ -13,7 +13,7 @@ import type { AssetCacheCleanupResult } from '@/types/game';
 import type { ArtworkRepairDiagnosis, ArtworkRepairDiagnosisItem, DuplicateExternalIdGroup, DuplicateGameMergePreview } from '@/types/metadata';
 import type { TaskDetail, TaskLogEntry, TaskRecord } from '@/types/task';
 import { errorMessage } from '@/utils/errorMessage';
-import { taskStatusClass, taskStatusLabel } from '@/utils/taskLabels';
+import { taskLabel, taskStatusClass, taskStatusLabel } from '@/utils/taskLabels';
 import { formatDateTime } from '@/utils/time';
 import { Select } from '@/components/ui/select';
 
@@ -65,10 +65,19 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
   const [mergeLoading, setMergeLoading] = useState(false);
   const [message, setMessage] = useState<TaskMessage | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [maintenanceTasks, setMaintenanceTasks] = useState<TaskRecord[]>([]);
+  const [maintenanceTasksLoading, setMaintenanceTasksLoading] = useState(false);
 
   useEffect(() => {
     void loadDiagnostics();
+    void loadMaintenanceTasks();
   }, [refreshKey]);
+
+  useEffect(() => {
+    if (!maintenanceTasks.some(isActiveTask)) return;
+    const timer = window.setInterval(() => void loadMaintenanceTasks({ quiet: true }), 2000);
+    return () => window.clearInterval(timer);
+  }, [maintenanceTasks]);
 
   useEffect(() => {
     if (focusSection !== 'image-audit' || handledFocusKeyRef.current === focusRequestKey) return;
@@ -116,6 +125,7 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
   const recommendedMergeTargetId = useMemo(() => recommendDuplicateMergeTarget(selectedDuplicateGroup), [selectedDuplicateGroup]);
   const mergeSourceIds = useMemo(() => selectedDuplicateGroup?.games.map((game) => game.gameId).filter((id) => id !== mergeTargetId) ?? [], [mergeTargetId, selectedDuplicateGroup]);
   const duplicateGroupFiltersActive = duplicateGroupQuery.trim().length > 0 || duplicateGroupProvider !== 'all';
+  const maintenanceTaskSummary = useMemo(() => summarizeMaintenanceTasks(maintenanceTasks), [maintenanceTasks]);
 
   const resetDuplicateGroupFilters = () => {
     setDuplicateGroupQuery('');
@@ -502,6 +512,30 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
         </Panel>
 
         <Panel>
+          <PanelHeader
+            title="最近维护任务"
+            description="只汇总批量匹配、简介修复、媒体补图和重复 ID 审查。"
+            icon={<ListChecks className="h-4 w-4" />}
+            actions={<Button disabled={maintenanceTasksLoading} size="sm" variant="ghost" onClick={() => void loadMaintenanceTasks()}><RefreshCw className="h-4 w-4" />{maintenanceTasksLoading ? '读取中' : '刷新任务'}</Button>}
+          />
+          <PanelContent className="space-y-3">
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+              <CompactStat label="维护任务" value={maintenanceTasks.length} />
+              <CompactStat label="进行中" value={maintenanceTaskSummary.activeCount} tone={maintenanceTaskSummary.activeCount > 0 ? 'warn' : 'ok'} />
+              <CompactStat label="需处理" value={maintenanceTaskSummary.attentionCount} tone={maintenanceTaskSummary.attentionCount > 0 ? 'warn' : 'ok'} />
+              <CompactStat label="已完成" value={maintenanceTaskSummary.completedCount} tone={maintenanceTaskSummary.completedCount > 0 ? 'ok' : 'neutral'} />
+            </div>
+            {maintenanceTasks.length > 0 ? (
+              <div className="space-y-2">
+                {maintenanceTasks.map((task) => <MaintenanceTaskRow key={task.id} onOpenTask={onOpenTasks} task={task} />)}
+              </div>
+            ) : (
+              <SoftRow className="px-3 py-3 text-sm text-slate-400">还没有维护任务记录。创建批量匹配、简介修复、媒体补图或重复 ID 审查后会显示在这里。</SoftRow>
+            )}
+          </PanelContent>
+        </Panel>
+
+        <Panel>
           <PanelHeader title="维护队列" description="已落地的统计基础和下一批整理入口。" icon={<ListChecks className="h-4 w-4" />} />
           <PanelContent className="grid gap-2 xl:grid-cols-4">
             <MaintenanceAction
@@ -559,6 +593,18 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
       setError(errorMessage(reason));
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadMaintenanceTasks(options?: { quiet?: boolean }) {
+    if (!options?.quiet) setMaintenanceTasksLoading(true);
+    try {
+      const tasks = (await api.listTasks(100)).filter(isMaintenanceTask).slice(0, 8);
+      setMaintenanceTasks(tasks);
+    } catch (reason) {
+      if (!options?.quiet) setError(errorMessage(reason));
+    } finally {
+      if (!options?.quiet) setMaintenanceTasksLoading(false);
     }
   }
 
@@ -687,6 +733,7 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
       const job = await api.batchMatchMetadata(gameIds);
       const text = `已创建批量元数据匹配任务：${formatCount(gameIds.length)} 个条目。`;
       setMessage({ text, taskId: job.taskId ?? null });
+      await loadMaintenanceTasks({ quiet: true });
       if (job.taskId) onOpenTasks?.(job.taskId);
       await loadDiagnostics();
     } catch (reason) {
@@ -709,6 +756,7 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
       }
       const task = await api.repairDescriptionImages({ provider: 'all', limit: 20, maxImages: 3 });
       setMessage({ text: `已创建简介图片修复任务：本轮 ${formatCount(preview.candidates.length)} 个条目。`, taskId: task.id });
+      await loadMaintenanceTasks({ quiet: true });
       onOpenTasks?.(task.id);
       await loadDiagnostics();
     } catch (reason) {
@@ -732,6 +780,7 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
       }
       const task = await api.repairArtwork(options);
       setMessage({ text: `已创建媒体图片补全任务：本轮 ${formatCount(preview.candidates.length)} 个条目，${formatCount(preview.totalMissingFields)} 个字段。`, taskId: task.id });
+      await loadMaintenanceTasks({ quiet: true });
       onOpenTasks?.(task.id);
       await loadDiagnostics();
     } catch (reason) {
@@ -754,6 +803,7 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
       }
       const task = await api.auditDuplicateExternalIds({ providers: ['all'], limit: 50 });
       setMessage({ text: `已创建重复 ID 审查任务：${formatCount(preview.totalGroups)} 组，涉及 ${formatCount(preview.totalGames)} 个游戏。`, taskId: task.id });
+      await loadMaintenanceTasks({ quiet: true });
       onOpenTasks?.(task.id);
       await loadDiagnostics();
     } catch (reason) {
@@ -1095,6 +1145,77 @@ function MaintenanceAction({ action, label, detail, status }: { action?: ReactNo
       </div>
     </SoftRow>
   );
+}
+
+function MaintenanceTaskRow({ task, onOpenTask }: { task: TaskRecord; onOpenTask?: (taskId?: string | null) => void }) {
+  const progress = boundedProgress(task.progress);
+  return (
+    <SoftRow className="grid gap-3 px-3 py-3 xl:grid-cols-[minmax(0,1fr)_minmax(8rem,12rem)_auto] xl:items-center">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="truncate text-sm font-medium text-slate-100">{taskLabel(task.taskType)}</span>
+          <Badge className={taskStatusClass(task.status)}>{taskStatusLabel(task.status)}</Badge>
+          <span className="font-mono text-xs text-slate-500">{Math.round(progress * 100)}%</span>
+        </div>
+        <div className="mt-1 truncate text-xs text-slate-500">{task.message || task.error || '无消息'}</div>
+        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-600">
+          <span>更新 {formatDateTime(task.updatedAt)}</span>
+          <span>{taskTimingLabel(task)}</span>
+        </div>
+        {task.error && <div className="mt-2 break-all text-xs text-rose-200">{task.error}</div>}
+      </div>
+      <div className="min-w-0">
+        <div className="mb-1 text-right font-mono text-xs text-slate-400">{Math.round(progress * 100)}%</div>
+        <div className="h-1.5 overflow-hidden rounded-full bg-black/25">
+          <div className="h-full rounded-full bg-[rgb(var(--accent-rgb))]" style={{ width: `${Math.round(progress * 100)}%` }} />
+        </div>
+      </div>
+      {onOpenTask ? <Button size="sm" variant="ghost" onClick={() => onOpenTask(task.id)}>日志</Button> : <span />}
+    </SoftRow>
+  );
+}
+
+function isMaintenanceTask(task: TaskRecord) {
+  return ['metadata.batch_match', 'metadata.description_image_repair', 'metadata.artwork_repair', 'metadata.duplicate_id_audit'].includes(task.taskType);
+}
+
+function isActiveTask(task: TaskRecord) {
+  return task.status === 'running' || task.status === 'pending';
+}
+
+function needsAttentionTask(task: TaskRecord) {
+  return task.status === 'failed' || task.status === 'cancelled';
+}
+
+function summarizeMaintenanceTasks(tasks: TaskRecord[]) {
+  return {
+    activeCount: tasks.filter(isActiveTask).length,
+    attentionCount: tasks.filter(needsAttentionTask).length,
+    completedCount: tasks.filter((task) => task.status === 'completed').length,
+  };
+}
+
+function boundedProgress(value: number) {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(1, value));
+}
+
+function taskTimingLabel(task: TaskRecord) {
+  const startedAt = new Date(task.createdAt).getTime();
+  const updatedAt = new Date(task.updatedAt).getTime();
+  const reference = isActiveTask(task) ? Date.now() : updatedAt;
+  const elapsedSeconds = Number.isFinite(startedAt) && Number.isFinite(reference) && reference > startedAt ? Math.max(0, Math.round((reference - startedAt) / 1000)) : 0;
+  return `${isActiveTask(task) ? '已运行' : '耗时'} ${formatDuration(elapsedSeconds)}`;
+}
+
+function formatDuration(totalSeconds: number) {
+  if (!Number.isFinite(totalSeconds) || totalSeconds <= 0) return '不足 1 分钟';
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  if (days > 0) return hours > 0 ? `${days} 天 ${hours} 小时` : `${days} 天`;
+  if (hours > 0) return minutes > 0 ? `${hours} 小时 ${minutes} 分钟` : `${hours} 小时`;
+  return `${Math.max(1, minutes)} 分钟`;
 }
 
 function formatCount(value: number) {
