@@ -1068,4 +1068,50 @@ mod tests {
         );
         assert!(all.iter().any(|game| game.title == "Fresh Import"));
     }
+
+    #[test]
+    fn import_scan_report_includes_auditable_item_details() {
+        let db = test_db("auditable-report-details");
+        let existing = db
+            .add_game(add_game_input("Audit Existing", "D:\\Games\\AuditOld"))
+            .unwrap();
+
+        let report = import_scan_candidates(
+            &db,
+            vec![
+                import_candidate(
+                    "Audit Existing",
+                    "D:\\Games\\AuditNew",
+                    Some("merge"),
+                    Some(existing.id.clone()),
+                ),
+                import_candidate("Fresh Audit", "D:\\Games\\FreshAudit", None, None),
+            ],
+        )
+        .unwrap();
+
+        let merged = report
+            .items
+            .iter()
+            .find(|item| item.action == "merge")
+            .expect("merge audit item");
+        assert_eq!(merged.candidate_title, "Audit Existing");
+        assert_eq!(merged.install_path, "D:\\Games\\AuditNew");
+        assert_eq!(merged.game_id.as_deref(), Some(existing.id.as_str()));
+        assert_eq!(merged.target_title.as_deref(), Some("Audit Existing"));
+        assert_eq!(merged.conflict_reason.as_deref(), Some("标题相同"));
+        assert_eq!(merged.message, "已合并到现有记录");
+
+        let added = report
+            .items
+            .iter()
+            .find(|item| item.action == "add")
+            .expect("add audit item");
+        assert_eq!(added.candidate_title, "Fresh Audit");
+        assert_eq!(added.install_path, "D:\\Games\\FreshAudit");
+        assert!(added.game_id.is_some());
+        assert_eq!(added.target_title.as_deref(), Some("Fresh Audit"));
+        assert!(added.conflict_reason.is_none());
+        assert_eq!(added.message, "已新增游戏记录");
+    }
 }
