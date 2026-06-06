@@ -265,6 +265,12 @@ async function main() {
         await page.getByText(/批量匹配任务已启动/).first().waitFor({ timeout: 5000 });
         await page.getByText('成功').first().waitFor({ timeout: 5000 });
         await page.getByText('待复核').first().waitFor({ timeout: 5000 });
+        await page.getByLabel('匹配结果搜索').fill('RJ01000000');
+        await page.getByText(/推荐：DLsite RJ01000000/).first().waitFor({ timeout: 5000 });
+        await page.getByLabel('匹配结果搜索').fill('没有这种匹配结果');
+        await page.getByText('当前筛选没有匹配结果。').first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: /重置筛选/ }).first().click();
+        await page.getByText(/推荐：/).first().waitFor({ timeout: 5000 });
         await page.getByLabel('匹配写入状态筛选').selectOption('writable');
         await page.getByText(/推荐：/).first().waitFor({ timeout: 5000 });
         await page.getByRole('button', { name: /应用当前推荐/ }).click();

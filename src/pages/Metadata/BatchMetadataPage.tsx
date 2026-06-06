@@ -31,6 +31,7 @@ export function BatchMetadataPage({ refreshKey, onOpenTask }: { refreshKey: numb
   const [selectedCandidates, setSelectedCandidates] = useState<Record<string, MetadataSearchResult>>({});
   const [queueQuery, setQueueQuery] = useState('');
   const [missingProviderFilter, setMissingProviderFilter] = useState('all');
+  const [resultQuery, setResultQuery] = useState('');
   const [resultStatusFilter, setResultStatusFilter] = useState('all');
   const [writeFilter, setWriteFilter] = useState('all');
   const [loading, setLoading] = useState(false);
@@ -65,13 +66,14 @@ export function BatchMetadataPage({ refreshKey, onOpenTask }: { refreshKey: numb
   }), [incompleteGames, missingProviderFilter, queueQuery]);
   const filteredResults = useMemo(() => status?.results.filter((result) => {
     const candidate = candidateForResult(result);
+    const matchesQuery = matchesBatchResultQuery(result, candidate, resultQuery);
     const matchesStatus = resultStatusFilter === 'all' || result.status === resultStatusFilter;
     const matchesWrite = writeFilter === 'all'
       || (writeFilter === 'writable' && Boolean(candidate) && !appliedIds.includes(result.id))
       || (writeFilter === 'applied' && appliedIds.includes(result.id))
       || (writeFilter === 'needs_review' && !candidate);
-    return matchesStatus && matchesWrite;
-  }) ?? [], [appliedIds, resultStatusFilter, selectedCandidates, status, writeFilter]);
+    return matchesQuery && matchesStatus && matchesWrite;
+  }) ?? [], [appliedIds, resultQuery, resultStatusFilter, selectedCandidates, status, writeFilter]);
   const resultCounts = useMemo(() => ({
     success: status?.results.filter((result) => result.status === 'success').length ?? 0,
     review: status?.results.filter((result) => result.status === 'review').length ?? 0,
@@ -103,6 +105,7 @@ export function BatchMetadataPage({ refreshKey, onOpenTask }: { refreshKey: numb
     try {
       const job = await api.batchMatchMetadata(selectedIds);
       setStatus(await api.getBatchMatchStatus(job.id));
+      setResultQuery('');
       setResultStatusFilter('all');
       setWriteFilter('all');
       setMessage({ text: `批量匹配任务已启动：${selectedIds.length} 个条目。`, taskId: job.taskId });
@@ -174,6 +177,7 @@ export function BatchMetadataPage({ refreshKey, onOpenTask }: { refreshKey: numb
   };
 
   const resetResultFilters = () => {
+    setResultQuery('');
     setResultStatusFilter('all');
     setWriteFilter('all');
   };
@@ -281,7 +285,11 @@ export function BatchMetadataPage({ refreshKey, onOpenTask }: { refreshKey: numb
                 <MetricTile label="无结果" value={`${resultCounts.noResult}`} />
                 <MetricTile label="错误" value={`${resultCounts.error}`} />
               </div>
-              <SoftRow className="grid gap-2 px-3 py-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
+              <SoftRow className="grid gap-2 px-3 py-3 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-end">
+                <label className="text-xs text-slate-500">
+                  结果搜索
+                  <Input aria-label="匹配结果搜索" className="mt-1 w-full" placeholder="搜索标题 / 来源 / RJ / 标签" value={resultQuery} onChange={(event) => setResultQuery(event.target.value)} />
+                </label>
                 <label className="text-xs text-slate-500">
                   结果状态
                   <Select aria-label="匹配结果状态筛选" className="mt-1 w-full" value={resultStatusFilter} onChange={(event) => setResultStatusFilter(event.target.value)}>
@@ -301,7 +309,7 @@ export function BatchMetadataPage({ refreshKey, onOpenTask }: { refreshKey: numb
                     <option value="needs_review">无可写候选</option>
                   </Select>
                 </label>
-                <Button disabled={resultStatusFilter === 'all' && writeFilter === 'all'} size="sm" variant="outline" onClick={resetResultFilters}>重置筛选</Button>
+                <Button disabled={!resultQuery.trim() && resultStatusFilter === 'all' && writeFilter === 'all'} size="sm" variant="outline" onClick={resetResultFilters}>重置筛选</Button>
               </SoftRow>
               <div className="max-h-[calc(100vh-16rem)] space-y-2 overflow-auto pr-1">
                 {filteredResults.length === 0 ? (
@@ -395,6 +403,32 @@ function resultToMetadata(result: MetadataSearchResult): NormalizedMetadata {
     externalIds: result.externalIds,
     ageRating: null,
   };
+}
+
+function matchesBatchResultQuery(result: BatchMatchResult, selectedCandidate: MetadataSearchResult | null, query: string) {
+  const normalizedQuery = query.trim().toLowerCase();
+  if (!normalizedQuery) return true;
+  const candidates = [selectedCandidate, ...result.candidates].filter(Boolean) as MetadataSearchResult[];
+  const candidateFields = candidates.flatMap((candidate) => [
+    providerLabel(candidate.provider),
+    candidate.provider,
+    candidate.id,
+    candidate.title,
+    candidate.description,
+    candidate.releaseDate,
+    ...candidate.developers,
+    ...candidate.tags,
+    ...Object.entries(candidate.externalIds).flatMap(([provider, id]) => [provider, id]),
+  ]);
+  return [
+    result.originalTitle,
+    result.cleanedTitle,
+    result.status,
+    result.reason,
+    result.selectedProvider,
+    result.selectedId,
+    ...candidateFields,
+  ].some((value) => String(value ?? '').toLowerCase().includes(normalizedQuery));
 }
 
 function providerLabel(value?: string | null) {
