@@ -201,6 +201,17 @@ async function main() {
         await page.getByText('图片下方的正文也应该继续显示。').first().waitFor({ timeout: 5000 });
         const descriptionImages = page.locator('section').filter({ hasText: '简介' }).locator('figure img');
         if (await descriptionImages.count() < 1) throw new Error('library detail description image was not rendered');
+        await page.getByRole('button', { name: '批量', exact: true }).click();
+        await page.getByRole('button', { name: /选中当前/ }).click();
+        await page.getByLabel('批量游玩状态').selectOption('completed');
+        await page.getByRole('button', { name: /应用状态/ }).click();
+        await page.getByText(/已更新 2 个游戏：游玩状态：已通关/).first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: /^隐藏$/ }).click();
+        await page.getByText(/已更新 2 个游戏：隐藏条目/).first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: /取消隐藏/ }).click();
+        await page.getByText(/已更新 2 个游戏：取消隐藏/).first().waitFor({ timeout: 5000 });
+        const updatedGames = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.games') || '[]'));
+        if (!updatedGames.every((game) => game.playStatus === 'completed' && game.hidden === false)) throw new Error('library bulk edit did not update selected games');
       }],
       ['library-empty', 'library', { games: [] }],
       ['collections-populated', 'collections'],

@@ -1,13 +1,14 @@
 import * as Dialog from '@radix-ui/react-dialog';
-import { Grid2X2, List, Plus, SlidersHorizontal, X } from 'lucide-react';
+import { CheckSquare, Eye, EyeOff, Grid2X2, List, Plus, SlidersHorizontal, Star, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { CoverImage } from '@/components/ui/cover';
 import { Input } from '@/components/ui/input';
 import { EmptyState, Notice } from '@/components/ui/notice';
 import { Select } from '@/components/ui/select';
 import { api } from '@/services/api';
-import type { Game, GameCollection, GameFilter, PlayStatus } from '@/types/game';
+import type { Game, GameCollection, GameFilter, PlayStatus, UpdateGameInput } from '@/types/game';
 import { PLAY_STATUS_LABEL } from '@/types/game';
 import { cn } from '@/utils/cn';
 import { errorMessage } from '@/utils/errorMessage';
@@ -55,6 +56,11 @@ export function LibraryPage({ refreshKey, selectedGameId, onSelectedGameChange, 
   const [collections, setCollections] = useState<GameCollection[]>([]);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+  const [bulkMode, setBulkMode] = useState(false);
+  const [bulkSelectedIds, setBulkSelectedIds] = useState<Set<string>>(() => new Set());
+  const [bulkPlayStatus, setBulkPlayStatus] = useState<PlayStatus>('planned');
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkMessage, setBulkMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -138,6 +144,7 @@ export function LibraryPage({ refreshKey, selectedGameId, onSelectedGameChange, 
   const selectedGame = visibleGames.find((game) => game.id === selectedGameId) ?? null;
   const blurCovers = settings.privacy_blur_covers === 'true';
   const activeAdvancedCount = [tag.trim(), developer.trim(), favoriteOnly, hiddenFilter !== 'all', metadataStatus !== 'all', pathStatus !== 'all', collectionId].filter(Boolean).length;
+  const bulkSelectedVisibleCount = useMemo(() => visibleGames.filter((game) => bulkSelectedIds.has(game.id)).length, [bulkSelectedIds, visibleGames]);
 
   useEffect(() => {
     if (loading) return;
@@ -162,6 +169,14 @@ export function LibraryPage({ refreshKey, selectedGameId, onSelectedGameChange, 
     if (toolbarQuery == null || toolbarQuery === query) return;
     setQuery(toolbarQuery);
   }, [query, toolbarQuery]);
+
+  useEffect(() => {
+    const visibleIds = new Set(visibleGames.map((game) => game.id));
+    setBulkSelectedIds((current) => {
+      const next = new Set([...current].filter((id) => visibleIds.has(id)));
+      return next.size === current.size ? current : next;
+    });
+  }, [visibleGames]);
 
   const openAdd = () => {
     setEditingGame(null);
@@ -202,6 +217,52 @@ export function LibraryPage({ refreshKey, selectedGameId, onSelectedGameChange, 
     setDraggingPanel(true);
   }, [libraryPanelWidth]);
 
+  const toggleBulkMode = () => {
+    const next = !bulkMode;
+    setBulkMode(next);
+    if (!next) {
+      setBulkSelectedIds(new Set());
+      setBulkMessage(null);
+    }
+  };
+
+  const toggleBulkSelection = useCallback((id: string, checked: boolean) => {
+    setBulkSelectedIds((current) => {
+      const next = new Set(current);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }, []);
+
+  const selectVisibleGames = () => {
+    setBulkSelectedIds(new Set(visibleGames.map((game) => game.id)));
+  };
+
+  const clearBulkSelection = () => {
+    setBulkSelectedIds(new Set());
+    setBulkMessage(null);
+  };
+
+  async function applyBulkUpdate(input: UpdateGameInput, label: string) {
+    const ids = visibleGames.map((game) => game.id).filter((id) => bulkSelectedIds.has(id));
+    if (ids.length === 0) return;
+    setBulkBusy(true);
+    setError(null);
+    setBulkMessage(null);
+    try {
+      const updated = await Promise.all(ids.map((id) => api.updateGame(id, input)));
+      const updatedById = new Map(updated.map((game) => [game.id, game]));
+      setGames((current) => current.map((game) => updatedById.get(game.id) ?? game));
+      setBulkMessage(`已更新 ${formatCount(updated.length)} 个游戏：${label}。`);
+      onChanged();
+    } catch (reason) {
+      setError(errorMessage(reason));
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
   return (
     <div className="animate-view-in flex h-full min-h-0 overflow-hidden">
       <aside className="flex shrink-0 flex-col bg-[rgb(var(--librarybar-rgb)/0.46)]" style={{ width: libraryPanelWidth }}>
@@ -222,8 +283,33 @@ export function LibraryPage({ refreshKey, selectedGameId, onSelectedGameChange, 
             <Button className="h-7 flex-1 justify-start px-2" size="sm" variant={advancedOpen ? 'secondary' : 'outline'} onClick={() => setAdvancedOpen((value) => !value)}>
               <SlidersHorizontal className="h-4 w-4" />筛选{activeAdvancedCount > 0 ? ` · ${activeAdvancedCount}` : ''}
             </Button>
+            <Button className="h-7 px-2" size="sm" variant={bulkMode ? 'secondary' : 'outline'} onClick={toggleBulkMode}><CheckSquare className="h-4 w-4" />批量</Button>
             {activeAdvancedCount > 0 && <Button className="h-7 px-2" size="sm" variant="ghost" onClick={clearAdvancedFilters}>清空</Button>}
           </div>
+
+          {bulkMode && (
+            <div className="animate-view-in space-y-2 rounded-md border border-white/10 bg-black/10 p-2">
+              <div className="flex items-center justify-between gap-2 text-xs text-slate-400">
+                <span>已选 {formatCount(bulkSelectedVisibleCount)}</span>
+                <div className="flex shrink-0 gap-1">
+                  <Button className="h-7 px-2" disabled={bulkBusy || visibleGames.length === 0} size="sm" variant="ghost" onClick={selectVisibleGames}>选中当前</Button>
+                  <Button className="h-7 px-2" disabled={bulkBusy || bulkSelectedVisibleCount === 0} size="sm" variant="ghost" onClick={clearBulkSelection}>清空</Button>
+                </div>
+              </div>
+              <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-1.5">
+                <Select aria-label="批量游玩状态" className="w-full" disabled={bulkBusy} value={bulkPlayStatus} onChange={(event) => setBulkPlayStatus(event.target.value as PlayStatus)}>
+                  {statuses.filter((item): item is PlayStatus => item !== 'all').map((item) => <option key={item} value={item}>{PLAY_STATUS_LABEL[item]}</option>)}
+                </Select>
+                <Button className="h-8 px-2" disabled={bulkBusy || bulkSelectedVisibleCount === 0} size="sm" variant="secondary" onClick={() => void applyBulkUpdate({ playStatus: bulkPlayStatus }, `游玩状态：${PLAY_STATUS_LABEL[bulkPlayStatus]}`)}>应用状态</Button>
+              </div>
+              <div className="grid grid-cols-2 gap-1.5">
+                <Button className="h-8 px-2" disabled={bulkBusy || bulkSelectedVisibleCount === 0} size="sm" variant="outline" onClick={() => void applyBulkUpdate({ favorite: true }, '标为收藏')}><Star className="h-4 w-4" />标为收藏</Button>
+                <Button className="h-8 px-2" disabled={bulkBusy || bulkSelectedVisibleCount === 0} size="sm" variant="outline" onClick={() => void applyBulkUpdate({ favorite: false }, '取消收藏')}><Star className="h-4 w-4" />取消收藏</Button>
+                <Button className="h-8 px-2" disabled={bulkBusy || bulkSelectedVisibleCount === 0} size="sm" variant="outline" onClick={() => void applyBulkUpdate({ hidden: true }, '隐藏条目')}><EyeOff className="h-4 w-4" />隐藏</Button>
+                <Button className="h-8 px-2" disabled={bulkBusy || bulkSelectedVisibleCount === 0} size="sm" variant="outline" onClick={() => void applyBulkUpdate({ hidden: false }, '取消隐藏')}><Eye className="h-4 w-4" />取消隐藏</Button>
+              </div>
+            </div>
+          )}
 
           {advancedOpen && (
             <div className="animate-view-in rounded-md border border-white/10 bg-black/10 p-2">
@@ -277,7 +363,8 @@ export function LibraryPage({ refreshKey, selectedGameId, onSelectedGameChange, 
 
         <div className="min-h-0 flex-1 overflow-auto p-1">
           {error && <Notice className="mb-2" tone="error">{error}</Notice>}
-          {loading ? <EmptyState className="py-8">正在读取游戏列表...</EmptyState> : viewMode === 'list' ? <GameList games={visibleGames} selectedId={selectedGameId} onSelect={onSelectedGameChange} blurCovers={blurCovers} /> : <GameGrid games={visibleGames} selectedId={selectedGameId} onSelect={onSelectedGameChange} blurCovers={blurCovers} />}
+          {bulkMessage && <Notice className="mb-2 py-2">{bulkMessage}</Notice>}
+          {loading ? <EmptyState className="py-8">正在读取游戏列表...</EmptyState> : viewMode === 'list' ? <GameList games={visibleGames} selectedId={selectedGameId} onSelect={onSelectedGameChange} blurCovers={blurCovers} bulkMode={bulkMode} selectedIds={bulkSelectedIds} onToggleSelection={toggleBulkSelection} /> : <GameGrid games={visibleGames} selectedId={selectedGameId} onSelect={onSelectedGameChange} blurCovers={blurCovers} bulkMode={bulkMode} selectedIds={bulkSelectedIds} onToggleSelection={toggleBulkSelection} />}
         </div>
       </aside>
 
@@ -316,7 +403,7 @@ export function LibraryPage({ refreshKey, selectedGameId, onSelectedGameChange, 
   );
 }
 
-function GameList({ games, selectedId, onSelect, blurCovers }: { games: Game[]; selectedId: string | null; onSelect: (id: string) => void; blurCovers: boolean }) {
+function GameList({ games, selectedId, onSelect, blurCovers, bulkMode, selectedIds, onToggleSelection }: { games: Game[]; selectedId: string | null; onSelect: (id: string) => void; blurCovers: boolean; bulkMode: boolean; selectedIds: Set<string>; onToggleSelection: (id: string, checked: boolean) => void }) {
   const [renderCount, setRenderCount] = useState(listInitialRenderCount);
 
   useEffect(() => {
@@ -342,22 +429,23 @@ function GameList({ games, selectedId, onSelect, blurCovers }: { games: Game[]; 
           </div>
           <div className="space-y-[1px]">
             {group.games.map((game) => (
-              <button
+              <div
                 className={cn(
                   'motion-button game-nav-row flex h-5 w-full items-center gap-2 rounded-none px-2 text-left text-xs text-slate-300 hover:bg-white/[0.07] hover:text-slate-100',
                   selectedId === game.id && 'is-selected bg-[rgb(var(--accent-rgb)/0.24)] text-slate-100 shadow-sm',
                 )}
                 key={`${group.id}-${game.id}`}
-                onClick={() => onSelect(game.id)}
                 title={game.title}
-                type="button"
               >
+                {bulkMode && <Checkbox aria-label={`选择${game.title}`} checked={selectedIds.has(game.id)} className="h-3.5 w-3.5" onChange={(event) => onToggleSelection(game.id, event.target.checked)} />}
+                <button className="flex min-w-0 flex-1 items-center gap-2 text-left" onClick={() => onSelect(game.id)} type="button">
                 <CoverImage alt={game.title} blur={blurCovers} className="h-[18px] w-[18px] shrink-0 rounded-md shadow-sm" src={game.coverImage} />
                 <span className="min-w-0 flex-1 truncate">{game.title}</span>
                 {game.favorite && <span className="shrink-0 text-[10px] text-amber-200">★</span>}
                 {game.pathStatus === 'broken' && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-rose-300" title="路径异常" />}
                 {game.pathStatus === 'incomplete' && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-300" title="路径不完整" />}
-              </button>
+                </button>
+              </div>
             ))}
           </div>
         </div>
@@ -400,7 +488,7 @@ function groupedGames(games: Game[]) {
   return groups.length > 0 ? groups : [{ id: 'all', label: 'All Games', games }];
 }
 
-function GameGrid({ games, selectedId, onSelect, blurCovers }: { games: Game[]; selectedId: string | null; onSelect: (id: string) => void; blurCovers: boolean }) {
+function GameGrid({ games, selectedId, onSelect, blurCovers, bulkMode, selectedIds, onToggleSelection }: { games: Game[]; selectedId: string | null; onSelect: (id: string) => void; blurCovers: boolean; bulkMode: boolean; selectedIds: Set<string>; onToggleSelection: (id: string, checked: boolean) => void }) {
   const [renderCount, setRenderCount] = useState(gridInitialRenderCount);
 
   useEffect(() => {
@@ -420,13 +508,20 @@ function GameGrid({ games, selectedId, onSelect, blurCovers }: { games: Game[]; 
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-4 p-1">
         {visibleGames.map((game) => (
-          <button className={cn('group text-left', selectedId === game.id && 'text-[rgb(var(--accent-rgb))]')} key={game.id} onClick={() => onSelect(game.id)} type="button">
-            <div className={cn('motion-poster overflow-hidden rounded-lg shadow-md group-hover:ring-2 group-hover:ring-[rgb(var(--accent-rgb))]', selectedId === game.id && 'ring-2 ring-[rgb(var(--accent-rgb))]')}>
-              <CoverImage alt={game.title} blur={blurCovers} className="aspect-[2/3]" src={game.coverImage} />
-            </div>
-            <div className="mt-2 truncate text-center text-xs text-slate-200">{game.title}</div>
+          <div className={cn('group relative text-left', selectedId === game.id && 'text-[rgb(var(--accent-rgb))]')} key={game.id}>
+            {bulkMode && (
+              <label className="absolute left-1 top-1 z-10 rounded-md border border-white/15 bg-black/70 p-1 backdrop-blur" onClick={(event) => event.stopPropagation()}>
+                <Checkbox aria-label={`选择${game.title}`} checked={selectedIds.has(game.id)} onChange={(event) => onToggleSelection(game.id, event.target.checked)} />
+              </label>
+            )}
+            <button className="w-full text-left" onClick={() => onSelect(game.id)} type="button">
+              <div className={cn('motion-poster overflow-hidden rounded-lg shadow-md group-hover:ring-2 group-hover:ring-[rgb(var(--accent-rgb))]', selectedId === game.id && 'ring-2 ring-[rgb(var(--accent-rgb))]')}>
+                <CoverImage alt={game.title} blur={blurCovers} className="aspect-[2/3]" src={game.coverImage} />
+              </div>
+              <div className="mt-2 truncate text-center text-xs text-slate-200">{game.title}</div>
+            </button>
             {(game.pathStatus === 'broken' || game.pathStatus === 'incomplete') && <div className="mt-1 text-center text-[11px] text-amber-100">{game.pathStatus === 'broken' ? '路径异常' : '路径不完整'}</div>}
-          </button>
+          </div>
         ))}
       </div>
       {hasMore && (
