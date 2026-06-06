@@ -31,7 +31,7 @@ The current implementation focuses on a complete local desktop workflow:
 - Asset gallery on game detail pages for cover, banner, background, screenshots, local import, remote download, primary selection, removal, and cache cleanup
 - Batch media artwork repair from metadata providers for missing cover, banner, and background images
 - Maintenance media artwork diagnosis for missing external IDs, remote no-image results, provider errors, and repairable artwork candidates
-- Maintenance media artwork result summaries for recent repair tasks, including updated, skipped, and failed entries with reasons
+- Maintenance media artwork result summaries for recent repair tasks, including searchable/filterable updated, skipped, and failed entries with reasons and game-detail shortcuts
 - Maintenance recent-task overview for batch matching, description image repair, artwork repair, and duplicate ID audit jobs with status counts, progress, timing, log shortcuts, retry, and cancellation
 - Asset commands for importing local image files into app data, downloading remote image assets, previewing image cache cleanup, and cleaning files not referenced by game image fields, gallery records, or local description images
 - Save-path management, manual backups, restore-before-protection backups, and backup history

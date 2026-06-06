@@ -365,11 +365,20 @@ async function main() {
         await page.getByText('维护中心').first().waitFor({ timeout: 5000 });
         await page.getByRole('button', { name: /读取结果/ }).click();
         await page.getByText('媒体补全结果').first().waitFor({ timeout: 5000 });
+        const artworkResultPanel = page.locator('section').filter({ hasText: '媒体补全结果' }).first();
         await page.getByText(/已读取 \d+ 个媒体补全任务结果/).first().waitFor({ timeout: 5000 });
+        await artworkResultPanel.getByText('媒体图片补全候选').first().waitFor({ timeout: 5000 });
+        await artworkResultPanel.getByText('已补全目标媒体字段。').first().waitFor({ timeout: 5000 });
+        await artworkResultPanel.getByText(/封面|背景|横幅/).first().waitFor({ timeout: 5000 });
+        await artworkResultPanel.getByLabel('媒体补全结果搜索').fill('媒体图片补全候选');
+        await artworkResultPanel.getByText('媒体图片补全候选').first().waitFor({ timeout: 5000 });
+        await artworkResultPanel.getByLabel('媒体补全结果状态筛选').selectOption('failed');
+        await artworkResultPanel.getByText('当前筛选没有匹配的媒体补全结果。').first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: /重置筛选/ }).first().click();
+        await artworkResultPanel.getByText('媒体图片补全候选').first().waitFor({ timeout: 5000 });
+        await artworkResultPanel.getByRole('button', { name: /^游戏$/ }).first().click();
+        await page.getByText('媒体健康').first().waitFor({ timeout: 5000 });
         await page.getByText('媒体图片补全候选').first().waitFor({ timeout: 5000 });
-        await page.getByText('已补全目标媒体字段。').first().waitFor({ timeout: 5000 });
-        await page.getByText('已补全').first().waitFor({ timeout: 5000 });
-        await page.getByText(/封面|背景|横幅/).first().waitFor({ timeout: 5000 });
       }],
       ['maintenance-health-duplicate-id-audit', 'maintenance', { games: [...games, duplicateExternalIdGame] }, async (page) => {
         await page.getByText('维护中心').first().waitFor({ timeout: 5000 });

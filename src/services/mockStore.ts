@@ -1788,7 +1788,7 @@ export const mockStore = {
     const updatedIds = new Set(candidates.map((candidate) => candidate.gameId));
     writeGames(games.map((game) => updatedIds.has(game.id) ? {
       ...game,
-      description: `${game.description?.trim() ?? ''}\n\n![简介图片](mock://metadata/${game.id}/description-1.webp)`,
+      description: `${game.description?.trim() ?? ''}\n\n![简介图片](${sampleHeroUrl})`,
       updatedAt: new Date().toISOString(),
     } : game));
     const task = makeTask({
@@ -1820,9 +1820,9 @@ export const mockStore = {
       if (!fields) return game;
       return {
         ...game,
-        coverImage: fields.includes('cover') ? `mock://metadata/${game.id}/artwork-cover.webp` : game.coverImage,
-        bannerImage: fields.includes('banner') ? `mock://metadata/${game.id}/artwork-banner.webp` : game.bannerImage,
-        backgroundImage: fields.includes('background') ? `mock://metadata/${game.id}/artwork-background.webp` : game.backgroundImage,
+        coverImage: fields.includes('cover') ? sampleHeroUrl : game.coverImage,
+        bannerImage: fields.includes('banner') ? sampleHeroUrl : game.bannerImage,
+        backgroundImage: fields.includes('background') ? sampleHeroUrl : game.backgroundImage,
         updatedAt: new Date().toISOString(),
       };
     }));
