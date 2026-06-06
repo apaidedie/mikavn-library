@@ -63,6 +63,7 @@ export function BatchMetadataPage({ refreshKey, onOpenTask }: { refreshKey: numb
     noResult: status?.results.filter((result) => result.status === 'no_result').length ?? 0,
     error: status?.results.filter((result) => result.status === 'error').length ?? 0,
   }), [status]);
+  const filteredApplicableResults = useMemo(() => filteredResults.filter((result) => Boolean(candidateForResult(result)) && !appliedIds.includes(result.id)), [appliedIds, filteredResults, selectedCandidates]);
 
   const loadGames = async () => {
     try {
@@ -135,7 +136,7 @@ export function BatchMetadataPage({ refreshKey, onOpenTask }: { refreshKey: numb
   }
 
   const applyAll = async () => {
-    const pending = applicableResults.filter((result) => !appliedIds.includes(result.id));
+    const pending = filteredApplicableResults;
     if (pending.length === 0 || fields.length === 0) return;
     setLoading(true);
     setMessage(null);
@@ -214,7 +215,7 @@ export function BatchMetadataPage({ refreshKey, onOpenTask }: { refreshKey: numb
           description="成功、无结果、待复核和错误会分别显示。"
           actions={(
             <>
-              <Button disabled={!status || applicableResults.length === 0 || fields.length === 0 || loading} size="sm" variant="secondary" onClick={applyAll}><CheckCircle2 className="h-4 w-4" />应用全部推荐</Button>
+              <Button disabled={!status || filteredApplicableResults.length === 0 || fields.length === 0 || loading} size="sm" variant="secondary" onClick={applyAll}><CheckCircle2 className="h-4 w-4" />应用当前推荐 {filteredApplicableResults.length > 0 ? filteredApplicableResults.length : ''}</Button>
               <Button disabled={!status || status.job.status !== 'running'} size="sm" variant="outline" onClick={cancel}><StopCircle className="h-4 w-4" />取消</Button>
             </>
           )}

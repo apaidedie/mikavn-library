@@ -229,6 +229,11 @@ async function main() {
         await page.getByText('待复核').first().waitFor({ timeout: 5000 });
         await page.getByLabel('匹配写入状态筛选').selectOption('writable');
         await page.getByText(/推荐：/).first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: /应用当前推荐/ }).click();
+        await page.getByText(/已写入/).first().waitFor({ timeout: 5000 });
+        await page.getByLabel('匹配写入状态筛选').selectOption('applied');
+        await page.getByText(/已写入/).first().waitFor({ timeout: 5000 });
+        await page.getByLabel('匹配写入状态筛选').selectOption('writable');
         await page.getByLabel('匹配结果状态筛选').selectOption('error');
         await page.getByText('当前筛选没有匹配结果。').first().waitFor({ timeout: 5000 });
         await page.getByRole('button', { name: /重置筛选/ }).first().click();
