@@ -306,6 +306,9 @@ async function main() {
         await page.getByLabel('重复组搜索').fill('星之终途');
         await page.getByLabel('重复组来源筛选').selectOption('vndb');
         await page.getByText('推荐保留').first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: /重置筛选/ }).first().click();
+        if (await page.getByLabel('重复组搜索').inputValue() !== '') throw new Error('duplicate group filter reset did not clear query');
+        await page.getByText('推荐保留').first().waitFor({ timeout: 5000 });
         await page.getByRole('button', { name: /设为保留/ }).first().click();
         await page.getByRole('button', { name: /预览合并/ }).click();
         await page.getByText('共享外部 ID').first().waitFor({ timeout: 5000 });

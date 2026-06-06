@@ -96,6 +96,13 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
   const selectedDuplicateGroup = useMemo(() => filteredDuplicateGroups.find((group) => duplicateGroupKey(group) === selectedDuplicateKey) ?? filteredDuplicateGroups[0] ?? null, [filteredDuplicateGroups, selectedDuplicateKey]);
   const recommendedMergeTargetId = useMemo(() => recommendDuplicateMergeTarget(selectedDuplicateGroup), [selectedDuplicateGroup]);
   const mergeSourceIds = useMemo(() => selectedDuplicateGroup?.games.map((game) => game.gameId).filter((id) => id !== mergeTargetId) ?? [], [mergeTargetId, selectedDuplicateGroup]);
+  const duplicateGroupFiltersActive = duplicateGroupQuery.trim().length > 0 || duplicateGroupProvider !== 'all';
+
+  const resetDuplicateGroupFilters = () => {
+    setDuplicateGroupQuery('');
+    setDuplicateGroupProvider('all');
+    setMergePreview(null);
+  };
 
   useEffect(() => {
     if (!selectedDuplicateGroup) {
@@ -357,7 +364,7 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
             ) : (
               <div className="grid gap-3 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
                 <div className="space-y-2">
-                  <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(8rem,12rem)]">
+                  <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(8rem,12rem)_auto] md:items-end">
                     <label className="min-w-0 text-xs text-slate-500">
                       搜索重复组
                       <Input aria-label="重复组搜索" className="mt-1 w-full" placeholder="标题 / 路径 / 外部 ID" value={duplicateGroupQuery} onChange={(event) => { setDuplicateGroupQuery(event.target.value); setMergePreview(null); }} />
@@ -373,6 +380,7 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
                         <option value="ymgal">YMGal</option>
                       </Select>
                     </label>
+                    <Button className="h-9" disabled={!duplicateGroupFiltersActive} size="sm" variant="outline" onClick={resetDuplicateGroupFilters}>重置筛选</Button>
                   </div>
                   <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(12rem,18rem)]">
                     <label className="min-w-0 text-xs text-slate-500">
