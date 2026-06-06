@@ -85,7 +85,7 @@ Done:
 - Batch import review UI.
 - Scanner duplicate/conflict warnings for existing install paths, executables, and titles.
 - Scanner conflict actions for skip, merge into existing database record, replace the existing database record, or explicit duplicate import.
-- Scanner import audit panel summarizes requested, written, added, merged, replaced, duplicated, and skipped candidates with conflict reasons and target records.
+- Scanner import audit panel searches and filters requested, written, added, merged, replaced, duplicated, and skipped candidates with conflict reasons and target records.
 - Directory scan runs through the general task system with progress, status polling, and cancellation.
 - Global keyboard shortcuts for quick navigation, library search focus, add-game, and refresh.
 - Database backup, report export, save backup, and save restore create task records.

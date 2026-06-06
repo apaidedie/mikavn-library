@@ -108,7 +108,7 @@ async function getStorage(page, key) {
 }
 
 function importAuditFilter(page) {
-  return page.locator('select.h-8.w-36').first();
+  return page.getByLabel('导入审计动作筛选');
 }
 
 function taskQueueRow(page, label) {
@@ -175,9 +175,14 @@ async function main() {
     await page.getByRole('button', { name: /导入选中/ }).click();
     await expectText(page, /导入处理完成：新增 0、合并 0、替换 1、副本 0、跳过 0/);
     await expectText(page, /导入审计/);
-    await expectText(page, /请求 1 个，写入 1 个，记录 1 条处理明细/);
+    await expectText(page, /请求 1 个，写入 1 个，当前显示 1 \/ 1 条处理明细/);
     await expectText(page, /冲突原因：标题相同|冲突原因：安装目录已存在/);
     await expectText(page, /记录 ID：qa-2/);
+    await page.getByLabel('导入审计搜索').fill('qa-2');
+    await expectText(page, /当前显示 1 \/ 1 条处理明细/);
+    await page.getByLabel('导入审计搜索').fill('不存在的审计项');
+    await expectText(page, /当前筛选没有明细/);
+    await page.getByRole('button', { name: /重置审计/ }).click();
     await importAuditFilter(page).selectOption('replace');
     await expectText(page, /已替换现有数据库记录/);
     const afterReplaceGames = await getStorage(page, 'mikavn-library.mock.games');
@@ -194,6 +199,9 @@ async function main() {
     await page.getByRole('button', { name: /导入选中/ }).click();
     await expectText(page, /导入处理完成：新增 0、合并 0、替换 0、副本 1、跳过 0/);
     await expectText(page, /导入审计/);
+    await page.getByLabel('导入审计搜索').fill('星之终途');
+    await expectText(page, /当前显示 1 \/ 1 条处理明细/);
+    await page.getByRole('button', { name: /重置审计/ }).click();
     await importAuditFilter(page).selectOption('duplicate');
     await expectText(page, /已作为副本导入/);
     await expectText(page, /冲突原因：安装目录已存在|冲突原因：标题相同/);

@@ -318,22 +318,31 @@ export function ScannerPage({ onOpenTask }: { onOpenTask?: (taskId: string) => v
 }
 
 function ImportReportPanel({ filter, onFilterChange, report }: { filter: string; onFilterChange: (value: string) => void; report: ImportScanReport }) {
-  const items = filter === 'all' ? report.items : report.items.filter((item) => item.action === filter);
+  const [query, setQuery] = useState('');
+  const items = report.items.filter((item) => (filter === 'all' || item.action === filter) && matchesImportReportQuery(item, query));
+  const resetFilters = () => {
+    onFilterChange('all');
+    setQuery('');
+  };
   return (
     <div className="space-y-3 rounded-lg border border-white/10 bg-black/[0.12] p-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="text-sm font-medium text-slate-100">导入审计</div>
-          <div className="mt-1 text-xs text-slate-500">请求 {formatCount(report.requested)} 个，写入 {formatCount(report.importedCount)} 个，记录 {formatCount(report.items.length)} 条处理明细。</div>
+          <div className="mt-1 text-xs text-slate-500">请求 {formatCount(report.requested)} 个，写入 {formatCount(report.importedCount)} 个，当前显示 {formatCount(items.length)} / {formatCount(report.items.length)} 条处理明细。</div>
         </div>
-        <Select className="h-8 w-36" value={filter} onChange={(event) => onFilterChange(event.target.value)}>
-          <option value="all">全部</option>
-          <option value="add">新增</option>
-          <option value="merge">合并</option>
-          <option value="replace">替换</option>
-          <option value="duplicate">副本</option>
-          <option value="skip">跳过</option>
-        </Select>
+        <div className="grid w-full gap-2 sm:w-auto sm:grid-cols-[minmax(12rem,16rem)_9rem_auto]">
+          <Input aria-label="导入审计搜索" className="h-8" placeholder="标题 / 路径 / 原因" value={query} onChange={(event) => setQuery(event.target.value)} />
+          <Select aria-label="导入审计动作筛选" className="h-8" value={filter} onChange={(event) => onFilterChange(event.target.value)}>
+            <option value="all">全部</option>
+            <option value="add">新增</option>
+            <option value="merge">合并</option>
+            <option value="replace">替换</option>
+            <option value="duplicate">副本</option>
+            <option value="skip">跳过</option>
+          </Select>
+          <Button className="h-8 px-2" disabled={filter === 'all' && !query.trim()} size="sm" variant="outline" onClick={resetFilters}>重置审计</Button>
+        </div>
       </div>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 2xl:grid-cols-6">
         <MetricTile label="写入" value={report.importedCount} />
@@ -365,6 +374,21 @@ function ImportReportRow({ item }: { item: ImportScanReportItem }) {
       {item.gameId && <div className="mt-1 break-all font-mono text-[11px] text-slate-600">记录 ID：{item.gameId}</div>}
     </div>
   );
+}
+
+function matchesImportReportQuery(item: ImportScanReportItem, query: string) {
+  const value = query.trim().toLocaleLowerCase();
+  if (!value) return true;
+  return [
+    item.action,
+    importActionLabel(item.action),
+    item.candidateTitle,
+    item.installPath,
+    item.message,
+    item.targetTitle,
+    item.conflictReason,
+    item.gameId,
+  ].some((field) => (field ?? '').toLocaleLowerCase().includes(value));
 }
 
 function defaultSelectedIds(candidates: ScanCandidate[]) {
