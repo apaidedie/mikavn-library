@@ -228,6 +228,15 @@ async function main() {
         await page.getByText('媒体图片补全').first().waitFor({ timeout: 5000 });
         await clickMaintenanceStart(page, '媒体图片补全');
         await page.getByText(/浏览器预览已补全|已创建媒体图片补全任务/).first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: '维护' }).click();
+        await page.getByText('维护中心').first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: /读取结果/ }).click();
+        await page.getByText('媒体补全结果').first().waitFor({ timeout: 5000 });
+        await page.getByText(/已读取 1 个媒体补全任务结果/).first().waitFor({ timeout: 5000 });
+        await page.getByText('媒体图片补全候选').first().waitFor({ timeout: 5000 });
+        await page.getByText('已补全目标媒体字段。').first().waitFor({ timeout: 5000 });
+        await page.getByText('已补全').first().waitFor({ timeout: 5000 });
+        await page.getByText(/封面|背景|横幅/).first().waitFor({ timeout: 5000 });
       }],
       ['maintenance-health-duplicate-id-audit', 'maintenance', { games: [...games, duplicateExternalIdGame] }, async (page) => {
         await page.getByText('维护中心').first().waitFor({ timeout: 5000 });
