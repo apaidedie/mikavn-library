@@ -26,6 +26,7 @@ Updated release candidate with the mature local V1 hardening pass.
 - Task center overview with queue progress, active/attention/completed counts, status filters, and task-type filters.
 - Library bulk edit bar for selecting the current filtered games and applying play status, favorite, hidden flags, or collection membership together.
 - Batch metadata matching queue search/provider-gap filters, result overview with success/review/no-result/error counts, status/write-state filters, and filtered bulk writeback.
+- Duplicate game safe merge now highlights a recommended keep target and provides per-row keep-target switching before preview.
 
 ### Changed
 

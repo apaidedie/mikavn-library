@@ -82,6 +82,7 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
       + database.playniteImageRefsCount;
   }, [database]);
   const selectedDuplicateGroup = useMemo(() => duplicateGroups.find((group) => duplicateGroupKey(group) === selectedDuplicateKey) ?? duplicateGroups[0] ?? null, [duplicateGroups, selectedDuplicateKey]);
+  const recommendedMergeTargetId = useMemo(() => recommendDuplicateMergeTarget(selectedDuplicateGroup), [selectedDuplicateGroup]);
   const mergeSourceIds = useMemo(() => selectedDuplicateGroup?.games.map((game) => game.gameId).filter((id) => id !== mergeTargetId) ?? [], [mergeTargetId, selectedDuplicateGroup]);
 
   useEffect(() => {
@@ -92,10 +93,10 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
     }
     if (!selectedDuplicateKey) setSelectedDuplicateKey(duplicateGroupKey(selectedDuplicateGroup));
     if (!mergeTargetId || !selectedDuplicateGroup.games.some((game) => game.gameId === mergeTargetId)) {
-      setMergeTargetId(selectedDuplicateGroup.games[0]?.gameId ?? '');
+      setMergeTargetId(recommendedMergeTargetId ?? selectedDuplicateGroup.games[0]?.gameId ?? '');
     }
     setMergePreview(null);
-  }, [mergeTargetId, selectedDuplicateGroup, selectedDuplicateKey]);
+  }, [mergeTargetId, recommendedMergeTargetId, selectedDuplicateGroup, selectedDuplicateKey]);
 
   return (
     <PageShell>
@@ -367,10 +368,14 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="truncate text-sm font-medium text-slate-100">{game.title}</span>
                             {game.gameId === mergeTargetId ? <Badge>保留</Badge> : <Badge>并入</Badge>}
+                            {game.gameId === recommendedMergeTargetId && <Badge className="border-emerald-300/20 bg-emerald-400/10 text-emerald-100">推荐保留</Badge>}
                           </div>
                           <div className="mt-1 break-all font-mono text-[11px] text-slate-600">{game.installPath}</div>
                         </div>
-                        <div className="text-right text-[11px] text-slate-500">{game.sources.join(' / ')}</div>
+                        <div className="flex flex-wrap items-center justify-end gap-2 text-right text-[11px] text-slate-500">
+                          <span>{game.sources.join(' / ')}</span>
+                          {game.gameId !== mergeTargetId && <Button className="h-7 px-2" size="sm" variant="ghost" onClick={() => { setMergeTargetId(game.gameId); setMergePreview(null); }}>设为保留</Button>}
+                        </div>
                       </SoftRow>
                     ))}
                   </div>
@@ -1008,6 +1013,25 @@ function percent(value: number, total: number) {
 
 function duplicateGroupKey(group: DuplicateExternalIdGroup) {
   return `${group.provider}:${group.externalId}`;
+}
+
+function recommendDuplicateMergeTarget(group: DuplicateExternalIdGroup | null) {
+  if (!group || group.games.length === 0) return '';
+  const scored = group.games.map((game, index) => ({ game, score: duplicateMergeTargetScore(game, index) }));
+  scored.sort((left, right) => right.score - left.score || left.game.title.localeCompare(right.game.title, 'zh-CN'));
+  return scored[0]?.game.gameId ?? '';
+}
+
+function duplicateMergeTargetScore(game: DuplicateExternalIdGroup['games'][number], index: number) {
+  const title = game.title.toLowerCase();
+  const path = game.installPath.toLowerCase();
+  let score = Math.max(0, 200 - index);
+  score += game.sources.length * 10;
+  score += Math.max(0, 80 - game.title.length);
+  if (path.includes('duplicate') || path.includes('重复')) score -= 80;
+  if (title.includes('duplicate') || title.includes('重复')) score -= 100;
+  if (path.includes('backup') || path.includes('old') || path.includes('copy')) score -= 40;
+  return score;
 }
 
 function imageIssueLabel(value: string) {

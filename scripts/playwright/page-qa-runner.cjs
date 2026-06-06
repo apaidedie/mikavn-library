@@ -284,6 +284,14 @@ async function main() {
         await page.getByText('重复 ID 审查').first().waitFor({ timeout: 5000 });
         await clickMaintenanceStart(page, '重复 ID 审查');
         await page.getByText(/重复外部 ID 审查完成|已创建重复 ID 审查任务/).first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: '维护' }).click();
+        await page.getByText('重复游戏安全合并').first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: /读取重复组/ }).click();
+        await page.getByText('推荐保留').first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: /设为保留/ }).first().click();
+        await page.getByRole('button', { name: /预览合并/ }).click();
+        await page.getByText('共享外部 ID').first().waitFor({ timeout: 5000 });
+        await page.getByText('搬迁资产').first().waitFor({ timeout: 5000 });
       }],
       ['settings-local-privacy-backup', 'settings'],
     ];
