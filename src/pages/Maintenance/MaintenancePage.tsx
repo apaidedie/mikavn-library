@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Notice } from '@/components/ui/notice';
 import { MetricTile, PageFrame, PageHeader, PageShell, Panel, PanelContent, PanelHeader, SoftRow } from '@/components/ui/page';
 import { TaskNotice } from '@/components/ui/task-notice';
@@ -52,6 +53,8 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
   const [duplicateAuditLoading, setDuplicateAuditLoading] = useState(false);
   const [duplicateGroups, setDuplicateGroups] = useState<DuplicateExternalIdGroup[]>([]);
   const [duplicateGroupsLoading, setDuplicateGroupsLoading] = useState(false);
+  const [duplicateGroupQuery, setDuplicateGroupQuery] = useState('');
+  const [duplicateGroupProvider, setDuplicateGroupProvider] = useState('all');
   const [selectedDuplicateKey, setSelectedDuplicateKey] = useState('');
   const [mergeTargetId, setMergeTargetId] = useState('');
   const [mergePreview, setMergePreview] = useState<DuplicateGameMergePreview | null>(null);
@@ -81,7 +84,16 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
       + database.cDriveImageRefsCount
       + database.playniteImageRefsCount;
   }, [database]);
-  const selectedDuplicateGroup = useMemo(() => duplicateGroups.find((group) => duplicateGroupKey(group) === selectedDuplicateKey) ?? duplicateGroups[0] ?? null, [duplicateGroups, selectedDuplicateKey]);
+  const filteredDuplicateGroups = useMemo(() => duplicateGroups.filter((group) => {
+    const query = duplicateGroupQuery.trim().toLowerCase();
+    const matchesProvider = duplicateGroupProvider === 'all' || group.provider === duplicateGroupProvider;
+    const matchesQuery = !query
+      || group.externalId.toLowerCase().includes(query)
+      || group.provider.toLowerCase().includes(query)
+      || group.games.some((game) => [game.title, game.installPath].some((value) => value.toLowerCase().includes(query)));
+    return matchesProvider && matchesQuery;
+  }), [duplicateGroupProvider, duplicateGroupQuery, duplicateGroups]);
+  const selectedDuplicateGroup = useMemo(() => filteredDuplicateGroups.find((group) => duplicateGroupKey(group) === selectedDuplicateKey) ?? filteredDuplicateGroups[0] ?? null, [filteredDuplicateGroups, selectedDuplicateKey]);
   const recommendedMergeTargetId = useMemo(() => recommendDuplicateMergeTarget(selectedDuplicateGroup), [selectedDuplicateGroup]);
   const mergeSourceIds = useMemo(() => selectedDuplicateGroup?.games.map((game) => game.gameId).filter((id) => id !== mergeTargetId) ?? [], [mergeTargetId, selectedDuplicateGroup]);
 
@@ -91,12 +103,12 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
       setMergePreview(null);
       return;
     }
-    if (!selectedDuplicateKey) setSelectedDuplicateKey(duplicateGroupKey(selectedDuplicateGroup));
+    if (!selectedDuplicateKey || !filteredDuplicateGroups.some((group) => duplicateGroupKey(group) === selectedDuplicateKey)) setSelectedDuplicateKey(duplicateGroupKey(selectedDuplicateGroup));
     if (!mergeTargetId || !selectedDuplicateGroup.games.some((game) => game.gameId === mergeTargetId)) {
       setMergeTargetId(recommendedMergeTargetId ?? selectedDuplicateGroup.games[0]?.gameId ?? '');
     }
     setMergePreview(null);
-  }, [mergeTargetId, recommendedMergeTargetId, selectedDuplicateGroup, selectedDuplicateKey]);
+  }, [filteredDuplicateGroups, mergeTargetId, recommendedMergeTargetId, selectedDuplicateGroup, selectedDuplicateKey]);
 
   return (
     <PageShell>
@@ -345,11 +357,28 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
             ) : (
               <div className="grid gap-3 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
                 <div className="space-y-2">
+                  <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(8rem,12rem)]">
+                    <label className="min-w-0 text-xs text-slate-500">
+                      搜索重复组
+                      <Input aria-label="重复组搜索" className="mt-1 w-full" placeholder="标题 / 路径 / 外部 ID" value={duplicateGroupQuery} onChange={(event) => { setDuplicateGroupQuery(event.target.value); setMergePreview(null); }} />
+                    </label>
+                    <label className="min-w-0 text-xs text-slate-500">
+                      来源筛选
+                      <Select aria-label="重复组来源筛选" className="mt-1 w-full" value={duplicateGroupProvider} onChange={(event) => { setDuplicateGroupProvider(event.target.value); setMergePreview(null); }}>
+                        <option value="all">全部来源</option>
+                        <option value="vndb">VNDB</option>
+                        <option value="dlsite">DLsite</option>
+                        <option value="fanza">FANZA</option>
+                        <option value="bangumi">Bangumi</option>
+                        <option value="ymgal">YMGal</option>
+                      </Select>
+                    </label>
+                  </div>
                   <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(12rem,18rem)]">
                     <label className="min-w-0 text-xs text-slate-500">
-                      重复组
-                      <Select className="mt-1 w-full" value={selectedDuplicateKey} onChange={(event) => { setSelectedDuplicateKey(event.target.value); setMergePreview(null); }}>
-                        {duplicateGroups.map((group) => (
+                      重复组 · {formatCount(filteredDuplicateGroups.length)} / {formatCount(duplicateGroups.length)}
+                      <Select className="mt-1 w-full" disabled={filteredDuplicateGroups.length === 0} value={selectedDuplicateKey} onChange={(event) => { setSelectedDuplicateKey(event.target.value); setMergePreview(null); }}>
+                        {filteredDuplicateGroups.map((group) => (
                           <option key={duplicateGroupKey(group)} value={duplicateGroupKey(group)}>{group.provider} {group.externalId} · {group.gameCount} 条</option>
                         ))}
                       </Select>
@@ -361,7 +390,9 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
                       </Select>
                     </label>
                   </div>
-                  <div className="space-y-2">
+                  {filteredDuplicateGroups.length === 0 ? (
+                    <SoftRow className="px-3 py-3 text-sm text-slate-400">当前筛选没有重复组。</SoftRow>
+                  ) : <div className="space-y-2">
                     {selectedDuplicateGroup?.games.map((game) => (
                       <SoftRow className="grid gap-2 px-3 py-2 md:grid-cols-[minmax(0,1fr)_auto]" key={game.gameId}>
                         <div className="min-w-0">
@@ -378,7 +409,7 @@ export function MaintenancePage({ refreshKey, onOpenTasks }: { refreshKey: numbe
                         </div>
                       </SoftRow>
                     ))}
-                  </div>
+                  </div>}
                 </div>
                 <div className="space-y-2">
                   <div className="grid grid-cols-2 gap-2">

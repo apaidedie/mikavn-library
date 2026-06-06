@@ -287,6 +287,8 @@ async function main() {
         await page.getByRole('button', { name: '维护' }).click();
         await page.getByText('重复游戏安全合并').first().waitFor({ timeout: 5000 });
         await page.getByRole('button', { name: /读取重复组/ }).click();
+        await page.getByLabel('重复组搜索').fill('星之终途');
+        await page.getByLabel('重复组来源筛选').selectOption('vndb');
         await page.getByText('推荐保留').first().waitFor({ timeout: 5000 });
         await page.getByRole('button', { name: /设为保留/ }).first().click();
         await page.getByRole('button', { name: /预览合并/ }).click();

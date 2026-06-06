@@ -42,7 +42,7 @@ The current implementation focuses on a complete local desktop workflow:
 - Custom collections plus advanced library filters for tag, developer/brand, favorite, hidden state, metadata and media gaps, path health, and collection membership
 - Advanced local search with field clauses, negation, comparisons, validation chips, and saved searches
 - Tag rename, merge, and delete UI in Settings for normalized tag maintenance
-- Duplicate game merge assistance in Maintenance with recommended keep-target hints and full related-record move counts before safe merge preview
+- Duplicate game merge assistance in Maintenance with searchable/provider-filtered duplicate groups, recommended keep-target hints, and full related-record move counts before safe merge preview
 - Normalized metadata source and external ID registry while preserving legacy `games.*_id` fields for compatibility
 - Local app-data diagnostics, image-reference audit details, diagnostic log preview/pruning, old database-backup cleanup, and safe database restore scheduling with next-start protection backup
 - Tauri commands for games, dashboard, scanning roots, importing scan candidates, and launching executables with play-session timing
