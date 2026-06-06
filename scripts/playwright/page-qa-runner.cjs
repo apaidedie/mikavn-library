@@ -282,6 +282,9 @@ async function main() {
         await imageAuditPanel.getByText('当前筛选没有匹配的图片引用。').first().waitFor({ timeout: 5000 });
         await imageAuditPanel.getByRole('button', { name: /重置筛选/ }).click();
         await imageAuditPanel.getByText('D:\\Playnite\\library\\files\\missing-banner.jpg').first().waitFor({ timeout: 5000 });
+        await imageAuditPanel.getByRole('button', { name: /^游戏$/ }).first().click();
+        await page.getByText('媒体健康').first().waitFor({ timeout: 5000 });
+        await page.getByText('图片引用异常候选').first().waitFor({ timeout: 5000 });
       }],
       ['library-empty', 'library', { games: [] }],
       ['collections-populated', 'collections'],

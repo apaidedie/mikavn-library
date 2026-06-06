@@ -435,7 +435,7 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
                 {imageAudit.items.length > 0 ? (
                   <div className="space-y-2">
                     <div className="px-1 text-xs text-slate-500">当前显示 {formatCount(filteredImageAuditItems.length)} / {formatCount(imageAudit.items.length)} 条引用。</div>
-                    {filteredImageAuditItems.length > 0 ? filteredImageAuditItems.map((item, index) => <ImageAuditRow item={item} key={`${item.gameId ?? 'game'}-${item.sourceKind}-${item.fieldName ?? 'field'}-${item.value}-${index}`} />) : <SoftRow className="px-3 py-3 text-sm text-slate-400">当前筛选没有匹配的图片引用。</SoftRow>}
+                    {filteredImageAuditItems.length > 0 ? filteredImageAuditItems.map((item, index) => <ImageAuditRow item={item} key={`${item.gameId ?? 'game'}-${item.sourceKind}-${item.fieldName ?? 'field'}-${item.value}-${index}`} onOpenGame={onOpenGame} />) : <SoftRow className="px-3 py-3 text-sm text-slate-400">当前筛选没有匹配的图片引用。</SoftRow>}
                     {imageAudit.truncated && <div className="px-1 text-xs text-slate-500">结果较多，当前只显示前 80 条问题引用。</div>}
                   </div>
                 ) : (
@@ -990,7 +990,7 @@ function StorageStat({ label, count, size, path, onReveal }: { label: string; co
   );
 }
 
-function ImageAuditRow({ item }: { item: ImageReferenceAuditItem }) {
+function ImageAuditRow({ item, onOpenGame }: { item: ImageReferenceAuditItem; onOpenGame?: (gameId: string) => void }) {
   const title = item.gameTitle?.trim() || item.gameId || '未知游戏';
   const issues = item.issues.length > 0 ? item.issues : [item.status];
   return (
@@ -1000,6 +1000,7 @@ function ImageAuditRow({ item }: { item: ImageReferenceAuditItem }) {
           <span className="truncate text-sm font-medium text-slate-100" title={title}>{title}</span>
           <Badge>{item.sourceLabel}</Badge>
           {item.fieldName && <Badge>{imageFieldLabel(item.fieldName)}</Badge>}
+          {item.gameId && onOpenGame && <Button className="h-7 px-2" size="sm" variant="ghost" onClick={() => onOpenGame(item.gameId!)}>游戏</Button>}
         </div>
         <div className="mt-2 flex flex-wrap gap-1.5">
           {issues.map((issue) => <Badge className={imageBadgeClass(issue)} key={issue}>{imageIssueLabel(issue)}</Badge>)}
