@@ -330,9 +330,16 @@ async function main() {
         await page.getByText('正在匹配 2 个游戏').first().waitFor({ timeout: 5000 });
         await page.getByText('媒体补图失败：来源无响应').first().waitFor({ timeout: 5000 });
         if (await page.getByText('扫描失败：路径不存在').count() > 0) throw new Error('maintenance task panel should not show scan tasks');
+        const maintenanceTaskPanel = page.locator('section').filter({ hasText: '最近维护任务' }).first();
+        await maintenanceTaskPanel.locator('.motion-soft-row').filter({ hasText: '媒体补图失败：来源无响应' }).first().getByRole('button', { name: /^重试$/ }).click();
+        await page.getByText(/已重新创建维护任务：媒体图片补全/).first().waitFor({ timeout: 5000 });
+        await maintenanceTaskPanel.getByText(/浏览器预览已补全/).first().waitFor({ timeout: 5000 });
+        await maintenanceTaskPanel.locator('.motion-soft-row').filter({ hasText: '正在匹配 2 个游戏' }).first().getByRole('button', { name: /^取消$/ }).click();
+        await page.getByText(/已取消维护任务：批量元数据匹配/).first().waitFor({ timeout: 5000 });
+        await maintenanceTaskPanel.locator('.motion-soft-row').filter({ hasText: '任务已取消' }).first().waitFor({ timeout: 5000 });
         await page.locator('section').filter({ hasText: '最近维护任务' }).first().getByRole('button', { name: /日志/ }).first().click();
         await page.getByText('任务队列').first().waitFor({ timeout: 5000 });
-        await page.getByText('正在匹配 2 个游戏').first().waitFor({ timeout: 5000 });
+        await page.getByText(/浏览器预览已补全|任务已取消|正在匹配 2 个游戏/).first().waitFor({ timeout: 5000 });
         await page.getByRole('button', { name: '维护' }).click();
         await page.getByText('维护中心').first().waitFor({ timeout: 5000 });
         await page.getByText('简介图片覆盖').first().waitFor({ timeout: 5000 });

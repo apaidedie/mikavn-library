@@ -2171,6 +2171,23 @@ export const mockStore = {
     if (task.taskType === 'save.restore') return this.restoreSaveBackupTask(String(payload.backupId ?? ''), payload.mode === 'mirror' ? 'mirror' : 'merge');
     if (task.taskType === 'game.path_check') return this.checkGamePathsTask(String(payload.gameId ?? ''));
     if (task.taskType === 'metadata.batch_match') return this.batchMatchMetadata(Array.isArray(payload.gameIds) ? payload.gameIds.map(String) : []).then(({ taskId }) => this.getTask(String(taskId)));
+    if (task.taskType === 'metadata.description_image_repair') return this.repairDescriptionImages({
+      provider: String(payload.provider ?? 'all'),
+      limit: Number(payload.limit ?? 20),
+      maxImages: Number(payload.maxImages ?? payload.max_images ?? 3),
+      retryAttempted: true,
+    });
+    if (task.taskType === 'metadata.artwork_repair') return this.repairArtwork({
+      providers: Array.isArray(payload.providers) ? payload.providers.map(String) : ['all'],
+      fields: Array.isArray(payload.fields) ? payload.fields.map(String) : ['cover', 'banner', 'background'],
+      limit: Number(payload.limit ?? 20),
+      retryAttempted: true,
+    });
+    if (task.taskType === 'metadata.duplicate_id_audit') return this.auditDuplicateExternalIds({
+      providers: Array.isArray(payload.providers) ? payload.providers.map(String) : ['all'],
+      limit: Number(payload.limit ?? 50),
+      retryAttempted: true,
+    });
     return Promise.reject(new Error('This task type does not support retry'));
   },
 

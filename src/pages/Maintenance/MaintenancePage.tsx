@@ -67,6 +67,7 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
   const [error, setError] = useState<string | null>(null);
   const [maintenanceTasks, setMaintenanceTasks] = useState<TaskRecord[]>([]);
   const [maintenanceTasksLoading, setMaintenanceTasksLoading] = useState(false);
+  const [maintenanceTaskActionId, setMaintenanceTaskActionId] = useState<string | null>(null);
 
   useEffect(() => {
     void loadDiagnostics();
@@ -527,7 +528,16 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
             </div>
             {maintenanceTasks.length > 0 ? (
               <div className="space-y-2">
-                {maintenanceTasks.map((task) => <MaintenanceTaskRow key={task.id} onOpenTask={onOpenTasks} task={task} />)}
+                {maintenanceTasks.map((task) => (
+                  <MaintenanceTaskRow
+                    actionBusy={maintenanceTaskActionId === task.id}
+                    key={task.id}
+                    onCancelTask={cancelMaintenanceTask}
+                    onOpenTask={onOpenTasks}
+                    onRetryTask={retryMaintenanceTask}
+                    task={task}
+                  />
+                ))}
               </div>
             ) : (
               <SoftRow className="px-3 py-3 text-sm text-slate-400">还没有维护任务记录。创建批量匹配、简介修复、媒体补图或重复 ID 审查后会显示在这里。</SoftRow>
@@ -605,6 +615,34 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
       if (!options?.quiet) setError(errorMessage(reason));
     } finally {
       if (!options?.quiet) setMaintenanceTasksLoading(false);
+    }
+  }
+
+  async function retryMaintenanceTask(id: string) {
+    setMaintenanceTaskActionId(id);
+    setError(null);
+    try {
+      const task = await api.retryTask(id);
+      setMessage({ text: `已重新创建维护任务：${taskLabel(task.taskType)}。`, taskId: task.id });
+      await loadMaintenanceTasks({ quiet: true });
+    } catch (reason) {
+      setError(errorMessage(reason));
+    } finally {
+      setMaintenanceTaskActionId(null);
+    }
+  }
+
+  async function cancelMaintenanceTask(id: string) {
+    setMaintenanceTaskActionId(id);
+    setError(null);
+    try {
+      const task = await api.cancelTask(id);
+      setMessage({ text: `已取消维护任务：${taskLabel(task.taskType)}。`, taskId: task.id });
+      await loadMaintenanceTasks({ quiet: true });
+    } catch (reason) {
+      setError(errorMessage(reason));
+    } finally {
+      setMaintenanceTaskActionId(null);
     }
   }
 
@@ -1147,8 +1185,10 @@ function MaintenanceAction({ action, label, detail, status }: { action?: ReactNo
   );
 }
 
-function MaintenanceTaskRow({ task, onOpenTask }: { task: TaskRecord; onOpenTask?: (taskId?: string | null) => void }) {
+function MaintenanceTaskRow({ actionBusy, task, onCancelTask, onOpenTask, onRetryTask }: { actionBusy?: boolean; task: TaskRecord; onCancelTask?: (taskId: string) => void; onOpenTask?: (taskId?: string | null) => void; onRetryTask?: (taskId: string) => void }) {
   const progress = boundedProgress(task.progress);
+  const canRetry = Boolean(task.retryable) && needsAttentionTask(task);
+  const canCancel = isActiveTask(task);
   return (
     <SoftRow className="grid gap-3 px-3 py-3 xl:grid-cols-[minmax(0,1fr)_minmax(8rem,12rem)_auto] xl:items-center">
       <div className="min-w-0">
@@ -1170,7 +1210,11 @@ function MaintenanceTaskRow({ task, onOpenTask }: { task: TaskRecord; onOpenTask
           <div className="h-full rounded-full bg-[rgb(var(--accent-rgb))]" style={{ width: `${Math.round(progress * 100)}%` }} />
         </div>
       </div>
-      {onOpenTask ? <Button size="sm" variant="ghost" onClick={() => onOpenTask(task.id)}>日志</Button> : <span />}
+      <div className="flex shrink-0 flex-wrap justify-end gap-2">
+        {onOpenTask && <Button size="sm" variant="ghost" onClick={() => onOpenTask(task.id)}>日志</Button>}
+        {onRetryTask && <Button disabled={actionBusy || !canRetry} size="sm" variant="outline" onClick={() => onRetryTask(task.id)}>{actionBusy && canRetry ? '重试中' : '重试'}</Button>}
+        {onCancelTask && <Button disabled={actionBusy || !canCancel} size="sm" variant="outline" onClick={() => onCancelTask(task.id)}>{actionBusy && canCancel ? '取消中' : '取消'}</Button>}
+      </div>
     </SoftRow>
   );
 }
