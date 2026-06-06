@@ -25,7 +25,7 @@ Updated release candidate with the mature local V1 hardening pass.
 - Scanner import audit panel with filterable per-candidate results, conflict reasons, target titles, record IDs, and install paths.
 - Task center overview with queue progress, active/attention/completed counts, status filters, and task-type filters.
 - Library bulk edit bar for selecting the current filtered games and applying play status, favorite, hidden flags, or collection membership together.
-- Batch metadata matching result overview with success/review/no-result/error counts, status/write-state filters, and filtered bulk writeback.
+- Batch metadata matching queue search/provider-gap filters, result overview with success/review/no-result/error counts, status/write-state filters, and filtered bulk writeback.
 
 ### Changed
 

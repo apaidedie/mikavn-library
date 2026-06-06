@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
 import { EmptyState, Notice } from '@/components/ui/notice';
 import { MetricTile, PageFrame, PageHeader, PageShell, Panel, PanelContent, PanelHeader, SoftRow } from '@/components/ui/page';
 import { Select } from '@/components/ui/select';
@@ -26,6 +27,8 @@ export function BatchMetadataPage({ refreshKey, onOpenTask }: { refreshKey: numb
   const [applyingIds, setApplyingIds] = useState<string[]>([]);
   const [expandedIds, setExpandedIds] = useState<string[]>([]);
   const [selectedCandidates, setSelectedCandidates] = useState<Record<string, MetadataSearchResult>>({});
+  const [queueQuery, setQueueQuery] = useState('');
+  const [missingProviderFilter, setMissingProviderFilter] = useState('all');
   const [resultStatusFilter, setResultStatusFilter] = useState('all');
   const [writeFilter, setWriteFilter] = useState('all');
   const [loading, setLoading] = useState(false);
@@ -47,7 +50,17 @@ export function BatchMetadataPage({ refreshKey, onOpenTask }: { refreshKey: numb
   }, [status]);
 
   const incompleteGames = useMemo(() => games.filter((game) => !game.vndbId || !game.dlsiteId || !game.fanzaId), [games]);
-  const applicableResults = useMemo(() => status?.results.filter((result) => Boolean(candidateForResult(result))) ?? [], [status, selectedCandidates]);
+  const filteredIncompleteGames = useMemo(() => incompleteGames.filter((game) => {
+    const queryText = queueQuery.trim().toLowerCase();
+    const matchesQuery = !queryText || [game.title, game.originalTitle, game.developer, game.brand, game.publisher, game.installPath]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(queryText));
+    const matchesProvider = missingProviderFilter === 'all'
+      || (missingProviderFilter === 'vndb' && !game.vndbId)
+      || (missingProviderFilter === 'dlsite' && !game.dlsiteId)
+      || (missingProviderFilter === 'fanza' && !game.fanzaId);
+    return matchesQuery && matchesProvider;
+  }), [incompleteGames, missingProviderFilter, queueQuery]);
   const filteredResults = useMemo(() => status?.results.filter((result) => {
     const candidate = candidateForResult(result);
     const matchesStatus = resultStatusFilter === 'all' || result.status === resultStatusFilter;
@@ -171,14 +184,25 @@ export function BatchMetadataPage({ refreshKey, onOpenTask }: { refreshKey: numb
           <div className="grid gap-3 sm:grid-cols-3">
             <MetricTile label="待补全" value={`${incompleteGames.length}`} />
             <MetricTile label="已选择" value={`${selectedIds.length}`} />
-            <MetricTile label="可写入" value={`${applicableResults.length}`} />
+            <MetricTile label="当前筛选" value={`${filteredIncompleteGames.length}`} />
           </div>
-          <div className="flex gap-2">
-            <Button size="sm" variant="secondary" onClick={() => setSelectedIds(incompleteGames.map((game) => game.id))}>选择缺失条目</Button>
+          <div className="grid gap-2">
+            <Input aria-label="匹配队列搜索" placeholder="搜索标题 / 会社 / 路径" value={queueQuery} onChange={(event) => setQueueQuery(event.target.value)} />
+            <Select aria-label="缺失来源筛选" value={missingProviderFilter} onChange={(event) => setMissingProviderFilter(event.target.value)}>
+              <option value="all">全部缺失来源</option>
+              <option value="vndb">缺 VNDB</option>
+              <option value="dlsite">缺 DLsite</option>
+              <option value="fanza">缺 FANZA</option>
+            </Select>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="secondary" onClick={() => setSelectedIds(filteredIncompleteGames.map((game) => game.id))}>选择当前筛选</Button>
             <Button size="sm" variant="ghost" onClick={() => setSelectedIds([])}>清空</Button>
           </div>
           <div className="max-h-[calc(100vh-25rem)] space-y-1.5 overflow-auto pr-1">
-            {incompleteGames.map((game) => (
+            {filteredIncompleteGames.length === 0 ? (
+              <EmptyState className="py-8">当前筛选没有待补全条目。</EmptyState>
+            ) : filteredIncompleteGames.map((game) => (
               <label className="block" key={game.id}>
                 <SoftRow className="flex gap-3 bg-black/[0.08] px-2.5 py-2">
                   <Checkbox checked={selectedIds.includes(game.id)} className="mt-1" onChange={() => toggle(game.id)} />

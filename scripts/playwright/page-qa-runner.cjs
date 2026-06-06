@@ -222,7 +222,13 @@ async function main() {
       ['library-empty', 'library', { games: [] }],
       ['collections-populated', 'collections'],
       ['metadata-batch', 'metadata', {}, async (page) => {
-        await page.getByRole('button', { name: /选择缺失条目/ }).click();
+        await page.getByLabel('匹配队列搜索').fill('天使');
+        await page.getByRole('button', { name: /选择当前筛选/ }).click();
+        await page.getByRole('button', { name: /开始匹配 1 个条目/ }).first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: /清空/ }).first().click();
+        await page.getByLabel('匹配队列搜索').fill('');
+        await page.getByLabel('缺失来源筛选').selectOption('dlsite');
+        await page.getByRole('button', { name: /选择当前筛选/ }).click();
         await page.getByRole('button', { name: /开始匹配/ }).click();
         await page.getByText(/批量匹配任务已启动/).first().waitFor({ timeout: 5000 });
         await page.getByText('成功').first().waitFor({ timeout: 5000 });
