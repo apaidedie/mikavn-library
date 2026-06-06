@@ -85,6 +85,18 @@ const artworkRepairGame = {
   executablePath: 'D:\\Games\\VN\\媒体图片补全候选\\game.exe',
   workingDirectory: 'D:\\Games\\VN\\媒体图片补全候选',
 };
+const brokenMediaReferenceGame = {
+  ...games[0],
+  id: 'qa-broken-media-ref',
+  title: '图片引用异常候选',
+  originalTitle: 'Image Reference Audit Candidate',
+  description: '用于详情页图片引用审计 QA。',
+  bannerImage: hero,
+  installPath: 'D:\\Games\\VN\\图片引用异常候选',
+  executablePath: 'D:\\Games\\VN\\图片引用异常候选\\game.exe',
+  workingDirectory: 'D:\\Games\\VN\\图片引用异常候选',
+};
+const brokenMediaReferenceAsset = { id: 'qa-broken-media-asset', gameId: 'qa-broken-media-ref', assetType: 'audit_only', uri: 'D:\\Playnite\\library\\files\\missing-banner.jpg', source: 'mock', isPrimary: false, createdAt: now, updatedAt: now };
 const tasks = [
   { id: 'qa-task-failed', taskType: 'library.scan', status: 'failed', progress: 1, message: '扫描失败：路径不存在', error: 'PATH_NOT_FOUND: D:\\Missing', retryPayload: JSON.stringify({ path: 'D:\\Missing', recursive: true }), retryable: true, createdAt: now, updatedAt: now },
   { id: 'qa-task-running', taskType: 'metadata.batch_match', status: 'running', progress: 0.42, message: '正在匹配 2 个游戏', error: null, retryPayload: JSON.stringify({ gameIds: ['qa-1', 'qa-2'] }), retryable: true, createdAt: tenMinutesAgo, updatedAt: now },
@@ -247,6 +259,15 @@ async function main() {
         collectionLinks = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.collectionGames') || '[]'));
         linkedIds = new Set(collectionLinks.filter((link) => link.collectionId === 'qa-col-1').map((link) => link.gameId));
         if (['qa-1', 'qa-2'].some((id) => linkedIds.has(id))) throw new Error('library bulk edit did not remove selected games from collection');
+      }],
+      ['library-detail-image-audit', 'library', { games: [...games, brokenMediaReferenceGame], assets: [...assets, brokenMediaReferenceAsset] }, async (page) => {
+        await page.getByText('图片引用异常候选').first().click();
+        await page.getByText('媒体健康').first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: /检查引用/ }).click();
+        await page.getByText(/图片引用检查完成：发现/).first().waitFor({ timeout: 5000 });
+        await page.getByText(/问题引用/).first().waitFor({ timeout: 5000 });
+        await page.getByText('Playnite').first().waitFor({ timeout: 5000 });
+        await page.getByText('D:\\Playnite\\library\\files\\missing-banner.jpg').first().waitFor({ timeout: 5000 });
       }],
       ['library-empty', 'library', { games: [] }],
       ['collections-populated', 'collections'],

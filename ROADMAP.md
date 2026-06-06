@@ -59,7 +59,7 @@ Done:
 - Custom collections with add/remove membership from both collection and game detail views.
 - Normalized asset/tag tables with compatibility sync from existing game fields.
 - Tag rename, merge, and delete commands plus Settings maintenance UI for normalized tag cleanup.
-- Game detail media health summary for cover, banner, background, and inline description image references, plus asset gallery for cover, banner, background, screenshots, primary selection, user image import, remote asset download, removal, and unreferenced image cache cleanup with Maintenance preview and protection for game fields, asset records, and local description images.
+- Game detail media health summary for cover, banner, background, inline description image references, and per-game image-reference audit details, plus asset gallery for cover, banner, background, screenshots, primary selection, user image import, remote asset download, removal, and unreferenced image cache cleanup with Maintenance preview and protection for game fields, asset records, and local description images.
 - Maintenance media artwork repair fills missing cover, banner, and background images from available metadata providers.
 - Maintenance media artwork diagnosis shows why missing artwork can or cannot be repaired before launching a batch task.
 - Maintenance media artwork result summaries show recent repair outcomes, skipped reasons, and failed entries from task logs.

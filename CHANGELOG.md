@@ -17,7 +17,7 @@ Updated release candidate with the mature local V1 hardening pass.
 - Full library archive restore scheduling with archive database validation, next-start database replacement, retryable task logs, and optional app-data image/save-backup cache mirroring.
 - Maintenance image-cache cleanup preview with removable file counts and byte totals.
 - Maintenance image-reference audit details for locating missing files, C-drive leftovers, and Playnite leftovers by game, source field, raw value, and resolved path.
-- Game detail media health summary for cover, banner, background, and inline description image references.
+- Game detail media health summary for cover, banner, background, inline description image references, and per-game image-reference audit details for missing/C-drive/Playnite leftovers.
 - Library and Advanced Search filters for missing description, cover, banner, background, incomplete artwork, missing description images, and missing external IDs.
 - Batch media artwork repair now includes missing banner images alongside cover and background images.
 - Maintenance media artwork diagnosis for checking repairable artwork candidates, missing external IDs, no-image metadata results, and provider errors before starting a repair task.

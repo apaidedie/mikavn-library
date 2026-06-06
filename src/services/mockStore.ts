@@ -798,15 +798,17 @@ function mockImageReferenceAudit(options: ImageReferenceAuditOptions = {}): Imag
 
   const limit = Math.max(1, Math.min(Number(options.limit ?? 200) || 200, 1000));
   const includeOk = Boolean(options.includeOk);
-  const filtered = refs.filter((item) => includeOk || item.issues.length > 0);
+  const gameId = options.gameId?.trim();
+  const scopedRefs = gameId ? refs.filter((item) => item.gameId === gameId) : refs;
+  const filtered = scopedRefs.filter((item) => includeOk || item.issues.length > 0);
   return {
-    totalRefs: refs.length,
-    issueCount: refs.filter((item) => item.issues.length > 0).length,
-    localCount: refs.filter((item) => mockAuditImageValue(item.value).local).length,
-    remoteCount: refs.filter((item) => mockAuditImageValue(item.value).remote).length,
-    missingCount: refs.filter((item) => item.issues.includes('missing')).length,
-    cDriveCount: refs.filter((item) => item.issues.includes('c_drive')).length,
-    playniteCount: refs.filter((item) => item.issues.includes('playnite')).length,
+    totalRefs: scopedRefs.length,
+    issueCount: scopedRefs.filter((item) => item.issues.length > 0).length,
+    localCount: scopedRefs.filter((item) => mockAuditImageValue(item.value).local).length,
+    remoteCount: scopedRefs.filter((item) => mockAuditImageValue(item.value).remote).length,
+    missingCount: scopedRefs.filter((item) => item.issues.includes('missing')).length,
+    cDriveCount: scopedRefs.filter((item) => item.issues.includes('c_drive')).length,
+    playniteCount: scopedRefs.filter((item) => item.issues.includes('playnite')).length,
     items: filtered.slice(0, limit),
     truncated: filtered.length > limit,
   };

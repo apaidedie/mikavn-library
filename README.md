@@ -27,7 +27,7 @@ The current implementation focuses on a complete local desktop workflow:
 - Path health badges in library views plus repair guidance and install-directory relocation from detail pages
 - Portable-first app data resolution for installed user-writable builds, keeping SQLite, images, logs, save backups, and cache under the app-adjacent `app-data/` directory when available
 - Normalized asset/tag tables with compatibility sync from existing game fields
-- Game detail media health summary for cover, banner, background, and inline description image references
+- Game detail media health summary for cover, banner, background, inline description image references, and per-game image-reference audit details for missing/C-drive/Playnite leftovers
 - Asset gallery on game detail pages for cover, banner, background, screenshots, local import, remote download, primary selection, removal, and cache cleanup
 - Batch media artwork repair from metadata providers for missing cover, banner, and background images
 - Maintenance media artwork diagnosis for missing external IDs, remote no-image results, provider errors, and repairable artwork candidates
@@ -291,7 +291,7 @@ The Advanced Search page starts with a simple search box and shortcut searches s
 
 ## Assets And Tags
 
-`game_assets`, `tags`, and `game_tags` now provide normalized records while `games.cover_image`, `games.banner_image`, `games.background_image`, `games.tags`, and `games.genres` remain the compatibility fields for current UI and imports. Game detail pages include an asset gallery for cover, banner, background, and screenshot records. The gallery can import user image files, download remote image assets into the local cache, set the primary image for compatibility fields, remove asset records without deleting real game files, and run unreferenced image cache cleanup. The cleanup scanner keeps files referenced by game image fields, `game_assets`, and local Markdown/HTML/BBCode image references in descriptions; Maintenance can preview removable file count and size before deleting from `app-data/images`. Settings includes tag maintenance for renaming, merging, and deleting normalized tag or genre records.
+`game_assets`, `tags`, and `game_tags` now provide normalized records while `games.cover_image`, `games.banner_image`, `games.background_image`, `games.tags`, and `games.genres` remain the compatibility fields for current UI and imports. Game detail pages include a media health summary, per-game image-reference audit action, and asset gallery for cover, banner, background, and screenshot records. The gallery can import user image files, download remote image assets into the local cache, set the primary image for compatibility fields, remove asset records without deleting real game files, and run unreferenced image cache cleanup. The cleanup scanner keeps files referenced by game image fields, `game_assets`, and local Markdown/HTML/BBCode image references in descriptions; Maintenance can preview removable file count and size before deleting from `app-data/images`. Settings includes tag maintenance for renaming, merging, and deleting normalized tag or genre records.
 
 ## Save Backups
 

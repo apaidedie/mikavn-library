@@ -14,6 +14,7 @@ import { TaskNotice } from '@/components/ui/task-notice';
 import { Textarea } from '@/components/ui/textarea';
 import { api } from '@/services/api';
 import { chooseDirectory, chooseExecutable, chooseImage } from '@/services/dialog';
+import type { ImageReferenceAudit } from '@/types/archive';
 import type { Game, GameAsset, GameCollection, PlaySession } from '@/types/game';
 import type { GamePathHealth } from '@/types/game';
 import { PLAY_STATUS_LABEL } from '@/types/game';
@@ -41,6 +42,8 @@ export function GameDetail({ game, onEdit, onDeleted, onChanged, onOpenTasks, bl
   const [sessions, setSessions] = useState<PlaySession[]>([]);
   const [selectedProfileId, setSelectedProfileId] = useState<string>('');
   const [pathHealth, setPathHealth] = useState<GamePathHealth | null>(null);
+  const [imageAudit, setImageAudit] = useState<ImageReferenceAudit | null>(null);
+  const [imageAuditLoading, setImageAuditLoading] = useState(false);
   const [notesDraft, setNotesDraft] = useState('');
   const [savingNotes, setSavingNotes] = useState(false);
   const selectedProfile = useMemo(() => profiles.find((profile) => profile.id === selectedProfileId) ?? profiles.find((profile) => profile.isDefault) ?? profiles[0], [profiles, selectedProfileId]);
@@ -48,6 +51,8 @@ export function GameDetail({ game, onEdit, onDeleted, onChanged, onOpenTasks, bl
   useEffect(() => {
     if (!game) return;
     setMessage(null);
+    setImageAudit(null);
+    setImageAuditLoading(false);
     setNotesDraft(game.notes ?? '');
     api.listLaunchProfiles(game.id)
       .then((items) => {
@@ -147,6 +152,20 @@ export function GameDetail({ game, onEdit, onDeleted, onChanged, onOpenTasks, bl
     }
   };
 
+  const checkImageReferences = async () => {
+    setImageAuditLoading(true);
+    setMessage(null);
+    try {
+      const audit = await api.auditImageReferences({ gameId: game.id, includeOk: true, limit: 80 });
+      setImageAudit(audit);
+      setMessage({ text: audit.issueCount > 0 ? `图片引用检查完成：发现 ${audit.issueCount} 条问题引用。` : '图片引用检查完成，没有发现问题引用。' });
+    } catch (reason) {
+      setMessage({ text: errorMessage(reason) });
+    } finally {
+      setImageAuditLoading(false);
+    }
+  };
+
   const heroImage = imageSrc(game.backgroundImage || game.bannerImage || game.coverImage);
   const mediaHealth = summarizeMediaHealth(game);
 
@@ -225,7 +244,7 @@ export function GameDetail({ game, onEdit, onDeleted, onChanged, onOpenTasks, bl
             </div>
 
             <aside className="col-span-1 space-y-5 pt-0.5">
-              <MediaHealthStack items={mediaHealth.items} missingCount={mediaHealth.missingCount} />
+              <MediaHealthStack audit={imageAudit} auditLoading={imageAuditLoading} items={mediaHealth.items} missingCount={mediaHealth.missingCount} onAudit={() => void checkImageReferences()} />
 
               <InfoStack title="信息">
                 <InfoLine label="原名" value={game.originalTitle || '暂无'} />
@@ -937,13 +956,16 @@ type MediaHealthItem = {
   detail: string;
 };
 
-function MediaHealthStack({ items, missingCount }: { items: MediaHealthItem[]; missingCount: number }) {
+function MediaHealthStack({ audit, auditLoading, items, missingCount, onAudit }: { audit: ImageReferenceAudit | null; auditLoading: boolean; items: MediaHealthItem[]; missingCount: number; onAudit: () => void }) {
+  const auditItems = audit?.items ?? [];
   return (
     <InfoStack title="媒体健康">
-      <div className="mb-2 flex flex-wrap gap-2">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
         <Badge className={missingCount > 0 ? 'border-amber-300/25 bg-amber-300/10 text-amber-100' : 'border-emerald-300/25 bg-emerald-300/10 text-emerald-100'}>
           {missingCount > 0 ? `缺 ${missingCount} 项` : '媒体完整'}
         </Badge>
+        {audit && <Badge className={audit.issueCount > 0 ? 'border-rose-300/25 bg-rose-300/10 text-rose-100' : 'border-emerald-300/25 bg-emerald-300/10 text-emerald-100'}>{audit.issueCount > 0 ? `问题引用 ${audit.issueCount}` : '引用正常'}</Badge>}
+        <Button className="h-7 px-2" disabled={auditLoading} size="sm" variant="ghost" onClick={onAudit}><RefreshCw className={cn('h-3.5 w-3.5', auditLoading && 'animate-spin')} />检查引用</Button>
       </div>
       <div className="space-y-1.5">
         {items.map((item) => (
@@ -956,7 +978,49 @@ function MediaHealthStack({ items, missingCount }: { items: MediaHealthItem[]; m
           </div>
         ))}
       </div>
+      {audit && (
+        <div className="mt-3 space-y-2 border-t border-dashed border-white/10 pt-3">
+          <div className="grid grid-cols-2 gap-1.5 text-[11px]">
+            <MediaAuditStat label="引用" value={audit.totalRefs} />
+            <MediaAuditStat label="缺失" value={audit.missingCount} tone={audit.missingCount > 0 ? 'warn' : 'ok'} />
+            <MediaAuditStat label="C 盘" value={audit.cDriveCount} tone={audit.cDriveCount > 0 ? 'danger' : 'ok'} />
+            <MediaAuditStat label="Playnite" value={audit.playniteCount} tone={audit.playniteCount > 0 ? 'danger' : 'ok'} />
+          </div>
+          {auditItems.length === 0 ? (
+            <div className="rounded-md border border-white/10 bg-black/10 px-2 py-2 text-xs text-slate-500">没有发现图片引用问题。</div>
+          ) : (
+            <div className="space-y-1.5">
+              {auditItems.map((item, index) => <MediaAuditIssue item={item} key={`${item.sourceKind}-${item.fieldName ?? 'field'}-${item.value}-${index}`} />)}
+              {audit.truncated && <div className="text-[11px] text-slate-500">结果较多，当前只显示前 80 条。</div>}
+            </div>
+          )}
+        </div>
+      )}
     </InfoStack>
+  );
+}
+
+function MediaAuditStat({ label, value, tone = 'neutral' }: { label: string; value: number; tone?: 'neutral' | 'ok' | 'warn' | 'danger' }) {
+  const toneClass = tone === 'danger' ? 'text-rose-100' : tone === 'warn' ? 'text-amber-100' : tone === 'ok' ? 'text-emerald-100' : 'text-slate-300';
+  return (
+    <div className="rounded-md border border-white/10 bg-black/10 px-2 py-1.5">
+      <div className="text-slate-500">{label}</div>
+      <div className={cn('mt-0.5 font-mono', toneClass)}>{value}</div>
+    </div>
+  );
+}
+
+function MediaAuditIssue({ item }: { item: ImageReferenceAudit['items'][number] }) {
+  const issues = item.issues.length > 0 ? item.issues : [item.status];
+  return (
+    <div className="rounded-md border border-white/10 bg-black/10 px-2 py-2 text-[11px] leading-5">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <Badge>{imageAuditFieldLabel(item.fieldName ?? item.sourceLabel)}</Badge>
+        {issues.map((issue) => <Badge className={imageAuditBadgeClass(issue)} key={issue}>{imageAuditIssueLabel(issue)}</Badge>)}
+      </div>
+      <div className="mt-1 break-all font-mono text-slate-400">{item.value}</div>
+      {item.resolvedPath && <div className="mt-1 break-all font-mono text-slate-600">{item.resolvedPath}</div>}
+    </div>
   );
 }
 
@@ -988,6 +1052,32 @@ function mediaFieldHealth(id: string, label: string, value?: string | null): Med
 
 function countDescriptionImages(value?: string | null) {
   return parseDescriptionParts(value ?? '').filter((part) => part.type === 'image').length;
+}
+
+function imageAuditIssueLabel(value: string) {
+  if (value === 'missing') return '缺失';
+  if (value === 'c_drive') return 'C 盘';
+  if (value === 'playnite') return 'Playnite';
+  if (value === 'remote') return '远程';
+  if (value === 'ok') return '正常';
+  if (value === 'warning') return '警告';
+  return value;
+}
+
+function imageAuditFieldLabel(value: string) {
+  if (value === 'cover_image' || value === 'coverImage' || value === '封面') return '封面';
+  if (value === 'banner_image' || value === 'bannerImage' || value === '横幅') return '横幅';
+  if (value === 'background_image' || value === 'backgroundImage' || value === '背景') return '背景';
+  if (value === 'description' || value === '简介图片') return '简介图';
+  if (value === 'game_assets.uri') return '图库';
+  return value;
+}
+
+function imageAuditBadgeClass(value: string) {
+  if (value === 'missing') return 'border-amber-300/25 bg-amber-300/10 text-amber-100';
+  if (value === 'c_drive' || value === 'playnite') return 'border-rose-300/25 bg-rose-300/10 text-rose-100';
+  if (value === 'ok' || value === 'remote') return 'border-emerald-300/25 bg-emerald-300/10 text-emerald-100';
+  return 'border-white/10 bg-white/[0.045] text-slate-300';
 }
 
 function InfoLine({ label, value }: { label: string; value: ReactNode }) {

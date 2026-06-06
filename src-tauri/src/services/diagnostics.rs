@@ -119,6 +119,7 @@ pub struct AppDataDiagnostics {
 pub struct ImageReferenceAuditOptions {
     pub limit: Option<usize>,
     pub include_ok: Option<bool>,
+    pub game_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -788,7 +789,15 @@ fn audit_image_references_with_paths(
         .limit
         .unwrap_or(DEFAULT_IMAGE_AUDIT_LIMIT)
         .clamp(1, MAX_IMAGE_AUDIT_LIMIT);
-    let refs = image_references(&conn, true)?;
+    let game_id = options
+        .game_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+    let refs = image_references(&conn, true)?
+        .into_iter()
+        .filter(|reference| game_id.is_none_or(|id| reference.game_id.as_deref() == Some(id)))
+        .collect::<Vec<_>>();
 
     let mut audit = ImageReferenceAudit {
         total_refs: refs.len(),
@@ -1363,6 +1372,8 @@ mod tests {
               'D:\Playnite\banner.jpg',
               'https://example.com/background.jpg'
             );
+            INSERT INTO games (id, title, description, cover_image, banner_image, background_image)
+            VALUES ('other', 'Other VN', NULL, 'other-missing.webp', NULL, NULL);
             INSERT INTO game_assets (id, game_id, asset_type, uri)
             VALUES ('asset', 'game', 'cover', 'C:\Users\tester\old-cover.jpg');
             "#,
@@ -1374,18 +1385,35 @@ mod tests {
             ImageReferenceAuditOptions {
                 limit: Some(10),
                 include_ok: Some(true),
+                game_id: None,
             },
         )
         .unwrap();
 
-        assert_eq!(audit.total_refs, 5);
-        assert_eq!(audit.local_count, 4);
+        assert_eq!(audit.total_refs, 6);
+        assert_eq!(audit.local_count, 5);
         assert_eq!(audit.remote_count, 1);
-        assert_eq!(audit.missing_count, 3);
+        assert_eq!(audit.missing_count, 4);
         assert_eq!(audit.c_drive_count, 1);
         assert_eq!(audit.playnite_count, 1);
-        assert_eq!(audit.issue_count, 3);
+        assert_eq!(audit.issue_count, 4);
         assert!(!audit.truncated);
+
+        let scoped_audit = audit_image_references_with_paths(
+            &paths,
+            ImageReferenceAuditOptions {
+                limit: Some(10),
+                include_ok: Some(true),
+                game_id: Some("game".to_string()),
+            },
+        )
+        .unwrap();
+        assert_eq!(scoped_audit.total_refs, 5);
+        assert_eq!(scoped_audit.missing_count, 3);
+        assert!(scoped_audit
+            .items
+            .iter()
+            .all(|item| item.game_id.as_deref() == Some("game")));
 
         let relative = audit
             .items

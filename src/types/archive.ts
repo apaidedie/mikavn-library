@@ -155,6 +155,7 @@ export type AppDataDiagnostics = {
 export type ImageReferenceAuditOptions = {
   limit?: number | null;
   includeOk?: boolean | null;
+  gameId?: string | null;
 };
 
 export type ImageReferenceAuditItem = {
