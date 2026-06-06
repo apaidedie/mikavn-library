@@ -204,6 +204,9 @@ async function main() {
       ['dashboard-populated', 'dashboard'],
       ['library-populated-detail-artwork', 'library', {}, async (page) => {
         await page.getByText('图片下方的正文也应该继续显示。').first().waitFor({ timeout: 5000 });
+        await page.getByText('媒体健康').first().waitFor({ timeout: 5000 });
+        await page.getByText('媒体完整').first().waitFor({ timeout: 5000 });
+        await page.getByText('1 张引用').first().waitFor({ timeout: 5000 });
         const descriptionImages = page.locator('section').filter({ hasText: '简介' }).locator('figure img');
         if (await descriptionImages.count() < 1) throw new Error('library detail description image was not rendered');
         await page.getByRole('button', { name: '批量', exact: true }).click();

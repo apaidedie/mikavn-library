@@ -27,6 +27,7 @@ The current implementation focuses on a complete local desktop workflow:
 - Path health badges in library views plus repair guidance and install-directory relocation from detail pages
 - Portable-first app data resolution for installed user-writable builds, keeping SQLite, images, logs, save backups, and cache under the app-adjacent `app-data/` directory when available
 - Normalized asset/tag tables with compatibility sync from existing game fields
+- Game detail media health summary for cover, banner, background, and inline description image references
 - Asset gallery on game detail pages for cover, banner, background, screenshots, local import, remote download, primary selection, removal, and cache cleanup
 - Batch media artwork repair from metadata providers for missing cover, banner, and background images
 - Maintenance media artwork diagnosis for missing external IDs, remote no-image results, provider errors, and repairable artwork candidates

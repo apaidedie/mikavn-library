@@ -148,6 +148,7 @@ export function GameDetail({ game, onEdit, onDeleted, onChanged, onOpenTasks, bl
   };
 
   const heroImage = imageSrc(game.backgroundImage || game.bannerImage || game.coverImage);
+  const mediaHealth = summarizeMediaHealth(game);
 
   return (
     <div className="relative h-full overflow-auto bg-transparent">
@@ -224,6 +225,8 @@ export function GameDetail({ game, onEdit, onDeleted, onChanged, onOpenTasks, bl
             </div>
 
             <aside className="col-span-1 space-y-5 pt-0.5">
+              <MediaHealthStack items={mediaHealth.items} missingCount={mediaHealth.missingCount} />
+
               <InfoStack title="信息">
                 <InfoLine label="原名" value={game.originalTitle || '暂无'} />
                 <InfoLine label="会社" value={game.developer || game.brand || '暂无'} />
@@ -925,6 +928,66 @@ function InfoStack({ title, children }: { title: string; children: ReactNode }) 
       <div className="space-y-1.5">{children}</div>
     </section>
   );
+}
+
+type MediaHealthItem = {
+  id: string;
+  label: string;
+  status: 'ok' | 'missing';
+  detail: string;
+};
+
+function MediaHealthStack({ items, missingCount }: { items: MediaHealthItem[]; missingCount: number }) {
+  return (
+    <InfoStack title="媒体健康">
+      <div className="mb-2 flex flex-wrap gap-2">
+        <Badge className={missingCount > 0 ? 'border-amber-300/25 bg-amber-300/10 text-amber-100' : 'border-emerald-300/25 bg-emerald-300/10 text-emerald-100'}>
+          {missingCount > 0 ? `缺 ${missingCount} 项` : '媒体完整'}
+        </Badge>
+      </div>
+      <div className="space-y-1.5">
+        {items.map((item) => (
+          <div className="grid grid-cols-[4.5rem_minmax(0,1fr)] gap-2 py-1 text-xs" key={item.id}>
+            <span className="text-slate-500">{item.label}</span>
+            <span className={cn('inline-flex min-w-0 items-center gap-1.5 break-words', item.status === 'ok' ? 'text-emerald-100' : 'text-amber-100')}>
+              {item.status === 'ok' ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> : <AlertTriangle className="h-3.5 w-3.5 shrink-0" />}
+              {item.detail}
+            </span>
+          </div>
+        ))}
+      </div>
+    </InfoStack>
+  );
+}
+
+function summarizeMediaHealth(game: Game): { items: MediaHealthItem[]; missingCount: number } {
+  const descriptionImageCount = countDescriptionImages(game.description);
+  const items: MediaHealthItem[] = [
+    mediaFieldHealth('cover', '封面', game.coverImage),
+    mediaFieldHealth('banner', '横幅', game.bannerImage),
+    mediaFieldHealth('background', '背景', game.backgroundImage),
+    {
+      id: 'description-images',
+      label: '简介图',
+      status: descriptionImageCount > 0 ? 'ok' : 'missing',
+      detail: descriptionImageCount > 0 ? `${descriptionImageCount} 张引用` : '未检测到引用',
+    },
+  ];
+  return { items, missingCount: items.filter((item) => item.status === 'missing').length };
+}
+
+function mediaFieldHealth(id: string, label: string, value?: string | null): MediaHealthItem {
+  const filled = Boolean(value?.trim());
+  return {
+    id,
+    label,
+    status: filled ? 'ok' : 'missing',
+    detail: filled ? '已填写' : '缺失',
+  };
+}
+
+function countDescriptionImages(value?: string | null) {
+  return parseDescriptionParts(value ?? '').filter((part) => part.type === 'image').length;
 }
 
 function InfoLine({ label, value }: { label: string; value: ReactNode }) {
