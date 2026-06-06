@@ -1,5 +1,5 @@
 import * as Dialog from '@radix-ui/react-dialog';
-import { CheckSquare, Eye, EyeOff, Grid2X2, List, Plus, SlidersHorizontal, Star, X } from 'lucide-react';
+import { CheckSquare, Eye, EyeOff, Grid2X2, List, Plus, SlidersHorizontal, Star, Tags, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -60,6 +60,7 @@ export function LibraryPage({ refreshKey, selectedGameId, onSelectedGameChange, 
   const [bulkSelectedIds, setBulkSelectedIds] = useState<Set<string>>(() => new Set());
   const [bulkPlayStatus, setBulkPlayStatus] = useState<PlayStatus>('planned');
   const [bulkCollectionId, setBulkCollectionId] = useState('');
+  const [bulkTagInput, setBulkTagInput] = useState('');
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkMessage, setBulkMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -145,7 +146,10 @@ export function LibraryPage({ refreshKey, selectedGameId, onSelectedGameChange, 
   const selectedGame = visibleGames.find((game) => game.id === selectedGameId) ?? null;
   const blurCovers = settings.privacy_blur_covers === 'true';
   const activeAdvancedCount = [tag.trim(), developer.trim(), favoriteOnly, hiddenFilter !== 'all', metadataStatus !== 'all', pathStatus !== 'all', collectionId].filter(Boolean).length;
-  const bulkSelectedVisibleCount = useMemo(() => visibleGames.filter((game) => bulkSelectedIds.has(game.id)).length, [bulkSelectedIds, visibleGames]);
+  const selectedBulkGames = useMemo(() => visibleGames.filter((game) => bulkSelectedIds.has(game.id)), [bulkSelectedIds, visibleGames]);
+  const selectedBulkIds = useMemo(() => selectedBulkGames.map((game) => game.id), [selectedBulkGames]);
+  const bulkSelectedVisibleCount = selectedBulkGames.length;
+  const bulkParsedTags = useMemo(() => parseBulkTags(bulkTagInput), [bulkTagInput]);
 
   useEffect(() => {
     if (loading) return;
@@ -248,7 +252,7 @@ export function LibraryPage({ refreshKey, selectedGameId, onSelectedGameChange, 
   const selectedBulkCollection = collections.find((collection) => collection.id === bulkCollectionId) ?? null;
 
   async function applyBulkUpdate(input: UpdateGameInput, label: string) {
-    const ids = visibleGames.map((game) => game.id).filter((id) => bulkSelectedIds.has(id));
+    const ids = selectedBulkIds;
     if (ids.length === 0) return;
     setBulkBusy(true);
     setError(null);
@@ -268,7 +272,7 @@ export function LibraryPage({ refreshKey, selectedGameId, onSelectedGameChange, 
 
   async function applyBulkCollection() {
     if (!selectedBulkCollection) return;
-    const ids = visibleGames.map((game) => game.id).filter((id) => bulkSelectedIds.has(id));
+    const ids = selectedBulkIds;
     if (ids.length === 0) return;
     setBulkBusy(true);
     setError(null);
@@ -278,6 +282,27 @@ export function LibraryPage({ refreshKey, selectedGameId, onSelectedGameChange, 
       setBulkMessage(`已将 ${formatCount(ids.length)} 个游戏加入合集：${selectedBulkCollection.name}。`);
       const nextCollections = await api.listCollections();
       setCollections(nextCollections);
+      onChanged();
+    } catch (reason) {
+      setError(errorMessage(reason));
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
+  async function applyBulkTags(action: 'add' | 'remove') {
+    const tags = bulkParsedTags;
+    if (selectedBulkGames.length === 0 || tags.length === 0) return;
+    setBulkBusy(true);
+    setError(null);
+    setBulkMessage(null);
+    try {
+      const updated = await Promise.all(selectedBulkGames.map((game) => api.updateGame(game.id, {
+        tags: action === 'add' ? addTags(game.tags, tags) : removeTags(game.tags, tags),
+      })));
+      const updatedById = new Map(updated.map((game) => [game.id, game]));
+      setGames((current) => current.map((game) => updatedById.get(game.id) ?? game));
+      setBulkMessage(`已为 ${formatCount(updated.length)} 个游戏${action === 'add' ? '添加' : '移除'}标签：${tags.join('、')}。`);
       onChanged();
     } catch (reason) {
       setError(errorMessage(reason));
@@ -331,6 +356,11 @@ export function LibraryPage({ refreshKey, selectedGameId, onSelectedGameChange, 
                   {collections.map((collection) => <option key={collection.id} value={collection.id}>{collection.name}</option>)}
                 </Select>
                 <Button className="h-8 px-2" disabled={bulkBusy || bulkSelectedVisibleCount === 0 || !selectedBulkCollection} size="sm" variant="secondary" onClick={() => void applyBulkCollection()}>加入合集</Button>
+              </div>
+              <div className="grid grid-cols-2 gap-1.5">
+                <Input aria-label="批量标签" className="col-span-2 w-full" disabled={bulkBusy} placeholder="标签，逗号分隔" value={bulkTagInput} onChange={(event) => setBulkTagInput(event.target.value)} />
+                <Button aria-label="批量添加标签" className="h-8 px-2" disabled={bulkBusy || bulkSelectedVisibleCount === 0 || bulkParsedTags.length === 0} size="sm" variant="secondary" onClick={() => void applyBulkTags('add')}><Tags className="h-4 w-4" />添加</Button>
+                <Button aria-label="批量移除标签" className="h-8 px-2" disabled={bulkBusy || bulkSelectedVisibleCount === 0 || bulkParsedTags.length === 0} size="sm" variant="outline" onClick={() => void applyBulkTags('remove')}><X className="h-4 w-4" />移除</Button>
               </div>
               <div className="grid grid-cols-2 gap-1.5">
                 <Button className="h-8 px-2" disabled={bulkBusy || bulkSelectedVisibleCount === 0} size="sm" variant="outline" onClick={() => void applyBulkUpdate({ favorite: true }, '标为收藏')}><Star className="h-4 w-4" />标为收藏</Button>
@@ -571,6 +601,34 @@ function EmptyLibrary() {
 
 function formatCount(value: number) {
   return new Intl.NumberFormat('zh-CN').format(value);
+}
+
+function parseBulkTags(value: string) {
+  const seen = new Set<string>();
+  const tags: string[] = [];
+  for (const item of value.split(/[,，、;；\n]+/)) {
+    const tag = item.trim();
+    const key = tag.toLocaleLowerCase();
+    if (!tag || seen.has(key)) continue;
+    seen.add(key);
+    tags.push(tag);
+  }
+  return tags;
+}
+
+function addTags(current: string[], tags: string[]) {
+  const seen = new Set(current.map((item) => item.toLocaleLowerCase()));
+  return [...current, ...tags.filter((tag) => {
+    const key = tag.toLocaleLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  })];
+}
+
+function removeTags(current: string[], tags: string[]) {
+  const removeKeys = new Set(tags.map((tag) => tag.toLocaleLowerCase()));
+  return current.filter((tag) => !removeKeys.has(tag.toLocaleLowerCase()));
 }
 
 function changedMetadataFields(game: Game, input: Parameters<typeof api.addGame>[0]) {
