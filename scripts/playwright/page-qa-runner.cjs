@@ -177,6 +177,9 @@ async function openSeeded(browser, view, overrides = {}) {
         if (message.type() === 'error') consoleErrors.push(message.text());
       });
       page.on('pageerror', (error) => consoleErrors.push(error.message));
+      page.on('dialog', async (dialog) => {
+        await dialog.accept(dialog.type() === 'prompt' ? dialog.defaultValue() : undefined);
+      });
       await seed(page, view, overrides);
       await page.goto(baseUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
       await waitForApp(page);
@@ -361,7 +364,28 @@ async function main() {
         await page.getByText(/推荐：/).first().waitFor({ timeout: 5000 });
       }],
       ['reports-populated', 'reports'],
-      ['saves-backup-restore', 'saves'],
+      ['saves-backup-restore', 'saves', {}, async (page) => {
+        await page.getByText('存档管理').first().waitFor({ timeout: 5000 });
+        await page.locator('select').first().selectOption('qa-1');
+        await page.getByText('默认存档').first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: /备份/ }).first().click();
+        await page.getByText(/存档备份任务已创建/).first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: /^预览$/ }).first().click();
+        await page.getByText(/合并恢复预览完成：新增 1，覆盖 2，保留 2/).first().waitFor({ timeout: 5000 });
+        await page.getByText('合并预览').first().waitFor({ timeout: 5000 });
+        await page.getByText('将保留').first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: /^恢复$/ }).first().click();
+        await page.getByText(/合并存档恢复任务已创建/).first().waitFor({ timeout: 5000 });
+        await page.getByText('保护备份').first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: /镜像预览/ }).first().click();
+        await page.getByText(/镜像恢复预览完成：新增 1，覆盖 2，清理 4/).first().waitFor({ timeout: 5000 });
+        await page.getByText('镜像预览').first().waitFor({ timeout: 5000 });
+        await page.getByText('将清理').first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: /镜像恢复/ }).first().click();
+        await page.getByText(/镜像存档恢复任务已创建/).first().waitFor({ timeout: 5000 });
+        const backupRecords = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.saveBackups') || '[]'));
+        if (!Array.isArray(backupRecords) || backupRecords.filter((item) => item.protection).length < 2) throw new Error('page QA save restore flows did not create protection backup records');
+      }],
       ['maintenance-health-description-repair', 'maintenance', { games: [...games, descriptionRepairGame] }, async (page) => {
         await page.getByText('维护中心').first().waitFor({ timeout: 5000 });
         await page.getByText('最近维护任务').first().waitFor({ timeout: 5000 });
