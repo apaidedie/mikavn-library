@@ -571,7 +571,23 @@ async function main() {
       await page.getByPlaceholder(/例如/).fill('D:\\Games\\VN');
       await page.getByRole('button', { name: /开始扫描/ }).click();
       await page.getByText(/冲突/).first().waitFor({ timeout: 5000 });
-      await page.waitForTimeout(500);
+      const mergeRow = page.locator('label').filter({ hasText: '星之终途' }).first();
+      await mergeRow.getByRole('checkbox').check();
+      await mergeRow.locator('select').selectOption('merge');
+      await page.getByText(/将更新 星之终途/).first().waitFor({ timeout: 5000 });
+      await page.getByRole('button', { name: /导入选中/ }).click();
+      await page.getByText(/导入处理完成：新增 0、合并 1、替换 0、副本 0、跳过 0/).first().waitFor({ timeout: 5000 });
+      await page.getByText('导入审计').first().waitFor({ timeout: 5000 });
+      await page.getByLabel('导入审计动作筛选').selectOption('merge');
+      await page.getByText(/已合并到现有记录/).first().waitFor({ timeout: 5000 });
+      await page.getByText(/记录 ID：qa-1/).first().waitFor({ timeout: 5000 });
+      await page.getByLabel('导入审计搜索').fill('星之终途');
+      await page.getByText(/当前显示 1 \/ 1 条处理明细/).first().waitFor({ timeout: 5000 });
+      const mergedGames = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.games') || '[]'));
+      const mergedGame = mergedGames.find((game) => game.id === 'qa-1');
+      if (!mergedGame?.installPath.includes('D:\\Games\\VN\\星之终途')) throw new Error('page QA scanner merge did not keep the expected merged install path');
+      if (!mergedGame?.aliases.includes('[汉化硬盘版] 星之终途 v1.02')) throw new Error('page QA scanner merge did not retain candidate aliases');
+      if (!mergedGame?.aliases.includes('星之终途')) throw new Error('page QA scanner merge did not retain existing title as alias');
     });
 
     await runCase(browser, 'tasks-running-failed-expanded', 'tasks', {}, async (page) => {
