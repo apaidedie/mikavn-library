@@ -229,6 +229,21 @@ async function main() {
   try {
     const cases = [
       ['dashboard-populated', 'dashboard'],
+      ['dashboard-task-shortcuts', 'dashboard', {}, async (page) => {
+        await page.getByText('近期任务').first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: /需处理\s+2/ }).click();
+        await page.getByText('任务队列').first().waitFor({ timeout: 5000 });
+        if (await page.getByLabel('任务状态筛选').inputValue() !== 'attention') throw new Error('dashboard attention shortcut did not select attention task filter');
+        await page.getByText('扫描失败：路径不存在').first().waitFor({ timeout: 5000 });
+        if (await page.getByText('正在匹配 2 个游戏').count() > 0) throw new Error('running task should be hidden after dashboard attention shortcut');
+        await page.getByLabel('首页').click();
+        await page.getByText('近期任务').first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: /进行中\s+1/ }).click();
+        await page.getByText('任务队列').first().waitFor({ timeout: 5000 });
+        if (await page.getByLabel('任务状态筛选').inputValue() !== 'active') throw new Error('dashboard running shortcut did not select active task filter');
+        await page.getByText('正在匹配 2 个游戏').first().waitFor({ timeout: 5000 });
+        if (await page.getByText('扫描失败：路径不存在').count() > 0) throw new Error('failed task should be hidden after dashboard running shortcut');
+      }],
       ['library-populated-detail-artwork', 'library', {}, async (page) => {
         await page.getByText('图片下方的正文也应该继续显示。').first().waitFor({ timeout: 5000 });
         await page.getByText('媒体健康').first().waitFor({ timeout: 5000 });

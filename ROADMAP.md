@@ -91,7 +91,7 @@ Done:
 - Global keyboard shortcuts for quick navigation, library search focus, add-game, and refresh.
 - Database backup, report export, save backup, and save restore create task records.
 - Task center shows queue progress, active/attention/completed counts, status/type shortcut filters, elapsed/remaining time estimates, text search, searchable expandable per-task logs, and retry for failed/cancelled scan, path check, metadata batch match, database backup, save backup, save restore, and library archive tasks.
-- Dashboard shows a recent-task summary with log shortcuts into the expanded task row; Settings/Saves/Reports/detail/Scanner/Batch Metadata task notices expose non-disruptive log shortcuts.
+- Dashboard shows a recent-task summary with attention/running shortcuts into filtered task views and log shortcuts into the expanded task row; Settings/Saves/Reports/detail/Scanner/Batch Metadata task notices expose non-disruptive log shortcuts.
 - Metadata provider search and provider errors.
 - Metadata field locks protect user-edited fields from automatic writeback.
 - Path validation and basic repair from the game detail page.

@@ -15,6 +15,12 @@ export type TaskRecord = {
   updatedAt: string;
 };
 
+export type TaskFilterPreset = {
+  statusFilter?: string;
+  typeFilter?: string;
+  query?: string;
+};
+
 export type TaskLogEntry = {
   id: string;
   taskId: string;

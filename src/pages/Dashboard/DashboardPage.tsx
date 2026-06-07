@@ -8,7 +8,7 @@ import { MetricTile, PageFrame, PageShell, Panel, PanelContent, PanelHeader, Sof
 import { api } from '@/services/api';
 import type { DashboardData, Game } from '@/types/game';
 import { PLAY_STATUS_LABEL } from '@/types/game';
-import type { TaskRecord } from '@/types/task';
+import type { TaskFilterPreset, TaskRecord } from '@/types/task';
 import { cn } from '@/utils/cn';
 import { errorMessage } from '@/utils/errorMessage';
 import { taskLabel, taskStatusClass, taskStatusLabel } from '@/utils/taskLabels';
@@ -17,7 +17,7 @@ import { formatDateTime, formatPlayTime } from '@/utils/time';
 type DashboardPageProps = {
   refreshKey: number;
   onOpenGame: (id: string) => void;
-  onOpenTasks?: (taskId?: string | null) => void;
+  onOpenTasks?: (taskId?: string | null, preset?: TaskFilterPreset | null) => void;
 };
 
 export function DashboardPage({ refreshKey, onOpenGame, onOpenTasks }: DashboardPageProps) {
@@ -62,8 +62,10 @@ export function DashboardPage({ refreshKey, onOpenGame, onOpenTasks }: Dashboard
   );
 }
 
-function RecentTasksPanel({ tasks, onOpenTasks }: { tasks: TaskRecord[]; onOpenTasks?: (taskId?: string | null) => void }) {
-  const activeCount = tasks.filter((task) => task.status === 'pending' || task.status === 'running' || task.status === 'failed').length;
+function RecentTasksPanel({ tasks, onOpenTasks }: { tasks: TaskRecord[]; onOpenTasks?: (taskId?: string | null, preset?: TaskFilterPreset | null) => void }) {
+  const runningCount = tasks.filter((task) => task.status === 'pending' || task.status === 'running').length;
+  const attentionCount = tasks.filter((task) => task.status === 'failed' || task.status === 'cancelled').length;
+  const activeCount = runningCount + attentionCount;
 
   return (
     <Panel>
@@ -71,7 +73,13 @@ function RecentTasksPanel({ tasks, onOpenTasks }: { tasks: TaskRecord[]; onOpenT
         title="近期任务"
         description={activeCount > 0 ? `${activeCount} 个任务需要关注` : '扫描、备份、导出和路径检查会出现在这里。'}
         icon={<Activity className="h-4 w-4" />}
-        actions={onOpenTasks && <Button size="sm" variant="outline" onClick={() => onOpenTasks()}>打开任务页</Button>}
+        actions={onOpenTasks && (
+          <>
+            <Button disabled={attentionCount === 0} size="sm" variant="outline" onClick={() => onOpenTasks(null, { statusFilter: 'attention' })}>需处理 {attentionCount}</Button>
+            <Button disabled={runningCount === 0} size="sm" variant="outline" onClick={() => onOpenTasks(null, { statusFilter: 'active' })}>进行中 {runningCount}</Button>
+            <Button size="sm" variant="outline" onClick={() => onOpenTasks()}>全部任务</Button>
+          </>
+        )}
       />
       <PanelContent className="space-y-2">
         {tasks.length === 0 ? (

@@ -25,7 +25,7 @@ Updated release candidate with the mature local V1 hardening pass.
 - Maintenance recent-task overview for batch metadata matching, description image repair, artwork repair, and duplicate ID audit jobs, including status counts, progress, timing, log shortcuts, retry, and cancellation.
 - Save restore previews for merge and mirror restore, including new, overwritten, kept, and mirror-removed file counts before task creation.
 - Scanner import audit panel with searchable/filterable per-candidate results, conflict reasons, target titles, record IDs, and install paths.
-- Task center overview with queue progress, status/type count shortcuts, elapsed/remaining time estimates, text search, status filters, task-type filters, and searchable expanded logs.
+- Dashboard recent-task shortcuts for attention/running task filters, plus Task center overview with queue progress, status/type count shortcuts, elapsed/remaining time estimates, text search, status filters, task-type filters, and searchable expanded logs.
 - Library bulk edit bar for selecting, inverting, and clearing the current filtered games before applying play status, favorite, hidden flags, tags, or collection add/remove actions together.
 - Batch metadata matching resettable queue search/provider-gap filters, field write presets, result overview with success/review/no-result/error counts, result text/status/write-state filters, and filtered bulk writeback.
 - Batch metadata matching now includes missing-source count shortcuts and a missing-all-external-IDs queue filter, plus Maintenance shortcuts that open the preset directly from the queue overview and missing-external-ID artwork diagnosis rows.

@@ -8,13 +8,13 @@ import { EmptyState, Notice } from '@/components/ui/notice';
 import { MetricTile, PageFrame, PageHeader, PageShell, Panel, PanelContent, PanelHeader, SoftRow } from '@/components/ui/page';
 import { Select } from '@/components/ui/select';
 import { api } from '@/services/api';
-import type { TaskLogEntry, TaskRecord, TaskStatus } from '@/types/task';
+import type { TaskFilterPreset, TaskLogEntry, TaskRecord, TaskStatus } from '@/types/task';
 import { cn } from '@/utils/cn';
 import { errorMessage } from '@/utils/errorMessage';
 import { taskLabel, taskStatusClass, taskStatusLabel } from '@/utils/taskLabels';
 import { formatDateTime } from '@/utils/time';
 
-export function TasksPage({ refreshKey, focusTaskId, focusRequestKey = 0 }: { refreshKey: number; focusTaskId?: string | null; focusRequestKey?: number }) {
+export function TasksPage({ refreshKey, focusTaskId, focusRequestKey = 0, filterPreset }: { refreshKey: number; focusTaskId?: string | null; focusRequestKey?: number; filterPreset?: (TaskFilterPreset & { key: number }) | null }) {
   const [tasks, setTasks] = useState<TaskRecord[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [logsByTask, setLogsByTask] = useState<Record<string, TaskLogEntry[]>>({});
@@ -111,6 +111,13 @@ export function TasksPage({ refreshKey, focusTaskId, focusRequestKey = 0 }: { re
     handledFocusKeyRef.current = focusRequestKey;
     void focusTask(focusTaskId);
   }, [focusTaskId, focusRequestKey, tasks]);
+
+  useEffect(() => {
+    if (!filterPreset?.key) return;
+    setStatusFilter(filterPreset.statusFilter ?? 'all');
+    setTypeFilter(filterPreset.typeFilter ?? 'all');
+    setTaskQuery(filterPreset.query ?? '');
+  }, [filterPreset?.key]);
 
   async function loadTasks(options?: { quiet?: boolean }) {
     if (!options?.quiet) setLoading(true);

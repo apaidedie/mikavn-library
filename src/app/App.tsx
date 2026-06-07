@@ -14,6 +14,7 @@ import { CollectionsPage } from '@/pages/Collections/CollectionsPage';
 import { AdvancedSearchPage } from '@/pages/Search/AdvancedSearchPage';
 import { Button } from '@/components/ui/button';
 import { api } from '@/services/api';
+import type { TaskFilterPreset } from '@/types/task';
 import { cn } from '@/utils/cn';
 
 type View = 'dashboard' | 'library' | 'collections' | 'advanced-search' | 'scanner' | 'metadata' | 'tasks' | 'reports' | 'saves' | 'maintenance' | 'settings';
@@ -52,6 +53,7 @@ export function App() {
   const [librarySearchValue, setLibrarySearchValue] = useState('');
   const topSearchRef = useRef<HTMLInputElement | null>(null);
   const [taskFocusRequest, setTaskFocusRequest] = useState<{ id: string | null; key: number }>({ id: null, key: 0 });
+  const [taskFilterPresetRequest, setTaskFilterPresetRequest] = useState<(TaskFilterPreset & { key: number }) | null>(null);
   const [maintenanceFocusRequest, setMaintenanceFocusRequest] = useState<{ section: string | null; key: number }>({ section: null, key: 0 });
   const [metadataQueuePresetRequest, setMetadataQueuePresetRequest] = useState<{ key: number; query?: string; missingProvider?: string }>({ key: 0 });
   const [settings, setSettings] = useState<Record<string, string>>({});
@@ -143,8 +145,9 @@ export function App() {
     setView('library');
   }, []);
 
-  const openTasks = useCallback((taskId?: string | null) => {
+  const openTasks = useCallback((taskId?: string | null, preset?: TaskFilterPreset | null) => {
     setTaskFocusRequest((current) => ({ id: taskId ?? null, key: current.key + 1 }));
+    setTaskFilterPresetRequest((current) => ({ key: (current?.key ?? 0) + 1, ...(preset ?? { statusFilter: 'all', typeFilter: 'all', query: '' }) }));
     setView('tasks');
   }, []);
 
@@ -288,7 +291,7 @@ export function App() {
           {view === 'advanced-search' && <AdvancedSearchPage refreshKey={refreshKey} onOpenGame={(id) => { setSelectedGameId(id); setView('library'); }} />}
           {view === 'scanner' && <ScannerPage onOpenTask={openTasks} />}
           {view === 'metadata' && <BatchMetadataPage queuePresetRequest={metadataQueuePresetRequest} refreshKey={refreshKey} onOpenTask={openTasks} />}
-          {view === 'tasks' && <TasksPage focusTaskId={taskFocusRequest.id} focusRequestKey={taskFocusRequest.key} refreshKey={refreshKey} />}
+          {view === 'tasks' && <TasksPage filterPreset={taskFilterPresetRequest} focusTaskId={taskFocusRequest.id} focusRequestKey={taskFocusRequest.key} refreshKey={refreshKey} />}
           {view === 'reports' && <ReportsPage refreshKey={refreshKey} onOpenTask={openTasks} />}
           {view === 'saves' && <SavesPage refreshKey={refreshKey} onOpenTask={openTasks} />}
           {view === 'maintenance' && <MaintenancePage focusRequestKey={maintenanceFocusRequest.key} focusSection={maintenanceFocusRequest.section} refreshKey={refreshKey} onOpenGame={(id) => { setSelectedGameId(id); setView('library'); }} onOpenMetadata={openMetadata} onOpenTasks={openTasks} />}
