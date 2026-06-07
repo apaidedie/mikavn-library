@@ -365,6 +365,24 @@ async function main() {
       ['maintenance-health-description-repair', 'maintenance', { games: [...games, descriptionRepairGame] }, async (page) => {
         await page.getByText('维护中心').first().waitFor({ timeout: 5000 });
         await page.getByText('最近维护任务').first().waitFor({ timeout: 5000 });
+        const mediaSummaryPanel = page.locator('section').filter({ hasText: '媒体与简介' }).first();
+        await mediaSummaryPanel.getByRole('button', { name: /在游戏库查看缺封面/ }).click();
+        await page.getByText('媒体健康').first().waitFor({ timeout: 5000 });
+        if (await page.getByLabel('元数据筛选').inputValue() !== 'missing_cover') throw new Error('maintenance missing-cover shortcut did not select library metadata filter');
+        await page.getByText('天使☆騒々 RE-BOOT!').first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: '维护' }).click();
+        await page.getByText('维护中心').first().waitFor({ timeout: 5000 });
+        await page.getByText('最近维护任务').first().waitFor({ timeout: 5000 });
+        const completenessPanel = page.locator('section').filter({ hasText: '重复与完整度' }).first();
+        await completenessPanel.getByRole('button', { name: /在游戏库查看路径异常/ }).click();
+        await page.getByText('媒体健康').first().waitFor({ timeout: 5000 });
+        if (await page.getByLabel('路径筛选').inputValue() !== 'broken') throw new Error('maintenance broken-path shortcut did not select library path filter');
+        await page.getByText('天使☆騒々 RE-BOOT!').first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: '维护' }).click();
+        await page.getByText('维护中心').first().waitFor({ timeout: 5000 });
+        await page.getByText('最近维护任务').first().waitFor({ timeout: 5000 });
+
+
         await page.getByText('正在匹配 2 个游戏').first().waitFor({ timeout: 5000 });
         await page.getByText('媒体补图失败：来源无响应').first().waitFor({ timeout: 5000 });
         if (await page.getByText('扫描失败：路径不存在').count() > 0) throw new Error('maintenance task panel should not show scan tasks');

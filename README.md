@@ -32,6 +32,7 @@ The current implementation focuses on a complete local desktop workflow:
 - Batch media artwork repair from metadata providers for missing cover, banner, and background images
 - Maintenance media artwork diagnosis for searchable/filterable missing external IDs, remote no-image results, provider errors, and repairable artwork candidates with game-detail and batch-metadata shortcuts
 - Maintenance media artwork result summaries for recent repair tasks, including searchable/filterable updated, skipped, and failed entries with reasons and game-detail shortcuts
+- Maintenance health summary shortcuts that open the Library with matching metadata or path filters for missing artwork, missing description images, missing external IDs, and broken or unchecked paths
 - Maintenance recent-task overview for batch matching, description image repair, artwork repair, and duplicate ID audit jobs with status counts, all/active/attention/completed quick filters, progress, timing, log shortcuts, missing-ID matching shortcuts, retry, and cancellation
 - Asset commands for importing local image files into app data, downloading remote image assets, previewing image cache cleanup, and cleaning files not referenced by game image fields, gallery records, or local description images
 - Save-path management, manual backups, restore-before-protection backups, and backup history

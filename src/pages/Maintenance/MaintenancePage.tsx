@@ -9,7 +9,7 @@ import { MetricTile, PageFrame, PageHeader, PageShell, Panel, PanelContent, Pane
 import { TaskNotice } from '@/components/ui/task-notice';
 import { api } from '@/services/api';
 import type { AppDataDiagnostics, ImageReferenceAudit, ImageReferenceAuditItem } from '@/types/archive';
-import type { AssetCacheCleanupResult } from '@/types/game';
+import type { AssetCacheCleanupResult, LibraryFilterPreset } from '@/types/game';
 import type { ArtworkRepairDiagnosis, ArtworkRepairDiagnosisItem, DuplicateExternalIdGroup, DuplicateGameMergePreview } from '@/types/metadata';
 import type { TaskDetail, TaskLogEntry, TaskRecord } from '@/types/task';
 import { errorMessage } from '@/utils/errorMessage';
@@ -36,7 +36,7 @@ type ArtworkRepairTaskSummary = {
 };
 type MaintenanceTaskFilter = 'all' | 'active' | 'attention' | 'completed';
 
-export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0, onOpenGame, onOpenMetadata, onOpenTasks }: { refreshKey: number; focusSection?: string | null; focusRequestKey?: number; onOpenGame?: (gameId: string) => void; onOpenMetadata?: (preset?: { query?: string; missingProvider?: string } | null) => void; onOpenTasks?: (taskId?: string | null) => void }) {
+export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0, onOpenGame, onOpenLibrary, onOpenMetadata, onOpenTasks }: { refreshKey: number; focusSection?: string | null; focusRequestKey?: number; onOpenGame?: (gameId: string) => void; onOpenLibrary?: (preset?: LibraryFilterPreset | null) => void; onOpenMetadata?: (preset?: { query?: string; missingProvider?: string } | null) => void; onOpenTasks?: (taskId?: string | null) => void }) {
   const imageAuditRef = useRef<HTMLElement | null>(null);
   const handledFocusKeyRef = useRef<number | null>(null);
   const [diagnostics, setDiagnostics] = useState<AppDataDiagnostics | null>(null);
@@ -286,13 +286,13 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
             <PanelContent className="space-y-4">
               <ProgressBlock label="DLsite / FANZA 简介图片" value={descriptionImages?.providerGamesWithImagesCount ?? 0} total={descriptionImages?.providerGamesCount ?? 0} />
               <div className="grid gap-2 sm:grid-cols-2">
-                <CompactStat label="无简介图片" value={descriptionImages?.providerGamesWithoutImagesCount ?? 0} tone={(descriptionImages?.providerGamesWithoutImagesCount ?? 0) > 0 ? 'warn' : 'ok'} />
+                <CompactStat actionLabel="在游戏库查看缺简介图片" label="无简介图片" onClick={onOpenLibrary ? () => onOpenLibrary({ metadataStatus: 'missing_description_image' }) : undefined} value={descriptionImages?.providerGamesWithoutImagesCount ?? 0} tone={(descriptionImages?.providerGamesWithoutImagesCount ?? 0) > 0 ? 'warn' : 'ok'} />
                 <CompactStat label="空简介" value={descriptionImages?.providerGamesEmptyDescriptionCount ?? 0} tone={(descriptionImages?.providerGamesEmptyDescriptionCount ?? 0) > 0 ? 'warn' : 'ok'} />
                 <CompactStat label="简介图片引用" value={descriptionImages?.imageRefsCount ?? 0} />
                 <CompactStat label="缺失本地简介图" value={descriptionImages?.missingLocalImageRefsCount ?? 0} tone={(descriptionImages?.missingLocalImageRefsCount ?? 0) > 0 ? 'warn' : 'ok'} />
-                <CompactStat label="缺封面" value={metadata?.missingCoverCount ?? 0} tone={(metadata?.missingCoverCount ?? 0) > 0 ? 'warn' : 'ok'} />
-                <CompactStat label="缺横幅" value={metadata?.missingBannerCount ?? 0} tone={(metadata?.missingBannerCount ?? 0) > 0 ? 'warn' : 'ok'} />
-                <CompactStat label="缺背景" value={metadata?.missingBackgroundCount ?? 0} tone={(metadata?.missingBackgroundCount ?? 0) > 0 ? 'warn' : 'ok'} />
+                <CompactStat actionLabel="在游戏库查看缺封面" label="缺封面" onClick={onOpenLibrary ? () => onOpenLibrary({ metadataStatus: 'missing_cover' }) : undefined} value={metadata?.missingCoverCount ?? 0} tone={(metadata?.missingCoverCount ?? 0) > 0 ? 'warn' : 'ok'} />
+                <CompactStat actionLabel="在游戏库查看缺横幅" label="缺横幅" onClick={onOpenLibrary ? () => onOpenLibrary({ metadataStatus: 'missing_banner' }) : undefined} value={metadata?.missingBannerCount ?? 0} tone={(metadata?.missingBannerCount ?? 0) > 0 ? 'warn' : 'ok'} />
+                <CompactStat actionLabel="在游戏库查看缺背景" label="缺背景" onClick={onOpenLibrary ? () => onOpenLibrary({ metadataStatus: 'missing_background' }) : undefined} value={metadata?.missingBackgroundCount ?? 0} tone={(metadata?.missingBackgroundCount ?? 0) > 0 ? 'warn' : 'ok'} />
               </div>
             </PanelContent>
           </Panel>
@@ -302,12 +302,12 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
             <PanelContent className="space-y-4">
               <ProgressBlock label="基础元数据完整" value={metadata?.completeGameCount ?? 0} total={database?.gameCount ?? 0} />
               <div className="grid gap-2 sm:grid-cols-2">
-                <CompactStat label="需补元数据" value={metadata?.needsMetadataCount ?? 0} tone={(metadata?.needsMetadataCount ?? 0) > 0 ? 'warn' : 'ok'} />
-                <CompactStat label="缺外部 ID" value={metadata?.missingExternalIdCount ?? 0} tone={(metadata?.missingExternalIdCount ?? 0) > 0 ? 'warn' : 'ok'} />
+                <CompactStat actionLabel="在游戏库查看需补元数据" label="需补元数据" onClick={onOpenLibrary ? () => onOpenLibrary({ metadataStatus: 'needs_metadata' }) : undefined} value={metadata?.needsMetadataCount ?? 0} tone={(metadata?.needsMetadataCount ?? 0) > 0 ? 'warn' : 'ok'} />
+                <CompactStat actionLabel="在游戏库查看缺外部 ID" label="缺外部 ID" onClick={onOpenLibrary ? () => onOpenLibrary({ metadataStatus: 'missing_external_id' }) : undefined} value={metadata?.missingExternalIdCount ?? 0} tone={(metadata?.missingExternalIdCount ?? 0) > 0 ? 'warn' : 'ok'} />
                 <CompactStat label="重复 ID 组" value={externalIds?.duplicateExternalIdGroupsCount ?? 0} tone={(externalIds?.duplicateExternalIdGroupsCount ?? 0) > 0 ? 'warn' : 'ok'} />
                 <CompactStat label="重复涉及游戏" value={externalIds?.duplicateExternalIdGamesCount ?? 0} tone={(externalIds?.duplicateExternalIdGamesCount ?? 0) > 0 ? 'warn' : 'ok'} />
-                <CompactStat label="路径异常" value={pathStatus?.brokenCount ?? 0} tone={(pathStatus?.brokenCount ?? 0) > 0 ? 'warn' : 'ok'} />
-                <CompactStat label="未检查路径" value={pathStatus?.uncheckedCount ?? 0} />
+                <CompactStat actionLabel="在游戏库查看路径异常" label="路径异常" onClick={onOpenLibrary ? () => onOpenLibrary({ pathStatus: 'broken' }) : undefined} value={pathStatus?.brokenCount ?? 0} tone={(pathStatus?.brokenCount ?? 0) > 0 ? 'warn' : 'ok'} />
+                <CompactStat actionLabel="在游戏库查看未检查路径" label="未检查路径" onClick={onOpenLibrary ? () => onOpenLibrary({ pathStatus: 'unknown' }) : undefined} value={pathStatus?.uncheckedCount ?? 0} />
               </div>
             </PanelContent>
           </Panel>
@@ -1292,9 +1292,18 @@ function ProgressBlock({ label, value, total }: { label: string; value: number; 
   );
 }
 
-function CompactStat({ label, value, tone = 'neutral' }: { label: string; value: number | string; tone?: 'neutral' | 'ok' | 'warn' }) {
+function CompactStat({ actionLabel, label, onClick, value, tone = 'neutral' }: { actionLabel?: string; label: string; onClick?: () => void; value: number | string; tone?: 'neutral' | 'ok' | 'warn' }) {
   const toneClass = tone === 'ok' ? 'text-emerald-200' : tone === 'warn' ? 'text-amber-200' : 'text-slate-200';
   const displayValue = typeof value === 'number' ? formatCount(value) : value;
+  if (onClick) {
+    return (
+      <button aria-label={actionLabel ?? label} className="motion-button rounded-md border border-white/10 bg-black/[0.10] px-3 py-2 text-left hover:border-[rgb(var(--accent-rgb)/0.38)] hover:bg-[rgb(var(--accent-rgb)/0.10)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--accent-rgb)/0.42)]" onClick={onClick} type="button">
+        <div className="text-[11px] text-slate-500">{label}</div>
+        <div className={`mt-1 font-mono text-sm ${toneClass}`}>{displayValue}</div>
+      </button>
+    );
+  }
+
   return (
     <div className="rounded-md border border-white/10 bg-black/[0.10] px-3 py-2">
       <div className="text-[11px] text-slate-500">{label}</div>

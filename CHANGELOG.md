@@ -22,6 +22,7 @@ Updated release candidate with the mature local V1 hardening pass.
 - Batch media artwork repair now includes missing banner images alongside cover and background images.
 - Maintenance media artwork diagnosis with search, status filters, and game-detail shortcuts for checking repairable artwork candidates, missing external IDs, no-image metadata results, and provider errors before starting a repair task.
 - Maintenance media artwork result summaries for recent repair tasks, including searchable/filterable updated, skipped, and failed entries with reasons and game-detail shortcuts.
+- Maintenance health summary stats now open the Library with preset metadata or path filters for missing artwork, missing description images, missing external IDs, and broken or unchecked paths.
 - Maintenance recent-task overview for batch metadata matching, description image repair, artwork repair, and duplicate ID audit jobs, including status counts, all/active/attention/completed quick filters, progress, timing, log shortcuts, retry, and cancellation.
 - Save restore previews for merge and mirror restore, including new, overwritten, kept, and mirror-removed file counts before task creation.
 - Scanner import audit panel with searchable/filterable per-candidate results, conflict reasons, target titles, record IDs, and install paths.

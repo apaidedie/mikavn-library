@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { EmptyState, Notice } from '@/components/ui/notice';
 import { Select } from '@/components/ui/select';
 import { api } from '@/services/api';
-import type { Game, GameCollection, GameFilter, PlayStatus, UpdateGameInput } from '@/types/game';
+import type { Game, GameCollection, GameFilter, LibraryFilterPreset, PlayStatus, UpdateGameInput } from '@/types/game';
 import { PLAY_STATUS_LABEL } from '@/types/game';
 import { cn } from '@/utils/cn';
 import { errorMessage } from '@/utils/errorMessage';
@@ -25,6 +25,7 @@ type LibraryPageProps = {
   addRequestKey?: number | null;
   onAddRequestConsumed?: () => void;
   filterToggleKey?: number;
+  filterPreset?: (LibraryFilterPreset & { key: number }) | null;
   toolbarQuery?: string;
 };
 
@@ -41,7 +42,7 @@ function clampLibraryPanelWidth(value: number) {
   return Math.max(minLibraryPanelWidth, Math.min(maxLibraryPanelWidth, value));
 }
 
-export function LibraryPage({ refreshKey, selectedGameId, onSelectedGameChange, onChanged, onOpenTasks, onOpenMaintenance, addRequestKey, onAddRequestConsumed, filterToggleKey = 0, toolbarQuery }: LibraryPageProps) {
+export function LibraryPage({ refreshKey, selectedGameId, onSelectedGameChange, onChanged, onOpenTasks, onOpenMaintenance, addRequestKey, onAddRequestConsumed, filterPreset, filterToggleKey = 0, toolbarQuery }: LibraryPageProps) {
   const [games, setGames] = useState<Game[]>([]);
   const [query, setQuery] = useState('');
   const dragStartRef = useRef({ x: 0, width: defaultLibraryPanelWidth });
@@ -176,6 +177,24 @@ export function LibraryPage({ refreshKey, selectedGameId, onSelectedGameChange, 
     setQuery(toolbarQuery);
   }, [query, toolbarQuery]);
 
+  useEffect(() => {
+    if (!filterPreset) return;
+    setQuery(filterPreset.query ?? '');
+    setStatus(filterPreset.status ?? 'all');
+    setSortBy(filterPreset.sortBy ?? 'updated_at');
+    setTag(filterPreset.tag ?? '');
+    setDeveloper(filterPreset.developer ?? '');
+    setFavoriteOnly(filterPreset.favorite === true);
+    setHiddenFilter(filterPreset.hidden === true ? 'hidden' : filterPreset.hidden === false ? 'visible' : 'all');
+    setMetadataStatus(filterPreset.metadataStatus ?? 'all');
+    setPathStatus(filterPreset.pathStatus ?? 'all');
+    setCollectionId(filterPreset.collectionId ?? '');
+    setAdvancedOpen(true);
+    setBulkMode(false);
+    setBulkSelectedIds(new Set());
+    setBulkMessage(null);
+
+  }, [filterPreset]);
   useEffect(() => {
     const visibleIds = new Set(visibleGames.map((game) => game.id));
     setBulkSelectedIds((current) => {
@@ -411,7 +430,7 @@ export function LibraryPage({ refreshKey, selectedGameId, onSelectedGameChange, 
                   <option value="">全部合集</option>
                   {collections.map((collection) => <option key={collection.id} value={collection.id}>{collection.name}</option>)}
                 </Select>
-                <Select value={metadataStatus} onChange={(event) => setMetadataStatus(event.target.value)}>
+                <Select aria-label="元数据筛选" value={metadataStatus} onChange={(event) => setMetadataStatus(event.target.value)}>
                   <option value="all">全部元数据</option>
                   <option value="complete">元数据完整</option>
                   <option value="needs_metadata">需要补全</option>
@@ -423,7 +442,7 @@ export function LibraryPage({ refreshKey, selectedGameId, onSelectedGameChange, 
                   <option value="missing_description_image">缺少简介图片</option>
                   <option value="missing_external_id">缺少外部 ID</option>
                 </Select>
-                <Select value={pathStatus} onChange={(event) => setPathStatus(event.target.value)}>
+                <Select aria-label="路径筛选" value={pathStatus} onChange={(event) => setPathStatus(event.target.value)}>
                   <option value="all">全部路径</option>
                   <option value="unknown">未检查</option>
                   <option value="ok">路径正常</option>

@@ -52,6 +52,10 @@ export type GameFilter = {
   sortDirection?: 'asc' | 'desc';
 };
 
+export type LibraryFilterPreset = Partial<Pick<
+  GameFilter,
+  'query' | 'status' | 'tag' | 'developer' | 'favorite' | 'hidden' | 'metadataStatus' | 'pathStatus' | 'collectionId' | 'sortBy' | 'sortDirection'
+>>;
 export type GameCollection = {
   id: string;
   name: string;
