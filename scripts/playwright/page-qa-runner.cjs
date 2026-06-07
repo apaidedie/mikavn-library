@@ -417,6 +417,11 @@ async function main() {
         if (!exportTask || exportTask.status !== 'completed') throw new Error('reports page QA did not create a completed report export task');
         if (!/mikavn-report-\d{4}-\d{2}-\d{2}\.md/.test(exportTask.message ?? '')) throw new Error('reports page QA export task did not keep the markdown target path in its message');
       }],
+      ['reports-privacy-filter-disabled', 'reports', { settings: { ...settings, privacy_filter_reports: 'false' } }, async (page) => {
+        await page.getByText('游玩报告').first().waitFor({ timeout: 5000 });
+        await page.locator('.motion-soft-row').filter({ hasText: '报告条目' }).first().getByText('2').waitFor({ timeout: 5000 });
+        await page.getByText('Yuzusoft').first().waitFor({ timeout: 5000 });
+      }],
       ['saves-backup-restore', 'saves', {}, async (page) => {
         await page.getByText('存档管理').first().waitFor({ timeout: 5000 });
         await page.locator('select').first().selectOption('qa-1');
