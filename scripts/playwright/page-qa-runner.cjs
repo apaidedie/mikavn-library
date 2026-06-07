@@ -254,6 +254,18 @@ async function main() {
         await page.getByText('1 张引用').first().waitFor({ timeout: 5000 });
         const descriptionImages = page.locator('section').filter({ hasText: '简介' }).locator('figure img');
         if (await descriptionImages.count() < 1) throw new Error('library detail description image was not rendered');
+        await page.getByText('媒体图库').first().waitFor({ timeout: 5000 });
+        const downloadedCoverUrl = `${baseUrl.replace(/\/$/, '')}${hero}`;
+        await page.getByPlaceholder('https://example.com/cover.jpg').fill(downloadedCoverUrl);
+        await page.getByRole('button', { name: /下载/ }).first().click();
+        await page.getByText(/图片已下载到本地缓存并设为主图/).first().waitFor({ timeout: 5000 });
+        const assetGames = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.games') || '[]'));
+        const assetRecords = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.assets') || '[]'));
+        const assetGame = assetGames.find((game) => game.id === 'qa-1');
+        if (assetGame?.coverImage !== downloadedCoverUrl) throw new Error('page QA asset download did not update primary cover field');
+        if (!Array.isArray(assetRecords) || !assetRecords.some((asset) => asset.gameId === 'qa-1' && asset.source === 'download' && asset.uri === downloadedCoverUrl)) throw new Error('page QA asset download record was not persisted');
+        await page.getByRole('button', { name: /清理缓存/ }).click();
+        await page.getByText(/缓存清理完成/).first().waitFor({ timeout: 5000 });
         await page.getByRole('button', { name: '批量', exact: true }).click();
         await page.getByRole('button', { name: /选中当前/ }).click();
         await page.getByText(/已选 2/).first().waitFor({ timeout: 5000 });
