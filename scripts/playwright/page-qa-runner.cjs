@@ -535,7 +535,27 @@ async function main() {
         await page.getByText('字段锁').first().waitFor({ timeout: 5000 });
         await page.getByText('匹配结果').first().waitFor({ timeout: 5000 });
       }],
-      ['settings-local-privacy-backup', 'settings'],
+      ['settings-local-privacy-backup', 'settings', {}, async (page) => {
+        await page.getByText('设置').first().waitFor({ timeout: 5000 });
+        await page.getByRole('tab', { name: /本地与隐私/ }).click();
+        await page.getByText('标签维护').first().waitFor({ timeout: 5000 });
+        await page.locator('select').filter({ has: page.locator('option', { hasText: '标签 · 全年龄' }) }).selectOption('tag:%E5%85%A8%E5%B9%B4%E9%BE%84');
+        await page.getByPlaceholder('新标签名').fill('全年龄QA');
+        await page.getByRole('button', { name: /^重命名$/ }).click();
+        await page.getByText(/标签已重命名为：全年龄QA/).first().waitFor({ timeout: 5000 });
+        await page.locator('select').filter({ has: page.locator('option', { hasText: '标签 · 全年龄QA' }) }).selectOption('tag:%E5%85%A8%E5%B9%B4%E9%BE%84QA');
+        await page.locator('label').filter({ hasText: /标签 · 科幻/ }).getByRole('checkbox').check();
+        await page.getByRole('button', { name: /^合并所选$/ }).click();
+        await page.getByText(/已合并 1 个标签到：全年龄QA/).first().waitFor({ timeout: 5000 });
+        await page.locator('select').filter({ has: page.locator('option', { hasText: '标签 · 恋爱' }) }).selectOption('tag:%E6%81%8B%E7%88%B1');
+        await page.getByRole('button', { name: /^删除标签$/ }).click();
+        await page.getByText(/标签已删除：恋爱/).first().waitFor({ timeout: 5000 });
+        const tagGames = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.games') || '[]'));
+        const renamedTagGame = tagGames.find((game) => game.id === 'qa-1');
+        const deletedTagGame = tagGames.find((game) => game.id === 'qa-2');
+        if (!renamedTagGame?.tags.includes('全年龄QA') || renamedTagGame.tags.includes('科幻')) throw new Error('page QA tag rename/merge did not update game tags');
+        if (deletedTagGame?.tags.includes('恋爱')) throw new Error('page QA tag delete did not remove tag from games');
+      }],
     ];
 
     for (const [name, view, overrides, interact] of cases) {
