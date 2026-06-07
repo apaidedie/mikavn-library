@@ -405,7 +405,18 @@ async function main() {
         await page.getByRole('button', { name: /重置筛选/ }).first().click();
         await page.getByText(/推荐：/).first().waitFor({ timeout: 5000 });
       }],
-      ['reports-populated', 'reports'],
+      ['reports-populated', 'reports', {}, async (page) => {
+        await page.getByText('游玩报告').first().waitFor({ timeout: 5000 });
+        await page.locator('.motion-soft-row').filter({ hasText: '报告条目' }).first().getByText('1').waitFor({ timeout: 5000 });
+        await page.getByText('Key').first().waitFor({ timeout: 5000 });
+        if (await page.getByText('Yuzusoft').count() > 0) throw new Error('reports page QA did not apply privacy filtering to R18 entries');
+        await page.getByRole('button', { name: /导出 Markdown/ }).click();
+        await page.getByText(/报告导出任务已创建/).first().waitFor({ timeout: 5000 });
+        const reportTasks = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.tasks') || '[]'));
+        const exportTask = reportTasks.find((task) => task.taskType === 'report.export_markdown');
+        if (!exportTask || exportTask.status !== 'completed') throw new Error('reports page QA did not create a completed report export task');
+        if (!/mikavn-report-\d{4}-\d{2}-\d{2}\.md/.test(exportTask.message ?? '')) throw new Error('reports page QA export task did not keep the markdown target path in its message');
+      }],
       ['saves-backup-restore', 'saves', {}, async (page) => {
         await page.getByText('存档管理').first().waitFor({ timeout: 5000 });
         await page.locator('select').first().selectOption('qa-1');
