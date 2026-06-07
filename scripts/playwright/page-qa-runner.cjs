@@ -588,6 +588,18 @@ async function main() {
         await page.getByText('外部 ID').first().waitFor({ timeout: 5000 });
         await page.getByText('字段锁').first().waitFor({ timeout: 5000 });
         await page.getByText('匹配结果').first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: /确认合并/ }).click();
+        await page.getByText(/已合并重复游戏：删除 1 条源记录，保留「星之终途 重复记录」/).first().waitFor({ timeout: 5000 });
+        const mergedGames = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.games') || '[]'));
+        const mergedGame = mergedGames.find((game) => game.id === 'qa-duplicate-id');
+        if (mergedGames.some((game) => game.id === 'qa-1')) throw new Error('duplicate merge did not delete the source game');
+        if (!mergedGame?.aliases.includes('星之终途') || !mergedGame.aliases.includes('[汉化硬盘版] 星之终途 v1.02')) throw new Error('duplicate merge did not preserve source aliases');
+        if (!['全年龄', '科幻', '短篇'].every((tag) => mergedGame.tags.includes(tag))) throw new Error('duplicate merge did not preserve source tags');
+        if (mergedGame.totalPlaySeconds < 12600) throw new Error('duplicate merge did not preserve source play time');
+        const mergedCollectionLinks = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.collectionGames') || '[]'));
+        if (mergedCollectionLinks.some((link) => link.gameId === 'qa-1') || !mergedCollectionLinks.some((link) => link.gameId === 'qa-duplicate-id')) throw new Error('duplicate merge did not move collection links to target');
+        const mergedAssets = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.assets') || '[]'));
+        if (mergedAssets.some((asset) => asset.gameId === 'qa-1') || !mergedAssets.some((asset) => asset.gameId === 'qa-duplicate-id')) throw new Error('duplicate merge did not move assets to target');
       }],
       ['settings-local-privacy-backup', 'settings', {}, async (page) => {
         await page.getByText('设置').first().waitFor({ timeout: 5000 });
