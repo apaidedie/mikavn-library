@@ -503,6 +503,16 @@ async function main() {
         await page.getByText('简介图片修复').first().waitFor({ timeout: 5000 });
         await clickMaintenanceStart(page, '简介图片修复');
         await page.getByText(/浏览器预览已修复|已创建简介图片修复任务/).first().waitFor({ timeout: 5000 });
+        const repairedGames = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.games') || '[]'));
+        const repairedGame = repairedGames.find((game) => game.id === 'qa-description-repair');
+        if (!repairedGame?.description.includes('![简介图片](')) throw new Error('description image repair did not persist an image reference into the game description');
+        const repairTasks = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.tasks') || '[]'));
+        const repairTask = repairTasks.find((task) => task.taskType === 'metadata.description_image_repair');
+        if (!repairTask || repairTask.status !== 'completed' || !repairTask.retryable) throw new Error('description image repair did not create a retryable completed task');
+        const repairPayload = JSON.parse(repairTask.retryPayload || '{}');
+        if (repairPayload.provider !== 'all' || repairPayload.maxImages !== 3) throw new Error('description image repair task did not persist retry options');
+        const repairLogs = await page.evaluate((taskId) => JSON.parse(localStorage.getItem('mikavn-library.mock.taskLogs') || '{}')[taskId] || [], repairTask.id);
+        if (!repairLogs.some((log) => /dlsite:RJ01000001/.test(log.message))) throw new Error('description image repair task log did not record the provider candidate');
       }],
       ['maintenance-health-metadata-match', 'maintenance', {}, async (page) => {
         await page.getByText('维护中心').first().waitFor({ timeout: 5000 });
