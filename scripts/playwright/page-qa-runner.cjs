@@ -432,6 +432,12 @@ async function main() {
         await page.getByText(/合并恢复预览完成：新增 1，覆盖 2，保留 2/).first().waitFor({ timeout: 5000 });
         await page.getByText('合并预览').first().waitFor({ timeout: 5000 });
         await page.getByText('将保留').first().waitFor({ timeout: 5000 });
+        await page.getByText('新增样例').first().waitFor({ timeout: 5000 });
+        await page.getByText('new-slot.dat').first().waitFor({ timeout: 5000 });
+        await page.getByText('覆盖样例').first().waitFor({ timeout: 5000 });
+        await page.getByText('nested/slot2.dat').first().waitFor({ timeout: 5000 });
+        await page.getByText('保留样例').first().waitFor({ timeout: 5000 });
+        await page.getByText('config/user.ini').first().waitFor({ timeout: 5000 });
         await page.getByRole('button', { name: /^恢复$/ }).first().click();
         await page.getByText(/合并存档恢复任务已创建/).first().waitFor({ timeout: 5000 });
         await page.getByText('保护备份').first().waitFor({ timeout: 5000 });
@@ -439,6 +445,8 @@ async function main() {
         await page.getByText(/镜像恢复预览完成：新增 1，覆盖 2，清理 4/).first().waitFor({ timeout: 5000 });
         await page.getByText('镜像预览').first().waitFor({ timeout: 5000 });
         await page.getByText('将清理').first().waitFor({ timeout: 5000 });
+        await page.getByText('清理样例').first().waitFor({ timeout: 5000 });
+        await page.getByText('local-only.dat').first().waitFor({ timeout: 5000 });
         await page.getByRole('button', { name: /镜像恢复/ }).first().click();
         await page.getByText(/镜像存档恢复任务已创建/).first().waitFor({ timeout: 5000 });
         const backupRecords = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.saveBackups') || '[]'));
