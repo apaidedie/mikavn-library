@@ -34,6 +34,7 @@ type ArtworkRepairTaskSummary = {
   skipped: ArtworkRepairLogSummary[];
   failed: ArtworkRepairLogSummary[];
 };
+type MaintenanceTaskFilter = 'all' | 'active' | 'attention' | 'completed';
 
 export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0, onOpenGame, onOpenMetadata, onOpenTasks }: { refreshKey: number; focusSection?: string | null; focusRequestKey?: number; onOpenGame?: (gameId: string) => void; onOpenMetadata?: (preset?: { query?: string; missingProvider?: string } | null) => void; onOpenTasks?: (taskId?: string | null) => void }) {
   const imageAuditRef = useRef<HTMLElement | null>(null);
@@ -72,6 +73,7 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
   const [maintenanceTasks, setMaintenanceTasks] = useState<TaskRecord[]>([]);
   const [maintenanceTasksLoading, setMaintenanceTasksLoading] = useState(false);
   const [maintenanceTaskActionId, setMaintenanceTaskActionId] = useState<string | null>(null);
+  const [maintenanceTaskFilter, setMaintenanceTaskFilter] = useState<MaintenanceTaskFilter>('all');
 
   useEffect(() => {
     void loadDiagnostics();
@@ -131,6 +133,13 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
   const mergeSourceIds = useMemo(() => selectedDuplicateGroup?.games.map((game) => game.gameId).filter((id) => id !== mergeTargetId) ?? [], [mergeTargetId, selectedDuplicateGroup]);
   const duplicateGroupFiltersActive = duplicateGroupQuery.trim().length > 0 || duplicateGroupProvider !== 'all';
   const maintenanceTaskSummary = useMemo(() => summarizeMaintenanceTasks(maintenanceTasks), [maintenanceTasks]);
+  const maintenanceTaskShortcuts = useMemo(() => [
+    { id: 'all', label: '全部', count: maintenanceTasks.length },
+    { id: 'active', label: '进行中', count: maintenanceTaskSummary.activeCount },
+    { id: 'attention', label: '需处理', count: maintenanceTaskSummary.attentionCount },
+    { id: 'completed', label: '已完成', count: maintenanceTaskSummary.completedCount },
+  ] as const, [maintenanceTaskSummary, maintenanceTasks.length]);
+  const filteredMaintenanceTasks = useMemo(() => maintenanceTasks.filter((task) => matchesMaintenanceTaskFilter(task, maintenanceTaskFilter)), [maintenanceTaskFilter, maintenanceTasks]);
   const filteredArtworkDiagnosisItems = useMemo(() => artworkDiagnosis?.items.filter((item) => matchesArtworkDiagnosisItem(item, artworkDiagnosisQuery, artworkDiagnosisStatusFilter)) ?? [], [artworkDiagnosis, artworkDiagnosisQuery, artworkDiagnosisStatusFilter]);
   const filteredArtworkHistory = useMemo(() => artworkHistory?.map((summary) => filterArtworkRepairSummary(summary, artworkHistoryQuery, artworkHistoryStatusFilter)).filter((summary) => summary.updated.length + summary.skipped.length + summary.failed.length > 0) ?? [], [artworkHistory, artworkHistoryQuery, artworkHistoryStatusFilter]);
 
@@ -577,9 +586,28 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
               <CompactStat label="需处理" value={maintenanceTaskSummary.attentionCount} tone={maintenanceTaskSummary.attentionCount > 0 ? 'warn' : 'ok'} />
               <CompactStat label="已完成" value={maintenanceTaskSummary.completedCount} tone={maintenanceTaskSummary.completedCount > 0 ? 'ok' : 'neutral'} />
             </div>
+            <div className="grid gap-1.5 sm:grid-cols-4" aria-label="维护任务状态快捷筛选">
+              {maintenanceTaskShortcuts.map((shortcut) => {
+                const active = maintenanceTaskFilter === shortcut.id;
+                return (
+                  <Button
+                    aria-pressed={active}
+                    className={active ? 'border-[rgb(var(--accent-rgb)/0.42)] bg-[rgb(var(--accent-rgb)/0.16)] text-slate-100' : 'text-slate-300'}
+                    key={shortcut.id}
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setMaintenanceTaskFilter(shortcut.id)}
+                  >
+                    <span>{shortcut.label}</span>
+                    <span className="font-mono text-[11px] text-slate-400">{formatCount(shortcut.count)}</span>
+                  </Button>
+                );
+              })}
+            </div>
             {maintenanceTasks.length > 0 ? (
-              <div className="space-y-2">
-                {maintenanceTasks.map((task) => (
+              filteredMaintenanceTasks.length > 0 ? (
+                <div className="space-y-2">
+                  {filteredMaintenanceTasks.map((task) => (
                   <MaintenanceTaskRow
                     actionBusy={maintenanceTaskActionId === task.id}
                     key={task.id}
@@ -588,8 +616,11 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
                     onRetryTask={retryMaintenanceTask}
                     task={task}
                   />
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <SoftRow className="px-3 py-3 text-sm text-slate-400">当前筛选没有匹配的维护任务。</SoftRow>
+              )
             ) : (
               <SoftRow className="px-3 py-3 text-sm text-slate-400">还没有维护任务记录。创建批量匹配、简介修复、媒体补图或重复 ID 审查后会显示在这里。</SoftRow>
             )}
@@ -1331,6 +1362,13 @@ function isActiveTask(task: TaskRecord) {
 
 function needsAttentionTask(task: TaskRecord) {
   return task.status === 'failed' || task.status === 'cancelled';
+}
+
+function matchesMaintenanceTaskFilter(task: TaskRecord, filter: MaintenanceTaskFilter) {
+  return filter === 'all'
+    || (filter === 'active' && isActiveTask(task))
+    || (filter === 'attention' && needsAttentionTask(task))
+    || (filter === 'completed' && task.status === 'completed');
 }
 
 function summarizeMaintenanceTasks(tasks: TaskRecord[]) {

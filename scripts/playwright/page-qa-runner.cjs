@@ -369,6 +369,16 @@ async function main() {
         await page.getByText('媒体补图失败：来源无响应').first().waitFor({ timeout: 5000 });
         if (await page.getByText('扫描失败：路径不存在').count() > 0) throw new Error('maintenance task panel should not show scan tasks');
         const maintenanceTaskPanel = page.locator('section').filter({ hasText: '最近维护任务' }).first();
+        const maintenanceTaskShortcuts = maintenanceTaskPanel.locator('[aria-label="维护任务状态快捷筛选"]');
+        await maintenanceTaskShortcuts.getByRole('button', { name: /需处理\s+1/ }).click();
+        await maintenanceTaskPanel.getByText('媒体补图失败：来源无响应').first().waitFor({ timeout: 5000 });
+        if (await maintenanceTaskPanel.getByText('正在匹配 2 个游戏').count() > 0) throw new Error('running maintenance task should be hidden by attention filter');
+        await maintenanceTaskShortcuts.getByRole('button', { name: /进行中\s+1/ }).click();
+        await maintenanceTaskPanel.getByText('正在匹配 2 个游戏').first().waitFor({ timeout: 5000 });
+        if (await maintenanceTaskPanel.getByText('媒体补图失败：来源无响应').count() > 0) throw new Error('failed maintenance task should be hidden by active filter');
+        await maintenanceTaskShortcuts.getByRole('button', { name: /全部\s+2/ }).click();
+        await maintenanceTaskPanel.getByText('媒体补图失败：来源无响应').first().waitFor({ timeout: 5000 });
+        await maintenanceTaskPanel.getByText('正在匹配 2 个游戏').first().waitFor({ timeout: 5000 });
         await maintenanceTaskPanel.locator('.motion-soft-row').filter({ hasText: '媒体补图失败：来源无响应' }).first().getByRole('button', { name: /^重试$/ }).click();
         await page.getByText(/已重新创建维护任务：媒体图片补全/).first().waitFor({ timeout: 5000 });
         await maintenanceTaskPanel.getByText(/浏览器预览已补全/).first().waitFor({ timeout: 5000 });
