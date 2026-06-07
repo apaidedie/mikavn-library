@@ -63,6 +63,7 @@ export function CollectionsPage({ refreshKey, onOpenGame, onChanged }: Collectio
       setName('');
       setDescription('');
       setColor('rose');
+      setCollections((current) => [collection, ...current.filter((item) => item.name !== collection.name)]);
       setSelectedId(collection.id);
       setMessage('合集已创建。可以在游戏库详情或此页把条目加入合集。');
       await loadCollections();
