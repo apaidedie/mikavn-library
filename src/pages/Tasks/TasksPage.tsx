@@ -167,7 +167,9 @@ export function TasksPage({ refreshKey, focusTaskId, focusRequestKey = 0, filter
     try {
       const task = await api.cancelTask(id);
       setMessage(`已取消任务：${taskLabel(task.taskType)}。`);
+      setExpandedId(task.id);
       await loadTasks({ quiet: true });
+      await loadLogs(task.id);
     } catch (reason) {
       setError(errorMessage(reason));
     }
