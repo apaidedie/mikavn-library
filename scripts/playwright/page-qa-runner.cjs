@@ -508,6 +508,13 @@ async function main() {
         await page.getByText('简介图片覆盖').first().waitFor({ timeout: 5000 });
         await page.getByText('维护队列').first().waitFor({ timeout: 5000 });
         await page.getByText('简介图片修复').first().waitFor({ timeout: 5000 });
+        const secondMediaSummaryPanel = page.locator('section').filter({ hasText: '媒体与简介' }).first();
+        await secondMediaSummaryPanel.getByRole('button', { name: /在游戏库查看缺封面/ }).click();
+        await page.getByText('媒体健康').first().waitFor({ timeout: 5000 });
+        if (await page.getByLabel('元数据筛选').inputValue() !== 'missing_cover') throw new Error('maintenance missing-cover shortcut did not leave library in a filtered state');
+        await page.getByRole('button', { name: '维护' }).click();
+        await page.getByText('维护中心').first().waitFor({ timeout: 5000 });
+        await page.getByText('维护队列').first().waitFor({ timeout: 5000 });
         await clickMaintenanceStart(page, '简介图片修复');
         await page.getByText(/浏览器预览已修复|已创建简介图片修复任务/).first().waitFor({ timeout: 5000 });
         const repairedGames = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.games') || '[]'));
@@ -535,6 +542,12 @@ async function main() {
         await descriptionResultPanel.getByText('当前筛选没有匹配的简介图片修复结果。').first().waitFor({ timeout: 5000 });
         await descriptionResultPanel.getByRole('button', { name: /重置筛选/ }).click();
         await descriptionResultPanel.getByText('简介图片修复候选').first().waitFor({ timeout: 5000 });
+        const descriptionRepairResultRow = descriptionResultPanel.locator('.rounded-md').filter({ hasText: '简介图片修复候选' }).first();
+        await descriptionRepairResultRow.getByRole('button', { name: /^游戏$/ }).click();
+        await page.getByText('媒体健康').first().waitFor({ timeout: 5000 });
+        await page.getByText('简介图片修复候选').first().waitFor({ timeout: 5000 });
+        const detailDescriptionImages = page.locator('section').filter({ hasText: '简介' }).locator('figure img');
+        if (await detailDescriptionImages.count() < 1) throw new Error('description repair result game shortcut did not show rendered description image');
       }],
       ['maintenance-health-metadata-match', 'maintenance', {}, async (page) => {
         await page.getByText('维护中心').first().waitFor({ timeout: 5000 });

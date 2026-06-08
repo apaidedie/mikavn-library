@@ -154,6 +154,14 @@ export function App() {
     }
     setView('library');
   }, []);
+
+  const openGame = useCallback((id: string) => {
+    setSelectedGameId(id);
+    setLibrarySearchValue('');
+    setLibraryFilterPresetRequest((current) => ({ key: (current?.key ?? 0) + 1 }));
+    setView('library');
+  }, []);
+
   const openTasks = useCallback((taskId?: string | null, preset?: TaskFilterPreset | null) => {
     setTaskFocusRequest((current) => ({ id: taskId ?? null, key: current.key + 1 }));
     setTaskFilterPresetRequest((current) => ({ key: (current?.key ?? 0) + 1, ...(preset ?? { statusFilter: 'all', typeFilter: 'all', query: '' }) }));
@@ -294,16 +302,16 @@ export function App() {
         </header>
 
         <div className="min-h-0 flex-1 overflow-hidden">
-          {view === 'dashboard' && <DashboardPage refreshKey={refreshKey} onOpenGame={(id) => { setSelectedGameId(id); setView('library'); }} onOpenTasks={openTasks} />}
+          {view === 'dashboard' && <DashboardPage refreshKey={refreshKey} onOpenGame={openGame} onOpenTasks={openTasks} />}
           {view === 'library' && <LibraryPage refreshKey={refreshKey} selectedGameId={selectedGameId} onSelectedGameChange={setSelectedGameId} onChanged={refresh} addRequestKey={addRequestKey} onAddRequestConsumed={() => setAddRequestKey(null)} filterPreset={libraryFilterPresetRequest} filterToggleKey={libraryFilterToggleKey} toolbarQuery={librarySearchValue} onOpenTasks={openTasks} onOpenMaintenance={openMaintenance} />}
-          {view === 'collections' && <CollectionsPage refreshKey={refreshKey} onOpenGame={(id) => { setSelectedGameId(id); setView('library'); }} onChanged={refresh} />}
-          {view === 'advanced-search' && <AdvancedSearchPage refreshKey={refreshKey} onOpenGame={(id) => { setSelectedGameId(id); setView('library'); }} />}
+          {view === 'collections' && <CollectionsPage refreshKey={refreshKey} onOpenGame={openGame} onChanged={refresh} />}
+          {view === 'advanced-search' && <AdvancedSearchPage refreshKey={refreshKey} onOpenGame={openGame} />}
           {view === 'scanner' && <ScannerPage onOpenTask={openTasks} />}
           {view === 'metadata' && <BatchMetadataPage queuePresetRequest={metadataQueuePresetRequest} refreshKey={refreshKey} onOpenTask={openTasks} />}
           {view === 'tasks' && <TasksPage filterPreset={taskFilterPresetRequest} focusTaskId={taskFocusRequest.id} focusRequestKey={taskFocusRequest.key} refreshKey={refreshKey} />}
           {view === 'reports' && <ReportsPage refreshKey={refreshKey} onOpenTask={openTasks} />}
           {view === 'saves' && <SavesPage refreshKey={refreshKey} onOpenTask={openTasks} />}
-          {view === 'maintenance' && <MaintenancePage focusRequestKey={maintenanceFocusRequest.key} focusSection={maintenanceFocusRequest.section} refreshKey={refreshKey} onOpenGame={(id) => { setSelectedGameId(id); setView('library'); }} onOpenLibrary={openLibrary} onOpenMetadata={openMetadata} onOpenTasks={openTasks} />}
+          {view === 'maintenance' && <MaintenancePage focusRequestKey={maintenanceFocusRequest.key} focusSection={maintenanceFocusRequest.section} refreshKey={refreshKey} onOpenGame={openGame} onOpenLibrary={openLibrary} onOpenMetadata={openMetadata} onOpenTasks={openTasks} />}
           {view === 'settings' && <SettingsPage onAccentPreview={previewAccent} onThemePreview={previewTheme} onSaved={refresh} onOpenTask={openTasks} />}
         </div>
       </main>
