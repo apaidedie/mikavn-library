@@ -296,7 +296,7 @@ async function main() {
         const descriptionImages = page.locator('section').filter({ hasText: '简介' }).locator('figure img');
         if (await descriptionImages.count() < 1) throw new Error('library detail description image was not rendered');
         await page.getByText('媒体图库').first().waitFor({ timeout: 5000 });
-        const downloadedCoverUrl = `${baseUrl.replace(/\/$/, '')}${hero}`;
+        const downloadedCoverUrl = `${baseUrl.replace(/\/$/, '')}${hero}?qa=downloaded-cover`;
         await page.getByPlaceholder('https://example.com/cover.jpg').fill(downloadedCoverUrl);
         await page.getByRole('button', { name: /下载/ }).first().click();
         await page.getByText(/图片已下载到本地缓存并设为主图/).first().waitFor({ timeout: 5000 });
@@ -305,6 +305,18 @@ async function main() {
         const assetGame = assetGames.find((game) => game.id === 'qa-1');
         if (assetGame?.coverImage !== downloadedCoverUrl) throw new Error('page QA asset download did not update primary cover field');
         if (!Array.isArray(assetRecords) || !assetRecords.some((asset) => asset.gameId === 'qa-1' && asset.source === 'download' && asset.uri === downloadedCoverUrl)) throw new Error('page QA asset download record was not persisted');
+        await page.locator('button[aria-label="设为主图"]:not([disabled])').first().click();
+        await page.getByText(/封面主图已更新/).first().waitFor({ timeout: 5000 });
+        const primaryCoverGames = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.games') || '[]'));
+        const primaryCoverAssets = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.assets') || '[]'));
+        const primaryCoverGame = primaryCoverGames.find((game) => game.id === 'qa-1');
+        if (primaryCoverGame?.coverImage !== hero) throw new Error('asset gallery set-primary action did not restore the original cover field');
+        const qaCoverAssets = primaryCoverAssets.filter((asset) => asset.gameId === 'qa-1' && asset.assetType === 'cover');
+        if (!qaCoverAssets.some((asset) => asset.uri === hero && asset.isPrimary) || qaCoverAssets.some((asset) => asset.uri === downloadedCoverUrl && asset.isPrimary)) throw new Error('asset gallery set-primary action did not update cover primary flags');
+        await page.getByLabel('移除资产').last().click();
+        await page.getByText(/资产记录已移除/).first().waitFor({ timeout: 5000 });
+        const removedAssetRecords = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.assets') || '[]'));
+        if (removedAssetRecords.some((asset) => asset.id === 'qa-asset-shot')) throw new Error('asset gallery remove action did not delete the screenshot asset record');
         await page.getByRole('button', { name: /清理缓存/ }).click();
         await page.getByText(/缓存清理完成/).first().waitFor({ timeout: 5000 });
         await page.getByRole('button', { name: '批量', exact: true }).click();
