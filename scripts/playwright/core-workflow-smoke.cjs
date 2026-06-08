@@ -275,6 +275,10 @@ async function main() {
     await expectText(page, /归档预览已读取/);
     await page.getByRole('button', { name: /完整恢复/ }).click();
     await expectText(page, /库归档完整恢复任务已创建/);
+    const afterArchiveRestoreTasks = await getStorage(page, 'mikavn-library.mock.tasks');
+    const archiveRestoreTask = afterArchiveRestoreTasks.find((item) => item.taskType === 'library.archive_restore');
+    const archiveRestorePayload = JSON.parse(archiveRestoreTask?.retryPayload || '{}');
+    if (!archiveRestoreTask?.retryable || archiveRestorePayload.archiveDir !== 'D:\\MikaVN-Smoke-Archive' || archiveRestorePayload.restoreImages !== true || archiveRestorePayload.restoreSaveBackups !== false) throw new Error('archive restore task did not persist retry options for the selected restore scope');
     const beforeArchiveImportGames = await getStorage(page, 'mikavn-library.mock.games');
     const starTitleCountBeforeArchiveImport = beforeArchiveImportGames.filter((item) => item.title === '星之终途').length;
     await page.getByRole('button', { name: /安全导入/ }).click();
