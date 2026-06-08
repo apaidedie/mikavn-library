@@ -275,8 +275,17 @@ async function main() {
     await expectText(page, /归档预览已读取/);
     await page.getByRole('button', { name: /完整恢复/ }).click();
     await expectText(page, /库归档完整恢复任务已创建/);
+    const beforeArchiveImportGames = await getStorage(page, 'mikavn-library.mock.games');
+    const starTitleCountBeforeArchiveImport = beforeArchiveImportGames.filter((item) => item.title === '星之终途').length;
     await page.getByRole('button', { name: /安全导入/ }).click();
     await expectText(page, /库归档安全导入任务已创建/);
+    const afterArchiveImportGames = await getStorage(page, 'mikavn-library.mock.games');
+    if (!afterArchiveImportGames.some((item) => item.title === 'Browser Archive Fresh' && normalizeMockPath(item.installPath).includes('mikavn-smoke-archive\\fresh'))) throw new Error('archive import did not add the fresh archive game record');
+    if (afterArchiveImportGames.filter((item) => item.title === '星之终途').length !== starTitleCountBeforeArchiveImport) throw new Error('archive import should skip conflicting existing game records');
+    const afterArchiveImportTasks = await getStorage(page, 'mikavn-library.mock.tasks');
+    const archiveImportTask = afterArchiveImportTasks.find((item) => item.taskType === 'library.archive_import');
+    const archiveImportPayload = JSON.parse(archiveImportTask?.retryPayload || '{}');
+    if (!archiveImportTask?.retryable || archiveImportPayload.archiveDir !== 'D:\\MikaVN-Smoke-Archive') throw new Error('archive import task did not persist retry options for the selected archive path');
     await page.getByRole('button', { name: /导出 ZIP/ }).click();
     await expectText(page, /ZIP 库归档导出任务已创建/);
     console.log('OK settings logs/archive import zip task');
