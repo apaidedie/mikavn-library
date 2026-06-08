@@ -142,8 +142,18 @@ function buildStats(games: Game[]) {
       missingDescriptionImage: games.filter((game) => Boolean((game.dlsiteId?.trim() || game.fanzaId?.trim()) && !hasDescriptionImage(game.description))).length,
       missingExternalIds: games.filter((game) => !(game.vndbId?.trim() || game.dlsiteId?.trim() || game.fanzaId?.trim() || game.bangumiId?.trim() || game.ymgalId?.trim())).length,
       brokenPath: games.filter((game) => game.pathStatus === 'broken').length,
+      examples: {
+        missingCover: gapExamples(games.filter((game) => !game.coverImage?.trim())),
+        missingDescriptionImage: gapExamples(games.filter((game) => Boolean((game.dlsiteId?.trim() || game.fanzaId?.trim()) && !hasDescriptionImage(game.description)))),
+        missingExternalIds: gapExamples(games.filter((game) => !(game.vndbId?.trim() || game.dlsiteId?.trim() || game.fanzaId?.trim() || game.bangumiId?.trim() || game.ymgalId?.trim()))),
+        brokenPath: gapExamples(games.filter((game) => game.pathStatus === 'broken')),
+      },
     },
   };
+}
+
+function gapExamples(games: Game[]) {
+  return games.slice(0, 3).map((game) => game.title);
 }
 
 function hasDescriptionImage(description?: string | null) {
@@ -180,11 +190,19 @@ function buildMarkdown(games: Game[], stats: ReturnType<typeof buildStats>) {
     '',
     '## 可处理缺口',
     `- 缺封面: ${stats.gaps.missingCover}`,
+    `  - 样例: ${formatGapExamples(stats.gaps.examples.missingCover)}`,
     `- 缺简介图片: ${stats.gaps.missingDescriptionImage}`,
+    `  - 样例: ${formatGapExamples(stats.gaps.examples.missingDescriptionImage)}`,
     `- 缺外部 ID: ${stats.gaps.missingExternalIds}`,
+    `  - 样例: ${formatGapExamples(stats.gaps.examples.missingExternalIds)}`,
     `- 路径异常: ${stats.gaps.brokenPath}`,
+    `  - 样例: ${formatGapExamples(stats.gaps.examples.brokenPath)}`,
   ];
   return `${lines.join('\n')}\n`;
+}
+
+function formatGapExamples(examples: string[]) {
+  return examples.length > 0 ? examples.join(' / ') : '无';
 }
 
 function StatCard({ title, items }: { title: string; items: Array<{ label: string; value: number | string }> }) {

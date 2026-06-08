@@ -343,6 +343,14 @@ function reportGapSummaryLog(content: string) {
   return `报告缺口摘要：缺封面 ${countFor('缺封面')}，缺简介图片 ${countFor('缺简介图片')}，缺外部 ID ${countFor('缺外部 ID')}，路径异常 ${countFor('路径异常')}`;
 }
 
+function reportGapExamplesLog(content: string) {
+  const exampleFor = (label: string) => {
+    const match = content.match(new RegExp(`^- ${label}:\\s*\\d+\\n\\s+- 样例:\\s*([^\\n]+)`, 'm'));
+    return match?.[1]?.trim() || '无';
+  };
+  return `报告缺口样例：缺封面 ${exampleFor('缺封面')}，缺简介图片 ${exampleFor('缺简介图片')}，缺外部 ID ${exampleFor('缺外部 ID')}，路径异常 ${exampleFor('路径异常')}`;
+}
+
 function toMetadata(result: MetadataSearchResult): NormalizedMetadata {
   return {
     provider: result.provider,
@@ -1364,6 +1372,7 @@ export const mockStore = {
       retryable: false,
     });
     addTaskLog(task.id, 'info', reportGapSummaryLog(content));
+    addTaskLog(task.id, 'info', reportGapExamplesLog(content));
     return task;
   },
 

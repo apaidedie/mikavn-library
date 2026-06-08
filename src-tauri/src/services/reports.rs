@@ -58,6 +58,7 @@ pub fn enqueue_report_export_task(
         match fs::write(&path, &content) {
             Ok(()) => {
                 let _ = db.append_task_log(&task_id, "info", &report_gap_summary_log(&content));
+                let _ = db.append_task_log(&task_id, "info", &report_gap_examples_log(&content));
                 logger::log_info(
                     &paths,
                     "report.export_markdown",
@@ -119,6 +120,33 @@ fn report_gap_summary_log(content: &str) -> String {
     )
 }
 
+fn report_gap_examples_log(content: &str) -> String {
+    fn example_for(content: &str, label: &str) -> String {
+        let prefix = format!("- {}:", label);
+        let mut lines = content.lines().peekable();
+        while let Some(line) = lines.next() {
+            if !line.trim().starts_with(&prefix) {
+                continue;
+            }
+            if let Some(example_line) = lines.peek() {
+                if let Some(value) = example_line.trim().strip_prefix("- 样例:") {
+                    return value.trim().to_string();
+                }
+            }
+            break;
+        }
+        "无".to_string()
+    }
+
+    format!(
+        "报告缺口样例：缺封面 {}，缺简介图片 {}，缺外部 ID {}，路径异常 {}",
+        example_for(content, "缺封面"),
+        example_for(content, "缺简介图片"),
+        example_for(content, "缺外部 ID"),
+        example_for(content, "路径异常")
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -139,11 +167,21 @@ mod tests {
 
     #[test]
     fn report_gap_summary_log_extracts_actionable_gaps() {
-        let content = "# MikaVN Library Report\n\n## 可处理缺口\n- 缺封面: 2\n- 缺简介图片: 3\n- 缺外部 ID: 4\n- 路径异常: 5\n";
+        let content = "# MikaVN Library Report\n\n## 可处理缺口\n- 缺封面: 2\n  - 样例: A / B\n- 缺简介图片: 3\n  - 样例: C\n- 缺外部 ID: 4\n  - 样例: D\n- 路径异常: 5\n  - 样例: E\n";
 
         assert_eq!(
             report_gap_summary_log(content),
             "报告缺口摘要：缺封面 2，缺简介图片 3，缺外部 ID 4，路径异常 5"
+        );
+    }
+
+    #[test]
+    fn report_gap_examples_log_extracts_actionable_examples() {
+        let content = "# MikaVN Library Report\n\n## 可处理缺口\n- 缺封面: 2\n  - 样例: 天使☆騒々 RE-BOOT! / 媒体图片补全候选\n- 缺简介图片: 1\n  - 样例: 简介图片修复候选\n- 缺外部 ID: 1\n  - 样例: 天使☆騒々 RE-BOOT!\n- 路径异常: 1\n  - 样例: 天使☆騒々 RE-BOOT!\n";
+
+        assert_eq!(
+            report_gap_examples_log(content),
+            "报告缺口样例：缺封面 天使☆騒々 RE-BOOT! / 媒体图片补全候选，缺简介图片 简介图片修复候选，缺外部 ID 天使☆騒々 RE-BOOT!，路径异常 天使☆騒々 RE-BOOT!"
         );
     }
 }

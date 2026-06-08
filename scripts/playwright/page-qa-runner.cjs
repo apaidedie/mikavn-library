@@ -492,6 +492,19 @@ async function main() {
         if (await page.getByLabel('路径筛选').inputValue() !== 'broken') throw new Error('reports broken-path gap shortcut did not select library path filter');
         await page.getByText('天使☆騒々 RE-BOOT!').first().waitFor({ timeout: 5000 });
       }],
+      ['reports-export-gap-examples', 'reports', { games: [...games, descriptionRepairGame], settings: { ...settings, privacy_filter_reports: 'false' } }, async (page) => {
+        await page.getByText('游玩报告').first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: /导出 Markdown/ }).click();
+        await page.getByText(/报告导出任务已创建/).first().waitFor({ timeout: 5000 });
+        const reportTasks = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.tasks') || '[]'));
+        const exportTask = reportTasks.find((task) => task.taskType === 'report.export_markdown');
+        const reportLogs = await page.evaluate((taskId) => JSON.parse(localStorage.getItem('mikavn-library.mock.taskLogs') || '{}')[taskId] || [], exportTask?.id);
+        const exampleLog = reportLogs.find((log) => /报告缺口样例/.test(log.message ?? ''))?.message ?? '';
+        if (!/缺封面 .*天使☆騒々 RE-BOOT!/.test(exampleLog)) throw new Error('reports markdown export did not log missing-cover examples');
+        if (!/缺简介图片 .*简介图片修复候选/.test(exampleLog)) throw new Error('reports markdown export did not log missing description image examples');
+        if (!/缺外部 ID .*天使☆騒々 RE-BOOT!/.test(exampleLog)) throw new Error('reports markdown export did not log missing external ID examples');
+        if (!/路径异常 .*天使☆騒々 RE-BOOT!/.test(exampleLog)) throw new Error('reports markdown export did not log broken path examples');
+      }],
       ['saves-backup-restore', 'saves', {}, async (page) => {
         await page.getByText('存档管理').first().waitFor({ timeout: 5000 });
         await page.locator('select').first().selectOption('qa-1');
