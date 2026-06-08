@@ -9,7 +9,7 @@ import { MetricTile, PageFrame, PageHeader, PageShell, Panel, PanelContent, Pane
 import { TaskNotice } from '@/components/ui/task-notice';
 import { api } from '@/services/api';
 import type { AppDataDiagnostics, ImageReferenceAudit, ImageReferenceAuditItem } from '@/types/archive';
-import type { AssetCacheCleanupResult, LibraryFilterPreset } from '@/types/game';
+import type { AssetCacheCleanupResult, Game, LibraryFilterPreset } from '@/types/game';
 import type { ArtworkRepairDiagnosis, ArtworkRepairDiagnosisItem, DuplicateExternalIdGroup, DuplicateGameMergePreview } from '@/types/metadata';
 import type { TaskDetail, TaskLogEntry, TaskRecord } from '@/types/task';
 import { errorMessage } from '@/utils/errorMessage';
@@ -34,6 +34,22 @@ type ArtworkRepairTaskSummary = {
   skipped: ArtworkRepairLogSummary[];
   failed: ArtworkRepairLogSummary[];
 };
+type DescriptionImageRepairLogStatus = 'updated' | 'skipped' | 'failed';
+type DescriptionImageRepairLogSummary = {
+  status: DescriptionImageRepairLogStatus;
+  provider: string;
+  providerId: string;
+  title: string;
+  gameId?: string | null;
+  message: string;
+  imageCount?: number | null;
+};
+type DescriptionImageRepairTaskSummary = {
+  task: TaskRecord;
+  updated: DescriptionImageRepairLogSummary[];
+  skipped: DescriptionImageRepairLogSummary[];
+  failed: DescriptionImageRepairLogSummary[];
+};
 type MaintenanceTaskFilter = 'all' | 'active' | 'attention' | 'completed';
 
 export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0, onOpenGame, onOpenLibrary, onOpenMetadata, onOpenTasks }: { refreshKey: number; focusSection?: string | null; focusRequestKey?: number; onOpenGame?: (gameId: string) => void; onOpenLibrary?: (preset?: LibraryFilterPreset | null) => void; onOpenMetadata?: (preset?: { query?: string; missingProvider?: string } | null) => void; onOpenTasks?: (taskId?: string | null) => void }) {
@@ -56,6 +72,8 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
   const [artworkHistoryLoading, setArtworkHistoryLoading] = useState(false);
   const [artworkHistoryQuery, setArtworkHistoryQuery] = useState('');
   const [artworkHistoryStatusFilter, setArtworkHistoryStatusFilter] = useState('all');
+  const [descriptionHistory, setDescriptionHistory] = useState<DescriptionImageRepairTaskSummary[] | null>(null);
+  const [descriptionHistoryLoading, setDescriptionHistoryLoading] = useState(false);
   const [metadataRepairLoading, setMetadataRepairLoading] = useState(false);
   const [descriptionRepairLoading, setDescriptionRepairLoading] = useState(false);
   const [artworkRepairLoading, setArtworkRepairLoading] = useState(false);
@@ -403,6 +421,32 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
               <SoftRow className="flex items-center justify-between gap-3 px-3 py-3">
                 <div className="min-w-0 text-sm text-slate-400">读取后会解析最近 5 个媒体补全任务日志，展示成功、跳过和失败原因。</div>
                 <Button disabled={artworkHistoryLoading} size="sm" variant="secondary" onClick={loadArtworkHistory}><ListChecks className="h-4 w-4" />读取</Button>
+              </SoftRow>
+            )}
+          </PanelContent>
+        </Panel>
+
+        <Panel>
+          <PanelHeader
+            title="简介图片修复结果"
+            description="汇总最近简介图片修复任务的来源、结果和可重试状态。"
+            icon={<ListChecks className="h-4 w-4" />}
+            actions={<Button disabled={descriptionHistoryLoading} size="sm" variant="ghost" onClick={loadDescriptionRepairHistory}><RefreshCw className="h-4 w-4" />{descriptionHistoryLoading ? '读取中' : '读取结果'}</Button>}
+          />
+          <PanelContent className="space-y-3">
+            {descriptionHistory ? (
+              descriptionHistory.length > 0 ? (
+                <div className="space-y-2">
+                  <div className="px-1 text-xs text-slate-500">当前显示 {formatCount(descriptionHistory.reduce((count, summary) => count + summary.updated.length + summary.skipped.length + summary.failed.length, 0))} 条简介图片修复明细。</div>
+                  {descriptionHistory.map((summary) => <DescriptionImageRepairTaskRow key={summary.task.id} onOpenGame={onOpenGame} onOpenTask={onOpenTasks} summary={summary} />)}
+                </div>
+              ) : (
+                <SoftRow className="px-3 py-3 text-sm text-slate-400">还没有简介图片修复任务记录。</SoftRow>
+              )
+            ) : (
+              <SoftRow className="flex items-center justify-between gap-3 px-3 py-3">
+                <div className="min-w-0 text-sm text-slate-400">读取后会解析最近 5 个简介图片修复任务日志，展示已修复、跳过和失败来源。</div>
+                <Button disabled={descriptionHistoryLoading} size="sm" variant="secondary" onClick={loadDescriptionRepairHistory}><ListChecks className="h-4 w-4" />读取</Button>
               </SoftRow>
             )}
           </PanelContent>
@@ -771,6 +815,22 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
       setError(errorMessage(reason));
     } finally {
       setArtworkHistoryLoading(false);
+    }
+  }
+
+  async function loadDescriptionRepairHistory() {
+    setDescriptionHistoryLoading(true);
+    setError(null);
+    try {
+      const tasks = (await api.listTasks(100)).filter((task) => task.taskType === 'metadata.description_image_repair').slice(0, 5);
+      const games = await api.listGames({ sortBy: 'updated_at', sortDirection: 'desc' });
+      const summaries = await Promise.all(tasks.map(async (task) => summarizeDescriptionImageRepairTask(await api.getTaskDetail(task.id), games)));
+      setDescriptionHistory(summaries);
+      setMessage({ text: summaries.length > 0 ? `已读取 ${formatCount(summaries.length)} 个简介图片修复任务结果。` : '还没有简介图片修复任务记录。' });
+    } catch (reason) {
+      setError(errorMessage(reason));
+    } finally {
+      setDescriptionHistoryLoading(false);
     }
   }
 
@@ -1190,6 +1250,62 @@ function ArtworkRepairLogRow({ item, onOpenGame }: { item: ArtworkRepairLogSumma
   );
 }
 
+function DescriptionImageRepairTaskRow({ summary, onOpenGame, onOpenTask }: { summary: DescriptionImageRepairTaskSummary; onOpenGame?: (gameId: string) => void; onOpenTask?: (taskId?: string | null) => void }) {
+  const task = summary.task;
+  const detailItems = [...summary.failed, ...summary.skipped, ...summary.updated].slice(0, 8);
+  const hiddenCount = summary.updated.length + summary.skipped.length + summary.failed.length - detailItems.length;
+
+  return (
+    <SoftRow className="space-y-3 px-3 py-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-medium text-slate-100">{task.message || '简介图片修复任务'}</span>
+            <Badge className={taskStatusClass(task.status)}>{taskStatusLabel(task.status)}</Badge>
+            {task.retryable && <Badge className="border-sky-300/25 bg-sky-300/10 text-sky-100">可重试</Badge>}
+          </div>
+          <div className="mt-1 text-xs text-slate-500">更新于 {formatDateTime(task.updatedAt)}</div>
+          {task.error && <div className="mt-2 break-all text-xs text-rose-200">{task.error}</div>}
+        </div>
+        {onOpenTask && <Button size="sm" variant="ghost" onClick={() => onOpenTask(task.id)}>日志</Button>}
+      </div>
+      <div className="grid gap-2 sm:grid-cols-3">
+        <CompactStat label="已修复" value={summary.updated.length} tone={summary.updated.length > 0 ? 'ok' : 'neutral'} />
+        <CompactStat label="跳过" value={summary.skipped.length} tone={summary.skipped.length > 0 ? 'warn' : 'ok'} />
+        <CompactStat label="失败" value={summary.failed.length} tone={summary.failed.length > 0 ? 'warn' : 'ok'} />
+      </div>
+      {detailItems.length > 0 ? (
+        <div className="space-y-2">
+          {detailItems.map((item, index) => <DescriptionImageRepairLogRow item={item} key={`${item.status}-${item.provider}-${item.providerId}-${index}`} onOpenGame={onOpenGame} />)}
+          {hiddenCount > 0 && <div className="px-1 text-xs text-slate-500">还有 {formatCount(hiddenCount)} 条明细，可打开日志查看完整记录。</div>}
+        </div>
+      ) : (
+        <div className="text-xs text-slate-500">这条任务没有可解析的简介图片修复明细。</div>
+      )}
+    </SoftRow>
+  );
+}
+
+function DescriptionImageRepairLogRow({ item, onOpenGame }: { item: DescriptionImageRepairLogSummary; onOpenGame?: (gameId: string) => void }) {
+  return (
+    <div className="grid gap-2 rounded-md border border-white/[0.07] bg-black/[0.10] px-3 py-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge className={descriptionImageLogBadgeClass(item.status)}>{descriptionImageLogStatusLabel(item.status)}</Badge>
+          <span className="truncate text-xs font-medium text-slate-200" title={item.title}>{item.title}</span>
+          {item.gameId && onOpenGame && <Button className="h-7 px-2" size="sm" variant="ghost" onClick={() => onOpenGame(item.gameId!)}>游戏</Button>}
+        </div>
+        {item.gameId && <div className="mt-1 truncate font-mono text-[11px] text-slate-600">{item.gameId}</div>}
+      </div>
+      <div className="min-w-0 text-xs leading-5 text-slate-500">
+        <div className="break-all font-mono text-slate-400">{providerLabel(item.provider)} {item.providerId}</div>
+        <span className="break-words">{item.message}</span>
+        {typeof item.imageCount === 'number' && <span className="ml-2 whitespace-nowrap text-slate-600">{formatCount(item.imageCount)} 张图片</span>}
+      </div>
+    </div>
+  );
+}
+
 function summarizeArtworkRepairTask(detail: TaskDetail): ArtworkRepairTaskSummary {
   const items = detail.logs
     .map(parseArtworkRepairLog)
@@ -1201,6 +1317,81 @@ function summarizeArtworkRepairTask(detail: TaskDetail): ArtworkRepairTaskSummar
     skipped: items.filter((item) => item.status === 'skipped'),
     failed: items.filter((item) => item.status === 'failed'),
   };
+}
+
+function summarizeDescriptionImageRepairTask(detail: TaskDetail, games: Game[]): DescriptionImageRepairTaskSummary {
+  const index = buildDescriptionSourceIndex(games);
+  const items = detail.logs
+    .flatMap((log) => parseDescriptionImageRepairLog(log, index))
+    .filter((item): item is DescriptionImageRepairLogSummary => Boolean(item));
+
+  return {
+    task: detail.task,
+    updated: items.filter((item) => item.status === 'updated'),
+    skipped: items.filter((item) => item.status === 'skipped'),
+    failed: items.filter((item) => item.status === 'failed'),
+  };
+}
+
+function parseDescriptionImageRepairLog(log: TaskLogEntry, sourceIndex: Map<string, Game>): DescriptionImageRepairLogSummary[] {
+  const message = log.message.trim();
+
+  const updated = message.match(/^已修复：([a-zA-Z0-9_-]+)[:\s]+([^\s，,。]+)，插入\s*(\d+)\s*张图片。?$/);
+  if (updated) {
+    const [, provider, providerId, imageCount] = updated;
+    return [descriptionImageRepairLogItem('updated', provider, providerId, sourceIndex, `已插入 ${formatCount(Number(imageCount))} 张简介图片。`, Number(imageCount))];
+  }
+
+  const skipped = message.match(/^跳过：([a-zA-Z0-9_-]+)[:\s]+([^\s，,。]+)，(.+?)。?$/);
+  if (skipped) {
+    const [, provider, providerId, reason] = skipped;
+    return [descriptionImageRepairLogItem('skipped', provider, providerId, sourceIndex, reason.trim())];
+  }
+
+  const failed = message.match(/^失败：([a-zA-Z0-9_-]+)[:\s]+([^\s，,。]+)，(.+?)。?$/);
+  if (failed) {
+    const [, provider, providerId, reason] = failed;
+    return [descriptionImageRepairLogItem('failed', provider, providerId, sourceIndex, reason.trim())];
+  }
+
+  const candidates = message.match(/^简介图片修复候选：(.+)$/);
+  if (candidates) {
+    return candidates[1]
+      .split(/[，,]/)
+      .map((token) => token.trim().match(/^([a-zA-Z0-9_-]+):([^\s，,。]+)$/))
+      .filter((match): match is RegExpMatchArray => Boolean(match))
+      .map((match) => descriptionImageRepairLogItem('updated', match[1], match[2], sourceIndex, '浏览器预览已写入简介图片引用。'));
+  }
+
+  return [];
+}
+
+function descriptionImageRepairLogItem(status: DescriptionImageRepairLogStatus, provider: string, providerId: string, sourceIndex: Map<string, Game>, message: string, imageCount: number | null = null): DescriptionImageRepairLogSummary {
+  const normalizedProvider = provider.trim().toLowerCase();
+  const normalizedProviderId = providerId.trim();
+  const game = sourceIndex.get(descriptionSourceKey(normalizedProvider, normalizedProviderId));
+  return {
+    status,
+    provider: normalizedProvider,
+    providerId: normalizedProviderId,
+    title: game?.title ?? `${providerLabel(normalizedProvider)} ${normalizedProviderId}`,
+    gameId: game?.id ?? null,
+    message,
+    imageCount,
+  };
+}
+
+function buildDescriptionSourceIndex(games: Game[]) {
+  const index = new Map<string, Game>();
+  for (const game of games) {
+    if (game.dlsiteId) index.set(descriptionSourceKey('dlsite', game.dlsiteId), game);
+    if (game.fanzaId) index.set(descriptionSourceKey('fanza', game.fanzaId), game);
+  }
+  return index;
+}
+
+function descriptionSourceKey(provider: string, providerId: string) {
+  return `${provider.trim().toLowerCase()}:${providerId.trim().toLowerCase()}`;
 }
 
 function filterArtworkRepairSummary(summary: ArtworkRepairTaskSummary, query: string, statusFilter: string): ArtworkRepairTaskSummary {
@@ -1532,6 +1723,20 @@ function artworkLogStatusLabel(value: ArtworkRepairLogStatus) {
 }
 
 function artworkLogBadgeClass(value: ArtworkRepairLogStatus) {
+  if (value === 'updated') return 'border-emerald-300/25 bg-emerald-300/10 text-emerald-100';
+  if (value === 'skipped') return 'border-amber-300/25 bg-amber-300/10 text-amber-100';
+  if (value === 'failed') return 'border-rose-300/25 bg-rose-300/10 text-rose-100';
+  return 'border-white/10 bg-white/[0.045] text-slate-300';
+}
+
+function descriptionImageLogStatusLabel(value: DescriptionImageRepairLogStatus) {
+  if (value === 'updated') return '已修复';
+  if (value === 'skipped') return '跳过';
+  if (value === 'failed') return '失败';
+  return value;
+}
+
+function descriptionImageLogBadgeClass(value: DescriptionImageRepairLogStatus) {
   if (value === 'updated') return 'border-emerald-300/25 bg-emerald-300/10 text-emerald-100';
   if (value === 'skipped') return 'border-amber-300/25 bg-amber-300/10 text-amber-100';
   if (value === 'failed') return 'border-rose-300/25 bg-rose-300/10 text-rose-100';

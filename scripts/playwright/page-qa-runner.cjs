@@ -513,6 +513,14 @@ async function main() {
         if (repairPayload.provider !== 'all' || repairPayload.maxImages !== 3) throw new Error('description image repair task did not persist retry options');
         const repairLogs = await page.evaluate((taskId) => JSON.parse(localStorage.getItem('mikavn-library.mock.taskLogs') || '{}')[taskId] || [], repairTask.id);
         if (!repairLogs.some((log) => /dlsite:RJ01000001/.test(log.message))) throw new Error('description image repair task log did not record the provider candidate');
+        await page.getByRole('button', { name: '维护' }).click();
+        await page.getByText('维护中心').first().waitFor({ timeout: 5000 });
+        const descriptionResultPanel = page.locator('section').filter({ hasText: '简介图片修复结果' }).first();
+        await descriptionResultPanel.getByRole('button', { name: /读取结果/ }).click();
+        await descriptionResultPanel.getByText('简介图片修复候选').first().waitFor({ timeout: 5000 });
+        await descriptionResultPanel.getByText('DLsite RJ01000001').first().waitFor({ timeout: 5000 });
+        await descriptionResultPanel.getByText('已修复').first().waitFor({ timeout: 5000 });
+        await descriptionResultPanel.getByText('可重试').first().waitFor({ timeout: 5000 });
       }],
       ['maintenance-health-metadata-match', 'maintenance', {}, async (page) => {
         await page.getByText('维护中心').first().waitFor({ timeout: 5000 });
@@ -558,9 +566,8 @@ async function main() {
         await page.getByText(/浏览器预览已补全|已创建媒体图片补全任务/).first().waitFor({ timeout: 5000 });
         await page.getByRole('button', { name: '维护' }).click();
         await page.getByText('维护中心').first().waitFor({ timeout: 5000 });
-        await page.getByRole('button', { name: /读取结果/ }).click();
-        await page.getByText('媒体补全结果').first().waitFor({ timeout: 5000 });
         const artworkResultPanel = page.locator('section').filter({ hasText: '媒体补全结果' }).first();
+        await artworkResultPanel.getByRole('button', { name: /读取结果/ }).click();
         await page.getByText(/已读取 \d+ 个媒体补全任务结果/).first().waitFor({ timeout: 5000 });
         await artworkResultPanel.getByText('媒体图片补全候选').first().waitFor({ timeout: 5000 });
         await artworkResultPanel.getByText('已补全目标媒体字段。').first().waitFor({ timeout: 5000 });
