@@ -273,6 +273,8 @@ async function main() {
     await page.locator('input[placeholder*="MikaVN-Archives"]').fill('D:\\MikaVN-Smoke-Archive');
     await page.getByRole('button', { name: /^预览$/ }).click();
     await expectText(page, /归档预览已读取/);
+    await page.getByRole('button', { name: /完整恢复/ }).click();
+    await expectText(page, /库归档完整恢复任务已创建/);
     await page.getByRole('button', { name: /安全导入/ }).click();
     await expectText(page, /库归档安全导入任务已创建/);
     await page.getByRole('button', { name: /导出 ZIP/ }).click();
@@ -296,6 +298,11 @@ async function main() {
     await expectText(page, /归档导入新增/);
     await expectText(page, /归档导入跳过/);
     console.log('OK archive import audit logs');
+    const archiveRestoreRow = taskQueueRow(page, /库归档完整恢复/);
+    await archiveRestoreRow.getByRole('button', { name: /日志/ }).click();
+    await expectText(page, /完整恢复已安排/);
+    await expectText(page, /归档恢复保护目录/);
+    console.log('OK archive restore audit logs');
     await page.getByRole('button', { name: /日志/ }).first().click();
     await expectText(page, /任务日志|浏览器预览|路径不存在/);
     const allTasks = await getStorage(page, 'mikavn-library.mock.tasks');
