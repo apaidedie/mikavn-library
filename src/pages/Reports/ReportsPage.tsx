@@ -80,6 +80,7 @@ export function ReportsPage({ refreshKey, onOpenTask, onOpenLibrary }: { refresh
             actionLabel="在游戏库查看缺封面"
             count={stats.gaps.missingCover}
             detail="封面字段为空"
+            examples={stats.gaps.examples.missingCover}
             icon={<ImageOff className="h-4 w-4" />}
             label="缺封面"
             onOpen={onOpenLibrary ? () => onOpenLibrary({ metadataStatus: 'missing_cover' }) : undefined}
@@ -88,6 +89,7 @@ export function ReportsPage({ refreshKey, onOpenTask, onOpenLibrary }: { refresh
             actionLabel="在游戏库查看缺简介图片"
             count={stats.gaps.missingDescriptionImage}
             detail="DLsite / FANZA 条目简介未含图片"
+            examples={stats.gaps.examples.missingDescriptionImage}
             icon={<ImageOff className="h-4 w-4" />}
             label="缺简介图片"
             onOpen={onOpenLibrary ? () => onOpenLibrary({ metadataStatus: 'missing_description_image' }) : undefined}
@@ -96,6 +98,7 @@ export function ReportsPage({ refreshKey, onOpenTask, onOpenLibrary }: { refresh
             actionLabel="在游戏库查看缺外部 ID"
             count={stats.gaps.missingExternalIds}
             detail="VNDB / DLsite / FANZA 等全为空"
+            examples={stats.gaps.examples.missingExternalIds}
             icon={<Link2Off className="h-4 w-4" />}
             label="缺外部 ID"
             onOpen={onOpenLibrary ? () => onOpenLibrary({ metadataStatus: 'missing_external_id' }) : undefined}
@@ -104,6 +107,7 @@ export function ReportsPage({ refreshKey, onOpenTask, onOpenLibrary }: { refresh
             actionLabel="在游戏库查看路径异常"
             count={stats.gaps.brokenPath}
             detail="安装目录或启动路径异常"
+            examples={stats.gaps.examples.brokenPath}
             icon={<AlertTriangle className="h-4 w-4" />}
             label="路径异常"
             onOpen={onOpenLibrary ? () => onOpenLibrary({ pathStatus: 'broken' }) : undefined}
@@ -229,7 +233,7 @@ function StatCard({ title, items }: { title: string; items: Array<{ label: strin
   );
 }
 
-function ActionableGap({ actionLabel, count, detail, icon, label, onOpen }: { actionLabel: string; count: number; detail: string; icon: ReactNode; label: string; onOpen?: () => void }) {
+function ActionableGap({ actionLabel, count, detail, examples, icon, label, onOpen }: { actionLabel: string; count: number; detail: string; examples: string[]; icon: ReactNode; label: string; onOpen?: () => void }) {
   const toneClass = count > 0 ? 'border-amber-300/25 bg-amber-300/10 text-amber-100' : 'border-emerald-300/20 bg-emerald-300/10 text-emerald-100';
   return (
     <SoftRow className="px-3 py-3">
@@ -242,6 +246,14 @@ function ActionableGap({ actionLabel, count, detail, icon, label, onOpen }: { ac
           <div className="text-xs text-slate-500">{detail}</div>
         </div>
         <Badge>{count}</Badge>
+      </div>
+      <div className="mt-3 min-h-[2.25rem] space-y-1">
+        <div className="text-[11px] font-medium text-slate-500">样例</div>
+        {examples.length > 0 ? (
+          <div className="flex flex-wrap gap-1.5">
+            {examples.map((example) => <span className="max-w-full truncate rounded-md border border-white/10 bg-black/15 px-2 py-1 text-xs text-slate-300" key={example}>{example}</span>)}
+          </div>
+        ) : <div className="text-xs text-slate-500">无</div>}
       </div>
       <Button className="mt-3 w-full justify-center" disabled={!onOpen || count === 0} size="sm" variant="outline" onClick={onOpen}>
         <Wrench className="h-4 w-4" />{actionLabel}
