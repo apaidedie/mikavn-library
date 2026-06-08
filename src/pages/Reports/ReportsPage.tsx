@@ -1,5 +1,5 @@
-import { BarChart3, CalendarDays, Clock3, Download, History } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { AlertTriangle, BarChart3, CalendarDays, Clock3, Download, History, ImageOff, Link2Off, Wrench } from 'lucide-react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/notice';
@@ -7,13 +7,13 @@ import { MetricTile, PageFrame, PageHeader, PageShell, Panel, PanelContent, Pane
 import { TaskNotice } from '@/components/ui/task-notice';
 import { api } from '@/services/api';
 import { chooseMarkdownSavePath } from '@/services/dialog';
-import type { Game } from '@/types/game';
+import type { Game, LibraryFilterPreset } from '@/types/game';
 import { PLAY_STATUS_LABEL } from '@/types/game';
 import { formatPlayTime } from '@/utils/time';
 
 type TaskMessage = { text: string; taskId?: string | null };
 
-export function ReportsPage({ refreshKey, onOpenTask }: { refreshKey: number; onOpenTask?: (taskId: string) => void }) {
+export function ReportsPage({ refreshKey, onOpenTask, onOpenLibrary }: { refreshKey: number; onOpenTask?: (taskId: string) => void; onOpenLibrary?: (preset?: LibraryFilterPreset | null) => void }) {
   const [games, setGames] = useState<Game[]>([]);
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<TaskMessage | null>(null);
@@ -72,6 +72,44 @@ export function ReportsPage({ refreshKey, onOpenTask }: { refreshKey: number; on
           <Completeness label="外部 ID" value={stats.completeness.externalIds} total={visibleGames.length} />
         </PanelContent>
       </Panel>
+
+      <Panel>
+        <PanelHeader title="可处理缺口" description="从报告直接定位需要补图、补 ID 或修路径的条目。" />
+        <PanelContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <ActionableGap
+            actionLabel="在游戏库查看缺封面"
+            count={stats.gaps.missingCover}
+            detail="封面字段为空"
+            icon={<ImageOff className="h-4 w-4" />}
+            label="缺封面"
+            onOpen={onOpenLibrary ? () => onOpenLibrary({ metadataStatus: 'missing_cover' }) : undefined}
+          />
+          <ActionableGap
+            actionLabel="在游戏库查看缺简介图片"
+            count={stats.gaps.missingDescriptionImage}
+            detail="DLsite / FANZA 条目简介未含图片"
+            icon={<ImageOff className="h-4 w-4" />}
+            label="缺简介图片"
+            onOpen={onOpenLibrary ? () => onOpenLibrary({ metadataStatus: 'missing_description_image' }) : undefined}
+          />
+          <ActionableGap
+            actionLabel="在游戏库查看缺外部 ID"
+            count={stats.gaps.missingExternalIds}
+            detail="VNDB / DLsite / FANZA 等全为空"
+            icon={<Link2Off className="h-4 w-4" />}
+            label="缺外部 ID"
+            onOpen={onOpenLibrary ? () => onOpenLibrary({ metadataStatus: 'missing_external_id' }) : undefined}
+          />
+          <ActionableGap
+            actionLabel="在游戏库查看路径异常"
+            count={stats.gaps.brokenPath}
+            detail="安装目录或启动路径异常"
+            icon={<AlertTriangle className="h-4 w-4" />}
+            label="路径异常"
+            onOpen={onOpenLibrary ? () => onOpenLibrary({ pathStatus: 'broken' }) : undefined}
+          />
+        </PanelContent>
+      </Panel>
       </PageFrame>
     </PageShell>
   );
@@ -99,7 +137,17 @@ function buildStats(games: Game[]) {
       releaseDate: games.filter((game) => game.releaseDate).length,
       externalIds: games.filter((game) => game.vndbId || game.dlsiteId || game.fanzaId || game.bangumiId || game.ymgalId).length,
     },
+    gaps: {
+      missingCover: games.filter((game) => !game.coverImage?.trim()).length,
+      missingDescriptionImage: games.filter((game) => Boolean((game.dlsiteId?.trim() || game.fanzaId?.trim()) && !hasDescriptionImage(game.description))).length,
+      missingExternalIds: games.filter((game) => !(game.vndbId?.trim() || game.dlsiteId?.trim() || game.fanzaId?.trim() || game.bangumiId?.trim() || game.ymgalId?.trim())).length,
+      brokenPath: games.filter((game) => game.pathStatus === 'broken').length,
+    },
   };
+}
+
+function hasDescriptionImage(description?: string | null) {
+  return Boolean(description && /!\[[^\]]*\]\([^\)]+\)|<img\b/i.test(description));
 }
 
 function countValues(values: string[]) {
@@ -154,6 +202,27 @@ function StatCard({ title, items }: { title: string; items: Array<{ label: strin
         ))}
       </PanelContent>
     </Panel>
+  );
+}
+
+function ActionableGap({ actionLabel, count, detail, icon, label, onOpen }: { actionLabel: string; count: number; detail: string; icon: ReactNode; label: string; onOpen?: () => void }) {
+  const toneClass = count > 0 ? 'border-amber-300/25 bg-amber-300/10 text-amber-100' : 'border-emerald-300/20 bg-emerald-300/10 text-emerald-100';
+  return (
+    <SoftRow className="px-3 py-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 space-y-1">
+          <div className="flex items-center gap-2 text-sm font-medium text-slate-100">
+            <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md border ${toneClass}`}>{icon}</span>
+            <span>{label}</span>
+          </div>
+          <div className="text-xs text-slate-500">{detail}</div>
+        </div>
+        <Badge>{count}</Badge>
+      </div>
+      <Button className="mt-3 w-full justify-center" disabled={!onOpen || count === 0} size="sm" variant="outline" onClick={onOpen}>
+        <Wrench className="h-4 w-4" />{actionLabel}
+      </Button>
+    </SoftRow>
   );
 }
 

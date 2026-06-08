@@ -475,6 +475,21 @@ async function main() {
         await page.locator('.motion-soft-row').filter({ hasText: '报告条目' }).first().getByText('2').waitFor({ timeout: 5000 });
         await page.getByText('Yuzusoft').first().waitFor({ timeout: 5000 });
       }],
+      ['reports-actionable-gaps-open-library', 'reports', { games: [...games, descriptionRepairGame], settings: { ...settings, privacy_filter_reports: 'false' } }, async (page) => {
+        await page.getByText('游玩报告').first().waitFor({ timeout: 5000 });
+        await page.getByText('可处理缺口').first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: /在游戏库查看缺简介图片/ }).click();
+        await page.getByText('媒体健康').first().waitFor({ timeout: 5000 });
+        if (await page.getByLabel('元数据筛选').inputValue() !== 'missing_description_image') throw new Error('reports description-image gap shortcut did not select library metadata filter');
+        await page.getByText('简介图片修复候选').first().waitFor({ timeout: 5000 });
+        if (await page.getByText('星之终途').count() > 0) throw new Error('reports description-image gap shortcut did not filter complete games out');
+        await page.getByRole('button', { name: '报告' }).click();
+        await page.getByText('可处理缺口').first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: /在游戏库查看路径异常/ }).click();
+        await page.getByText('媒体健康').first().waitFor({ timeout: 5000 });
+        if (await page.getByLabel('路径筛选').inputValue() !== 'broken') throw new Error('reports broken-path gap shortcut did not select library path filter');
+        await page.getByText('天使☆騒々 RE-BOOT!').first().waitFor({ timeout: 5000 });
+      }],
       ['saves-backup-restore', 'saves', {}, async (page) => {
         await page.getByText('存档管理').first().waitFor({ timeout: 5000 });
         await page.locator('select').first().selectOption('qa-1');
