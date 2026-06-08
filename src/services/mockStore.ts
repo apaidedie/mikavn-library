@@ -1512,27 +1512,39 @@ export const mockStore = {
   },
 
   exportLibraryArchive(options: LibraryArchiveExportOptions): Promise<TaskRecord> {
-    return Promise.resolve(makeTask({
+    const targetDir = options.targetDir || 'Downloads';
+    const includeImages = options.includeImages ?? true;
+    const includeSaveBackups = options.includeSaveBackups ?? false;
+    const task = makeTask({
       taskType: 'library.archive_export',
       status: 'completed',
       progress: 1,
-      message: `浏览器预览已模拟导出库归档到 ${options.targetDir || 'Downloads'}`,
+      message: `浏览器预览已模拟导出库归档到 ${targetDir}`,
       error: null,
-      retryPayload: JSON.stringify(options),
+      retryPayload: JSON.stringify({ targetDir, includeImages, includeSaveBackups }),
       retryable: true,
-    }));
+    });
+    addTaskLog(task.id, 'info', `归档导出目标：${targetDir}`);
+    addTaskLog(task.id, 'info', `归档导出包含：图片 ${includeImages ? '是' : '否'}，存档备份 ${includeSaveBackups ? '是' : '否'}`);
+    return Promise.resolve(task);
   },
 
   exportLibraryArchiveZip(options: LibraryArchiveExportOptions): Promise<TaskRecord> {
-    return Promise.resolve(makeTask({
+    const targetDir = options.targetDir || 'Downloads';
+    const includeImages = options.includeImages ?? true;
+    const includeSaveBackups = options.includeSaveBackups ?? false;
+    const task = makeTask({
       taskType: 'library.archive_export_zip',
       status: 'completed',
       progress: 1,
-      message: `浏览器预览已模拟导出 ZIP 库归档到 ${options.targetDir || 'Downloads'}`,
+      message: `浏览器预览已模拟导出 ZIP 库归档到 ${targetDir}`,
       error: null,
-      retryPayload: JSON.stringify(options),
+      retryPayload: JSON.stringify({ targetDir, includeImages, includeSaveBackups }),
       retryable: true,
-    }));
+    });
+    addTaskLog(task.id, 'info', `ZIP 归档导出目标：${targetDir}`);
+    addTaskLog(task.id, 'info', `ZIP 归档导出包含：图片 ${includeImages ? '是' : '否'}，存档备份 ${includeSaveBackups ? '是' : '否'}`);
+    return Promise.resolve(task);
   },
 
   previewLibraryArchive(path: string): Promise<LibraryArchivePreview> {

@@ -290,9 +290,19 @@ async function main() {
     const archiveImportTask = afterArchiveImportTasks.find((item) => item.taskType === 'library.archive_import');
     const archiveImportPayload = JSON.parse(archiveImportTask?.retryPayload || '{}');
     if (!archiveImportTask?.retryable || archiveImportPayload.archiveDir !== 'D:\\MikaVN-Smoke-Archive') throw new Error('archive import task did not persist retry options for the selected archive path');
+    await page.getByRole('button', { name: /^导出归档$/ }).click();
+    await expectText(page, /库归档导出任务已创建/);
+    const afterArchiveExportTasks = await getStorage(page, 'mikavn-library.mock.tasks');
+    const archiveExportTask = afterArchiveExportTasks.find((item) => item.taskType === 'library.archive_export');
+    const archiveExportPayload = JSON.parse(archiveExportTask?.retryPayload || '{}');
+    if (!archiveExportTask?.retryable || archiveExportPayload.targetDir !== 'D:\\MikaVN-Smoke-Archive' || archiveExportPayload.includeImages !== true || archiveExportPayload.includeSaveBackups !== false) throw new Error('archive export task did not persist retry options for the selected export scope');
     await page.getByRole('button', { name: /导出 ZIP/ }).click();
     await expectText(page, /ZIP 库归档导出任务已创建/);
-    console.log('OK settings logs/archive import zip task');
+    const afterArchiveZipExportTasks = await getStorage(page, 'mikavn-library.mock.tasks');
+    const archiveZipExportTask = afterArchiveZipExportTasks.find((item) => item.taskType === 'library.archive_export_zip');
+    const archiveZipExportPayload = JSON.parse(archiveZipExportTask?.retryPayload || '{}');
+    if (!archiveZipExportTask?.retryable || archiveZipExportPayload.targetDir !== 'D:\\MikaVN-Smoke-Archive' || archiveZipExportPayload.includeImages !== true || archiveZipExportPayload.includeSaveBackups !== false) throw new Error('archive zip export task did not persist retry options for the selected export scope');
+    console.log('OK settings logs/archive import/export zip task');
 
     await navigate(page, 'tasks');
     const databaseRestoreRow = taskQueueRow(page, /数据库恢复/);
@@ -305,6 +315,16 @@ async function main() {
     await expectText(page, /存档恢复保护备份/);
     await expectText(page, /存档恢复报告：模式/);
     console.log('OK save restore audit logs');
+    const archiveExportRow = taskQueueRow(page, /浏览器预览已模拟导出库归档到 D:\\MikaVN-Smoke-Archive/);
+    await archiveExportRow.getByRole('button', { name: /日志/ }).click();
+    await expectText(page, /归档导出目标/);
+    await expectText(page, /归档导出包含：图片 是，存档备份 否/);
+    console.log('OK archive export audit logs');
+    const archiveZipExportRow = taskQueueRow(page, /浏览器预览已模拟导出 ZIP 库归档到 D:\\MikaVN-Smoke-Archive/);
+    await archiveZipExportRow.getByRole('button', { name: /日志/ }).click();
+    await expectText(page, /ZIP 归档导出目标/);
+    await expectText(page, /ZIP 归档导出包含：图片 是，存档备份 否/);
+    console.log('OK archive zip export audit logs');
     const archiveImportRow = taskQueueRow(page, /库归档导入/);
     await archiveImportRow.getByRole('button', { name: /日志/ }).click();
     await expectText(page, /归档导入保护备份/);

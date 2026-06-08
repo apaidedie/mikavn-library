@@ -111,6 +111,14 @@ pub(crate) fn enqueue_library_archive_export_task(
 
         let result = (|| -> DbResult<PathBuf> {
             let archive_dir = archive_dir(&target_parent);
+            for log in archive_export_audit_logs(
+                "归档导出",
+                &target_parent.to_string_lossy(),
+                include_images,
+                include_save_backups,
+            ) {
+                db.append_task_log(&task_id, "info", &log)?;
+            }
             tasks::update_task(
                 &app_handle,
                 &db,
@@ -259,6 +267,14 @@ pub(crate) fn enqueue_library_archive_export_zip_task(
                 .join("archive-export-staging")
                 .join(Uuid::new_v4().to_string());
             let archive_path = archive_zip_path(&target_parent);
+            for log in archive_export_audit_logs(
+                "ZIP 归档导出",
+                &target_parent.to_string_lossy(),
+                include_images,
+                include_save_backups,
+            ) {
+                db.append_task_log(&task_id, "info", &log)?;
+            }
             tasks::update_task(
                 &app_handle,
                 &db,
@@ -1097,6 +1113,22 @@ fn archive_zip_path(parent: &Path) -> PathBuf {
     ))
 }
 
+fn archive_export_audit_logs(
+    prefix: &str,
+    target: &str,
+    include_images: bool,
+    include_save_backups: bool,
+) -> [String; 2] {
+    [
+        format!("{prefix}目标：{target}"),
+        format!(
+            "{prefix}包含：图片 {}，存档备份 {}",
+            if include_images { "是" } else { "否" },
+            if include_save_backups { "是" } else { "否" }
+        ),
+    ]
+}
+
 fn copy_dir_recursive(source: &Path, target: &Path) -> DbResult<i64> {
     if !source.exists() {
         return Ok(0);
@@ -1787,6 +1819,22 @@ mod tests {
         assert!(logs
             .iter()
             .any(|log| log.message.contains("安装目录已存在：Existing Title")));
+    }
+
+    #[test]
+    fn archive_export_audit_logs_describe_target_and_scope() {
+        let logs = archive_export_audit_logs("归档导出", "D:\\MikaVN-Archives", true, false);
+
+        assert_eq!(logs[0], "归档导出目标：D:\\MikaVN-Archives");
+        assert_eq!(logs[1], "归档导出包含：图片 是，存档备份 否");
+    }
+
+    #[test]
+    fn archive_zip_export_audit_logs_describe_target_and_scope() {
+        let logs = archive_export_audit_logs("ZIP 归档导出", "D:\\MikaVN-Archives", false, true);
+
+        assert_eq!(logs[0], "ZIP 归档导出目标：D:\\MikaVN-Archives");
+        assert_eq!(logs[1], "ZIP 归档导出包含：图片 否，存档备份 是");
     }
 
     #[test]
