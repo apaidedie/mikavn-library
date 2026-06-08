@@ -108,6 +108,7 @@ pub fn enqueue_database_backup_task(
         );
         match db.backup_to_path(&target) {
             Ok(()) => {
+                let target_size = fs::metadata(&target).map(|metadata| metadata.len()).unwrap_or(0);
                 logger::log_info(
                     &paths,
                     "database.backup",
@@ -115,6 +116,11 @@ pub fn enqueue_database_backup_task(
                         "database backup written to {}",
                         logger::display_path(&target)
                     ),
+                );
+                let _ = db.append_task_log(
+                    &task_id,
+                    "info",
+                    &database_backup_report_log(&logger::display_path(&target), target_size),
                 );
                 let _ = tasks::update_task(
                     &app_handle,
@@ -452,6 +458,10 @@ fn format_system_time(value: SystemTime) -> String {
     DateTime::<Utc>::from(value).to_rfc3339()
 }
 
+fn database_backup_report_log(target: &str, size_bytes: u64) -> String {
+    format!("数据库备份报告：目标 {target}，大小 {size_bytes} bytes。")
+}
+
 pub fn apply_pending_database_restore(paths: &AppPaths) -> DbResult<()> {
     let pending = paths.database_restore_pending().join("mikavn.db");
     if !pending.is_file() {
@@ -698,6 +708,13 @@ mod tests {
             .iter()
             .any(|file| file.file_name == "before-restore-20260101-000000.db"));
         let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn database_backup_report_log_describes_target_and_size() {
+        let message = database_backup_report_log("D:\\MikaVN-Backups\\manual.db", 131072);
+
+        assert_eq!(message, "数据库备份报告：目标 D:\\MikaVN-Backups\\manual.db，大小 131072 bytes。");
     }
 
     fn create_mikavn_db(path: &Path, title: &str) {

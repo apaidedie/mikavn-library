@@ -266,6 +266,10 @@ async function main() {
     await expectText(page, /诊断日志/);
     await page.getByRole('button', { name: /^备份$/ }).click();
     await expectText(page, /数据库备份任务已创建/);
+    const afterDatabaseBackupTasks = await getStorage(page, 'mikavn-library.mock.tasks');
+    const databaseBackupTask = afterDatabaseBackupTasks.find((item) => item.taskType === 'database.backup');
+    const databaseBackupPayload = JSON.parse(databaseBackupTask?.retryPayload || '{}');
+    if (!databaseBackupTask?.retryable || databaseBackupPayload.path !== 'mikavn-backup-' + now.slice(0, 10) + '.db') throw new Error('database backup task did not persist retry options for the selected target path');
     await page.getByRole('button', { name: /安排恢复/ }).click();
     await expectText(page, /数据库恢复任务已创建/);
     await page.getByRole('button', { name: /刷新/ }).first().click();
@@ -305,6 +309,10 @@ async function main() {
     console.log('OK settings logs/archive import/export zip task');
 
     await navigate(page, 'tasks');
+    const databaseBackupRow = taskQueueRow(page, /数据库备份/);
+    await databaseBackupRow.getByRole('button', { name: /日志/ }).click();
+    await expectText(page, /数据库备份报告：目标 mikavn-backup-/);
+    console.log('OK database backup retry payload and audit logs');
     const databaseRestoreRow = taskQueueRow(page, /数据库恢复/);
     await databaseRestoreRow.getByRole('button', { name: /日志/ }).click();
     await expectText(page, /数据库恢复来源/);
