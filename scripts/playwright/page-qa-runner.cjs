@@ -851,6 +851,26 @@ async function main() {
       if (!starGames.some((game) => game.aliases.includes('[汉化硬盘版] 星之终途 v1.02'))) throw new Error('page QA scanner duplicate did not persist candidate aliases');
     });
 
+    await runCase(browser, 'tasks-retry-shows-result-under-filters', 'tasks', { games: [...games, descriptionRepairGame], tasks: [descriptionImageRepairFailedTask, ...tasks], taskLogs }, async (page) => {
+      await page.getByText('任务概览').first().waitFor({ timeout: 5000 });
+      const taskStatusShortcuts = page.locator('[aria-label="任务状态快捷筛选"]');
+      const taskTypeShortcuts = page.locator('[aria-label="任务类型快捷筛选"]');
+      await taskStatusShortcuts.getByRole('button', { name: /需处理\s+3/ }).click();
+      await taskTypeShortcuts.getByRole('button', { name: /简介图片修复\s+1/ }).click();
+      if (await page.getByLabel('任务状态筛选').inputValue() !== 'attention') throw new Error('task retry filter QA did not start from attention status filter');
+      if (await page.getByLabel('任务类型筛选').inputValue() !== 'metadata.description_image_repair') throw new Error('task retry filter QA did not start from description repair type filter');
+      await page.getByLabel('任务搜索').fill('DLsite');
+      await page.getByText('简介图片修复失败：DLsite 暂不可用').first().waitFor({ timeout: 5000 });
+      const descriptionRepairRow = page.locator('.motion-soft-row').filter({ hasText: '简介图片修复失败：DLsite 暂不可用' }).first();
+      await descriptionRepairRow.getByRole('button', { name: /重试/ }).click();
+      await page.getByText(/已重新创建任务：简介图片修复/).first().waitFor({ timeout: 5000 });
+      if (await page.getByLabel('任务状态筛选').inputValue() !== 'all') throw new Error('task retry did not clear the status filter to reveal the retried task');
+      if (await page.getByLabel('任务类型筛选').inputValue() !== 'metadata.description_image_repair') throw new Error('task retry should keep the retried task type filter selected');
+      if ((await page.getByLabel('任务搜索').inputValue()).trim() !== '') throw new Error('task retry did not clear the task search to reveal the retried task');
+      await page.getByText(/浏览器预览已修复 1 个条目的简介图片/).first().waitFor({ timeout: 5000 });
+      await page.getByText('简介图片修复候选：dlsite:RJ01000001').first().waitFor({ timeout: 5000 });
+    });
+
     await runCase(browser, 'tasks-running-failed-expanded', 'tasks', { games: [...games, descriptionRepairGame], tasks: [descriptionImageRepairFailedTask, ...tasks], taskLogs }, async (page) => {
       await page.getByText('任务概览').first().waitFor({ timeout: 5000 });
       await page.getByText('任务总数').first().waitFor({ timeout: 5000 });

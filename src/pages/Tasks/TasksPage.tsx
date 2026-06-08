@@ -179,6 +179,9 @@ export function TasksPage({ refreshKey, focusTaskId, focusRequestKey = 0, filter
     try {
       const task = await api.retryTask(id);
       setMessage(`已重新创建任务：${taskLabel(task.taskType)}。`);
+      setStatusFilter('all');
+      setTypeFilter(task.taskType);
+      setTaskQuery('');
       setExpandedId(task.id);
       await loadTasks({ quiet: true });
       await loadLogs(task.id);
