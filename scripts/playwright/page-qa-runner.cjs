@@ -777,6 +777,28 @@ async function main() {
       if (!mergedGame?.aliases.includes('星之终途')) throw new Error('page QA scanner merge did not retain existing title as alias');
     });
 
+    await runCase(browser, 'scanner-skip-import-audit', 'scanner', {}, async (page) => {
+      await page.getByPlaceholder(/例如/).fill('D:\\Games\\VN');
+      await page.getByRole('button', { name: /开始扫描/ }).click();
+      await page.getByText(/冲突/).first().waitFor({ timeout: 5000 });
+      const beforeSkipGames = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.games') || '[]'));
+      const skipRow = page.locator('label').filter({ hasText: '星之终途' }).first();
+      await skipRow.getByRole('checkbox').check();
+      if (await skipRow.locator('select').inputValue() !== 'skip') throw new Error('scanner conflict candidate should default to skip');
+      await page.getByRole('button', { name: /导入选中/ }).click();
+      await page.getByText(/导入处理完成：新增 0、合并 0、替换 0、副本 0、跳过 1/).first().waitFor({ timeout: 5000 });
+      await page.getByText('导入审计').first().waitFor({ timeout: 5000 });
+      await page.getByLabel('导入审计动作筛选').selectOption('skip');
+      await page.getByText(/已跳过与现有记录冲突的候选/).first().waitFor({ timeout: 5000 });
+      const skipAuditRow = page.locator('.rounded-md').filter({ hasText: '已跳过与现有记录冲突的候选' }).first();
+      if (await skipAuditRow.getByText(/记录 ID：/).count() > 0) throw new Error('scanner skip audit row should not show a written game record ID');
+      await page.getByText(/冲突原因：安装目录已存在|冲突原因：标题相同/).first().waitFor({ timeout: 5000 });
+      const afterSkipGames = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.games') || '[]'));
+      if (afterSkipGames.length !== beforeSkipGames.length) throw new Error('scanner skip should not add or delete game records');
+      const skippedOriginal = afterSkipGames.find((game) => game.id === 'qa-1');
+      if (!skippedOriginal?.aliases.includes('[汉化硬盘版] 星之终途 v1.02') || skippedOriginal.aliases.includes('星之终途')) throw new Error('scanner skip should not merge candidate aliases into the existing record');
+    });
+
     await runCase(browser, 'scanner-replace-import-audit', 'scanner', {}, async (page) => {
       await page.getByPlaceholder(/例如/).fill('D:\\Games\\VN');
       await page.getByRole('button', { name: /开始扫描/ }).click();
