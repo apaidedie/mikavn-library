@@ -483,6 +483,11 @@ async function main() {
         const gapsPanel = page.locator('section').filter({ hasText: '可处理缺口' }).first();
         const descriptionImageGap = gapsPanel.locator('.motion-soft-row').filter({ hasText: '缺简介图片' }).first();
         await descriptionImageGap.getByText('简介图片修复候选').first().waitFor({ timeout: 5000 });
+        await descriptionImageGap.getByRole('button', { name: '简介图片修复候选' }).click();
+        await page.getByText('媒体健康').first().waitFor({ timeout: 5000 });
+        await page.getByText('DLsite 来源条目，当前简介里没有图片，用于维护中心修复入口 QA。').first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: '报告' }).click();
+        await page.getByText('可处理缺口').first().waitFor({ timeout: 5000 });
         await page.getByRole('button', { name: /在游戏库查看缺简介图片/ }).click();
         await page.getByText('媒体健康').first().waitFor({ timeout: 5000 });
         if (await page.getByLabel('元数据筛选').inputValue() !== 'missing_description_image') throw new Error('reports description-image gap shortcut did not select library metadata filter');

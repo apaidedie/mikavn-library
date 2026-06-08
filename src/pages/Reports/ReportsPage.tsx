@@ -12,8 +12,9 @@ import { PLAY_STATUS_LABEL } from '@/types/game';
 import { formatPlayTime } from '@/utils/time';
 
 type TaskMessage = { text: string; taskId?: string | null };
+type GapExample = { id: string; title: string };
 
-export function ReportsPage({ refreshKey, onOpenTask, onOpenLibrary }: { refreshKey: number; onOpenTask?: (taskId: string) => void; onOpenLibrary?: (preset?: LibraryFilterPreset | null) => void }) {
+export function ReportsPage({ refreshKey, onOpenTask, onOpenLibrary, onOpenGame }: { refreshKey: number; onOpenTask?: (taskId: string) => void; onOpenLibrary?: (preset?: LibraryFilterPreset | null) => void; onOpenGame?: (gameId: string) => void }) {
   const [games, setGames] = useState<Game[]>([]);
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<TaskMessage | null>(null);
@@ -84,6 +85,7 @@ export function ReportsPage({ refreshKey, onOpenTask, onOpenLibrary }: { refresh
             icon={<ImageOff className="h-4 w-4" />}
             label="缺封面"
             onOpen={onOpenLibrary ? () => onOpenLibrary({ metadataStatus: 'missing_cover' }) : undefined}
+            onOpenExample={onOpenGame}
           />
           <ActionableGap
             actionLabel="在游戏库查看缺简介图片"
@@ -93,6 +95,7 @@ export function ReportsPage({ refreshKey, onOpenTask, onOpenLibrary }: { refresh
             icon={<ImageOff className="h-4 w-4" />}
             label="缺简介图片"
             onOpen={onOpenLibrary ? () => onOpenLibrary({ metadataStatus: 'missing_description_image' }) : undefined}
+            onOpenExample={onOpenGame}
           />
           <ActionableGap
             actionLabel="在游戏库查看缺外部 ID"
@@ -102,6 +105,7 @@ export function ReportsPage({ refreshKey, onOpenTask, onOpenLibrary }: { refresh
             icon={<Link2Off className="h-4 w-4" />}
             label="缺外部 ID"
             onOpen={onOpenLibrary ? () => onOpenLibrary({ metadataStatus: 'missing_external_id' }) : undefined}
+            onOpenExample={onOpenGame}
           />
           <ActionableGap
             actionLabel="在游戏库查看路径异常"
@@ -111,6 +115,7 @@ export function ReportsPage({ refreshKey, onOpenTask, onOpenLibrary }: { refresh
             icon={<AlertTriangle className="h-4 w-4" />}
             label="路径异常"
             onOpen={onOpenLibrary ? () => onOpenLibrary({ pathStatus: 'broken' }) : undefined}
+            onOpenExample={onOpenGame}
           />
         </PanelContent>
       </Panel>
@@ -157,7 +162,7 @@ function buildStats(games: Game[]) {
 }
 
 function gapExamples(games: Game[]) {
-  return games.slice(0, 3).map((game) => game.title);
+  return games.slice(0, 3).map((game) => ({ id: game.id, title: game.title }));
 }
 
 function hasDescriptionImage(description?: string | null) {
@@ -205,8 +210,8 @@ function buildMarkdown(games: Game[], stats: ReturnType<typeof buildStats>) {
   return `${lines.join('\n')}\n`;
 }
 
-function formatGapExamples(examples: string[]) {
-  return examples.length > 0 ? examples.join(' / ') : '无';
+function formatGapExamples(examples: GapExample[]) {
+  return examples.length > 0 ? examples.map((example) => example.title).join(' / ') : '无';
 }
 
 function StatCard({ title, items }: { title: string; items: Array<{ label: string; value: number | string }> }) {
@@ -233,7 +238,7 @@ function StatCard({ title, items }: { title: string; items: Array<{ label: strin
   );
 }
 
-function ActionableGap({ actionLabel, count, detail, examples, icon, label, onOpen }: { actionLabel: string; count: number; detail: string; examples: string[]; icon: ReactNode; label: string; onOpen?: () => void }) {
+function ActionableGap({ actionLabel, count, detail, examples, icon, label, onOpen, onOpenExample }: { actionLabel: string; count: number; detail: string; examples: GapExample[]; icon: ReactNode; label: string; onOpen?: () => void; onOpenExample?: (gameId: string) => void }) {
   const toneClass = count > 0 ? 'border-amber-300/25 bg-amber-300/10 text-amber-100' : 'border-emerald-300/20 bg-emerald-300/10 text-emerald-100';
   return (
     <SoftRow className="px-3 py-3">
@@ -251,7 +256,18 @@ function ActionableGap({ actionLabel, count, detail, examples, icon, label, onOp
         <div className="text-[11px] font-medium text-slate-500">样例</div>
         {examples.length > 0 ? (
           <div className="flex flex-wrap gap-1.5">
-            {examples.map((example) => <span className="max-w-full truncate rounded-md border border-white/10 bg-black/15 px-2 py-1 text-xs text-slate-300" key={example}>{example}</span>)}
+            {examples.map((example) => (
+              <button
+                className="motion-button max-w-full truncate rounded-md border border-white/10 bg-black/15 px-2 py-1 text-left text-xs text-slate-300 hover:border-[rgb(var(--accent-rgb)/0.5)] hover:bg-[rgb(var(--accent-rgb)/0.16)] hover:text-slate-100 disabled:cursor-default disabled:hover:border-white/10 disabled:hover:bg-black/15 disabled:hover:text-slate-300"
+                disabled={!onOpenExample}
+                key={example.id}
+                onClick={() => onOpenExample?.(example.id)}
+                title={example.title}
+                type="button"
+              >
+                {example.title}
+              </button>
+            ))}
           </div>
         ) : <div className="text-xs text-slate-500">无</div>}
       </div>
