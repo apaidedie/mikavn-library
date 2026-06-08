@@ -747,6 +747,12 @@ async function main() {
       ['settings-local-privacy-backup', 'settings', {}, async (page) => {
         await page.getByText('设置').first().waitFor({ timeout: 5000 });
         await page.getByRole('tab', { name: /本地与隐私/ }).click();
+        await page.getByText('目录位置速览').first().waitFor({ timeout: 5000 });
+        await page.getByText('E:\\MikaVN Library\\app-data\\images').first().waitFor({ timeout: 5000 });
+        await page.getByText('E:\\MikaVN Library\\app-data\\cache').first().waitFor({ timeout: 5000 });
+        await page.getByText('E:\\MikaVN Library\\app-data\\save-backups').first().waitFor({ timeout: 5000 });
+        await page.getByText('E:\\MikaVN Library\\app-data\\logs').first().waitFor({ timeout: 5000 });
+        await page.getByText('E:\\MikaVN Library\\app-data').first().waitFor({ timeout: 5000 });
         await page.getByText('标签维护').first().waitFor({ timeout: 5000 });
         await page.locator('select').filter({ has: page.locator('option', { hasText: '标签 · 全年龄' }) }).selectOption('tag:%E5%85%A8%E5%B9%B4%E9%BE%84');
         await page.getByPlaceholder('新标签名').fill('全年龄QA');
