@@ -76,6 +76,7 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
   const [descriptionHistoryLoading, setDescriptionHistoryLoading] = useState(false);
   const [descriptionHistoryQuery, setDescriptionHistoryQuery] = useState('');
   const [descriptionHistoryStatusFilter, setDescriptionHistoryStatusFilter] = useState('all');
+  const [descriptionHistoryProviderFilter, setDescriptionHistoryProviderFilter] = useState('all');
   const [metadataRepairLoading, setMetadataRepairLoading] = useState(false);
   const [descriptionRepairLoading, setDescriptionRepairLoading] = useState(false);
   const [artworkRepairLoading, setArtworkRepairLoading] = useState(false);
@@ -162,7 +163,7 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
   const filteredMaintenanceTasks = useMemo(() => maintenanceTasks.filter((task) => matchesMaintenanceTaskFilter(task, maintenanceTaskFilter)), [maintenanceTaskFilter, maintenanceTasks]);
   const filteredArtworkDiagnosisItems = useMemo(() => artworkDiagnosis?.items.filter((item) => matchesArtworkDiagnosisItem(item, artworkDiagnosisQuery, artworkDiagnosisStatusFilter)) ?? [], [artworkDiagnosis, artworkDiagnosisQuery, artworkDiagnosisStatusFilter]);
   const filteredArtworkHistory = useMemo(() => artworkHistory?.map((summary) => filterArtworkRepairSummary(summary, artworkHistoryQuery, artworkHistoryStatusFilter)).filter((summary) => summary.updated.length + summary.skipped.length + summary.failed.length > 0) ?? [], [artworkHistory, artworkHistoryQuery, artworkHistoryStatusFilter]);
-  const filteredDescriptionHistory = useMemo(() => descriptionHistory?.map((summary) => filterDescriptionImageRepairSummary(summary, descriptionHistoryQuery, descriptionHistoryStatusFilter)).filter((summary) => summary.updated.length + summary.skipped.length + summary.failed.length > 0) ?? [], [descriptionHistory, descriptionHistoryQuery, descriptionHistoryStatusFilter]);
+  const filteredDescriptionHistory = useMemo(() => descriptionHistory?.map((summary) => filterDescriptionImageRepairSummary(summary, descriptionHistoryQuery, descriptionHistoryStatusFilter, descriptionHistoryProviderFilter)).filter((summary) => summary.updated.length + summary.skipped.length + summary.failed.length > 0) ?? [], [descriptionHistory, descriptionHistoryProviderFilter, descriptionHistoryQuery, descriptionHistoryStatusFilter]);
 
   const resetDuplicateGroupFilters = () => {
     setDuplicateGroupQuery('');
@@ -188,6 +189,7 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
   const resetDescriptionHistoryFilters = () => {
     setDescriptionHistoryQuery('');
     setDescriptionHistoryStatusFilter('all');
+    setDescriptionHistoryProviderFilter('all');
   };
 
   useEffect(() => {
@@ -445,10 +447,18 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
             {descriptionHistory ? (
               descriptionHistory.length > 0 ? (
                 <div className="space-y-3">
-                  <SoftRow className="grid gap-2 px-3 py-3 md:grid-cols-[minmax(0,1fr)_minmax(10rem,14rem)_auto] md:items-end">
+                  <SoftRow className="grid gap-2 px-3 py-3 md:grid-cols-[minmax(0,1fr)_minmax(8rem,12rem)_minmax(10rem,14rem)_auto] md:items-end">
                     <label className="min-w-0 text-xs text-slate-500">
                       搜索修复结果
                       <Input aria-label="简介图片修复结果搜索" className="mt-1 w-full" placeholder="游戏 / ID / 来源 / 原因" value={descriptionHistoryQuery} onChange={(event) => setDescriptionHistoryQuery(event.target.value)} />
+                    </label>
+                    <label className="min-w-0 text-xs text-slate-500">
+                      来源
+                      <Select aria-label="简介图片修复结果来源筛选" className="mt-1 w-full" value={descriptionHistoryProviderFilter} onChange={(event) => setDescriptionHistoryProviderFilter(event.target.value)}>
+                        <option value="all">全部来源</option>
+                        <option value="dlsite">DLsite</option>
+                        <option value="fanza">FANZA</option>
+                      </Select>
                     </label>
                     <label className="min-w-0 text-xs text-slate-500">
                       结果状态
@@ -459,7 +469,7 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
                         <option value="failed">失败</option>
                       </Select>
                     </label>
-                    <Button className="h-9" disabled={!descriptionHistoryQuery.trim() && descriptionHistoryStatusFilter === 'all'} size="sm" variant="outline" onClick={resetDescriptionHistoryFilters}>重置筛选</Button>
+                    <Button className="h-9" disabled={!descriptionHistoryQuery.trim() && descriptionHistoryStatusFilter === 'all' && descriptionHistoryProviderFilter === 'all'} size="sm" variant="outline" onClick={resetDescriptionHistoryFilters}>重置筛选</Button>
                   </SoftRow>
                   <div className="px-1 text-xs text-slate-500">当前显示 {formatCount(filteredDescriptionHistory.reduce((count, summary) => count + summary.updated.length + summary.skipped.length + summary.failed.length, 0))} / {formatCount(descriptionHistory.reduce((count, summary) => count + summary.updated.length + summary.skipped.length + summary.failed.length, 0))} 条简介图片修复明细。</div>
                   {filteredDescriptionHistory.length > 0 ? filteredDescriptionHistory.map((summary) => <DescriptionImageRepairTaskRow key={summary.task.id} onOpenGame={onOpenGame} onOpenTask={onOpenTasks} summary={summary} />) : <SoftRow className="px-3 py-3 text-sm text-slate-400">当前筛选没有匹配的简介图片修复结果。</SoftRow>}
@@ -1427,17 +1437,18 @@ function filterArtworkRepairSummary(summary: ArtworkRepairTaskSummary, query: st
   };
 }
 
-function filterDescriptionImageRepairSummary(summary: DescriptionImageRepairTaskSummary, query: string, statusFilter: string): DescriptionImageRepairTaskSummary {
+function filterDescriptionImageRepairSummary(summary: DescriptionImageRepairTaskSummary, query: string, statusFilter: string, providerFilter: string): DescriptionImageRepairTaskSummary {
   return {
     task: summary.task,
-    updated: summary.updated.filter((item) => matchesDescriptionImageRepairLog(item, query, statusFilter)),
-    skipped: summary.skipped.filter((item) => matchesDescriptionImageRepairLog(item, query, statusFilter)),
-    failed: summary.failed.filter((item) => matchesDescriptionImageRepairLog(item, query, statusFilter)),
+    updated: summary.updated.filter((item) => matchesDescriptionImageRepairLog(item, query, statusFilter, providerFilter)),
+    skipped: summary.skipped.filter((item) => matchesDescriptionImageRepairLog(item, query, statusFilter, providerFilter)),
+    failed: summary.failed.filter((item) => matchesDescriptionImageRepairLog(item, query, statusFilter, providerFilter)),
   };
 }
 
-function matchesDescriptionImageRepairLog(item: DescriptionImageRepairLogSummary, query: string, statusFilter: string) {
+function matchesDescriptionImageRepairLog(item: DescriptionImageRepairLogSummary, query: string, statusFilter: string, providerFilter: string) {
   if (statusFilter !== 'all' && item.status !== statusFilter) return false;
+  if (providerFilter !== 'all' && item.provider !== providerFilter) return false;
   const value = query.trim().toLowerCase();
   if (!value) return true;
   return [

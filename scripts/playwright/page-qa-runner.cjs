@@ -30,6 +30,22 @@ const repoRoot = path.resolve(__dirname, '..', '..');
 const outDir = path.resolve(process.env.MIKAVN_QA_OUT_DIR || path.join(repoRoot, 'output', 'playwright', 'page-qa-current'));
 fs.mkdirSync(outDir, { recursive: true });
 
+function descriptionRepairRows(panel) {
+  return panel.locator('.rounded-md').filter({ hasText: /^(已修复|跳过|失败)/ });
+}
+
+function descriptionRepairRow(panel, providerId) {
+  return descriptionRepairRows(panel).filter({ hasText: providerId });
+}
+
+async function expectDescriptionRepairRowVisible(panel, providerId) {
+  await descriptionRepairRow(panel, providerId).first().waitFor({ timeout: 5000 });
+}
+
+async function expectDescriptionRepairRowHidden(panel, providerId) {
+  if (await descriptionRepairRow(panel, providerId).count() > 0) throw new Error(`description repair provider filter did not hide ${providerId} results`);
+}
+
 const now = new Date().toISOString();
 const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
 const hero = '/src/assets/hero.png';
@@ -54,6 +70,18 @@ const descriptionRepairGame = {
   installPath: 'D:\\Games\\VN\\简介图片修复候选',
   executablePath: 'D:\\Games\\VN\\简介图片修复候选\\game.exe',
   workingDirectory: 'D:\\Games\\VN\\简介图片修复候选',
+};
+const fanzaDescriptionRepairGame = {
+  ...descriptionRepairGame,
+  id: 'qa-description-repair-fanza',
+  title: 'FANZA 简介图修复候选',
+  originalTitle: 'FANZA 紹介画像修復候補',
+  description: `FANZA 来源条目，已有简介图片，用于结果筛选 QA。\n\n![简介图片](${hero})`,
+  dlsiteId: null,
+  fanzaId: 'd_123456',
+  installPath: 'D:\\Games\\VN\\FANZA简介图修复候选',
+  executablePath: 'D:\\Games\\VN\\FANZA简介图修复候选\\game.exe',
+  workingDirectory: 'D:\\Games\\VN\\FANZA简介图修复候选',
 };
 const duplicateExternalIdGame = {
   ...games[1],
@@ -105,6 +133,9 @@ const tasks = [
 const descriptionImageRepairFailedTask = {
   id: 'qa-task-description-image-failed', taskType: 'metadata.description_image_repair', status: 'failed', progress: 1, message: '简介图片修复失败：DLsite 暂不可用', error: 'PROVIDER_TIMEOUT: DLsite', retryPayload: JSON.stringify({ provider: 'all', limit: 20, maxImages: 3 }), retryable: true, createdAt: tenMinutesAgo, updatedAt: now,
 };
+const fanzaDescriptionImageRepairTask = {
+  id: 'qa-task-description-image-fanza', taskType: 'metadata.description_image_repair', status: 'completed', progress: 1, message: '简介图片修复完成：更新 1 个条目，插入 1 张图片，跳过 0 个，失败 0 个。', error: null, retryPayload: JSON.stringify({ provider: 'fanza', limit: 20, maxImages: 3 }), retryable: true, createdAt: tenMinutesAgo, updatedAt: now,
+};
 const taskLogs = {
   'qa-task-failed': [
     { id: 'log-1', taskId: 'qa-task-failed', level: 'info', message: '开始扫描 D:\\Missing', createdAt: now },
@@ -115,6 +146,9 @@ const taskLogs = {
   'qa-task-description-image-failed': [
     { id: 'log-description-image-1', taskId: 'qa-task-description-image-failed', level: 'info', message: '准备处理 dlsite:RJ01000001', createdAt: now },
     { id: 'log-description-image-2', taskId: 'qa-task-description-image-failed', level: 'error', message: 'DLsite 暂不可用，等待重试。', createdAt: now },
+  ],
+  'qa-task-description-image-fanza': [
+    { id: 'log-description-image-fanza-1', taskId: 'qa-task-description-image-fanza', level: 'info', message: '已修复：fanza d_123456，插入 1 张图片。', createdAt: now },
   ],
 };
 const savePaths = [{ id: 'qa-save-path', gameId: 'qa-1', label: '默认存档', path: 'D:\\Games\\VN\\星之终途\\save', createdAt: now }];
@@ -459,7 +493,7 @@ async function main() {
         const backupRecords = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.saveBackups') || '[]'));
         if (!Array.isArray(backupRecords) || backupRecords.filter((item) => item.protection).length < 2) throw new Error('page QA save restore flows did not create protection backup records');
       }],
-      ['maintenance-health-description-repair', 'maintenance', { games: [...games, descriptionRepairGame] }, async (page) => {
+      ['maintenance-health-description-repair', 'maintenance', { games: [...games, descriptionRepairGame, fanzaDescriptionRepairGame], tasks: [fanzaDescriptionImageRepairTask, ...tasks], taskLogs }, async (page) => {
         await page.getByText('维护中心').first().waitFor({ timeout: 5000 });
         await page.getByText('最近维护任务').first().waitFor({ timeout: 5000 });
         const mediaSummaryPanel = page.locator('section').filter({ hasText: '媒体与简介' }).first();
@@ -491,7 +525,7 @@ async function main() {
         await maintenanceTaskShortcuts.getByRole('button', { name: /进行中\s+1/ }).click();
         await maintenanceTaskPanel.getByText('正在匹配 2 个游戏').first().waitFor({ timeout: 5000 });
         if (await maintenanceTaskPanel.getByText('媒体补图失败：来源无响应').count() > 0) throw new Error('failed maintenance task should be hidden by active filter');
-        await maintenanceTaskShortcuts.getByRole('button', { name: /全部\s+2/ }).click();
+        await maintenanceTaskShortcuts.getByRole('button', { name: /全部\s+3/ }).click();
         await maintenanceTaskPanel.getByText('媒体补图失败：来源无响应').first().waitFor({ timeout: 5000 });
         await maintenanceTaskPanel.getByText('正在匹配 2 个游戏').first().waitFor({ timeout: 5000 });
         await maintenanceTaskPanel.locator('.motion-soft-row').filter({ hasText: '媒体补图失败：来源无响应' }).first().getByRole('button', { name: /^重试$/ }).click();
@@ -532,10 +566,19 @@ async function main() {
         const descriptionResultPanel = page.locator('section').filter({ hasText: '简介图片修复结果' }).first();
         await descriptionResultPanel.getByRole('button', { name: /读取结果/ }).click();
         await descriptionResultPanel.getByText('简介图片修复候选').first().waitFor({ timeout: 5000 });
-        await descriptionResultPanel.getByText('DLsite RJ01000001').first().waitFor({ timeout: 5000 });
-        const descriptionResultRow = descriptionResultPanel.locator('div').filter({ hasText: '简介图片修复候选' }).first();
-        await descriptionResultRow.locator('span').filter({ hasText: '已修复' }).first().waitFor({ timeout: 5000 });
+        await descriptionResultPanel.getByText('FANZA 简介图修复候选').first().waitFor({ timeout: 5000 });
+        await expectDescriptionRepairRowVisible(descriptionResultPanel, 'RJ01000001');
+        await expectDescriptionRepairRowVisible(descriptionResultPanel, 'd_123456');
+        await descriptionRepairRow(descriptionResultPanel, 'RJ01000001').first().locator('span').filter({ hasText: '已修复' }).first().waitFor({ timeout: 5000 });
         await descriptionResultPanel.getByText('可重试').first().waitFor({ timeout: 5000 });
+        await descriptionResultPanel.getByLabel('简介图片修复结果来源筛选').selectOption('fanza');
+        await expectDescriptionRepairRowVisible(descriptionResultPanel, 'd_123456');
+        await expectDescriptionRepairRowHidden(descriptionResultPanel, 'RJ01000001');
+        await descriptionResultPanel.getByLabel('简介图片修复结果来源筛选').selectOption('dlsite');
+        await expectDescriptionRepairRowVisible(descriptionResultPanel, 'RJ01000001');
+        await expectDescriptionRepairRowHidden(descriptionResultPanel, 'd_123456');
+        await descriptionResultPanel.getByLabel('简介图片修复结果来源筛选').selectOption('all');
+        await expectDescriptionRepairRowVisible(descriptionResultPanel, 'd_123456');
         await descriptionResultPanel.getByLabel('简介图片修复结果搜索').fill('RJ01000001');
         await descriptionResultPanel.getByText('简介图片修复候选').first().waitFor({ timeout: 5000 });
         await descriptionResultPanel.getByLabel('简介图片修复结果状态筛选').selectOption('failed');
