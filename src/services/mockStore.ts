@@ -335,6 +335,14 @@ function makeTask(input: {
   }, [input.message ?? '任务已记录'].filter(Boolean) as string[]);
 }
 
+function reportGapSummaryLog(content: string) {
+  const countFor = (label: string) => {
+    const match = content.match(new RegExp(`^- ${label}:\\s*(\\d+)`, 'm'));
+    return match?.[1] ?? '0';
+  };
+  return `报告缺口摘要：缺封面 ${countFor('缺封面')}，缺简介图片 ${countFor('缺简介图片')}，缺外部 ID ${countFor('缺外部 ID')}，路径异常 ${countFor('路径异常')}`;
+}
+
 function toMetadata(result: MetadataSearchResult): NormalizedMetadata {
   return {
     provider: result.provider,
@@ -1347,7 +1355,7 @@ export const mockStore = {
 
   async exportReportMarkdownTask(path: string, content: string): Promise<TaskRecord> {
     await this.exportReportMarkdown(path, content);
-    return makeTask({
+    const task = makeTask({
       taskType: 'report.export_markdown',
       status: 'completed',
       progress: 1,
@@ -1355,6 +1363,8 @@ export const mockStore = {
       error: null,
       retryable: false,
     });
+    addTaskLog(task.id, 'info', reportGapSummaryLog(content));
+    return task;
   },
 
   backupDatabase(path: string): Promise<TaskRecord> {

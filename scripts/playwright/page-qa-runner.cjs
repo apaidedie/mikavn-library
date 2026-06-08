@@ -469,6 +469,8 @@ async function main() {
         const exportTask = reportTasks.find((task) => task.taskType === 'report.export_markdown');
         if (!exportTask || exportTask.status !== 'completed') throw new Error('reports page QA did not create a completed report export task');
         if (!/mikavn-report-\d{4}-\d{2}-\d{2}\.md/.test(exportTask.message ?? '')) throw new Error('reports page QA export task did not keep the markdown target path in its message');
+        const reportLogs = await page.evaluate((taskId) => JSON.parse(localStorage.getItem('mikavn-library.mock.taskLogs') || '{}')[taskId] || [], exportTask.id);
+        if (!reportLogs.some((log) => /报告缺口摘要：缺封面 0，缺简介图片 0，缺外部 ID 0，路径异常 0/.test(log.message))) throw new Error('reports markdown export did not log actionable gap summary');
       }],
       ['reports-privacy-filter-disabled', 'reports', { settings: { ...settings, privacy_filter_reports: 'false' } }, async (page) => {
         await page.getByText('游玩报告').first().waitFor({ timeout: 5000 });

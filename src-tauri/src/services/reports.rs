@@ -55,8 +55,9 @@ pub fn enqueue_report_export_task(
             Some("正在写入报告文件".to_string()),
             None,
         );
-        match fs::write(&path, content) {
+        match fs::write(&path, &content) {
             Ok(()) => {
+                let _ = db.append_task_log(&task_id, "info", &report_gap_summary_log(&content));
                 logger::log_info(
                     &paths,
                     "report.export_markdown",
@@ -96,6 +97,28 @@ pub fn enqueue_report_export_task(
     Ok(task)
 }
 
+fn report_gap_summary_log(content: &str) -> String {
+    fn count_for(content: &str, label: &str) -> i64 {
+        let prefix = format!("- {}:", label);
+        content
+            .lines()
+            .find_map(|line| {
+                line.trim()
+                    .strip_prefix(&prefix)
+                    .and_then(|value| value.trim().parse::<i64>().ok())
+            })
+            .unwrap_or(0)
+    }
+
+    format!(
+        "报告缺口摘要：缺封面 {}，缺简介图片 {}，缺外部 ID {}，路径异常 {}",
+        count_for(content, "缺封面"),
+        count_for(content, "缺简介图片"),
+        count_for(content, "缺外部 ID"),
+        count_for(content, "路径异常")
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -112,5 +135,15 @@ mod tests {
 
         assert_eq!(fs::read_to_string(&target).unwrap(), "# Report");
         let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn report_gap_summary_log_extracts_actionable_gaps() {
+        let content = "# MikaVN Library Report\n\n## 可处理缺口\n- 缺封面: 2\n- 缺简介图片: 3\n- 缺外部 ID: 4\n- 路径异常: 5\n";
+
+        assert_eq!(
+            report_gap_summary_log(content),
+            "报告缺口摘要：缺封面 2，缺简介图片 3，缺外部 ID 4，路径异常 5"
+        );
     }
 }

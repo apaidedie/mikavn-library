@@ -177,6 +177,12 @@ function buildMarkdown(games: Game[], stats: ReturnType<typeof buildStats>) {
     '',
     '## 游玩时间 Top',
     ...stats.playtime.map((item) => `- ${item.label}: ${formatPlayTime(item.seconds)}`),
+    '',
+    '## 可处理缺口',
+    `- 缺封面: ${stats.gaps.missingCover}`,
+    `- 缺简介图片: ${stats.gaps.missingDescriptionImage}`,
+    `- 缺外部 ID: ${stats.gaps.missingExternalIds}`,
+    `- 路径异常: ${stats.gaps.brokenPath}`,
   ];
   return `${lines.join('\n')}\n`;
 }
