@@ -526,8 +526,15 @@ async function main() {
         await descriptionResultPanel.getByRole('button', { name: /读取结果/ }).click();
         await descriptionResultPanel.getByText('简介图片修复候选').first().waitFor({ timeout: 5000 });
         await descriptionResultPanel.getByText('DLsite RJ01000001').first().waitFor({ timeout: 5000 });
-        await descriptionResultPanel.getByText('已修复').first().waitFor({ timeout: 5000 });
+        const descriptionResultRow = descriptionResultPanel.locator('div').filter({ hasText: '简介图片修复候选' }).first();
+        await descriptionResultRow.locator('span').filter({ hasText: '已修复' }).first().waitFor({ timeout: 5000 });
         await descriptionResultPanel.getByText('可重试').first().waitFor({ timeout: 5000 });
+        await descriptionResultPanel.getByLabel('简介图片修复结果搜索').fill('RJ01000001');
+        await descriptionResultPanel.getByText('简介图片修复候选').first().waitFor({ timeout: 5000 });
+        await descriptionResultPanel.getByLabel('简介图片修复结果状态筛选').selectOption('failed');
+        await descriptionResultPanel.getByText('当前筛选没有匹配的简介图片修复结果。').first().waitFor({ timeout: 5000 });
+        await descriptionResultPanel.getByRole('button', { name: /重置筛选/ }).click();
+        await descriptionResultPanel.getByText('简介图片修复候选').first().waitFor({ timeout: 5000 });
       }],
       ['maintenance-health-metadata-match', 'maintenance', {}, async (page) => {
         await page.getByText('维护中心').first().waitFor({ timeout: 5000 });

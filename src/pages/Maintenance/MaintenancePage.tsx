@@ -74,6 +74,8 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
   const [artworkHistoryStatusFilter, setArtworkHistoryStatusFilter] = useState('all');
   const [descriptionHistory, setDescriptionHistory] = useState<DescriptionImageRepairTaskSummary[] | null>(null);
   const [descriptionHistoryLoading, setDescriptionHistoryLoading] = useState(false);
+  const [descriptionHistoryQuery, setDescriptionHistoryQuery] = useState('');
+  const [descriptionHistoryStatusFilter, setDescriptionHistoryStatusFilter] = useState('all');
   const [metadataRepairLoading, setMetadataRepairLoading] = useState(false);
   const [descriptionRepairLoading, setDescriptionRepairLoading] = useState(false);
   const [artworkRepairLoading, setArtworkRepairLoading] = useState(false);
@@ -160,6 +162,7 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
   const filteredMaintenanceTasks = useMemo(() => maintenanceTasks.filter((task) => matchesMaintenanceTaskFilter(task, maintenanceTaskFilter)), [maintenanceTaskFilter, maintenanceTasks]);
   const filteredArtworkDiagnosisItems = useMemo(() => artworkDiagnosis?.items.filter((item) => matchesArtworkDiagnosisItem(item, artworkDiagnosisQuery, artworkDiagnosisStatusFilter)) ?? [], [artworkDiagnosis, artworkDiagnosisQuery, artworkDiagnosisStatusFilter]);
   const filteredArtworkHistory = useMemo(() => artworkHistory?.map((summary) => filterArtworkRepairSummary(summary, artworkHistoryQuery, artworkHistoryStatusFilter)).filter((summary) => summary.updated.length + summary.skipped.length + summary.failed.length > 0) ?? [], [artworkHistory, artworkHistoryQuery, artworkHistoryStatusFilter]);
+  const filteredDescriptionHistory = useMemo(() => descriptionHistory?.map((summary) => filterDescriptionImageRepairSummary(summary, descriptionHistoryQuery, descriptionHistoryStatusFilter)).filter((summary) => summary.updated.length + summary.skipped.length + summary.failed.length > 0) ?? [], [descriptionHistory, descriptionHistoryQuery, descriptionHistoryStatusFilter]);
 
   const resetDuplicateGroupFilters = () => {
     setDuplicateGroupQuery('');
@@ -180,6 +183,11 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
   const resetArtworkHistoryFilters = () => {
     setArtworkHistoryQuery('');
     setArtworkHistoryStatusFilter('all');
+  };
+
+  const resetDescriptionHistoryFilters = () => {
+    setDescriptionHistoryQuery('');
+    setDescriptionHistoryStatusFilter('all');
   };
 
   useEffect(() => {
@@ -436,9 +444,25 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
           <PanelContent className="space-y-3">
             {descriptionHistory ? (
               descriptionHistory.length > 0 ? (
-                <div className="space-y-2">
-                  <div className="px-1 text-xs text-slate-500">当前显示 {formatCount(descriptionHistory.reduce((count, summary) => count + summary.updated.length + summary.skipped.length + summary.failed.length, 0))} 条简介图片修复明细。</div>
-                  {descriptionHistory.map((summary) => <DescriptionImageRepairTaskRow key={summary.task.id} onOpenGame={onOpenGame} onOpenTask={onOpenTasks} summary={summary} />)}
+                <div className="space-y-3">
+                  <SoftRow className="grid gap-2 px-3 py-3 md:grid-cols-[minmax(0,1fr)_minmax(10rem,14rem)_auto] md:items-end">
+                    <label className="min-w-0 text-xs text-slate-500">
+                      搜索修复结果
+                      <Input aria-label="简介图片修复结果搜索" className="mt-1 w-full" placeholder="游戏 / ID / 来源 / 原因" value={descriptionHistoryQuery} onChange={(event) => setDescriptionHistoryQuery(event.target.value)} />
+                    </label>
+                    <label className="min-w-0 text-xs text-slate-500">
+                      结果状态
+                      <Select aria-label="简介图片修复结果状态筛选" className="mt-1 w-full" value={descriptionHistoryStatusFilter} onChange={(event) => setDescriptionHistoryStatusFilter(event.target.value)}>
+                        <option value="all">全部结果</option>
+                        <option value="updated">已修复</option>
+                        <option value="skipped">跳过</option>
+                        <option value="failed">失败</option>
+                      </Select>
+                    </label>
+                    <Button className="h-9" disabled={!descriptionHistoryQuery.trim() && descriptionHistoryStatusFilter === 'all'} size="sm" variant="outline" onClick={resetDescriptionHistoryFilters}>重置筛选</Button>
+                  </SoftRow>
+                  <div className="px-1 text-xs text-slate-500">当前显示 {formatCount(filteredDescriptionHistory.reduce((count, summary) => count + summary.updated.length + summary.skipped.length + summary.failed.length, 0))} / {formatCount(descriptionHistory.reduce((count, summary) => count + summary.updated.length + summary.skipped.length + summary.failed.length, 0))} 条简介图片修复明细。</div>
+                  {filteredDescriptionHistory.length > 0 ? filteredDescriptionHistory.map((summary) => <DescriptionImageRepairTaskRow key={summary.task.id} onOpenGame={onOpenGame} onOpenTask={onOpenTasks} summary={summary} />) : <SoftRow className="px-3 py-3 text-sm text-slate-400">当前筛选没有匹配的简介图片修复结果。</SoftRow>}
                 </div>
               ) : (
                 <SoftRow className="px-3 py-3 text-sm text-slate-400">还没有简介图片修复任务记录。</SoftRow>
@@ -1401,6 +1425,31 @@ function filterArtworkRepairSummary(summary: ArtworkRepairTaskSummary, query: st
     skipped: summary.skipped.filter((item) => matchesArtworkRepairLog(item, query, statusFilter)),
     failed: summary.failed.filter((item) => matchesArtworkRepairLog(item, query, statusFilter)),
   };
+}
+
+function filterDescriptionImageRepairSummary(summary: DescriptionImageRepairTaskSummary, query: string, statusFilter: string): DescriptionImageRepairTaskSummary {
+  return {
+    task: summary.task,
+    updated: summary.updated.filter((item) => matchesDescriptionImageRepairLog(item, query, statusFilter)),
+    skipped: summary.skipped.filter((item) => matchesDescriptionImageRepairLog(item, query, statusFilter)),
+    failed: summary.failed.filter((item) => matchesDescriptionImageRepairLog(item, query, statusFilter)),
+  };
+}
+
+function matchesDescriptionImageRepairLog(item: DescriptionImageRepairLogSummary, query: string, statusFilter: string) {
+  if (statusFilter !== 'all' && item.status !== statusFilter) return false;
+  const value = query.trim().toLowerCase();
+  if (!value) return true;
+  return [
+    item.status,
+    descriptionImageLogStatusLabel(item.status),
+    item.title,
+    item.gameId,
+    item.provider,
+    providerLabel(item.provider),
+    item.providerId,
+    item.message,
+  ].some((text) => String(text ?? '').toLowerCase().includes(value));
 }
 
 function matchesArtworkRepairLog(item: ArtworkRepairLogSummary, query: string, statusFilter: string) {
