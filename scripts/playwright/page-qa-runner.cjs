@@ -504,6 +504,12 @@ async function main() {
         await page.getByText(/镜像存档恢复任务已创建/).first().waitFor({ timeout: 5000 });
         const backupRecords = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.saveBackups') || '[]'));
         if (!Array.isArray(backupRecords) || backupRecords.filter((item) => item.protection).length < 2) throw new Error('page QA save restore flows did not create protection backup records');
+        const restoreTasks = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.tasks') || '[]'));
+        const mirrorRestoreTask = restoreTasks.find((task) => task.taskType === 'save.restore' && /镜像/.test(task.message ?? ''));
+        if (!mirrorRestoreTask?.retryable) throw new Error('page QA mirror save restore did not create a retryable restore task');
+        const restoreLogs = await page.evaluate((taskId) => JSON.parse(localStorage.getItem('mikavn-library.mock.taskLogs') || '{}')[taskId] || [], mirrorRestoreTask.id);
+        if (!restoreLogs.some((log) => /存档恢复保护备份/.test(log.message))) throw new Error('page QA mirror save restore task did not log the protection backup');
+        if (!restoreLogs.some((log) => /存档恢复报告：模式 镜像，复制 2 个文件，清理 2 个文件/.test(log.message))) throw new Error('page QA mirror save restore task did not log the mirror cleanup report');
       }],
       ['maintenance-health-description-repair', 'maintenance', { games: [...games, descriptionRepairGame, fanzaDescriptionRepairGame], tasks: [fanzaDescriptionImageRepairTask, ...tasks], taskLogs }, async (page) => {
         await page.getByText('维护中心').first().waitFor({ timeout: 5000 });
