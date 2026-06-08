@@ -24,6 +24,7 @@ export function TasksPage({ refreshKey, focusTaskId, focusRequestKey = 0, filter
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
   const [taskQuery, setTaskQuery] = useState('');
+  const [message, setMessage] = useState<string | null>(null);
   const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const handledFocusKeyRef = useRef<number | null>(null);
   const expandedIdRef = useRef<string | null>(null);
@@ -164,7 +165,8 @@ export function TasksPage({ refreshKey, focusTaskId, focusRequestKey = 0, filter
 
   async function cancel(id: string) {
     try {
-      await api.cancelTask(id);
+      const task = await api.cancelTask(id);
+      setMessage(`已取消任务：${taskLabel(task.taskType)}。`);
       await loadTasks({ quiet: true });
     } catch (reason) {
       setError(errorMessage(reason));
@@ -174,6 +176,7 @@ export function TasksPage({ refreshKey, focusTaskId, focusRequestKey = 0, filter
   async function retry(id: string) {
     try {
       const task = await api.retryTask(id);
+      setMessage(`已重新创建任务：${taskLabel(task.taskType)}。`);
       setExpandedId(task.id);
       await loadTasks({ quiet: true });
       await loadLogs(task.id);
@@ -191,6 +194,7 @@ export function TasksPage({ refreshKey, focusTaskId, focusRequestKey = 0, filter
           actions={<Button disabled={loading} variant="outline" onClick={() => void loadTasks()}><RefreshCw className="h-4 w-4" />刷新</Button>}
         />
         {error && <Notice tone="error">{error}</Notice>}
+        {message && <Notice>{message}</Notice>}
 
         <Panel>
           <PanelHeader title="任务概览" description="按状态和类型快速定位需要处理的长任务。" icon={<Activity className="h-4 w-4" />} />

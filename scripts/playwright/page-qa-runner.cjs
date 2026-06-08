@@ -102,6 +102,9 @@ const tasks = [
   { id: 'qa-task-running', taskType: 'metadata.batch_match', status: 'running', progress: 0.42, message: '正在匹配 2 个游戏', error: null, retryPayload: JSON.stringify({ gameIds: ['qa-1', 'qa-2'] }), retryable: true, createdAt: tenMinutesAgo, updatedAt: now },
   { id: 'qa-task-maintenance-failed', taskType: 'metadata.artwork_repair', status: 'failed', progress: 1, message: '媒体补图失败：来源无响应', error: 'PROVIDER_TIMEOUT: VNDB', retryPayload: JSON.stringify({ providers: ['all'], fields: ['cover', 'banner', 'background'], limit: 20 }), retryable: true, createdAt: tenMinutesAgo, updatedAt: now },
 ];
+const descriptionImageRepairFailedTask = {
+  id: 'qa-task-description-image-failed', taskType: 'metadata.description_image_repair', status: 'failed', progress: 1, message: '简介图片修复失败：DLsite 暂不可用', error: 'PROVIDER_TIMEOUT: DLsite', retryPayload: JSON.stringify({ provider: 'all', limit: 20, maxImages: 3 }), retryable: true, createdAt: tenMinutesAgo, updatedAt: now,
+};
 const taskLogs = {
   'qa-task-failed': [
     { id: 'log-1', taskId: 'qa-task-failed', level: 'info', message: '开始扫描 D:\\Missing', createdAt: now },
@@ -109,6 +112,10 @@ const taskLogs = {
   ],
   'qa-task-running': [{ id: 'log-3', taskId: 'qa-task-running', level: 'info', message: 'VNDB 查询完成。', createdAt: now }],
   'qa-task-maintenance-failed': [{ id: 'log-4', taskId: 'qa-task-maintenance-failed', level: 'error', message: '媒体补图失败：来源无响应。', createdAt: now }],
+  'qa-task-description-image-failed': [
+    { id: 'log-description-image-1', taskId: 'qa-task-description-image-failed', level: 'info', message: '准备处理 dlsite:RJ01000001', createdAt: now },
+    { id: 'log-description-image-2', taskId: 'qa-task-description-image-failed', level: 'error', message: 'DLsite 暂不可用，等待重试。', createdAt: now },
+  ],
 };
 const savePaths = [{ id: 'qa-save-path', gameId: 'qa-1', label: '默认存档', path: 'D:\\Games\\VN\\星之终途\\save', createdAt: now }];
 const saveBackups = [{ id: 'qa-save-backup', gameId: 'qa-1', savePathId: 'qa-save-path', label: '手动备份', sourcePath: savePaths[0].path, backupPath: 'mock://save-backups/qa-1/manual', protection: false, createdAt: now }];
@@ -741,7 +748,7 @@ async function main() {
       if (!starGames.some((game) => game.aliases.includes('[汉化硬盘版] 星之终途 v1.02'))) throw new Error('page QA scanner duplicate did not persist candidate aliases');
     });
 
-    await runCase(browser, 'tasks-running-failed-expanded', 'tasks', {}, async (page) => {
+    await runCase(browser, 'tasks-running-failed-expanded', 'tasks', { games: [...games, descriptionRepairGame], tasks: [descriptionImageRepairFailedTask, ...tasks], taskLogs }, async (page) => {
       await page.getByText('任务概览').first().waitFor({ timeout: 5000 });
       await page.getByText('任务总数').first().waitFor({ timeout: 5000 });
       await page.getByText('进行中').first().waitFor({ timeout: 5000 });
@@ -751,7 +758,7 @@ async function main() {
       await page.getByText(/预计剩余/).first().waitFor({ timeout: 5000 });
       await page.getByText(/耗时/).first().waitFor({ timeout: 5000 });
       const taskStatusShortcuts = page.locator('[aria-label="任务状态快捷筛选"]');
-      await taskStatusShortcuts.getByRole('button', { name: /需处理\s+2/ }).click();
+      await taskStatusShortcuts.getByRole('button', { name: /需处理\s+3/ }).click();
       if (await page.getByLabel('任务状态筛选').inputValue() !== 'attention') throw new Error('task status shortcut did not select attention filter');
       await page.getByText('扫描失败：路径不存在').first().waitFor({ timeout: 5000 });
       if (await page.getByText('正在匹配 2 个游戏').count() > 0) throw new Error('running task should be hidden by attention shortcut');
@@ -759,7 +766,7 @@ async function main() {
       if (await page.getByLabel('任务状态筛选').inputValue() !== 'active') throw new Error('task status shortcut did not select active filter');
       await page.getByText('正在匹配 2 个游戏').first().waitFor({ timeout: 5000 });
       if (await page.getByText('扫描失败：路径不存在').count() > 0) throw new Error('failed task should be hidden by active shortcut');
-      await taskStatusShortcuts.getByRole('button', { name: /全部\s+3/ }).click();
+      await taskStatusShortcuts.getByRole('button', { name: /全部\s+4/ }).click();
       if (await page.getByLabel('任务状态筛选').inputValue() !== 'all') throw new Error('task status shortcut did not reset to all');
       await page.getByText('扫描失败：路径不存在').first().waitFor({ timeout: 5000 });
       const taskTypeShortcuts = page.locator('[aria-label="任务类型快捷筛选"]');
@@ -771,7 +778,25 @@ async function main() {
       if (await page.getByLabel('任务类型筛选').inputValue() !== 'metadata.batch_match') throw new Error('task type shortcut did not select metadata filter');
       await page.getByText('正在匹配 2 个游戏').first().waitFor({ timeout: 5000 });
       if (await page.getByText('扫描失败：路径不存在').count() > 0) throw new Error('scan task should be hidden by metadata type shortcut');
-      await taskTypeShortcuts.getByRole('button', { name: /全部类型\s+3/ }).click();
+      await taskTypeShortcuts.getByRole('button', { name: /简介图片修复\s+1/ }).click();
+      if (await page.getByLabel('任务类型筛选').inputValue() !== 'metadata.description_image_repair') throw new Error('task type shortcut did not select description image repair filter');
+      await page.getByText('简介图片修复失败：DLsite 暂不可用').first().waitFor({ timeout: 5000 });
+      if (await page.getByText('扫描失败：路径不存在').count() > 0) throw new Error('scan task should be hidden by description image repair type shortcut');
+      const descriptionRepairRow = page.locator('.motion-soft-row').filter({ hasText: '简介图片修复失败：DLsite 暂不可用' }).first();
+      await descriptionRepairRow.getByRole('button', { name: /日志/ }).click();
+      await page.getByText('DLsite 暂不可用，等待重试。').first().waitFor({ timeout: 5000 });
+      await page.getByLabel(/日志搜索 简介图片修复/).fill('RJ01000001');
+      await page.getByText('准备处理 dlsite:RJ01000001').first().waitFor({ timeout: 5000 });
+      if (await page.getByText('DLsite 暂不可用，等待重试。').count() > 0) throw new Error('description image task log search did not filter log rows');
+      await descriptionRepairRow.getByRole('button', { name: /重试/ }).click();
+      await page.getByText(/已重新创建任务：简介图片修复/).first().waitFor({ timeout: 5000 });
+      await page.getByText(/浏览器预览已修复 1 个条目的简介图片/).first().waitFor({ timeout: 5000 });
+      await page.getByText('简介图片修复候选：dlsite:RJ01000001').first().waitFor({ timeout: 5000 });
+      const retriedTasks = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.tasks') || '[]'));
+      if (!retriedTasks.some((task) => task.taskType === 'metadata.description_image_repair' && task.status === 'completed' && task.retryable)) throw new Error('description image repair retry did not create a completed retryable task');
+      const retriedGames = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.games') || '[]'));
+      if (!retriedGames.find((game) => game.id === 'qa-description-repair')?.description.includes('![简介图片](')) throw new Error('description image repair retry did not update the game description');
+      await taskTypeShortcuts.getByRole('button', { name: /全部类型\s+5/ }).click();
       if (await page.getByLabel('任务类型筛选').inputValue() !== 'all') throw new Error('task type shortcut did not reset to all');
       await page.getByText('扫描失败：路径不存在').first().waitFor({ timeout: 5000 });
       await page.getByLabel('任务搜索').fill('路径不存在');
@@ -790,7 +815,8 @@ async function main() {
       await page.getByLabel('任务类型筛选').selectOption('library.scan');
       await page.getByText('当前筛选没有匹配任务。').first().waitFor({ timeout: 5000 });
       await page.getByRole('button', { name: /重置筛选/ }).first().click();
-      await page.getByRole('button', { name: /日志/ }).first().click();
+      const scanFailedRow = page.locator('.motion-soft-row').filter({ hasText: '扫描失败：路径不存在' }).first();
+      await scanFailedRow.getByRole('button', { name: /日志/ }).click();
       await page.getByText(/任务日志|路径不存在/).first().waitFor({ timeout: 5000 });
       await page.getByLabel(/日志搜索/).fill('开始扫描');
       await page.getByText('开始扫描 D:\\Missing').first().waitFor({ timeout: 5000 });
