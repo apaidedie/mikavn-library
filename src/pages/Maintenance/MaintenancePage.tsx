@@ -70,6 +70,10 @@ type MaintenanceTaskFilter = 'all' | 'active' | 'attention' | 'completed';
 export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0, onOpenGame, onOpenLibrary, onOpenMetadata, onOpenTasks }: { refreshKey: number; focusSection?: string | null; focusRequestKey?: number; onOpenGame?: (gameId: string) => void; onOpenLibrary?: (preset?: LibraryFilterPreset | null) => void; onOpenMetadata?: (preset?: { query?: string; missingProvider?: string } | null) => void; onOpenTasks?: (taskId?: string | null) => void }) {
   const imageAuditRef = useRef<HTMLElement | null>(null);
   const handledFocusKeyRef = useRef<number | null>(null);
+  const batchMatchHistoryLoadedRef = useRef(false);
+  const artworkHistoryLoadedRef = useRef(false);
+  const descriptionHistoryLoadedRef = useRef(false);
+  const duplicateAuditHistoryLoadedRef = useRef(false);
   const [diagnostics, setDiagnostics] = useState<AppDataDiagnostics | null>(null);
   const [loading, setLoading] = useState(false);
   const [cleanupLoading, setCleanupLoading] = useState(false);
@@ -970,6 +974,7 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
       const tasks = (await api.listTasks(100)).filter((task) => task.taskType === 'metadata.artwork_repair').slice(0, 5);
       const summaries = await Promise.all(tasks.map(async (task) => summarizeArtworkRepairTask(await api.getTaskDetail(task.id))));
       setArtworkHistory(summaries);
+      artworkHistoryLoadedRef.current = true;
       if (!options?.quiet) setMessage({ text: summaries.length > 0 ? `已读取 ${formatCount(summaries.length)} 个媒体补全任务结果。` : '还没有媒体图片补全任务记录。' });
     } catch (reason) {
       if (!options?.quiet) setError(errorMessage(reason));
@@ -988,6 +993,7 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
         return { task, status, results: status?.results ?? [] };
       }));
       setBatchMatchHistory(summaries);
+      batchMatchHistoryLoadedRef.current = true;
       if (!options?.quiet) setMessage({ text: summaries.length > 0 ? `已读取 ${formatCount(summaries.length)} 个批量匹配任务结果。` : '还没有批量匹配任务记录。' });
     } catch (reason) {
       if (!options?.quiet) setError(errorMessage(reason));
@@ -1004,6 +1010,7 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
       const games = await api.listGames({ sortBy: 'updated_at', sortDirection: 'desc' });
       const summaries = await Promise.all(tasks.map(async (task) => summarizeDescriptionImageRepairTask(await api.getTaskDetail(task.id), games)));
       setDescriptionHistory(summaries);
+      descriptionHistoryLoadedRef.current = true;
       if (!options?.quiet) setMessage({ text: summaries.length > 0 ? `已读取 ${formatCount(summaries.length)} 个简介图片修复任务结果。` : '还没有简介图片修复任务记录。' });
     } catch (reason) {
       if (!options?.quiet) setError(errorMessage(reason));
@@ -1019,6 +1026,7 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
       const tasks = (await api.listTasks(100)).filter((task) => task.taskType === 'metadata.duplicate_id_audit').slice(0, 5);
       const summaries = await Promise.all(tasks.map(async (task) => summarizeDuplicateAuditTask(await api.getTaskDetail(task.id))));
       setDuplicateAuditHistory(summaries);
+      duplicateAuditHistoryLoadedRef.current = true;
       if (!options?.quiet) setMessage({ text: summaries.length > 0 ? `已读取 ${formatCount(summaries.length)} 个重复 ID 审查任务结果。` : '还没有重复 ID 审查任务记录。' });
     } catch (reason) {
       if (!options?.quiet) setError(errorMessage(reason));
@@ -1110,7 +1118,8 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
       const text = `已创建批量元数据匹配任务：${formatCount(gameIds.length)} 个条目。`;
       setMessage({ text, taskId: job.taskId ?? null });
       await loadMaintenanceTasks({ quiet: true });
-      if (job.taskId) onOpenTasks?.(job.taskId);
+      if (batchMatchHistoryLoadedRef.current) await loadBatchMatchHistory({ quiet: true });
+      else if (job.taskId) onOpenTasks?.(job.taskId);
       await loadDiagnostics();
     } catch (reason) {
       setError(errorMessage(reason));
@@ -1133,7 +1142,8 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
       const task = await api.repairDescriptionImages({ provider: 'all', limit: 20, maxImages: 3 });
       setMessage({ text: `已创建简介图片修复任务：本轮 ${formatCount(preview.candidates.length)} 个条目。`, taskId: task.id });
       await loadMaintenanceTasks({ quiet: true });
-      onOpenTasks?.(task.id);
+      if (descriptionHistoryLoadedRef.current) await loadDescriptionRepairHistory({ quiet: true });
+      else onOpenTasks?.(task.id);
       await loadDiagnostics();
     } catch (reason) {
       setError(errorMessage(reason));
@@ -1157,7 +1167,8 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
       const task = await api.repairArtwork(options);
       setMessage({ text: `已创建媒体图片补全任务：本轮 ${formatCount(preview.candidates.length)} 个条目，${formatCount(preview.totalMissingFields)} 个字段。`, taskId: task.id });
       await loadMaintenanceTasks({ quiet: true });
-      onOpenTasks?.(task.id);
+      if (artworkHistoryLoadedRef.current) await loadArtworkHistory({ quiet: true });
+      else onOpenTasks?.(task.id);
       await loadDiagnostics();
     } catch (reason) {
       setError(errorMessage(reason));
@@ -1180,7 +1191,8 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
       const task = await api.auditDuplicateExternalIds({ providers: ['all'], limit: 50 });
       setMessage({ text: `已创建重复 ID 审查任务：${formatCount(preview.totalGroups)} 组，涉及 ${formatCount(preview.totalGames)} 个游戏。`, taskId: task.id });
       await loadMaintenanceTasks({ quiet: true });
-      onOpenTasks?.(task.id);
+      if (duplicateAuditHistoryLoadedRef.current) await loadDuplicateAuditHistory({ quiet: true });
+      else onOpenTasks?.(task.id);
       await loadDiagnostics();
     } catch (reason) {
       setError(errorMessage(reason));

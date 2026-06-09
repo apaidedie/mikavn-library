@@ -690,12 +690,10 @@ async function main() {
         await page.getByText('天使☆騒々 RE-BOOT!').first().waitFor({ timeout: 5000 });
         await page.getByRole('button', { name: '维护' }).click();
         await page.getByText('维护中心').first().waitFor({ timeout: 5000 });
-        await clickMaintenanceStart(page, '批量元数据匹配');
-        await page.getByText(/批量匹配完成|已创建批量元数据匹配任务/).first().waitFor({ timeout: 5000 });
-        await page.getByRole('button', { name: '维护' }).click();
         const batchMatchResultPanel = page.locator('section').filter({ hasText: '批量匹配结果' }).first();
         await batchMatchResultPanel.getByRole('button', { name: /读取结果/ }).click();
-        await page.getByText(/已读取 \d+ 个批量匹配任务结果/).first().waitFor({ timeout: 5000 });
+        await clickMaintenanceStart(page, '批量元数据匹配');
+        await page.getByText(/批量匹配完成|已创建批量元数据匹配任务/).first().waitFor({ timeout: 5000 });
         await batchMatchResultPanel.getByText('天使☆騒々 RE-BOOT!').first().waitFor({ timeout: 5000 });
         await batchMatchResultPanel.getByText(/DLsite|VNDB|FANZA/).first().waitFor({ timeout: 5000 });
         await batchMatchResultPanel.getByLabel('批量匹配结果搜索').fill('天使');
