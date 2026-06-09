@@ -1,4 +1,4 @@
-import { Activity, Clock3, Gamepad2, ListChecks, Trophy } from 'lucide-react';
+import { Activity, Clock3, Gamepad2, ListChecks, RotateCcw, Trophy } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { CoverImage } from '@/components/ui/cover';
@@ -63,6 +63,8 @@ export function DashboardPage({ refreshKey, onOpenGame, onOpenTasks }: Dashboard
 }
 
 function RecentTasksPanel({ tasks, onOpenTasks }: { tasks: TaskRecord[]; onOpenTasks?: (taskId?: string | null, preset?: TaskFilterPreset | null) => void }) {
+  const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const runningCount = tasks.filter((task) => task.status === 'pending' || task.status === 'running').length;
   const attentionCount = tasks.filter((task) => task.status === 'failed' || task.status === 'cancelled').length;
   const completedCount = tasks.filter((task) => task.status === 'completed').length;
@@ -71,6 +73,19 @@ function RecentTasksPanel({ tasks, onOpenTasks }: { tasks: TaskRecord[]; onOpenT
     .sort((a, b) => dateMillis(b.updatedAt) - dateMillis(a.updatedAt))
     .slice(0, 2);
   const activeCount = runningCount + attentionCount;
+
+  async function retryFromDashboard(id: string) {
+    setRetryingId(id);
+    try {
+      const task = await api.retryTask(id);
+      setActionError(null);
+      onOpenTasks?.(task.id, { typeFilter: task.taskType });
+    } catch (reason) {
+      setActionError(errorMessage(reason));
+    } finally {
+      setRetryingId(null);
+    }
+  }
 
   return (
     <Panel>
@@ -88,6 +103,7 @@ function RecentTasksPanel({ tasks, onOpenTasks }: { tasks: TaskRecord[]; onOpenT
         )}
       />
       <PanelContent className="space-y-2">
+        {actionError && <Notice tone="error">{actionError}</Notice>}
         {tasks.length === 0 ? (
           <EmptyState className="py-7">暂无任务记录。开始扫描、备份或批量匹配后会在这里看到进度。</EmptyState>
         ) : (
@@ -103,15 +119,19 @@ function RecentTasksPanel({ tasks, onOpenTasks }: { tasks: TaskRecord[]; onOpenT
                 </div>
                 <div className="grid gap-2 xl:grid-cols-2">
                   {recentResults.map((task) => (
-                    <div className="rounded-md border border-white/10 bg-black/15 px-3 py-3" key={task.id}>
+                    <div className="rounded-md border border-white/10 bg-black/15 px-3 py-3" data-task-result-id={task.id} key={task.id}>
                       <div className="flex flex-wrap items-center gap-2">
                         <Badge className={taskStatusClass(task.status)}>{taskStatusLabel(task.status)}</Badge>
                         <span className="truncate text-xs font-medium text-slate-300">{taskLabel(task.taskType)}</span>
                       </div>
-                      <div className="mt-2 line-clamp-2 text-sm text-slate-100">{task.error || task.message || '任务已结束。'}</div>
+                      <div className="mt-2 line-clamp-2 text-sm text-slate-100">{task.message || task.error || '任务已结束。'}</div>
+                      {task.error && <div className="mt-1 line-clamp-1 text-xs text-rose-200">{task.error}</div>}
                       <div className="mt-3 flex items-center justify-between gap-2">
                         <span className="text-[11px] text-slate-500">{formatDateTime(task.updatedAt)}</span>
-                        {onOpenTasks && <Button size="sm" variant="ghost" onClick={() => onOpenTasks(task.id)}>日志</Button>}
+                        <div className="flex items-center justify-end gap-2">
+                          {onOpenTasks && <Button size="sm" variant="ghost" onClick={() => onOpenTasks(task.id)}>日志</Button>}
+                          <Button disabled={!canRetryTask(task) || retryingId === task.id} size="sm" variant="outline" onClick={() => void retryFromDashboard(task.id)}><RotateCcw className="h-4 w-4" />{retryingId === task.id ? '重试中' : '重试'}</Button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -149,6 +169,10 @@ function RecentTasksPanel({ tasks, onOpenTasks }: { tasks: TaskRecord[]; onOpenT
 
 function isResultTask(task: TaskRecord) {
   return task.status === 'completed' || task.status === 'failed' || task.status === 'cancelled';
+}
+
+function canRetryTask(task: TaskRecord) {
+  return Boolean(task.retryable) && (task.status === 'failed' || task.status === 'cancelled');
 }
 
 function dateMillis(value: string) {

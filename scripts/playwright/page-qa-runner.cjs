@@ -273,14 +273,15 @@ async function main() {
   try {
     const cases = [
       ['dashboard-populated', 'dashboard'],
-      ['dashboard-task-shortcuts', 'dashboard', { tasks: [fanzaDescriptionImageRepairTask, ...tasks], taskLogs }, async (page) => {
+      ['dashboard-task-shortcuts', 'dashboard', { games: [...games, descriptionRepairGame], tasks: [descriptionImageRepairFailedTask, fanzaDescriptionImageRepairTask, ...tasks], taskLogs }, async (page) => {
         await page.getByText('近期任务').first().waitFor({ timeout: 5000 });
         await page.getByText('最近结果').first().waitFor({ timeout: 5000 });
+        await page.getByText('简介图片修复失败：DLsite 暂不可用').first().waitFor({ timeout: 5000 });
         await page.getByText('简介图片修复完成：更新 1 个条目，插入 1 张图片，跳过 0 个，失败 0 个。').first().waitFor({ timeout: 5000 });
-        await page.getByRole('button', { name: /需处理\s+2/ }).click();
+        await page.getByRole('button', { name: /需处理\s+3/ }).click();
         await page.getByText('任务队列').first().waitFor({ timeout: 5000 });
         if (await page.getByLabel('任务状态筛选').inputValue() !== 'attention') throw new Error('dashboard attention shortcut did not select attention task filter');
-        await page.getByText('扫描失败：路径不存在').first().waitFor({ timeout: 5000 });
+        await page.getByText('简介图片修复失败：DLsite 暂不可用').first().waitFor({ timeout: 5000 });
         if (await page.getByText('正在匹配 2 个游戏').count() > 0) throw new Error('running task should be hidden after dashboard attention shortcut');
         await page.getByLabel('首页').click();
         await page.getByText('近期任务').first().waitFor({ timeout: 5000 });
@@ -296,6 +297,11 @@ async function main() {
         if (await page.getByLabel('任务状态筛选').inputValue() !== 'completed') throw new Error('dashboard completed shortcut did not select completed task filter');
         await page.getByText('简介图片修复完成：更新 1 个条目，插入 1 张图片，跳过 0 个，失败 0 个。').first().waitFor({ timeout: 5000 });
         if (await page.getByText('扫描失败：路径不存在').count() > 0) throw new Error('failed task should be hidden after dashboard completed shortcut');
+        await page.getByLabel('首页').click();
+        await page.getByText('近期任务').first().waitFor({ timeout: 5000 });
+        await page.locator('[aria-label="首页最近任务结果"]').locator('[data-task-result-id="qa-task-description-image-failed"]').getByRole('button', { name: /重试/ }).click();
+        await page.getByText('任务队列').first().waitFor({ timeout: 5000 });
+        await page.getByText(/浏览器预览已修复 1 个条目的简介图片/).first().waitFor({ timeout: 5000 });
       }],
       ['library-populated-detail-artwork', 'library', {}, async (page) => {
         await page.getByText('图片下方的正文也应该继续显示。').first().waitFor({ timeout: 5000 });
