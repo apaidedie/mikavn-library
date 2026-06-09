@@ -57,6 +57,10 @@ export function TasksPage({ refreshKey, focusTaskId, focusRequestKey = 0, filter
     const matchesQuery = matchesTaskQuery(task, taskQuery);
     return matchesStatus && matchesType && matchesQuery;
   }), [statusFilter, taskQuery, tasks, typeFilter]);
+  const recentResultTasks = useMemo(() => filteredTasks
+    .filter(isResultTask)
+    .sort((a, b) => dateMillis(b.updatedAt) - dateMillis(a.updatedAt))
+    .slice(0, 3), [filteredTasks]);
   const resetFilters = () => {
     setStatusFilter('all');
     setTypeFilter('all');
@@ -163,6 +167,17 @@ export function TasksPage({ refreshKey, focusTaskId, focusRequestKey = 0, filter
     });
   }
 
+  async function openResultLogs(id: string) {
+    setStatusFilter('all');
+    setTypeFilter('all');
+    setTaskQuery('');
+    setExpandedId(id);
+    await loadLogs(id);
+    window.setTimeout(() => {
+      rowRefs.current[id]?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }, 0);
+  }
+
   async function cancel(id: string) {
     try {
       const task = await api.cancelTask(id);
@@ -246,6 +261,37 @@ export function TasksPage({ refreshKey, focusTaskId, focusRequestKey = 0, filter
                 );
               })}
             </div>
+            {recentResultTasks.length > 0 && (
+              <div aria-label="最近任务结果" className="space-y-2 rounded-md border border-white/10 bg-black/10 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <div className="text-sm font-medium text-slate-100">最近结果</div>
+                    <div className="mt-0.5 text-xs text-slate-500">显示当前筛选下最近结束的任务，方便直接回看处理结果。</div>
+                  </div>
+                  <Badge>{formatCount(recentResultTasks.length)} 个结果</Badge>
+                </div>
+                <div className="grid gap-2 xl:grid-cols-3">
+                  {recentResultTasks.map((task) => (
+                    <div key={task.id} className="rounded-md border border-white/10 bg-black/15 px-3 py-3" data-task-result-id={task.id}>
+                      <div className="flex h-full flex-col gap-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge className={taskStatusClass(task.status)}>{taskStatusLabel(task.status)}</Badge>
+                          <span className="truncate text-xs font-medium text-slate-300">{taskLabel(task.taskType)}</span>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="line-clamp-2 text-sm text-slate-100">{task.message || task.error || '任务已结束。'}</div>
+                          {task.error && <div className="mt-1 line-clamp-1 text-xs text-rose-200">{task.error}</div>}
+                          <div className="mt-2 text-[11px] text-slate-500">更新 {formatDateTime(task.updatedAt)}</div>
+                        </div>
+                        <div className="flex justify-end">
+                          <Button size="sm" variant="ghost" onClick={() => void openResultLogs(task.id)}><FileText className="h-4 w-4" />日志</Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <SoftRow className="grid gap-3 px-3 py-3 lg:grid-cols-[minmax(0,1fr)_minmax(12rem,16rem)_minmax(14rem,18rem)_minmax(14rem,18rem)_auto] lg:items-end">
               <div className="min-w-0">
                 <div className="flex items-center justify-between gap-3 text-xs text-slate-400">
@@ -379,6 +425,10 @@ function needsAttentionTask(task: TaskRecord) {
   return task.status === 'failed' || task.status === 'cancelled';
 }
 
+function isResultTask(task: TaskRecord) {
+  return task.status === 'completed' || task.status === 'failed' || task.status === 'cancelled';
+}
+
 function matchesTaskQuery(task: TaskRecord, query: string) {
   const value = query.trim().toLocaleLowerCase();
   if (!value) return true;
@@ -408,6 +458,11 @@ function matchesLogQuery(log: TaskLogEntry, query: string) {
 function boundedProgress(value: number) {
   if (!Number.isFinite(value)) return 0;
   return Math.max(0, Math.min(1, value));
+}
+
+function dateMillis(value: string) {
+  const millis = new Date(value).getTime();
+  return Number.isFinite(millis) ? millis : 0;
 }
 
 function taskTiming(task: TaskRecord) {

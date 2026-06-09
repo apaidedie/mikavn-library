@@ -924,6 +924,13 @@ async function main() {
       await page.getByText('任务总数').first().waitFor({ timeout: 5000 });
       await page.getByText('进行中').first().waitFor({ timeout: 5000 });
       await page.getByText('需处理').first().waitFor({ timeout: 5000 });
+      const recentResultsPanel = page.locator('[aria-label="最近任务结果"]');
+      await recentResultsPanel.getByText('最近结果').first().waitFor({ timeout: 5000 });
+      await recentResultsPanel.getByText('简介图片修复失败：DLsite 暂不可用').first().waitFor({ timeout: 5000 });
+      await recentResultsPanel.getByText('媒体补图失败：来源无响应').first().waitFor({ timeout: 5000 });
+      await recentResultsPanel.locator('[data-task-result-id="qa-task-description-image-failed"]').getByRole('button', { name: /日志/ }).click();
+      await page.getByText('DLsite 暂不可用，等待重试。').first().waitFor({ timeout: 5000 });
+      await page.locator('.motion-soft-row').filter({ hasText: '简介图片修复失败：DLsite 暂不可用' }).first().getByRole('button', { name: /日志/ }).click();
       await page.getByText('队列总体进度').first().waitFor({ timeout: 5000 });
       await page.getByText(/已运行/).first().waitFor({ timeout: 5000 });
       await page.getByText(/预计剩余/).first().waitFor({ timeout: 5000 });
