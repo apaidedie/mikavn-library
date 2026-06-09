@@ -65,6 +65,11 @@ export function DashboardPage({ refreshKey, onOpenGame, onOpenTasks }: Dashboard
 function RecentTasksPanel({ tasks, onOpenTasks }: { tasks: TaskRecord[]; onOpenTasks?: (taskId?: string | null, preset?: TaskFilterPreset | null) => void }) {
   const runningCount = tasks.filter((task) => task.status === 'pending' || task.status === 'running').length;
   const attentionCount = tasks.filter((task) => task.status === 'failed' || task.status === 'cancelled').length;
+  const completedCount = tasks.filter((task) => task.status === 'completed').length;
+  const recentResults = [...tasks]
+    .filter(isResultTask)
+    .sort((a, b) => dateMillis(b.updatedAt) - dateMillis(a.updatedAt))
+    .slice(0, 2);
   const activeCount = runningCount + attentionCount;
 
   return (
@@ -77,6 +82,7 @@ function RecentTasksPanel({ tasks, onOpenTasks }: { tasks: TaskRecord[]; onOpenT
           <>
             <Button disabled={attentionCount === 0} size="sm" variant="outline" onClick={() => onOpenTasks(null, { statusFilter: 'attention' })}>需处理 {attentionCount}</Button>
             <Button disabled={runningCount === 0} size="sm" variant="outline" onClick={() => onOpenTasks(null, { statusFilter: 'active' })}>进行中 {runningCount}</Button>
+            <Button disabled={completedCount === 0} size="sm" variant="outline" onClick={() => onOpenTasks(null, { statusFilter: 'completed' })}>已完成 {completedCount}</Button>
             <Button size="sm" variant="outline" onClick={() => onOpenTasks()}>全部任务</Button>
           </>
         )}
@@ -84,31 +90,70 @@ function RecentTasksPanel({ tasks, onOpenTasks }: { tasks: TaskRecord[]; onOpenT
       <PanelContent className="space-y-2">
         {tasks.length === 0 ? (
           <EmptyState className="py-7">暂无任务记录。开始扫描、备份或批量匹配后会在这里看到进度。</EmptyState>
-        ) : tasks.map((task) => (
-          <SoftRow className={cn('grid gap-3 px-3 py-3 lg:grid-cols-[1fr_6rem_5rem_auto]', task.status === 'failed' && 'border-rose-300/20 bg-rose-400/[0.055]')} key={task.id}>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="truncate text-sm font-medium text-slate-100">{taskLabel(task.taskType)}</span>
-                <Badge className={taskStatusClass(task.status)}>{taskStatusLabel(task.status)}</Badge>
+        ) : (
+          <>
+            {recentResults.length > 0 && (
+              <div aria-label="首页最近任务结果" className="space-y-2 rounded-md border border-white/10 bg-black/10 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <div className="text-sm font-medium text-slate-100">最近结果</div>
+                    <div className="mt-0.5 text-xs text-slate-500">最近结束的任务可以直接打开日志复核。</div>
+                  </div>
+                  <Badge>{recentResults.length} 条</Badge>
+                </div>
+                <div className="grid gap-2 xl:grid-cols-2">
+                  {recentResults.map((task) => (
+                    <div className="rounded-md border border-white/10 bg-black/15 px-3 py-3" key={task.id}>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge className={taskStatusClass(task.status)}>{taskStatusLabel(task.status)}</Badge>
+                        <span className="truncate text-xs font-medium text-slate-300">{taskLabel(task.taskType)}</span>
+                      </div>
+                      <div className="mt-2 line-clamp-2 text-sm text-slate-100">{task.error || task.message || '任务已结束。'}</div>
+                      <div className="mt-3 flex items-center justify-between gap-2">
+                        <span className="text-[11px] text-slate-500">{formatDateTime(task.updatedAt)}</span>
+                        {onOpenTasks && <Button size="sm" variant="ghost" onClick={() => onOpenTasks(task.id)}>日志</Button>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="mt-1 truncate text-xs text-slate-500">{task.error || task.message || '无消息'}</div>
-            </div>
-            <div>
-              <div className="text-xs text-slate-500">进度</div>
-              <div className="mt-1 text-sm text-slate-100">{Math.round(task.progress * 100)}%</div>
-            </div>
-            <div>
-              <div className="text-xs text-slate-500">更新</div>
-              <div className="mt-1 text-xs text-slate-300">{formatDateTime(task.updatedAt)}</div>
-            </div>
-            <div className="flex items-center justify-end">
-              {onOpenTasks && <Button size="sm" variant="ghost" onClick={() => onOpenTasks(task.id)}>日志</Button>}
-            </div>
-          </SoftRow>
-        ))}
+            )}
+            {tasks.map((task) => (
+              <SoftRow className={cn('grid gap-3 px-3 py-3 lg:grid-cols-[1fr_6rem_5rem_auto]', task.status === 'failed' && 'border-rose-300/20 bg-rose-400/[0.055]')} key={task.id}>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="truncate text-sm font-medium text-slate-100">{taskLabel(task.taskType)}</span>
+                    <Badge className={taskStatusClass(task.status)}>{taskStatusLabel(task.status)}</Badge>
+                  </div>
+                  <div className="mt-1 truncate text-xs text-slate-500">{task.error || task.message || '无消息'}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-slate-500">进度</div>
+                  <div className="mt-1 text-sm text-slate-100">{Math.round(task.progress * 100)}%</div>
+                </div>
+                <div>
+                  <div className="text-xs text-slate-500">更新</div>
+                  <div className="mt-1 text-xs text-slate-300">{formatDateTime(task.updatedAt)}</div>
+                </div>
+                <div className="flex items-center justify-end">
+                  {onOpenTasks && <Button size="sm" variant="ghost" onClick={() => onOpenTasks(task.id)}>日志</Button>}
+                </div>
+              </SoftRow>
+            ))}
+          </>
+        )}
       </PanelContent>
     </Panel>
   );
+}
+
+function isResultTask(task: TaskRecord) {
+  return task.status === 'completed' || task.status === 'failed' || task.status === 'cancelled';
+}
+
+function dateMillis(value: string) {
+  const millis = new Date(value).getTime();
+  return Number.isFinite(millis) ? millis : 0;
 }
 
 function ShowcaseSection({ title, games, empty, onOpenGame }: { title: string; games: Game[]; empty: string; onOpenGame: (id: string) => void }) {
