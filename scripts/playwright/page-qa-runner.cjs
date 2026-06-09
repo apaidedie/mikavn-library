@@ -567,7 +567,7 @@ async function main() {
         if (!restoreLogs.some((log) => /存档恢复保护备份/.test(log.message))) throw new Error('page QA mirror save restore task did not log the protection backup');
         if (!restoreLogs.some((log) => /存档恢复报告：模式 镜像，复制 2 个文件，清理 2 个文件/.test(log.message))) throw new Error('page QA mirror save restore task did not log the mirror cleanup report');
       }],
-      ['maintenance-health-description-repair', 'maintenance', { games: [...games, descriptionRepairGame, fanzaDescriptionRepairGame], tasks: [fanzaDescriptionImageRepairTask, ...tasks], taskLogs }, async (page) => {
+      ['maintenance-health-description-repair', 'maintenance', { games: [...games, descriptionRepairGame, fanzaDescriptionRepairGame], tasks: [descriptionImageRepairFailedTask, fanzaDescriptionImageRepairTask, ...tasks], taskLogs }, async (page) => {
         await page.getByText('维护中心').first().waitFor({ timeout: 5000 });
         await page.getByText('最近维护任务').first().waitFor({ timeout: 5000 });
         const mediaSummaryPanel = page.locator('section').filter({ hasText: '媒体与简介' }).first();
@@ -593,13 +593,13 @@ async function main() {
         if (await page.getByText('扫描失败：路径不存在').count() > 0) throw new Error('maintenance task panel should not show scan tasks');
         const maintenanceTaskPanel = page.locator('section').filter({ hasText: '最近维护任务' }).first();
         const maintenanceTaskShortcuts = maintenanceTaskPanel.locator('[aria-label="维护任务状态快捷筛选"]');
-        await maintenanceTaskShortcuts.getByRole('button', { name: /需处理\s+1/ }).click();
+        await maintenanceTaskShortcuts.getByRole('button', { name: /需处理\s+2/ }).click();
         await maintenanceTaskPanel.getByText('媒体补图失败：来源无响应').first().waitFor({ timeout: 5000 });
         if (await maintenanceTaskPanel.getByText('正在匹配 2 个游戏').count() > 0) throw new Error('running maintenance task should be hidden by attention filter');
         await maintenanceTaskShortcuts.getByRole('button', { name: /进行中\s+1/ }).click();
         await maintenanceTaskPanel.getByText('正在匹配 2 个游戏').first().waitFor({ timeout: 5000 });
         if (await maintenanceTaskPanel.getByText('媒体补图失败：来源无响应').count() > 0) throw new Error('failed maintenance task should be hidden by active filter');
-        await maintenanceTaskShortcuts.getByRole('button', { name: /全部\s+3/ }).click();
+        await maintenanceTaskShortcuts.getByRole('button', { name: /全部\s+4/ }).click();
         await maintenanceTaskPanel.getByText('媒体补图失败：来源无响应').first().waitFor({ timeout: 5000 });
         await maintenanceTaskPanel.getByText('正在匹配 2 个游戏').first().waitFor({ timeout: 5000 });
         await maintenanceTaskPanel.locator('.motion-soft-row').filter({ hasText: '媒体补图失败：来源无响应' }).first().getByRole('button', { name: /^重试$/ }).click();
@@ -623,6 +623,19 @@ async function main() {
         await page.getByRole('button', { name: '维护' }).click();
         await page.getByText('维护中心').first().waitFor({ timeout: 5000 });
         await page.getByText('维护队列').first().waitFor({ timeout: 5000 });
+        const descriptionResultPanel = page.locator('section').filter({ hasText: '简介图片修复结果' }).first();
+        await descriptionResultPanel.getByRole('button', { name: /读取结果/ }).click();
+        await descriptionResultPanel.getByText('FANZA 简介图修复候选').first().waitFor({ timeout: 5000 });
+        await expectDescriptionRepairRowVisible(descriptionResultPanel, 'RJ01000001');
+        await expectDescriptionRepairRowVisible(descriptionResultPanel, 'd_123456');
+        await descriptionResultPanel.locator('.motion-soft-row').filter({ hasText: '简介图片修复失败：DLsite 暂不可用' }).first().getByRole('button', { name: /^重试$/ }).click();
+        await page.getByText(/已重新创建维护任务：简介图片修复/).first().waitFor({ timeout: 5000 });
+        await page.getByText(/浏览器预览已修复 1 个条目的简介图片/).first().waitFor({ timeout: 5000 });
+        await descriptionRepairRow(descriptionResultPanel, 'RJ01000001').first().locator('span').filter({ hasText: '已修复' }).first().waitFor({ timeout: 5000 });
+        await page.evaluate((originalDescription) => {
+          const stored = JSON.parse(localStorage.getItem('mikavn-library.mock.games') || '[]');
+          localStorage.setItem('mikavn-library.mock.games', JSON.stringify(stored.map((game) => game.id === 'qa-description-repair' ? { ...game, description: originalDescription } : game)));
+        }, descriptionRepairGame.description);
         await clickMaintenanceStart(page, '简介图片修复');
         await page.getByText(/浏览器预览已修复|已创建简介图片修复任务/).first().waitFor({ timeout: 5000 });
         const repairedGames = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.games') || '[]'));
@@ -637,7 +650,6 @@ async function main() {
         if (!repairLogs.some((log) => /dlsite:RJ01000001/.test(log.message))) throw new Error('description image repair task log did not record the provider candidate');
         await page.getByRole('button', { name: '维护' }).click();
         await page.getByText('维护中心').first().waitFor({ timeout: 5000 });
-        const descriptionResultPanel = page.locator('section').filter({ hasText: '简介图片修复结果' }).first();
         await descriptionResultPanel.getByRole('button', { name: /读取结果/ }).click();
         await descriptionResultPanel.getByText('简介图片修复候选').first().waitFor({ timeout: 5000 });
         await descriptionResultPanel.getByText('FANZA 简介图修复候选').first().waitFor({ timeout: 5000 });
@@ -656,7 +668,9 @@ async function main() {
         await descriptionResultPanel.getByLabel('简介图片修复结果搜索').fill('RJ01000001');
         await descriptionResultPanel.getByText('简介图片修复候选').first().waitFor({ timeout: 5000 });
         await descriptionResultPanel.getByLabel('简介图片修复结果状态筛选').selectOption('failed');
-        await descriptionResultPanel.getByText('当前筛选没有匹配的简介图片修复结果。').first().waitFor({ timeout: 5000 });
+        const failedDescriptionRepairRow = descriptionRepairRow(descriptionResultPanel, 'RJ01000001').filter({ hasText: '失败' }).first();
+        await failedDescriptionRepairRow.waitFor({ timeout: 5000 });
+        await descriptionResultPanel.locator('.motion-soft-row').filter({ hasText: '简介图片修复失败：DLsite 暂不可用' }).first().getByRole('button', { name: /^重试$/ }).waitFor({ timeout: 5000 });
         await descriptionResultPanel.getByRole('button', { name: /重置筛选/ }).click();
         await descriptionResultPanel.getByText('简介图片修复候选').first().waitFor({ timeout: 5000 });
         const descriptionRepairResultRow = descriptionResultPanel.locator('.rounded-md').filter({ hasText: '简介图片修复候选' }).first();
