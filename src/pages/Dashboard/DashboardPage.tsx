@@ -130,7 +130,7 @@ function RecentTasksPanel({ tasks, onOpenTasks }: { tasks: TaskRecord[]; onOpenT
                         <span className="text-[11px] text-slate-500">{formatDateTime(task.updatedAt)}</span>
                         <div className="flex items-center justify-end gap-2">
                           {onOpenTasks && <Button size="sm" variant="ghost" onClick={() => onOpenTasks(task.id)}>日志</Button>}
-                          <Button disabled={!canRetryTask(task) || retryingId === task.id} size="sm" variant="outline" onClick={() => void retryFromDashboard(task.id)}><RotateCcw className="h-4 w-4" />{retryingId === task.id ? '重试中' : '重试'}</Button>
+                          {canRetryTask(task) && <Button disabled={retryingId === task.id} size="sm" variant="outline" onClick={() => void retryFromDashboard(task.id)}><RotateCcw className="h-4 w-4" />{retryingId === task.id ? '重试中' : '重试'}</Button>}
                         </div>
                       </div>
                     </div>
