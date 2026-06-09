@@ -10,7 +10,7 @@ import { TaskNotice } from '@/components/ui/task-notice';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { api } from '@/services/api';
 import { chooseArchiveDirectory, chooseArchivePath, chooseDatabaseBackupPath, chooseDatabaseRestorePath, chooseDirectory } from '@/services/dialog';
-import type { AppDataDiagnostics, LibraryArchivePreview, LogRecord } from '@/types/archive';
+import type { AppDataDiagnostics, LibraryArchivePreview, LogRecord, TrayStatus } from '@/types/archive';
 import type { LibraryRoot, TagRecord } from '@/types/game';
 import type { MetadataSourceRecord } from '@/types/metadata';
 import { errorMessage } from '@/utils/errorMessage';
@@ -47,6 +47,7 @@ export function SettingsPage({ onAccentPreview, onThemePreview, onSaved, onOpenT
   const [includeSaveBackups, setIncludeSaveBackups] = useState(false);
   const [metadataSources, setMetadataSources] = useState<MetadataSourceRecord[]>([]);
   const [diagnostics, setDiagnostics] = useState<AppDataDiagnostics | null>(null);
+  const [trayStatus, setTrayStatus] = useState<TrayStatus | null>(null);
   const [diagnosticsLoading, setDiagnosticsLoading] = useState(false);
   const [cleanupLoading, setCleanupLoading] = useState(false);
   const [libraryRoots, setLibraryRoots] = useState<LibraryRoot[]>([]);
@@ -87,6 +88,7 @@ export function SettingsPage({ onAccentPreview, onThemePreview, onSaved, onOpenT
     void loadLibraryRoots();
     void loadLogs();
     void loadTags();
+    void loadTrayStatus();
   }, []);
 
   const save = async () => {
@@ -281,6 +283,12 @@ export function SettingsPage({ onAccentPreview, onThemePreview, onSaved, onOpenT
               </ConfigItem>
             </ConfigSection>
 
+            <ConfigSection title="后台与托盘">
+              <ConfigItem title="托盘图标" description="关闭主窗口后应用仍可留在系统托盘，方便长时间任务继续运行。">
+                {trayStatus ? <TrayStatusPanel status={trayStatus} /> : <div className="text-xs text-slate-500">正在读取托盘状态。</div>}
+              </ConfigItem>
+            </ConfigSection>
+
             <ConfigSection title="诊断日志">
               <ConfigItem title="本地日志" description="只显示已脱敏的本机日志预览，用于排查扫描、备份和启动问题。">
                 <div className="flex justify-end gap-2">
@@ -464,6 +472,14 @@ export function SettingsPage({ onAccentPreview, onThemePreview, onSaved, onOpenT
       setLogs(await api.listDiagnosticLogs(20));
     } catch {
       setLogs([]);
+    }
+  }
+
+  async function loadTrayStatus() {
+    try {
+      setTrayStatus(await api.getTrayStatus());
+    } catch {
+      setTrayStatus(null);
     }
   }
 
@@ -770,6 +786,17 @@ function DirectoryLocation({ detail, label, onReveal, path }: { detail: string; 
   );
 }
 
+function TrayStatusPanel({ status }: { status: TrayStatus }) {
+  const menuLabels = status.menuItems.map((item) => item.label).join(' / ');
+  return (
+    <div className="grid w-[min(42rem,calc(100vw-3rem))] gap-2 text-left text-xs sm:grid-cols-3">
+      <Stat label="托盘状态" value={status.enabled ? '托盘图标已启用' : '托盘图标未启用'} tone={status.enabled ? 'ok' : 'warn'} />
+      <Stat label="关闭行为" value={trayCloseBehaviorLabel(status.closeBehavior)} tone={status.closeBehavior === 'hide_to_tray' ? 'ok' : 'neutral'} />
+      <Stat label="托盘菜单" value={menuLabels || '无菜单'} />
+    </div>
+  );
+}
+
 function formatCount(value: number) {
   return new Intl.NumberFormat('zh-CN').format(value);
 }
@@ -795,4 +822,9 @@ function dataDirSourceLabel(value: string) {
   if (value === 'portable') return '应用旁 app-data';
   if (value === 'mock') return '浏览器预览';
   return '应用默认目录';
+}
+
+function trayCloseBehaviorLabel(value: string) {
+  if (value === 'hide_to_tray') return '关闭主窗口时隐藏到托盘';
+  return value || '未知';
 }

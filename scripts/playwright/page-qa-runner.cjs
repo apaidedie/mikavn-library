@@ -753,6 +753,10 @@ async function main() {
         await page.getByText('E:\\MikaVN Library\\app-data\\save-backups').first().waitFor({ timeout: 5000 });
         await page.getByText('E:\\MikaVN Library\\app-data\\logs').first().waitFor({ timeout: 5000 });
         await page.getByText('E:\\MikaVN Library\\app-data').first().waitFor({ timeout: 5000 });
+        await page.getByText('后台与托盘').first().waitFor({ timeout: 5000 });
+        await page.getByText('托盘图标已启用').first().waitFor({ timeout: 5000 });
+        await page.getByText('关闭主窗口时隐藏到托盘').first().waitFor({ timeout: 5000 });
+        await page.getByText('打开 MikaVN / 隐藏到托盘 / 退出').first().waitFor({ timeout: 5000 });
         await page.getByText('标签维护').first().waitFor({ timeout: 5000 });
         await page.locator('select').filter({ has: page.locator('option', { hasText: '标签 · 全年龄' }) }).selectOption('tag:%E5%85%A8%E5%B9%B4%E9%BE%84');
         await page.getByPlaceholder('新标签名').fill('全年龄QA');

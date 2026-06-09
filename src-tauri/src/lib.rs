@@ -142,6 +142,7 @@ pub fn run() {
             commands::tasks::update_task,
             commands::tasks::cancel_task,
             commands::tasks::retry_task,
+            commands::tray::get_tray_status,
             commands::saves::list_save_paths,
             commands::saves::add_save_path,
             commands::saves::remove_save_path,

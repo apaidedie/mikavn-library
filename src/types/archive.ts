@@ -54,6 +54,18 @@ export type LogRetentionPolicy = {
   maxFiles: number;
 };
 
+export type TrayMenuItemStatus = {
+  id: string;
+  label: string;
+};
+
+export type TrayStatus = {
+  enabled: boolean;
+  tooltip: string;
+  closeBehavior: string;
+  menuItems: TrayMenuItemStatus[];
+};
+
 export type DirectoryStats = {
   path: string;
   exists: boolean;
