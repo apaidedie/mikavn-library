@@ -918,8 +918,7 @@ async function main() {
       if (await page.getByLabel('任务类型筛选').inputValue() !== 'metadata.description_image_repair') throw new Error('task retry filter QA did not start from description repair type filter');
       await page.getByLabel('任务搜索').fill('DLsite');
       await page.getByText('简介图片修复失败：DLsite 暂不可用').first().waitFor({ timeout: 5000 });
-      const descriptionRepairRow = page.locator('.motion-soft-row').filter({ hasText: '简介图片修复失败：DLsite 暂不可用' }).first();
-      await descriptionRepairRow.getByRole('button', { name: /重试/ }).click();
+      await page.locator('[aria-label="最近任务结果"]').locator('[data-task-result-id="qa-task-description-image-failed"]').getByRole('button', { name: /重试/ }).click();
       await page.getByText(/已重新创建任务：简介图片修复/).first().waitFor({ timeout: 5000 });
       if (await page.getByLabel('任务状态筛选').inputValue() !== 'all') throw new Error('task retry did not clear the status filter to reveal the retried task');
       if (await page.getByLabel('任务类型筛选').inputValue() !== 'metadata.description_image_repair') throw new Error('task retry should keep the retried task type filter selected');

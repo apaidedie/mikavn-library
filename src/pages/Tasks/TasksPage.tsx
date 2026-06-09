@@ -283,8 +283,9 @@ export function TasksPage({ refreshKey, focusTaskId, focusRequestKey = 0, filter
                           {task.error && <div className="mt-1 line-clamp-1 text-xs text-rose-200">{task.error}</div>}
                           <div className="mt-2 text-[11px] text-slate-500">更新 {formatDateTime(task.updatedAt)}</div>
                         </div>
-                        <div className="flex justify-end">
+                        <div className="flex justify-end gap-2">
                           <Button size="sm" variant="ghost" onClick={() => void openResultLogs(task.id)}><FileText className="h-4 w-4" />日志</Button>
+                          <Button disabled={!canRetryTask(task)} size="sm" variant="outline" onClick={() => void retry(task.id)}><RotateCcw className="h-4 w-4" />重试</Button>
                         </div>
                       </div>
                     </div>
@@ -393,7 +394,7 @@ export function TasksPage({ refreshKey, focusTaskId, focusRequestKey = 0, filter
                   </div>
                   <div className="flex shrink-0 flex-wrap justify-end gap-2">
                     <Button size="sm" variant="ghost" onClick={() => void toggleExpanded(task.id)}><ChevronDown className={cn('h-4 w-4 transition-transform', expanded && 'rotate-180')} />日志</Button>
-                    <Button disabled={!task.retryable || (task.status !== 'failed' && task.status !== 'cancelled')} size="sm" variant="outline" onClick={() => void retry(task.id)}><RotateCcw className="h-4 w-4" />重试</Button>
+                    <Button disabled={!canRetryTask(task)} size="sm" variant="outline" onClick={() => void retry(task.id)}><RotateCcw className="h-4 w-4" />重试</Button>
                     <Button disabled={task.status !== 'running' && task.status !== 'pending'} size="sm" variant="outline" onClick={() => void cancel(task.id)}><StopCircle className="h-4 w-4" />取消</Button>
                   </div>
                 </div>
@@ -427,6 +428,10 @@ function needsAttentionTask(task: TaskRecord) {
 
 function isResultTask(task: TaskRecord) {
   return task.status === 'completed' || task.status === 'failed' || task.status === 'cancelled';
+}
+
+function canRetryTask(task: TaskRecord) {
+  return Boolean(task.retryable) && (task.status === 'failed' || task.status === 'cancelled');
 }
 
 function matchesTaskQuery(task: TaskRecord, query: string) {
