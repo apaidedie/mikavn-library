@@ -917,12 +917,15 @@ async function main() {
       if (!starGames.some((game) => game.aliases.includes('[汉化硬盘版] 星之终途 v1.02'))) throw new Error('page QA scanner duplicate did not persist candidate aliases');
     });
 
-    await runCase(browser, 'tasks-retry-shows-result-under-filters', 'tasks', { games: [...games, descriptionRepairGame], tasks: [descriptionImageRepairFailedTask, ...tasks], taskLogs }, async (page) => {
+    await runCase(browser, 'tasks-retry-shows-result-under-filters', 'tasks', { games: [...games, descriptionRepairGame], tasks: [descriptionImageRepairFailedTask, fanzaDescriptionImageRepairTask, ...tasks], taskLogs }, async (page) => {
       await page.getByText('任务概览').first().waitFor({ timeout: 5000 });
+      const recentResultsPanel = page.locator('[aria-label="最近任务结果"]');
+      await recentResultsPanel.locator('[data-task-result-id="qa-task-description-image-failed"]').getByRole('button', { name: /重试/ }).waitFor({ timeout: 5000 });
+      if (await recentResultsPanel.locator('[data-task-result-id="qa-task-description-image-fanza"]').getByRole('button', { name: /重试/ }).count() > 0) throw new Error('task page completed result should not show retry action');
       const taskStatusShortcuts = page.locator('[aria-label="任务状态快捷筛选"]');
       const taskTypeShortcuts = page.locator('[aria-label="任务类型快捷筛选"]');
       await taskStatusShortcuts.getByRole('button', { name: /需处理\s+3/ }).click();
-      await taskTypeShortcuts.getByRole('button', { name: /简介图片修复\s+1/ }).click();
+      await taskTypeShortcuts.getByRole('button', { name: /简介图片修复\s+2/ }).click();
       if (await page.getByLabel('任务状态筛选').inputValue() !== 'attention') throw new Error('task retry filter QA did not start from attention status filter');
       if (await page.getByLabel('任务类型筛选').inputValue() !== 'metadata.description_image_repair') throw new Error('task retry filter QA did not start from description repair type filter');
       await page.getByLabel('任务搜索').fill('DLsite');

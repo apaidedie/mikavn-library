@@ -285,7 +285,7 @@ export function TasksPage({ refreshKey, focusTaskId, focusRequestKey = 0, filter
                         </div>
                         <div className="flex justify-end gap-2">
                           <Button size="sm" variant="ghost" onClick={() => void openResultLogs(task.id)}><FileText className="h-4 w-4" />日志</Button>
-                          <Button disabled={!canRetryTask(task)} size="sm" variant="outline" onClick={() => void retry(task.id)}><RotateCcw className="h-4 w-4" />重试</Button>
+                          {canRetryTask(task) && <Button size="sm" variant="outline" onClick={() => void retry(task.id)}><RotateCcw className="h-4 w-4" />重试</Button>}
                         </div>
                       </div>
                     </div>
