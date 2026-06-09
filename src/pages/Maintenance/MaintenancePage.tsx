@@ -422,7 +422,7 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
                     <Button className="h-9" disabled={!artworkHistoryQuery.trim() && artworkHistoryStatusFilter === 'all'} size="sm" variant="outline" onClick={resetArtworkHistoryFilters}>重置筛选</Button>
                   </SoftRow>
                   <div className="px-1 text-xs text-slate-500">当前显示 {formatCount(filteredArtworkHistory.reduce((count, summary) => count + summary.updated.length + summary.skipped.length + summary.failed.length, 0))} / {formatCount(artworkHistory.reduce((count, summary) => count + summary.updated.length + summary.skipped.length + summary.failed.length, 0))} 条补图明细。</div>
-                  {filteredArtworkHistory.length > 0 ? filteredArtworkHistory.map((summary) => <ArtworkRepairTaskRow key={summary.task.id} onOpenGame={onOpenGame} onOpenTask={onOpenTasks} summary={summary} />) : <SoftRow className="px-3 py-3 text-sm text-slate-400">当前筛选没有匹配的媒体补全结果。</SoftRow>}
+                  {filteredArtworkHistory.length > 0 ? filteredArtworkHistory.map((summary) => <ArtworkRepairTaskRow actionBusy={maintenanceTaskActionId === summary.task.id} key={summary.task.id} onOpenGame={onOpenGame} onOpenTask={onOpenTasks} onRetryTask={retryMaintenanceTask} summary={summary} />) : <SoftRow className="px-3 py-3 text-sm text-slate-400">当前筛选没有匹配的媒体补全结果。</SoftRow>}
                 </div>
               ) : (
                 <SoftRow className="px-3 py-3 text-sm text-slate-400">还没有媒体图片补全任务记录。</SoftRow>
@@ -1225,8 +1225,9 @@ function matchesArtworkDiagnosisItem(item: ArtworkRepairDiagnosisItem, query: st
   ].some((text) => String(text ?? '').toLowerCase().includes(value));
 }
 
-function ArtworkRepairTaskRow({ summary, onOpenGame, onOpenTask }: { summary: ArtworkRepairTaskSummary; onOpenGame?: (gameId: string) => void; onOpenTask?: (taskId?: string | null) => void }) {
+function ArtworkRepairTaskRow({ actionBusy = false, summary, onOpenGame, onOpenTask, onRetryTask }: { actionBusy?: boolean; summary: ArtworkRepairTaskSummary; onOpenGame?: (gameId: string) => void; onOpenTask?: (taskId?: string | null) => void; onRetryTask?: (taskId: string) => void }) {
   const task = summary.task;
+  const canRetry = Boolean(task.retryable) && needsAttentionTask(task);
   const detailItems = [...summary.failed, ...summary.skipped, ...summary.updated].slice(0, 8);
   const hiddenCount = summary.updated.length + summary.skipped.length + summary.failed.length - detailItems.length;
 
@@ -1241,7 +1242,10 @@ function ArtworkRepairTaskRow({ summary, onOpenGame, onOpenTask }: { summary: Ar
           <div className="mt-1 text-xs text-slate-500">更新于 {formatDateTime(task.updatedAt)}</div>
           {task.error && <div className="mt-2 break-all text-xs text-rose-200">{task.error}</div>}
         </div>
-        {onOpenTask && <Button size="sm" variant="ghost" onClick={() => onOpenTask(task.id)}>日志</Button>}
+        <div className="flex shrink-0 flex-wrap justify-end gap-2">
+          {onOpenTask && <Button size="sm" variant="ghost" onClick={() => onOpenTask(task.id)}>日志</Button>}
+          {onRetryTask && canRetry && <Button disabled={actionBusy} size="sm" variant="outline" onClick={() => onRetryTask(task.id)}>{actionBusy ? '重试中' : '重试'}</Button>}
+        </div>
       </div>
       <div className="grid gap-2 sm:grid-cols-3">
         <CompactStat label="已补全" value={summary.updated.length} tone={summary.updated.length > 0 ? 'ok' : 'neutral'} />
@@ -1350,13 +1354,28 @@ function summarizeArtworkRepairTask(detail: TaskDetail): ArtworkRepairTaskSummar
   const items = detail.logs
     .map(parseArtworkRepairLog)
     .filter((item): item is ArtworkRepairLogSummary => Boolean(item));
+  const fallbackItems = items.length === 0 ? artworkRepairTaskFallback(detail.task) : [];
+  const allItems = items.length > 0 ? items : fallbackItems;
 
   return {
     task: detail.task,
-    updated: items.filter((item) => item.status === 'updated'),
-    skipped: items.filter((item) => item.status === 'skipped'),
-    failed: items.filter((item) => item.status === 'failed'),
+    updated: allItems.filter((item) => item.status === 'updated'),
+    skipped: allItems.filter((item) => item.status === 'skipped'),
+    failed: allItems.filter((item) => item.status === 'failed'),
   };
+}
+
+function artworkRepairTaskFallback(task: TaskRecord): ArtworkRepairLogSummary[] {
+  if (!needsAttentionTask(task)) return [];
+  const payload = parseRetryPayload(task.retryPayload);
+  const fields = Array.isArray(payload?.fields) ? payload.fields.map(String).filter(Boolean) : [];
+  return [{
+    status: 'failed',
+    title: task.message || taskLabel(task.taskType),
+    gameId: null,
+    message: task.error || task.message || '任务在生成逐条补图明细前结束。',
+    fields,
+  }];
 }
 
 function summarizeDescriptionImageRepairTask(detail: TaskDetail, games: Game[]): DescriptionImageRepairTaskSummary {
