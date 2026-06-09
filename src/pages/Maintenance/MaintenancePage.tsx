@@ -50,6 +50,16 @@ type DescriptionImageRepairTaskSummary = {
   skipped: DescriptionImageRepairLogSummary[];
   failed: DescriptionImageRepairLogSummary[];
 };
+type DuplicateAuditGroupSummary = {
+  provider: string;
+  externalId: string;
+  gameCount: number;
+  games: Array<{ title: string; gameId: string }>;
+};
+type DuplicateAuditTaskSummary = {
+  task: TaskRecord;
+  groups: DuplicateAuditGroupSummary[];
+};
 type MaintenanceTaskFilter = 'all' | 'active' | 'attention' | 'completed';
 
 export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0, onOpenGame, onOpenLibrary, onOpenMetadata, onOpenTasks }: { refreshKey: number; focusSection?: string | null; focusRequestKey?: number; onOpenGame?: (gameId: string) => void; onOpenLibrary?: (preset?: LibraryFilterPreset | null) => void; onOpenMetadata?: (preset?: { query?: string; missingProvider?: string } | null) => void; onOpenTasks?: (taskId?: string | null) => void }) {
@@ -81,6 +91,10 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
   const [descriptionRepairLoading, setDescriptionRepairLoading] = useState(false);
   const [artworkRepairLoading, setArtworkRepairLoading] = useState(false);
   const [duplicateAuditLoading, setDuplicateAuditLoading] = useState(false);
+  const [duplicateAuditHistory, setDuplicateAuditHistory] = useState<DuplicateAuditTaskSummary[] | null>(null);
+  const [duplicateAuditHistoryLoading, setDuplicateAuditHistoryLoading] = useState(false);
+  const [duplicateAuditHistoryQuery, setDuplicateAuditHistoryQuery] = useState('');
+  const [duplicateAuditHistoryProvider, setDuplicateAuditHistoryProvider] = useState('all');
   const [duplicateGroups, setDuplicateGroups] = useState<DuplicateExternalIdGroup[]>([]);
   const [duplicateGroupsLoading, setDuplicateGroupsLoading] = useState(false);
   const [duplicateGroupQuery, setDuplicateGroupQuery] = useState('');
@@ -164,6 +178,7 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
   const filteredArtworkDiagnosisItems = useMemo(() => artworkDiagnosis?.items.filter((item) => matchesArtworkDiagnosisItem(item, artworkDiagnosisQuery, artworkDiagnosisStatusFilter)) ?? [], [artworkDiagnosis, artworkDiagnosisQuery, artworkDiagnosisStatusFilter]);
   const filteredArtworkHistory = useMemo(() => artworkHistory?.map((summary) => filterArtworkRepairSummary(summary, artworkHistoryQuery, artworkHistoryStatusFilter)).filter((summary) => summary.updated.length + summary.skipped.length + summary.failed.length > 0) ?? [], [artworkHistory, artworkHistoryQuery, artworkHistoryStatusFilter]);
   const filteredDescriptionHistory = useMemo(() => descriptionHistory?.map((summary) => filterDescriptionImageRepairSummary(summary, descriptionHistoryQuery, descriptionHistoryStatusFilter, descriptionHistoryProviderFilter)).filter((summary) => summary.updated.length + summary.skipped.length + summary.failed.length > 0) ?? [], [descriptionHistory, descriptionHistoryProviderFilter, descriptionHistoryQuery, descriptionHistoryStatusFilter]);
+  const filteredDuplicateAuditHistory = useMemo(() => duplicateAuditHistory?.map((summary) => filterDuplicateAuditSummary(summary, duplicateAuditHistoryQuery, duplicateAuditHistoryProvider)).filter((summary) => summary.groups.length > 0) ?? [], [duplicateAuditHistory, duplicateAuditHistoryProvider, duplicateAuditHistoryQuery]);
 
   const resetDuplicateGroupFilters = () => {
     setDuplicateGroupQuery('');
@@ -190,6 +205,11 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
     setDescriptionHistoryQuery('');
     setDescriptionHistoryStatusFilter('all');
     setDescriptionHistoryProviderFilter('all');
+  };
+
+  const resetDuplicateAuditHistoryFilters = () => {
+    setDuplicateAuditHistoryQuery('');
+    setDuplicateAuditHistoryProvider('all');
   };
 
   useEffect(() => {
@@ -540,6 +560,50 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
 
         <Panel>
           <PanelHeader
+            title="重复 ID 审查结果"
+            description="汇总最近重复 ID 审查任务发现的来源、外部 ID 和涉及游戏。"
+            icon={<ListChecks className="h-4 w-4" />}
+            actions={<Button disabled={duplicateAuditHistoryLoading} size="sm" variant="ghost" onClick={() => loadDuplicateAuditHistory()}><RefreshCw className="h-4 w-4" />{duplicateAuditHistoryLoading ? '读取中' : '读取结果'}</Button>}
+          />
+          <PanelContent className="space-y-3">
+            {duplicateAuditHistory ? (
+              duplicateAuditHistory.length > 0 ? (
+                <div className="space-y-3">
+                  <SoftRow className="grid gap-2 px-3 py-3 md:grid-cols-[minmax(0,1fr)_minmax(10rem,14rem)_auto] md:items-end">
+                    <label className="min-w-0 text-xs text-slate-500">
+                      搜索审查结果
+                      <Input aria-label="重复 ID 审查结果搜索" className="mt-1 w-full" placeholder="来源 / 外部 ID / 游戏" value={duplicateAuditHistoryQuery} onChange={(event) => setDuplicateAuditHistoryQuery(event.target.value)} />
+                    </label>
+                    <label className="min-w-0 text-xs text-slate-500">
+                      来源筛选
+                      <Select aria-label="重复 ID 审查结果来源筛选" className="mt-1 w-full" value={duplicateAuditHistoryProvider} onChange={(event) => setDuplicateAuditHistoryProvider(event.target.value)}>
+                        <option value="all">全部来源</option>
+                        <option value="vndb">VNDB</option>
+                        <option value="dlsite">DLsite</option>
+                        <option value="fanza">FANZA</option>
+                        <option value="bangumi">Bangumi</option>
+                        <option value="ymgal">YMGal</option>
+                      </Select>
+                    </label>
+                    <Button className="h-9" disabled={!duplicateAuditHistoryQuery.trim() && duplicateAuditHistoryProvider === 'all'} size="sm" variant="outline" onClick={resetDuplicateAuditHistoryFilters}>重置筛选</Button>
+                  </SoftRow>
+                  <div className="px-1 text-xs text-slate-500">当前显示 {formatCount(filteredDuplicateAuditHistory.reduce((count, summary) => count + summary.groups.length, 0))} / {formatCount(duplicateAuditHistory.reduce((count, summary) => count + summary.groups.length, 0))} 个重复组。</div>
+                  {filteredDuplicateAuditHistory.length > 0 ? filteredDuplicateAuditHistory.map((summary) => <DuplicateAuditTaskRow key={summary.task.id} onOpenTask={onOpenTasks} summary={summary} />) : <SoftRow className="px-3 py-3 text-sm text-slate-400">当前筛选没有匹配的重复 ID 审查结果。</SoftRow>}
+                </div>
+              ) : (
+                <SoftRow className="px-3 py-3 text-sm text-slate-400">还没有重复 ID 审查任务记录。</SoftRow>
+              )
+            ) : (
+              <SoftRow className="flex items-center justify-between gap-3 px-3 py-3">
+                <div className="min-w-0 text-sm text-slate-400">读取后会解析最近 5 个重复 ID 审查任务日志，展示重复来源和涉及游戏。</div>
+                <Button disabled={duplicateAuditHistoryLoading} size="sm" variant="secondary" onClick={() => loadDuplicateAuditHistory()}><ListChecks className="h-4 w-4" />读取</Button>
+              </SoftRow>
+            )}
+          </PanelContent>
+        </Panel>
+
+        <Panel>
+          <PanelHeader
             title="重复游戏安全合并"
             description="只允许合并共享外部 ID 的条目，执行前会预览搬迁数据。"
             icon={<Combine className="h-4 w-4" />}
@@ -790,6 +854,7 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
       await loadMaintenanceTasks({ quiet: true });
       if (task.taskType === 'metadata.description_image_repair') await loadDescriptionRepairHistory({ quiet: true });
       if (task.taskType === 'metadata.artwork_repair') await loadArtworkHistory({ quiet: true });
+      if (task.taskType === 'metadata.duplicate_id_audit') await loadDuplicateAuditHistory({ quiet: true });
     } catch (reason) {
       setError(errorMessage(reason));
     } finally {
@@ -867,6 +932,21 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
       if (!options?.quiet) setError(errorMessage(reason));
     } finally {
       if (!options?.quiet) setDescriptionHistoryLoading(false);
+    }
+  }
+
+  async function loadDuplicateAuditHistory(options?: { quiet?: boolean }) {
+    if (!options?.quiet) setDuplicateAuditHistoryLoading(true);
+    if (!options?.quiet) setError(null);
+    try {
+      const tasks = (await api.listTasks(100)).filter((task) => task.taskType === 'metadata.duplicate_id_audit').slice(0, 5);
+      const summaries = await Promise.all(tasks.map(async (task) => summarizeDuplicateAuditTask(await api.getTaskDetail(task.id))));
+      setDuplicateAuditHistory(summaries);
+      if (!options?.quiet) setMessage({ text: summaries.length > 0 ? `已读取 ${formatCount(summaries.length)} 个重复 ID 审查任务结果。` : '还没有重复 ID 审查任务记录。' });
+    } catch (reason) {
+      if (!options?.quiet) setError(errorMessage(reason));
+    } finally {
+      if (!options?.quiet) setDuplicateAuditHistoryLoading(false);
     }
   }
 
@@ -1350,6 +1430,58 @@ function DescriptionImageRepairLogRow({ item, onOpenGame }: { item: DescriptionI
   );
 }
 
+function DuplicateAuditTaskRow({ summary, onOpenTask }: { summary: DuplicateAuditTaskSummary; onOpenTask?: (taskId?: string | null) => void }) {
+  const task = summary.task;
+  const visibleGroups = summary.groups.slice(0, 6);
+  const hiddenCount = summary.groups.length - visibleGroups.length;
+
+  return (
+    <SoftRow className="space-y-3 px-3 py-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-medium text-slate-100">{task.message || '重复 ID 审查任务'}</span>
+            <Badge className={taskStatusClass(task.status)}>{taskStatusLabel(task.status)}</Badge>
+          </div>
+          <div className="mt-1 text-xs text-slate-500">更新于 {formatDateTime(task.updatedAt)}</div>
+          {task.error && <div className="mt-2 break-all text-xs text-rose-200">{task.error}</div>}
+        </div>
+        {onOpenTask && <Button size="sm" variant="ghost" onClick={() => onOpenTask(task.id)}>日志</Button>}
+      </div>
+      <div className="grid gap-2 sm:grid-cols-3">
+        <CompactStat label="重复组" value={summary.groups.length} tone={summary.groups.length > 0 ? 'warn' : 'ok'} />
+        <CompactStat label="涉及游戏" value={summary.groups.reduce((count, group) => count + group.gameCount, 0)} tone={summary.groups.length > 0 ? 'warn' : 'neutral'} />
+        <CompactStat label="来源数" value={new Set(summary.groups.map((group) => group.provider)).size} />
+      </div>
+      {visibleGroups.length > 0 ? (
+        <div className="space-y-2">
+          {visibleGroups.map((group) => <DuplicateAuditGroupRow group={group} key={`${group.provider}:${group.externalId}`} />)}
+          {hiddenCount > 0 && <div className="px-1 text-xs text-slate-500">还有 {formatCount(hiddenCount)} 个重复组，可打开日志查看完整记录。</div>}
+        </div>
+      ) : (
+        <div className="text-xs text-slate-500">这条任务没有可解析的重复组明细。</div>
+      )}
+    </SoftRow>
+  );
+}
+
+function DuplicateAuditGroupRow({ group }: { group: DuplicateAuditGroupSummary }) {
+  return (
+    <div className="grid gap-2 rounded-md border border-white/[0.07] bg-black/[0.10] px-3 py-2 md:grid-cols-[minmax(0,12rem)_minmax(0,1fr)]">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge className="border-amber-300/25 bg-amber-300/10 text-amber-100">重复</Badge>
+          <span className="break-all font-mono text-xs font-medium text-slate-200">{providerLabel(group.provider)} {group.externalId}</span>
+        </div>
+        <div className="mt-1 text-[11px] text-slate-600">{formatCount(group.gameCount)} 个游戏记录</div>
+      </div>
+      <div className="min-w-0 text-xs leading-5 text-slate-500">
+        {group.games.map((game) => <span className="mr-2 inline-block max-w-full truncate align-bottom" key={game.gameId} title={`${game.title} [${game.gameId}]`}>{game.title}</span>)}
+      </div>
+    </div>
+  );
+}
+
 function summarizeArtworkRepairTask(detail: TaskDetail): ArtworkRepairTaskSummary {
   const items = detail.logs
     .map(parseArtworkRepairLog)
@@ -1362,6 +1494,13 @@ function summarizeArtworkRepairTask(detail: TaskDetail): ArtworkRepairTaskSummar
     updated: allItems.filter((item) => item.status === 'updated'),
     skipped: allItems.filter((item) => item.status === 'skipped'),
     failed: allItems.filter((item) => item.status === 'failed'),
+  };
+}
+
+function summarizeDuplicateAuditTask(detail: TaskDetail): DuplicateAuditTaskSummary {
+  return {
+    task: detail.task,
+    groups: detail.logs.flatMap(parseDuplicateAuditLog),
   };
 }
 
@@ -1513,6 +1652,13 @@ function filterDescriptionImageRepairSummary(summary: DescriptionImageRepairTask
   };
 }
 
+function filterDuplicateAuditSummary(summary: DuplicateAuditTaskSummary, query: string, providerFilter: string): DuplicateAuditTaskSummary {
+  return {
+    task: summary.task,
+    groups: summary.groups.filter((group) => matchesDuplicateAuditGroup(group, query, providerFilter)),
+  };
+}
+
 function matchesDescriptionImageRepairLog(item: DescriptionImageRepairLogSummary, query: string, statusFilter: string, providerFilter: string) {
   if (statusFilter !== 'all' && item.status !== statusFilter) return false;
   if (providerFilter !== 'all' && item.provider !== providerFilter) return false;
@@ -1545,6 +1691,27 @@ function matchesArtworkRepairLog(item: ArtworkRepairLogSummary, query: string, s
     ...(item.fields ?? []),
     ...(item.fields ?? []).map(artworkFieldLabel),
   ].some((text) => String(text ?? '').toLowerCase().includes(value));
+}
+
+function matchesDuplicateAuditGroup(group: DuplicateAuditGroupSummary, query: string, providerFilter: string) {
+  if (providerFilter !== 'all' && group.provider !== providerFilter) return false;
+  const value = query.trim().toLowerCase();
+  if (!value) return true;
+  return [
+    group.provider,
+    providerLabel(group.provider),
+    group.externalId,
+    ...group.games.flatMap((game) => [game.title, game.gameId]),
+  ].some((text) => String(text ?? '').toLowerCase().includes(value));
+}
+
+function parseDuplicateAuditLog(log: TaskLogEntry): DuplicateAuditGroupSummary[] {
+  const message = log.message.trim();
+  const group = message.match(/^重复组：([a-zA-Z0-9_-]+)\s+([^，,]+)，(\d+)\s*个游戏：(.+)$/);
+  if (!group) return [];
+  const [, provider, externalId, gameCount, gamesText] = group;
+  const games = gamesText.split('|').map((token) => token.trim().match(/^(.+) \[([^\]]+)\]$/)).filter((match): match is RegExpMatchArray => Boolean(match)).map((match) => ({ title: match[1].trim(), gameId: match[2].trim() }));
+  return [{ provider: provider.toLowerCase(), externalId: externalId.trim(), gameCount: Number(gameCount), games }];
 }
 
 function parseArtworkRepairLog(log: TaskLogEntry): ArtworkRepairLogSummary | null {
