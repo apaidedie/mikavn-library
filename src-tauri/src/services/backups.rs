@@ -108,7 +108,9 @@ pub fn enqueue_database_backup_task(
         );
         match db.backup_to_path(&target) {
             Ok(()) => {
-                let target_size = fs::metadata(&target).map(|metadata| metadata.len()).unwrap_or(0);
+                let target_size = fs::metadata(&target)
+                    .map(|metadata| metadata.len())
+                    .unwrap_or(0);
                 logger::log_info(
                     &paths,
                     "database.backup",
@@ -714,7 +716,10 @@ mod tests {
     fn database_backup_report_log_describes_target_and_size() {
         let message = database_backup_report_log("D:\\MikaVN-Backups\\manual.db", 131072);
 
-        assert_eq!(message, "数据库备份报告：目标 D:\\MikaVN-Backups\\manual.db，大小 131072 bytes。");
+        assert_eq!(
+            message,
+            "数据库备份报告：目标 D:\\MikaVN-Backups\\manual.db，大小 131072 bytes。"
+        );
     }
 
     fn create_mikavn_db(path: &Path, title: &str) {
