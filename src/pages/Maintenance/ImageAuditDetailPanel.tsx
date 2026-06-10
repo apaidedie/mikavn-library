@@ -96,6 +96,7 @@ export function matchesImageAuditItem(item: ImageReferenceAuditItem, query: stri
     item.resolvedPath,
     item.status,
     imageIssueLabel(item.status),
+    imageAuditRecommendation(issues),
     ...issues,
     ...issues.map(imageIssueLabel),
   ];
@@ -224,6 +225,7 @@ function ImageAuditGameSummaryCard({ summary, onFocusSummary, onOpenGame }: { su
 function ImageAuditRow({ item, onOpenGame, onRevealPath }: { item: ImageReferenceAuditItem; onOpenGame?: (gameId: string) => void; onRevealPath?: (path: string) => void }) {
   const title = item.gameTitle?.trim() || item.gameId || '未知游戏';
   const issues = item.issues.length > 0 ? item.issues : [item.status];
+  const recommendation = imageAuditRecommendation(issues);
   const revealableOriginalPath = isRevealableImageAuditPath(item.value) ? item.value.trim() : null;
   const revealableResolvedPath = item.resolvedPath && isRevealableImageAuditPath(item.resolvedPath) ? item.resolvedPath.trim() : null;
   return (
@@ -243,6 +245,10 @@ function ImageAuditRow({ item, onOpenGame, onRevealPath }: { item: ImageReferenc
       </div>
       <div className="min-w-0 space-y-1 text-[11px] leading-5">
         <div className="grid gap-1 sm:grid-cols-[4.5rem_minmax(0,1fr)]">
+          <span className="text-slate-600">处理建议</span>
+          <span className="text-slate-400">{recommendation}</span>
+        </div>
+        <div className="grid gap-1 sm:grid-cols-[4.5rem_minmax(0,1fr)]">
           <span className="text-slate-600">原始值</span>
           <span className="break-all font-mono text-slate-300">{item.value}</span>
         </div>
@@ -255,6 +261,13 @@ function ImageAuditRow({ item, onOpenGame, onRevealPath }: { item: ImageReferenc
       </div>
     </SoftRow>
   );
+}
+
+function imageAuditRecommendation(issues: string[]) {
+  if (issues.includes('playnite')) return '将 Playnite 图片导入 MikaVN 图片缓存，再把引用改为 app-data/images 下的本地副本。';
+  if (issues.includes('c_drive')) return '把 C 盘图片复制到 MikaVN 图片缓存或游戏目录内，再更新引用，避免系统盘残留路径。';
+  if (issues.includes('missing')) return '重新补图或修正图片路径；如果原图还在本地，先用打开原始路径确认文件位置。';
+  return '确认引用是否仍需要保留；正常远程图片可保持不动。';
 }
 
 function isRevealableImageAuditPath(value?: string | null) {
