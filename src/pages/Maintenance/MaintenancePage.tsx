@@ -11,7 +11,7 @@ import { api } from '@/services/api';
 import type { AppDataDiagnostics, ImageReferenceAudit, ImageReferenceAuditItem } from '@/types/archive';
 import type { AssetCacheCleanupResult, LibraryFilterPreset } from '@/types/game';
 import type { ArtworkRepairDiagnosis, ArtworkRepairDiagnosisItem, DuplicateExternalIdGroup, DuplicateGameMergePreview } from '@/types/metadata';
-import type { TaskDetail, TaskLogEntry, TaskRecord } from '@/types/task';
+import type { TaskRecord } from '@/types/task';
 import { errorMessage } from '@/utils/errorMessage';
 import { taskLabel, taskStatusClass, taskStatusLabel } from '@/utils/taskLabels';
 import { formatDateTime } from '@/utils/time';
@@ -19,18 +19,9 @@ import { Select } from '@/components/ui/select';
 import { ArtworkRepairTaskRow, filterArtworkRepairSummary, summarizeArtworkRepairTask, type ArtworkRepairTaskSummary } from './ArtworkRepairResultPanel';
 import { BatchMatchHistoryTaskRow, filterBatchMatchHistorySummary, type BatchMatchHistorySummary } from './BatchMatchResultPanel';
 import { DescriptionImageRepairTaskRow, filterDescriptionImageRepairSummary, summarizeDescriptionImageRepairTask, type DescriptionImageRepairTaskSummary } from './DescriptionImageRepairResultPanel';
+import { DuplicateAuditTaskRow, filterDuplicateAuditSummary, summarizeDuplicateAuditTask, type DuplicateAuditTaskSummary } from './DuplicateAuditResultPanel';
 
 type TaskMessage = { text: string; taskId?: string | null };
-type DuplicateAuditGroupSummary = {
-  provider: string;
-  externalId: string;
-  gameCount: number;
-  games: Array<{ title: string; gameId: string }>;
-};
-type DuplicateAuditTaskSummary = {
-  task: TaskRecord;
-  groups: DuplicateAuditGroupSummary[];
-};
 type MaintenanceTaskFilter = 'all' | 'active' | 'attention' | 'completed';
 
 export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0, onOpenGame, onOpenLibrary, onOpenMetadata, onOpenTasks }: { refreshKey: number; focusSection?: string | null; focusRequestKey?: number; onOpenGame?: (gameId: string) => void; onOpenLibrary?: (preset?: LibraryFilterPreset | null) => void; onOpenMetadata?: (preset?: { query?: string; missingProvider?: string } | null) => void; onOpenTasks?: (taskId?: string | null) => void }) {
@@ -1358,93 +1349,6 @@ function matchesArtworkDiagnosisItem(item: ArtworkRepairDiagnosisItem, query: st
     ...item.providers.flatMap((provider) => [provider.provider, providerLabel(provider.provider), provider.providerId]),
     ...item.providerResults.flatMap((result) => [result.provider, providerLabel(result.provider), result.providerId, result.status, artworkProviderStatusLabel(result.status), result.reason, result.imageUrl]),
   ].some((text) => String(text ?? '').toLowerCase().includes(value));
-}
-
-function DuplicateAuditTaskRow({ summary, onOpenTask }: { summary: DuplicateAuditTaskSummary; onOpenTask?: (taskId?: string | null) => void }) {
-  const task = summary.task;
-  const visibleGroups = summary.groups.slice(0, 6);
-  const hiddenCount = summary.groups.length - visibleGroups.length;
-
-  return (
-    <SoftRow className="space-y-3 px-3 py-3">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-medium text-slate-100">{task.message || '重复 ID 审查任务'}</span>
-            <Badge className={taskStatusClass(task.status)}>{taskStatusLabel(task.status)}</Badge>
-          </div>
-          <div className="mt-1 text-xs text-slate-500">更新于 {formatDateTime(task.updatedAt)}</div>
-          {task.error && <div className="mt-2 break-all text-xs text-rose-200">{task.error}</div>}
-        </div>
-        {onOpenTask && <Button size="sm" variant="ghost" onClick={() => onOpenTask(task.id)}>日志</Button>}
-      </div>
-      <div className="grid gap-2 sm:grid-cols-3">
-        <CompactStat label="重复组" value={summary.groups.length} tone={summary.groups.length > 0 ? 'warn' : 'ok'} />
-        <CompactStat label="涉及游戏" value={summary.groups.reduce((count, group) => count + group.gameCount, 0)} tone={summary.groups.length > 0 ? 'warn' : 'neutral'} />
-        <CompactStat label="来源数" value={new Set(summary.groups.map((group) => group.provider)).size} />
-      </div>
-      {visibleGroups.length > 0 ? (
-        <div className="space-y-2">
-          {visibleGroups.map((group) => <DuplicateAuditGroupRow group={group} key={`${group.provider}:${group.externalId}`} />)}
-          {hiddenCount > 0 && <div className="px-1 text-xs text-slate-500">还有 {formatCount(hiddenCount)} 个重复组，可打开日志查看完整记录。</div>}
-        </div>
-      ) : (
-        <div className="text-xs text-slate-500">这条任务没有可解析的重复组明细。</div>
-      )}
-    </SoftRow>
-  );
-}
-
-function DuplicateAuditGroupRow({ group }: { group: DuplicateAuditGroupSummary }) {
-  return (
-    <div className="grid gap-2 rounded-md border border-white/[0.07] bg-black/[0.10] px-3 py-2 md:grid-cols-[minmax(0,12rem)_minmax(0,1fr)]">
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge className="border-amber-300/25 bg-amber-300/10 text-amber-100">重复</Badge>
-          <span className="break-all font-mono text-xs font-medium text-slate-200">{providerLabel(group.provider)} {group.externalId}</span>
-        </div>
-        <div className="mt-1 text-[11px] text-slate-600">{formatCount(group.gameCount)} 个游戏记录</div>
-      </div>
-      <div className="min-w-0 text-xs leading-5 text-slate-500">
-        {group.games.map((game) => <span className="mr-2 inline-block max-w-full truncate align-bottom" key={game.gameId} title={`${game.title} [${game.gameId}]`}>{game.title}</span>)}
-      </div>
-    </div>
-  );
-}
-
-function summarizeDuplicateAuditTask(detail: TaskDetail): DuplicateAuditTaskSummary {
-  return {
-    task: detail.task,
-    groups: detail.logs.flatMap(parseDuplicateAuditLog),
-  };
-}
-
-function filterDuplicateAuditSummary(summary: DuplicateAuditTaskSummary, query: string, providerFilter: string): DuplicateAuditTaskSummary {
-  return {
-    task: summary.task,
-    groups: summary.groups.filter((group) => matchesDuplicateAuditGroup(group, query, providerFilter)),
-  };
-}
-
-function matchesDuplicateAuditGroup(group: DuplicateAuditGroupSummary, query: string, providerFilter: string) {
-  if (providerFilter !== 'all' && group.provider !== providerFilter) return false;
-  const value = query.trim().toLowerCase();
-  if (!value) return true;
-  return [
-    group.provider,
-    providerLabel(group.provider),
-    group.externalId,
-    ...group.games.flatMap((game) => [game.title, game.gameId]),
-  ].some((text) => String(text ?? '').toLowerCase().includes(value));
-}
-
-function parseDuplicateAuditLog(log: TaskLogEntry): DuplicateAuditGroupSummary[] {
-  const message = log.message.trim();
-  const group = message.match(/^重复组：([a-zA-Z0-9_-]+)\s+([^，,]+)，(\d+)\s*个游戏：(.+)$/);
-  if (!group) return [];
-  const [, provider, externalId, gameCount, gamesText] = group;
-  const games = gamesText.split('|').map((token) => token.trim().match(/^(.+) \[([^\]]+)\]$/)).filter((match): match is RegExpMatchArray => Boolean(match)).map((match) => ({ title: match[1].trim(), gameId: match[2].trim() }));
-  return [{ provider: provider.toLowerCase(), externalId: externalId.trim(), gameCount: Number(gameCount), games }];
 }
 
 function ProgressBlock({ label, value, total }: { label: string; value: number; total: number }) {
