@@ -391,8 +391,12 @@ async function main() {
         const imageAuditPanel = page.locator('section').filter({ hasText: '图片引用问题' }).first();
         const imageAuditSourceSummary = imageAuditPanel.locator('[aria-label="图片引用来源分布"]');
         await imageAuditSourceSummary.getByText('问题来源分布').first().waitFor({ timeout: 5000 });
-        await imageAuditSourceSummary.locator('[data-image-audit-source="简介图片"] [data-image-audit-source-count="true"]').first().getByText('1').waitFor({ timeout: 5000 });
+        const descriptionImageSourceSummary = imageAuditSourceSummary.locator('[data-image-audit-source="简介图片"]').first();
+        await descriptionImageSourceSummary.locator('[data-image-audit-source-count="true"]').first().getByText('1').waitFor({ timeout: 5000 });
         await imageAuditSourceSummary.locator('[data-image-audit-source="媒体图库"] [data-image-audit-source-count="true"]').first().getByText('1').waitFor({ timeout: 5000 });
+        await descriptionImageSourceSummary.getByRole('button', { name: /定位/ }).click();
+        if (await imageAuditPanel.getByLabel('图片引用搜索').inputValue() !== '简介图片') throw new Error('image audit source shortcut did not fill the detail search query');
+        await imageAuditPanel.getByText(/当前显示 1 \/ 2 条引用/).first().waitFor({ timeout: 5000 });
         const imageAuditGameSummary = imageAuditPanel.locator('[aria-label="图片引用游戏分布"]');
         await imageAuditGameSummary.getByText('问题游戏分布').first().waitFor({ timeout: 5000 });
         const brokenMediaGameSummary = imageAuditGameSummary.locator('[data-image-audit-game="qa-broken-media-ref"]').first();

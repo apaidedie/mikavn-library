@@ -31,6 +31,10 @@ export function ImageAuditDetailPanel({ audit, filteredItems, issueFilter, query
     onIssueFilterChange('all');
     onQueryChange(summary.gameId || summary.title);
   };
+  const focusSourceSummary = (summary: ImageAuditSourceSummary) => {
+    onIssueFilterChange('all');
+    onQueryChange(summary.label);
+  };
 
   return (
     <>
@@ -41,7 +45,7 @@ export function ImageAuditDetailPanel({ audit, filteredItems, issueFilter, query
         <ImageAuditCompactStat label="C 盘残留" value={audit.cDriveCount} tone={audit.cDriveCount > 0 ? 'warn' : 'ok'} />
         <ImageAuditCompactStat label="Playnite 残留" value={audit.playniteCount} tone={audit.playniteCount > 0 ? 'warn' : 'ok'} />
       </div>
-      {summaries.length > 0 && <ImageAuditSourceSummaryGrid summaries={summaries} />}
+      {summaries.length > 0 && <ImageAuditSourceSummaryGrid onFocusSummary={focusSourceSummary} summaries={summaries} />}
       {gameSummaries.length > 0 && <ImageAuditGameSummaryGrid onFocusSummary={focusGameSummary} onOpenGame={onOpenGame} summaries={gameSummaries} />}
       <SoftRow className="grid gap-2 px-3 py-3 md:grid-cols-[minmax(0,1fr)_minmax(10rem,14rem)_auto] md:items-end">
         <label className="min-w-0 text-xs text-slate-500">
@@ -140,7 +144,7 @@ export function summarizeImageAuditGames(items: ImageReferenceAuditItem[]): Imag
   return [...summaries.values()].sort((left, right) => right.issueCount - left.issueCount || left.title.localeCompare(right.title, 'zh-CN'));
 }
 
-function ImageAuditSourceSummaryGrid({ summaries }: { summaries: ImageAuditSourceSummary[] }) {
+function ImageAuditSourceSummaryGrid({ summaries, onFocusSummary }: { summaries: ImageAuditSourceSummary[]; onFocusSummary: (summary: ImageAuditSourceSummary) => void }) {
   return (
     <div aria-label="图片引用来源分布" className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -148,25 +152,28 @@ function ImageAuditSourceSummaryGrid({ summaries }: { summaries: ImageAuditSourc
         <div className="text-xs text-slate-500">按封面、背景、简介图和媒体图库归类。</div>
       </div>
       <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-        {summaries.map((summary) => <ImageAuditSourceSummaryCard key={summary.key} summary={summary} />)}
+        {summaries.map((summary) => <ImageAuditSourceSummaryCard key={summary.key} onFocusSummary={onFocusSummary} summary={summary} />)}
       </div>
     </div>
   );
 }
 
-function ImageAuditSourceSummaryCard({ summary }: { summary: ImageAuditSourceSummary }) {
+function ImageAuditSourceSummaryCard({ summary, onFocusSummary }: { summary: ImageAuditSourceSummary; onFocusSummary: (summary: ImageAuditSourceSummary) => void }) {
   const issueParts = [
     summary.missingCount > 0 ? `缺失 ${formatCount(summary.missingCount)}` : '',
     summary.cDriveCount > 0 ? `C 盘 ${formatCount(summary.cDriveCount)}` : '',
     summary.playniteCount > 0 ? `Playnite ${formatCount(summary.playniteCount)}` : '',
   ].filter(Boolean);
   return (
-    <SoftRow data-image-audit-source={summary.label} className="px-3 py-2">
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-xs text-slate-500">{summary.label}</span>
-        <span data-image-audit-source-count="true" className="font-mono text-sm text-amber-200">{formatCount(summary.issueCount)}</span>
+    <SoftRow data-image-audit-source={summary.label} className="grid gap-2 px-3 py-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+      <div className="min-w-0">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-xs text-slate-500">{summary.label}</span>
+          <span data-image-audit-source-count="true" className="font-mono text-sm text-amber-200">{formatCount(summary.issueCount)}</span>
+        </div>
+        <div className="mt-1 truncate text-[11px] text-slate-600" title={issueParts.join(' · ')}>{issueParts.join(' · ') || '无细分问题'}</div>
       </div>
-      <div className="mt-1 truncate text-[11px] text-slate-600" title={issueParts.join(' · ')}>{issueParts.join(' · ') || '无细分问题'}</div>
+      <Button className="h-7 px-2" size="sm" variant="outline" onClick={() => onFocusSummary(summary)}>定位</Button>
     </SoftRow>
   );
 }
