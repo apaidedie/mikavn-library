@@ -15,8 +15,18 @@ export type ImageAuditSourceSummary = {
   playniteCount: number;
 };
 
+export type ImageAuditGameSummary = {
+  key: string;
+  gameId?: string | null;
+  title: string;
+  issueCount: number;
+  sourceLabels: string[];
+  issues: string[];
+};
+
 export function ImageAuditDetailPanel({ audit, filteredItems, issueFilter, query, onIssueFilterChange, onOpenGame, onQueryChange, onResetFilters }: { audit: ImageReferenceAudit; filteredItems: ImageReferenceAuditItem[]; issueFilter: string; query: string; onIssueFilterChange: (value: string) => void; onOpenGame?: (gameId: string) => void; onQueryChange: (value: string) => void; onResetFilters: () => void }) {
   const summaries = summarizeImageAuditSources(audit.items);
+  const gameSummaries = summarizeImageAuditGames(audit.items);
 
   return (
     <>
@@ -28,6 +38,7 @@ export function ImageAuditDetailPanel({ audit, filteredItems, issueFilter, query
         <ImageAuditCompactStat label="Playnite 残留" value={audit.playniteCount} tone={audit.playniteCount > 0 ? 'warn' : 'ok'} />
       </div>
       {summaries.length > 0 && <ImageAuditSourceSummaryGrid summaries={summaries} />}
+      {gameSummaries.length > 0 && <ImageAuditGameSummaryGrid onOpenGame={onOpenGame} summaries={gameSummaries} />}
       <SoftRow className="grid gap-2 px-3 py-3 md:grid-cols-[minmax(0,1fr)_minmax(10rem,14rem)_auto] md:items-end">
         <label className="min-w-0 text-xs text-slate-500">
           搜索图片引用
@@ -103,6 +114,28 @@ export function summarizeImageAuditSources(items: ImageReferenceAuditItem[]): Im
   return [...summaries.values()].sort((left, right) => right.issueCount - left.issueCount || left.label.localeCompare(right.label, 'zh-CN'));
 }
 
+export function summarizeImageAuditGames(items: ImageReferenceAuditItem[]): ImageAuditGameSummary[] {
+  const summaries = new Map<string, ImageAuditGameSummary>();
+  for (const item of items) {
+    if (item.issues.length === 0) continue;
+    const gameId = item.gameId?.trim() || null;
+    const key = gameId || `unlinked:${item.sourceKind}:${item.fieldName ?? item.sourceLabel}:${item.value}`;
+    const current = summaries.get(key) ?? {
+      key,
+      gameId,
+      title: item.gameTitle?.trim() || gameId || '未关联游戏',
+      issueCount: 0,
+      sourceLabels: [],
+      issues: [],
+    };
+    current.issueCount += 1;
+    pushUnique(current.sourceLabels, imageAuditSourceLabel(item));
+    for (const issue of item.issues) pushUnique(current.issues, issue);
+    summaries.set(key, current);
+  }
+  return [...summaries.values()].sort((left, right) => right.issueCount - left.issueCount || left.title.localeCompare(right.title, 'zh-CN'));
+}
+
 function ImageAuditSourceSummaryGrid({ summaries }: { summaries: ImageAuditSourceSummary[] }) {
   return (
     <div aria-label="图片引用来源分布" className="space-y-2">
@@ -130,6 +163,41 @@ function ImageAuditSourceSummaryCard({ summary }: { summary: ImageAuditSourceSum
         <span data-image-audit-source-count="true" className="font-mono text-sm text-amber-200">{formatCount(summary.issueCount)}</span>
       </div>
       <div className="mt-1 truncate text-[11px] text-slate-600" title={issueParts.join(' · ')}>{issueParts.join(' · ') || '无细分问题'}</div>
+    </SoftRow>
+  );
+}
+
+function ImageAuditGameSummaryGrid({ summaries, onOpenGame }: { summaries: ImageAuditGameSummary[]; onOpenGame?: (gameId: string) => void }) {
+  const visibleSummaries = summaries.slice(0, 6);
+  const hiddenCount = summaries.length - visibleSummaries.length;
+  return (
+    <div aria-label="图片引用游戏分布" className="space-y-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="text-sm font-medium text-slate-100">问题游戏分布</div>
+        <div className="text-xs text-slate-500">按游戏聚合问题引用，优先显示问题最多的条目。</div>
+      </div>
+      <div className="grid gap-2 lg:grid-cols-2">
+        {visibleSummaries.map((summary) => <ImageAuditGameSummaryCard key={summary.key} onOpenGame={onOpenGame} summary={summary} />)}
+      </div>
+      {hiddenCount > 0 && <div className="px-1 text-xs text-slate-500">还有 {formatCount(hiddenCount)} 个游戏存在图片引用问题，可用下方搜索继续定位。</div>}
+    </div>
+  );
+}
+
+function ImageAuditGameSummaryCard({ summary, onOpenGame }: { summary: ImageAuditGameSummary; onOpenGame?: (gameId: string) => void }) {
+  return (
+    <SoftRow data-image-audit-game={summary.gameId ?? summary.key} className="grid gap-2 px-3 py-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="truncate text-sm font-medium text-slate-100" title={summary.title}>{summary.title}</span>
+          <span data-image-audit-game-count="true" className="font-mono text-sm text-amber-200">{formatCount(summary.issueCount)}</span>
+        </div>
+        <div className="mt-1 flex flex-wrap gap-1.5">
+          {summary.sourceLabels.slice(0, 4).map((label) => <Badge key={label}>{label}</Badge>)}
+          {summary.issues.slice(0, 4).map((issue) => <Badge className={imageBadgeClass(issue)} key={issue}>{imageIssueLabel(issue)}</Badge>)}
+        </div>
+      </div>
+      {summary.gameId && onOpenGame && <Button className="h-7 px-2" size="sm" variant="ghost" onClick={() => onOpenGame(summary.gameId!)}>游戏</Button>}
     </SoftRow>
   );
 }
@@ -220,6 +288,10 @@ function imageBadgeClass(value: string) {
   if (value === 'c_drive' || value === 'playnite') return 'border-rose-300/25 bg-rose-300/10 text-rose-100';
   if (value === 'ok' || value === 'remote') return 'border-emerald-300/25 bg-emerald-300/10 text-emerald-100';
   return 'border-white/10 bg-white/[0.045] text-slate-300';
+}
+
+function pushUnique(values: string[], value: string) {
+  if (!values.includes(value)) values.push(value);
 }
 
 function formatCount(value: number) {
