@@ -27,6 +27,10 @@ export type ImageAuditGameSummary = {
 export function ImageAuditDetailPanel({ audit, filteredItems, issueFilter, query, onIssueFilterChange, onOpenGame, onQueryChange, onResetFilters }: { audit: ImageReferenceAudit; filteredItems: ImageReferenceAuditItem[]; issueFilter: string; query: string; onIssueFilterChange: (value: string) => void; onOpenGame?: (gameId: string) => void; onQueryChange: (value: string) => void; onResetFilters: () => void }) {
   const summaries = summarizeImageAuditSources(audit.items);
   const gameSummaries = summarizeImageAuditGames(audit.items);
+  const focusIssueFilter = (value: string) => {
+    onQueryChange('');
+    onIssueFilterChange(value);
+  };
   const focusGameSummary = (summary: ImageAuditGameSummary) => {
     onIssueFilterChange('all');
     onQueryChange(summary.gameId || summary.title);
@@ -40,10 +44,10 @@ export function ImageAuditDetailPanel({ audit, filteredItems, issueFilter, query
     <>
       <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
         <ImageAuditCompactStat label="图片引用" value={audit.totalRefs} />
-        <ImageAuditCompactStat label="问题引用" value={audit.issueCount} tone={audit.issueCount > 0 ? 'warn' : 'ok'} />
-        <ImageAuditCompactStat label="缺失本地文件" value={audit.missingCount} tone={audit.missingCount > 0 ? 'warn' : 'ok'} />
-        <ImageAuditCompactStat label="C 盘残留" value={audit.cDriveCount} tone={audit.cDriveCount > 0 ? 'warn' : 'ok'} />
-        <ImageAuditCompactStat label="Playnite 残留" value={audit.playniteCount} tone={audit.playniteCount > 0 ? 'warn' : 'ok'} />
+        <ImageAuditCompactStat actionLabel="显示全部问题" label="问题引用" onClick={() => focusIssueFilter('all')} value={audit.issueCount} tone={audit.issueCount > 0 ? 'warn' : 'ok'} />
+        <ImageAuditCompactStat actionLabel="按 缺失本地文件 筛选" label="缺失本地文件" onClick={() => focusIssueFilter('missing')} value={audit.missingCount} tone={audit.missingCount > 0 ? 'warn' : 'ok'} />
+        <ImageAuditCompactStat actionLabel="按 C 盘残留筛选" label="C 盘残留" onClick={() => focusIssueFilter('c_drive')} value={audit.cDriveCount} tone={audit.cDriveCount > 0 ? 'warn' : 'ok'} />
+        <ImageAuditCompactStat actionLabel="按 Playnite 残留筛选" label="Playnite 残留" onClick={() => focusIssueFilter('playnite')} value={audit.playniteCount} tone={audit.playniteCount > 0 ? 'warn' : 'ok'} />
       </div>
       {summaries.length > 0 && <ImageAuditSourceSummaryGrid onFocusSummary={focusSourceSummary} summaries={summaries} />}
       {gameSummaries.length > 0 && <ImageAuditGameSummaryGrid onFocusSummary={focusGameSummary} onOpenGame={onOpenGame} summaries={gameSummaries} />}
@@ -248,9 +252,17 @@ function ImageAuditRow({ item, onOpenGame }: { item: ImageReferenceAuditItem; on
   );
 }
 
-function ImageAuditCompactStat({ label, value, tone = 'neutral' }: { label: string; value: number | string; tone?: 'neutral' | 'ok' | 'warn' }) {
+function ImageAuditCompactStat({ actionLabel, label, onClick, value, tone = 'neutral' }: { actionLabel?: string; label: string; onClick?: () => void; value: number | string; tone?: 'neutral' | 'ok' | 'warn' }) {
   const toneClass = tone === 'ok' ? 'text-emerald-200' : tone === 'warn' ? 'text-amber-200' : 'text-slate-200';
   const displayValue = typeof value === 'number' ? formatCount(value) : value;
+  if (onClick) {
+    return (
+      <button aria-label={actionLabel ?? label} className="motion-button rounded-md border border-white/10 bg-black/[0.10] px-3 py-2 text-left hover:border-[rgb(var(--accent-rgb)/0.38)] hover:bg-[rgb(var(--accent-rgb)/0.10)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--accent-rgb)/0.42)]" onClick={onClick} type="button">
+        <div className="text-[11px] text-slate-500">{label}</div>
+        <div className={`mt-1 font-mono text-sm ${toneClass}`}>{displayValue}</div>
+      </button>
+    );
+  }
   return (
     <SoftRow className="px-3 py-2">
       <div className="text-xs text-slate-500">{label}</div>

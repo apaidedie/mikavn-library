@@ -404,6 +404,11 @@ async function main() {
         await brokenMediaGameSummary.getByRole('button', { name: /定位/ }).click();
         if (await imageAuditPanel.getByLabel('图片引用搜索').inputValue() !== 'qa-broken-media-ref') throw new Error('image audit game shortcut did not fill the detail search query');
         await imageAuditPanel.getByText(/当前显示 2 \/ 2 条引用/).first().waitFor({ timeout: 5000 });
+        await imageAuditPanel.getByRole('button', { name: /重置筛选/ }).click();
+        await imageAuditPanel.getByRole('button', { name: /按 Playnite 残留筛选/ }).click();
+        if (await imageAuditPanel.getByLabel('图片引用问题筛选').inputValue() !== 'playnite') throw new Error('image audit metric shortcut did not select playnite issue filter');
+        await imageAuditPanel.getByText(/当前显示 1 \/ 2 条引用/).first().waitFor({ timeout: 5000 });
+        await imageAuditPanel.getByRole('button', { name: /重置筛选/ }).click();
         await imageAuditPanel.getByLabel('图片引用搜索').fill('Playnite');
         await imageAuditPanel.getByText('D:\\Playnite\\library\\files\\missing-banner.jpg').first().waitFor({ timeout: 5000 });
         await imageAuditPanel.getByLabel('图片引用问题筛选').selectOption('c_drive');
