@@ -27,6 +27,10 @@ export type ImageAuditGameSummary = {
 export function ImageAuditDetailPanel({ audit, filteredItems, issueFilter, query, onIssueFilterChange, onOpenGame, onQueryChange, onResetFilters }: { audit: ImageReferenceAudit; filteredItems: ImageReferenceAuditItem[]; issueFilter: string; query: string; onIssueFilterChange: (value: string) => void; onOpenGame?: (gameId: string) => void; onQueryChange: (value: string) => void; onResetFilters: () => void }) {
   const summaries = summarizeImageAuditSources(audit.items);
   const gameSummaries = summarizeImageAuditGames(audit.items);
+  const focusGameSummary = (summary: ImageAuditGameSummary) => {
+    onIssueFilterChange('all');
+    onQueryChange(summary.gameId || summary.title);
+  };
 
   return (
     <>
@@ -38,7 +42,7 @@ export function ImageAuditDetailPanel({ audit, filteredItems, issueFilter, query
         <ImageAuditCompactStat label="Playnite 残留" value={audit.playniteCount} tone={audit.playniteCount > 0 ? 'warn' : 'ok'} />
       </div>
       {summaries.length > 0 && <ImageAuditSourceSummaryGrid summaries={summaries} />}
-      {gameSummaries.length > 0 && <ImageAuditGameSummaryGrid onOpenGame={onOpenGame} summaries={gameSummaries} />}
+      {gameSummaries.length > 0 && <ImageAuditGameSummaryGrid onFocusSummary={focusGameSummary} onOpenGame={onOpenGame} summaries={gameSummaries} />}
       <SoftRow className="grid gap-2 px-3 py-3 md:grid-cols-[minmax(0,1fr)_minmax(10rem,14rem)_auto] md:items-end">
         <label className="min-w-0 text-xs text-slate-500">
           搜索图片引用
@@ -167,7 +171,7 @@ function ImageAuditSourceSummaryCard({ summary }: { summary: ImageAuditSourceSum
   );
 }
 
-function ImageAuditGameSummaryGrid({ summaries, onOpenGame }: { summaries: ImageAuditGameSummary[]; onOpenGame?: (gameId: string) => void }) {
+function ImageAuditGameSummaryGrid({ summaries, onFocusSummary, onOpenGame }: { summaries: ImageAuditGameSummary[]; onFocusSummary: (summary: ImageAuditGameSummary) => void; onOpenGame?: (gameId: string) => void }) {
   const visibleSummaries = summaries.slice(0, 6);
   const hiddenCount = summaries.length - visibleSummaries.length;
   return (
@@ -177,14 +181,14 @@ function ImageAuditGameSummaryGrid({ summaries, onOpenGame }: { summaries: Image
         <div className="text-xs text-slate-500">按游戏聚合问题引用，优先显示问题最多的条目。</div>
       </div>
       <div className="grid gap-2 lg:grid-cols-2">
-        {visibleSummaries.map((summary) => <ImageAuditGameSummaryCard key={summary.key} onOpenGame={onOpenGame} summary={summary} />)}
+        {visibleSummaries.map((summary) => <ImageAuditGameSummaryCard key={summary.key} onFocusSummary={onFocusSummary} onOpenGame={onOpenGame} summary={summary} />)}
       </div>
       {hiddenCount > 0 && <div className="px-1 text-xs text-slate-500">还有 {formatCount(hiddenCount)} 个游戏存在图片引用问题，可用下方搜索继续定位。</div>}
     </div>
   );
 }
 
-function ImageAuditGameSummaryCard({ summary, onOpenGame }: { summary: ImageAuditGameSummary; onOpenGame?: (gameId: string) => void }) {
+function ImageAuditGameSummaryCard({ summary, onFocusSummary, onOpenGame }: { summary: ImageAuditGameSummary; onFocusSummary: (summary: ImageAuditGameSummary) => void; onOpenGame?: (gameId: string) => void }) {
   return (
     <SoftRow data-image-audit-game={summary.gameId ?? summary.key} className="grid gap-2 px-3 py-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
       <div className="min-w-0">
@@ -197,7 +201,10 @@ function ImageAuditGameSummaryCard({ summary, onOpenGame }: { summary: ImageAudi
           {summary.issues.slice(0, 4).map((issue) => <Badge className={imageBadgeClass(issue)} key={issue}>{imageIssueLabel(issue)}</Badge>)}
         </div>
       </div>
-      {summary.gameId && onOpenGame && <Button className="h-7 px-2" size="sm" variant="ghost" onClick={() => onOpenGame(summary.gameId!)}>游戏</Button>}
+      <div className="flex shrink-0 flex-wrap justify-end gap-2">
+        <Button className="h-7 px-2" size="sm" variant="outline" onClick={() => onFocusSummary(summary)}>定位</Button>
+        {summary.gameId && onOpenGame && <Button className="h-7 px-2" size="sm" variant="ghost" onClick={() => onOpenGame(summary.gameId!)}>游戏</Button>}
+      </div>
     </SoftRow>
   );
 }

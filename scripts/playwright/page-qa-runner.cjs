@@ -395,7 +395,11 @@ async function main() {
         await imageAuditSourceSummary.locator('[data-image-audit-source="媒体图库"] [data-image-audit-source-count="true"]').first().getByText('1').waitFor({ timeout: 5000 });
         const imageAuditGameSummary = imageAuditPanel.locator('[aria-label="图片引用游戏分布"]');
         await imageAuditGameSummary.getByText('问题游戏分布').first().waitFor({ timeout: 5000 });
-        await imageAuditGameSummary.locator('[data-image-audit-game="qa-broken-media-ref"] [data-image-audit-game-count="true"]').first().getByText('2').waitFor({ timeout: 5000 });
+        const brokenMediaGameSummary = imageAuditGameSummary.locator('[data-image-audit-game="qa-broken-media-ref"]').first();
+        await brokenMediaGameSummary.locator('[data-image-audit-game-count="true"]').first().getByText('2').waitFor({ timeout: 5000 });
+        await brokenMediaGameSummary.getByRole('button', { name: /定位/ }).click();
+        if (await imageAuditPanel.getByLabel('图片引用搜索').inputValue() !== 'qa-broken-media-ref') throw new Error('image audit game shortcut did not fill the detail search query');
+        await imageAuditPanel.getByText(/当前显示 2 \/ 2 条引用/).first().waitFor({ timeout: 5000 });
         await imageAuditPanel.getByLabel('图片引用搜索').fill('Playnite');
         await imageAuditPanel.getByText('D:\\Playnite\\library\\files\\missing-banner.jpg').first().waitFor({ timeout: 5000 });
         await imageAuditPanel.getByLabel('图片引用问题筛选').selectOption('c_drive');
