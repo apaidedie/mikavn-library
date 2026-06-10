@@ -1,3 +1,4 @@
+import { FolderOpen } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,7 +25,7 @@ export type ImageAuditGameSummary = {
   issues: string[];
 };
 
-export function ImageAuditDetailPanel({ audit, filteredItems, issueFilter, query, onIssueFilterChange, onOpenGame, onQueryChange, onResetFilters }: { audit: ImageReferenceAudit; filteredItems: ImageReferenceAuditItem[]; issueFilter: string; query: string; onIssueFilterChange: (value: string) => void; onOpenGame?: (gameId: string) => void; onQueryChange: (value: string) => void; onResetFilters: () => void }) {
+export function ImageAuditDetailPanel({ audit, filteredItems, issueFilter, query, onIssueFilterChange, onOpenGame, onQueryChange, onResetFilters, onRevealPath }: { audit: ImageReferenceAudit; filteredItems: ImageReferenceAuditItem[]; issueFilter: string; query: string; onIssueFilterChange: (value: string) => void; onOpenGame?: (gameId: string) => void; onQueryChange: (value: string) => void; onResetFilters: () => void; onRevealPath?: (path: string) => void }) {
   const summaries = summarizeImageAuditSources(audit.items);
   const gameSummaries = summarizeImageAuditGames(audit.items);
   const focusIssueFilter = (value: string) => {
@@ -70,7 +71,7 @@ export function ImageAuditDetailPanel({ audit, filteredItems, issueFilter, query
       {audit.items.length > 0 ? (
         <div className="space-y-2">
           <div className="px-1 text-xs text-slate-500">当前显示 {formatCount(filteredItems.length)} / {formatCount(audit.items.length)} 条引用。</div>
-          {filteredItems.length > 0 ? filteredItems.map((item, index) => <ImageAuditRow item={item} key={`${item.gameId ?? 'game'}-${item.sourceKind}-${item.fieldName ?? 'field'}-${item.value}-${index}`} onOpenGame={onOpenGame} />) : <SoftRow className="px-3 py-3 text-sm text-slate-400">当前筛选没有匹配的图片引用。</SoftRow>}
+          {filteredItems.length > 0 ? filteredItems.map((item, index) => <ImageAuditRow item={item} key={`${item.gameId ?? 'game'}-${item.sourceKind}-${item.fieldName ?? 'field'}-${item.value}-${index}`} onOpenGame={onOpenGame} onRevealPath={onRevealPath} />) : <SoftRow className="px-3 py-3 text-sm text-slate-400">当前筛选没有匹配的图片引用。</SoftRow>}
           {audit.truncated && <div className="px-1 text-xs text-slate-500">结果较多，当前只显示前 80 条问题引用。</div>}
         </div>
       ) : (
@@ -220,16 +221,20 @@ function ImageAuditGameSummaryCard({ summary, onFocusSummary, onOpenGame }: { su
   );
 }
 
-function ImageAuditRow({ item, onOpenGame }: { item: ImageReferenceAuditItem; onOpenGame?: (gameId: string) => void }) {
+function ImageAuditRow({ item, onOpenGame, onRevealPath }: { item: ImageReferenceAuditItem; onOpenGame?: (gameId: string) => void; onRevealPath?: (path: string) => void }) {
   const title = item.gameTitle?.trim() || item.gameId || '未知游戏';
   const issues = item.issues.length > 0 ? item.issues : [item.status];
+  const revealableOriginalPath = isRevealableImageAuditPath(item.value) ? item.value.trim() : null;
+  const revealableResolvedPath = item.resolvedPath && isRevealableImageAuditPath(item.resolvedPath) ? item.resolvedPath.trim() : null;
   return (
-    <SoftRow className="grid gap-3 px-3 py-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+    <SoftRow className="grid gap-3 px-3 py-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]" data-image-audit-row="true">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <span className="truncate text-sm font-medium text-slate-100" title={title}>{title}</span>
           <Badge>{item.sourceLabel}</Badge>
           {item.fieldName && <Badge>{imageFieldLabel(item.fieldName)}</Badge>}
+          {revealableOriginalPath && onRevealPath && <Button aria-label="打开原始路径" className="h-7 px-2" size="sm" title="打开原始路径" variant="outline" onClick={() => onRevealPath(revealableOriginalPath)}><FolderOpen className="h-4 w-4" />原始</Button>}
+          {revealableResolvedPath && onRevealPath && <Button aria-label="打开解析路径" className="h-7 px-2" size="sm" title="打开解析路径" variant="outline" onClick={() => onRevealPath(revealableResolvedPath)}><FolderOpen className="h-4 w-4" />解析</Button>}
           {item.gameId && onOpenGame && <Button className="h-7 px-2" size="sm" variant="ghost" onClick={() => onOpenGame(item.gameId!)}>游戏</Button>}
         </div>
         <div className="mt-2 flex flex-wrap gap-1.5">
@@ -250,6 +255,13 @@ function ImageAuditRow({ item, onOpenGame }: { item: ImageReferenceAuditItem; on
       </div>
     </SoftRow>
   );
+}
+
+function isRevealableImageAuditPath(value?: string | null) {
+  const trimmed = value?.trim() ?? '';
+  if (!trimmed || /^https?:\/\//i.test(trimmed)) return false;
+  if (trimmed.startsWith('data:') || trimmed.startsWith('asset:')) return false;
+  return /^[a-z]:[\\/]/i.test(trimmed) || trimmed.startsWith('\\\\');
 }
 
 function ImageAuditCompactStat({ actionLabel, label, onClick, value, tone = 'neutral' }: { actionLabel?: string; label: string; onClick?: () => void; value: number | string; tone?: 'neutral' | 'ok' | 'warn' }) {

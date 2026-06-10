@@ -543,6 +543,7 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
                 onIssueFilterChange={setImageAuditIssueFilter}
                 onOpenGame={onOpenGame}
                 onQueryChange={setImageAuditQuery}
+                onRevealPath={(path) => void revealPath(path)}
                 onResetFilters={resetImageAuditFilters}
               />
             ) : (
