@@ -8,7 +8,7 @@ import { Notice } from '@/components/ui/notice';
 import { MetricTile, PageFrame, PageHeader, PageShell, Panel, PanelContent, PanelHeader, SoftRow } from '@/components/ui/page';
 import { TaskNotice } from '@/components/ui/task-notice';
 import { api } from '@/services/api';
-import type { AppDataDiagnostics, ImageReferenceAudit, ImageReferenceAuditItem } from '@/types/archive';
+import type { AppDataDiagnostics, ImageReferenceAudit } from '@/types/archive';
 import type { AssetCacheCleanupResult, LibraryFilterPreset } from '@/types/game';
 import type { ArtworkRepairDiagnosis, ArtworkRepairDiagnosisItem, DuplicateExternalIdGroup, DuplicateGameMergePreview } from '@/types/metadata';
 import type { TaskRecord } from '@/types/task';
@@ -20,6 +20,7 @@ import { ArtworkRepairTaskRow, filterArtworkRepairSummary, summarizeArtworkRepai
 import { BatchMatchHistoryTaskRow, filterBatchMatchHistorySummary, type BatchMatchHistorySummary } from './BatchMatchResultPanel';
 import { DescriptionImageRepairTaskRow, filterDescriptionImageRepairSummary, summarizeDescriptionImageRepairTask, type DescriptionImageRepairTaskSummary } from './DescriptionImageRepairResultPanel';
 import { DuplicateAuditTaskRow, filterDuplicateAuditSummary, summarizeDuplicateAuditTask, type DuplicateAuditTaskSummary } from './DuplicateAuditResultPanel';
+import { ImageAuditDetailPanel, matchesImageAuditItem } from './ImageAuditDetailPanel';
 
 type TaskMessage = { text: string; taskId?: string | null };
 type MaintenanceTaskFilter = 'all' | 'active' | 'attention' | 'completed';
@@ -534,40 +535,16 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
           />
           <PanelContent className="space-y-3">
             {imageAudit ? (
-              <>
-                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
-                  <CompactStat label="图片引用" value={imageAudit.totalRefs} />
-                  <CompactStat label="问题引用" value={imageAudit.issueCount} tone={imageAudit.issueCount > 0 ? 'warn' : 'ok'} />
-                  <CompactStat label="缺失本地文件" value={imageAudit.missingCount} tone={imageAudit.missingCount > 0 ? 'warn' : 'ok'} />
-                  <CompactStat label="C 盘残留" value={imageAudit.cDriveCount} tone={imageAudit.cDriveCount > 0 ? 'warn' : 'ok'} />
-                  <CompactStat label="Playnite 残留" value={imageAudit.playniteCount} tone={imageAudit.playniteCount > 0 ? 'warn' : 'ok'} />
-                </div>
-                <SoftRow className="grid gap-2 px-3 py-3 md:grid-cols-[minmax(0,1fr)_minmax(10rem,14rem)_auto] md:items-end">
-                  <label className="min-w-0 text-xs text-slate-500">
-                    搜索图片引用
-                    <Input aria-label="图片引用搜索" className="mt-1 w-full" placeholder="游戏 / 字段 / 路径 / 问题" value={imageAuditQuery} onChange={(event) => setImageAuditQuery(event.target.value)} />
-                  </label>
-                  <label className="min-w-0 text-xs text-slate-500">
-                    问题类型
-                    <Select aria-label="图片引用问题筛选" className="mt-1 w-full" value={imageAuditIssueFilter} onChange={(event) => setImageAuditIssueFilter(event.target.value)}>
-                      <option value="all">全部问题</option>
-                      <option value="missing">缺失本地文件</option>
-                      <option value="c_drive">C 盘残留</option>
-                      <option value="playnite">Playnite 残留</option>
-                    </Select>
-                  </label>
-                  <Button className="h-9" disabled={!imageAuditQuery.trim() && imageAuditIssueFilter === 'all'} size="sm" variant="outline" onClick={resetImageAuditFilters}>重置筛选</Button>
-                </SoftRow>
-                {imageAudit.items.length > 0 ? (
-                  <div className="space-y-2">
-                    <div className="px-1 text-xs text-slate-500">当前显示 {formatCount(filteredImageAuditItems.length)} / {formatCount(imageAudit.items.length)} 条引用。</div>
-                    {filteredImageAuditItems.length > 0 ? filteredImageAuditItems.map((item, index) => <ImageAuditRow item={item} key={`${item.gameId ?? 'game'}-${item.sourceKind}-${item.fieldName ?? 'field'}-${item.value}-${index}`} onOpenGame={onOpenGame} />) : <SoftRow className="px-3 py-3 text-sm text-slate-400">当前筛选没有匹配的图片引用。</SoftRow>}
-                    {imageAudit.truncated && <div className="px-1 text-xs text-slate-500">结果较多，当前只显示前 80 条问题引用。</div>}
-                  </div>
-                ) : (
-                  <SoftRow className="px-3 py-3 text-sm text-slate-400">没有发现需要处理的图片引用。</SoftRow>
-                )}
-              </>
+              <ImageAuditDetailPanel
+                audit={imageAudit}
+                filteredItems={filteredImageAuditItems}
+                issueFilter={imageAuditIssueFilter}
+                query={imageAuditQuery}
+                onIssueFilterChange={setImageAuditIssueFilter}
+                onOpenGame={onOpenGame}
+                onQueryChange={setImageAuditQuery}
+                onResetFilters={resetImageAuditFilters}
+              />
             ) : (
               <SoftRow className="flex items-center justify-between gap-3 px-3 py-3">
                 <div className="min-w-0 text-sm text-slate-400">读取后会列出具体游戏、来源字段、原始路径和已解析到的文件路径。</div>
@@ -1246,60 +1223,6 @@ function StorageStat({ label, count, size, path, onReveal }: { label: string; co
   );
 }
 
-function ImageAuditRow({ item, onOpenGame }: { item: ImageReferenceAuditItem; onOpenGame?: (gameId: string) => void }) {
-  const title = item.gameTitle?.trim() || item.gameId || '未知游戏';
-  const issues = item.issues.length > 0 ? item.issues : [item.status];
-  return (
-    <SoftRow className="grid gap-3 px-3 py-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="truncate text-sm font-medium text-slate-100" title={title}>{title}</span>
-          <Badge>{item.sourceLabel}</Badge>
-          {item.fieldName && <Badge>{imageFieldLabel(item.fieldName)}</Badge>}
-          {item.gameId && onOpenGame && <Button className="h-7 px-2" size="sm" variant="ghost" onClick={() => onOpenGame(item.gameId!)}>游戏</Button>}
-        </div>
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {issues.map((issue) => <Badge className={imageBadgeClass(issue)} key={issue}>{imageIssueLabel(issue)}</Badge>)}
-        </div>
-      </div>
-      <div className="min-w-0 space-y-1 text-[11px] leading-5">
-        <div className="grid gap-1 sm:grid-cols-[4.5rem_minmax(0,1fr)]">
-          <span className="text-slate-600">原始值</span>
-          <span className="break-all font-mono text-slate-300">{item.value}</span>
-        </div>
-        {item.resolvedPath && (
-          <div className="grid gap-1 sm:grid-cols-[4.5rem_minmax(0,1fr)]">
-            <span className="text-slate-600">解析路径</span>
-            <span className="break-all font-mono text-slate-500">{item.resolvedPath}</span>
-          </div>
-        )}
-      </div>
-    </SoftRow>
-  );
-}
-
-function matchesImageAuditItem(item: ImageReferenceAuditItem, query: string, issueFilter: string) {
-  const issues = item.issues.length > 0 ? item.issues : [item.status];
-  const matchesIssue = issueFilter === 'all' || issues.includes(issueFilter);
-  const value = query.trim().toLowerCase();
-  const searchableValues = [
-    item.gameId,
-    item.gameTitle,
-    item.sourceKind,
-    item.sourceLabel,
-    item.fieldName,
-    item.fieldName ? imageFieldLabel(item.fieldName) : '',
-    item.value,
-    item.resolvedPath,
-    item.status,
-    imageIssueLabel(item.status),
-    ...issues,
-    ...issues.map(imageIssueLabel),
-  ];
-  const matchesQuery = !value || searchableValues.some((text) => String(text ?? '').toLowerCase().includes(value));
-  return matchesIssue && matchesQuery;
-}
-
 function ArtworkDiagnosisRow({ item, onOpenGame, onOpenMetadata }: { item: ArtworkRepairDiagnosisItem; onOpenGame?: (gameId: string) => void; onOpenMetadata?: (preset?: { query?: string; missingProvider?: string } | null) => void }) {
   const canOpenMetadata = item.status === 'missing_external_id' && Boolean(onOpenMetadata);
   return (
@@ -1527,32 +1450,6 @@ function duplicateMergeTargetScore(game: DuplicateExternalIdGroup['games'][numbe
   if (title.includes('duplicate') || title.includes('重复')) score -= 100;
   if (path.includes('backup') || path.includes('old') || path.includes('copy')) score -= 40;
   return score;
-}
-
-function imageIssueLabel(value: string) {
-  if (value === 'missing') return '缺失';
-  if (value === 'c_drive') return 'C 盘';
-  if (value === 'playnite') return 'Playnite';
-  if (value === 'remote') return '远程';
-  if (value === 'ok') return '正常';
-  if (value === 'warning') return '警告';
-  return value;
-}
-
-function imageFieldLabel(value: string) {
-  if (value === 'cover_image' || value === 'coverImage') return '封面字段';
-  if (value === 'banner_image' || value === 'bannerImage') return '横幅字段';
-  if (value === 'background_image' || value === 'backgroundImage') return '背景字段';
-  if (value === 'description') return '简介';
-  if (value === 'game_assets.uri') return '图库 URI';
-  return value;
-}
-
-function imageBadgeClass(value: string) {
-  if (value === 'missing') return 'border-amber-300/25 bg-amber-300/10 text-amber-100';
-  if (value === 'c_drive' || value === 'playnite') return 'border-rose-300/25 bg-rose-300/10 text-rose-100';
-  if (value === 'ok' || value === 'remote') return 'border-emerald-300/25 bg-emerald-300/10 text-emerald-100';
-  return 'border-white/10 bg-white/[0.045] text-slate-300';
 }
 
 function artworkStatusLabel(value: string) {

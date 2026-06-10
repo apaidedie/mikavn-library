@@ -118,7 +118,7 @@ const brokenMediaReferenceGame = {
   id: 'qa-broken-media-ref',
   title: '图片引用异常候选',
   originalTitle: 'Image Reference Audit Candidate',
-  description: '用于详情页图片引用审计 QA。',
+  description: '用于详情页图片引用审计 QA。\n\n![坏简介图](missing-description.jpg)',
   bannerImage: hero,
   installPath: 'D:\\Games\\VN\\图片引用异常候选',
   executablePath: 'D:\\Games\\VN\\图片引用异常候选\\game.exe',
@@ -389,6 +389,10 @@ async function main() {
         await page.getByText(/图片引用审计完成：发现/).first().waitFor({ timeout: 5000 });
         await page.getByText('D:\\Playnite\\library\\files\\missing-banner.jpg').first().waitFor({ timeout: 5000 });
         const imageAuditPanel = page.locator('section').filter({ hasText: '图片引用问题' }).first();
+        const imageAuditSourceSummary = imageAuditPanel.locator('[aria-label="图片引用来源分布"]');
+        await imageAuditSourceSummary.getByText('问题来源分布').first().waitFor({ timeout: 5000 });
+        await imageAuditSourceSummary.locator('[data-image-audit-source="简介图片"] [data-image-audit-source-count="true"]').first().getByText('1').waitFor({ timeout: 5000 });
+        await imageAuditSourceSummary.locator('[data-image-audit-source="媒体图库"] [data-image-audit-source-count="true"]').first().getByText('1').waitFor({ timeout: 5000 });
         await imageAuditPanel.getByLabel('图片引用搜索').fill('Playnite');
         await imageAuditPanel.getByText('D:\\Playnite\\library\\files\\missing-banner.jpg').first().waitFor({ timeout: 5000 });
         await imageAuditPanel.getByLabel('图片引用问题筛选').selectOption('c_drive');
