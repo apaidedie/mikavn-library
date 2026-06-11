@@ -1,4 +1,4 @@
-import { FolderOpen } from 'lucide-react';
+import { Copy, FolderOpen } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -226,6 +226,8 @@ function ImageAuditRow({ item, onOpenGame, onRevealPath }: { item: ImageReferenc
   const title = item.gameTitle?.trim() || item.gameId || '未知游戏';
   const issues = item.issues.length > 0 ? item.issues : [item.status];
   const recommendation = imageAuditRecommendation(issues);
+  const copyableOriginalPath = item.value.trim();
+  const copyableResolvedPath = item.resolvedPath?.trim() || null;
   const revealableOriginalPath = isRevealableImageAuditPath(item.value) ? item.value.trim() : null;
   const revealableResolvedPath = item.resolvedPath && isRevealableImageAuditPath(item.resolvedPath) ? item.resolvedPath.trim() : null;
   return (
@@ -235,6 +237,8 @@ function ImageAuditRow({ item, onOpenGame, onRevealPath }: { item: ImageReferenc
           <span className="truncate text-sm font-medium text-slate-100" title={title}>{title}</span>
           <Badge>{item.sourceLabel}</Badge>
           {item.fieldName && <Badge>{imageFieldLabel(item.fieldName)}</Badge>}
+          {copyableOriginalPath && <Button aria-label="复制原始路径" className="h-7 px-2" size="sm" title="复制原始路径" variant="outline" onClick={() => void copyImageAuditPath(copyableOriginalPath)}><Copy className="h-4 w-4" />原始</Button>}
+          {copyableResolvedPath && <Button aria-label="复制解析路径" className="h-7 px-2" size="sm" title="复制解析路径" variant="outline" onClick={() => void copyImageAuditPath(copyableResolvedPath)}><Copy className="h-4 w-4" />解析</Button>}
           {revealableOriginalPath && onRevealPath && <Button aria-label="打开原始路径" className="h-7 px-2" size="sm" title="打开原始路径" variant="outline" onClick={() => onRevealPath(revealableOriginalPath)}><FolderOpen className="h-4 w-4" />原始</Button>}
           {revealableResolvedPath && onRevealPath && <Button aria-label="打开解析路径" className="h-7 px-2" size="sm" title="打开解析路径" variant="outline" onClick={() => onRevealPath(revealableResolvedPath)}><FolderOpen className="h-4 w-4" />解析</Button>}
           {item.gameId && onOpenGame && <Button className="h-7 px-2" size="sm" variant="ghost" onClick={() => onOpenGame(item.gameId!)}>游戏</Button>}
@@ -261,6 +265,10 @@ function ImageAuditRow({ item, onOpenGame, onRevealPath }: { item: ImageReferenc
       </div>
     </SoftRow>
   );
+}
+
+async function copyImageAuditPath(path: string) {
+  await navigator.clipboard.writeText(path);
 }
 
 function imageAuditRecommendation(issues: string[]) {

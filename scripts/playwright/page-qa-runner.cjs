@@ -212,6 +212,7 @@ async function openSeeded(browser, view, overrides = {}) {
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const context = await browser.newContext({ viewport: { width: 1440, height: 1050 }, deviceScaleFactor: 1 });
     try {
+      await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new URL(baseUrl).origin });
       const page = await context.newPage();
       const consoleErrors = [];
       page.on('console', (message) => {
@@ -411,6 +412,9 @@ async function main() {
         const playniteAuditRow = imageAuditPanel.locator('[data-image-audit-row="true"]').filter({ hasText: 'D:\\Playnite\\library\\files\\missing-banner.jpg' }).first();
         await playniteAuditRow.getByText('处理建议').waitFor({ timeout: 5000 });
         await playniteAuditRow.getByText(/将 Playnite 图片导入 MikaVN 图片缓存/).waitFor({ timeout: 5000 });
+        await playniteAuditRow.getByRole('button', { name: /复制原始路径/ }).click();
+        const copiedImageAuditPath = await page.evaluate(() => navigator.clipboard.readText());
+        if (copiedImageAuditPath !== 'D:\\Playnite\\library\\files\\missing-banner.jpg') throw new Error('image audit copy original path did not write the expected path');
         await playniteAuditRow.getByRole('button', { name: /打开原始路径/ }).click();
         await imageAuditPanel.getByRole('button', { name: /重置筛选/ }).click();
         await imageAuditPanel.getByLabel('图片引用搜索').fill('Playnite');
