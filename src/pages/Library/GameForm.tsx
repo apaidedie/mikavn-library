@@ -365,9 +365,9 @@ export function GameForm({ game, onSubmit, onCancel }: GameFormProps) {
             </div>
 
             <div className="grid gap-3 md:grid-cols-3">
-              <Field label="封面路径"><InputWithButton value={form.coverImage} onChange={(value) => update('coverImage', value)} onPick={() => void pickImage('coverImage')} /></Field>
-              <Field label="横幅路径"><InputWithButton value={form.bannerImage} onChange={(value) => update('bannerImage', value)} onPick={() => void pickImage('bannerImage')} /></Field>
-              <Field label="背景路径"><InputWithButton value={form.backgroundImage} onChange={(value) => update('backgroundImage', value)} onPick={() => void pickImage('backgroundImage')} /></Field>
+              <Field label="封面路径"><InputWithButton copyLabel="封面路径" value={form.coverImage} onChange={(value) => update('coverImage', value)} onCopy={() => void copyPath('封面', form.coverImage)} onPick={() => void pickImage('coverImage')} /></Field>
+              <Field label="横幅路径"><InputWithButton copyLabel="横幅路径" value={form.bannerImage} onChange={(value) => update('bannerImage', value)} onCopy={() => void copyPath('横幅', form.bannerImage)} onPick={() => void pickImage('bannerImage')} /></Field>
+              <Field label="背景路径"><InputWithButton copyLabel="背景路径" value={form.backgroundImage} onChange={(value) => update('backgroundImage', value)} onCopy={() => void copyPath('背景', form.backgroundImage)} onPick={() => void pickImage('backgroundImage')} /></Field>
             </div>
 
             <div className="grid gap-3 md:grid-cols-2">

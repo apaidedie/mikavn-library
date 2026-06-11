@@ -349,6 +349,10 @@ async function main() {
         const copiedEditInstallPath = await page.evaluate(() => navigator.clipboard.readText());
         if (copiedEditInstallPath !== 'D:\\Games\\VN\\星之终途') throw new Error('game form install path copy did not write the expected path');
         await editGameDialog.getByText('已复制安装目录路径。').first().waitFor({ timeout: 5000 });
+        await editGameDialog.getByRole('button', { name: /复制封面路径/ }).click();
+        const copiedEditCoverPath = await page.evaluate(() => navigator.clipboard.readText());
+        if (copiedEditCoverPath !== downloadedCoverUrl) throw new Error('game form cover path copy did not write the expected path');
+        await editGameDialog.getByText('已复制封面路径。').first().waitFor({ timeout: 5000 });
         await editGameDialog.getByRole('button', { name: /^取消$/ }).click();
         await page.getByRole('tab', { name: /概览/ }).click();
         await page.getByText('媒体图库').first().waitFor({ timeout: 5000 });
