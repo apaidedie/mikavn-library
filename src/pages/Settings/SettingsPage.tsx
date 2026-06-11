@@ -35,6 +35,7 @@ const defaults: SettingsForm = {
   privacy_filter_reports: true,
   save_auto_backup_before_launch: false,
   save_auto_backup_after_exit: false,
+  tray_enabled: true,
 };
 
 export function SettingsPage({ onAccentPreview, onThemePreview, onSaved, onOpenTask }: { onAccentPreview?: (uiAccentColor: string) => void; onThemePreview?: (uiThemeMode: string) => void; onSaved?: () => void; onOpenTask?: (taskId: string) => void }) {
@@ -76,6 +77,7 @@ export function SettingsPage({ onAccentPreview, onThemePreview, onSaved, onOpenT
         privacy_filter_reports: settings.privacy_filter_reports !== 'false',
         save_auto_backup_before_launch: settings.save_auto_backup_before_launch === 'true',
         save_auto_backup_after_exit: settings.save_auto_backup_after_exit === 'true',
+        tray_enabled: settings.tray_enabled !== 'false',
       });
       onAccentPreview?.(settings.ui_accent_color ?? 'vnite');
       onThemePreview?.(settings.ui_theme_mode ?? 'dark');
@@ -110,7 +112,9 @@ export function SettingsPage({ onAccentPreview, onThemePreview, onSaved, onOpenT
         privacy_filter_reports: String(form.privacy_filter_reports),
         save_auto_backup_before_launch: String(form.save_auto_backup_before_launch),
         save_auto_backup_after_exit: String(form.save_auto_backup_after_exit),
+        tray_enabled: String(form.tray_enabled),
       });
+      await loadTrayStatus();
       setMessage({ text: form.ai_api_key.trim() ? '设置已保存到本机。API Key 属于本机私有配置，请勿共享数据库或配置文件。' : '设置已保存到本机。' });
       onSaved?.();
     } catch (reason) {
@@ -285,7 +289,10 @@ export function SettingsPage({ onAccentPreview, onThemePreview, onSaved, onOpenT
 
             <ConfigSection title="后台与托盘">
               <ConfigItem title="托盘图标" description="关闭主窗口后应用仍可留在系统托盘，方便长时间任务继续运行。">
-                {trayStatus ? <TrayStatusPanel status={trayStatus} /> : <div className="text-xs text-slate-500">正在读取托盘状态。</div>}
+                <div className="flex flex-col items-end gap-3">
+                  <SettingFlag checked={form.tray_enabled} label="启用" onChange={(value) => setForm((current) => ({ ...current, tray_enabled: value }))} />
+                  {trayStatus ? <TrayStatusPanel status={trayStatus} /> : <div className="text-xs text-slate-500">正在读取托盘状态。</div>}
+                </div>
               </ConfigItem>
             </ConfigSection>
 
@@ -826,5 +833,6 @@ function dataDirSourceLabel(value: string) {
 
 function trayCloseBehaviorLabel(value: string) {
   if (value === 'hide_to_tray') return '关闭主窗口时隐藏到托盘';
+  if (value === 'close') return '关闭主窗口时直接退出';
   return value || '未知';
 }

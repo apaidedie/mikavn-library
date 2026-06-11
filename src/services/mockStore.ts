@@ -36,6 +36,7 @@ const defaultSettings: Record<string, string> = {
   privacy_filter_reports: 'true',
   save_auto_backup_before_launch: 'false',
   save_auto_backup_after_exit: 'false',
+  tray_enabled: 'true',
 };
 
 const mockMetadata: MetadataSearchResult[] = [
@@ -1531,15 +1532,16 @@ export const mockStore = {
   },
 
   getTrayStatus(): Promise<TrayStatus> {
+    const enabled = readSettings().tray_enabled !== 'false';
     return Promise.resolve({
-      enabled: true,
+      enabled,
       tooltip: 'MikaVN Library',
-      closeBehavior: 'hide_to_tray',
-      menuItems: [
+      closeBehavior: enabled ? 'hide_to_tray' : 'close',
+      menuItems: enabled ? [
         { id: 'tray-open', label: '打开 MikaVN' },
         { id: 'tray-hide', label: '隐藏到托盘' },
         { id: 'tray-exit', label: '退出' },
-      ],
+      ] : [],
     });
   },
 

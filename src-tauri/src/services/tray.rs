@@ -3,6 +3,8 @@ use tauri::menu::MenuBuilder;
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Manager, Runtime, Window, WindowEvent};
 
+use crate::db::Database;
+
 const MENU_OPEN: &str = "tray-open";
 const MENU_HIDE: &str = "tray-hide";
 const MENU_EXIT: &str = "tray-exit";
@@ -12,6 +14,8 @@ const LABEL_EXIT: &str = "退出";
 const MAIN_WINDOW_LABEL: &str = "main";
 const TRAY_TOOLTIP: &str = "MikaVN Library";
 const CLOSE_BEHAVIOR_HIDE_TO_TRAY: &str = "hide_to_tray";
+const CLOSE_BEHAVIOR_CLOSE: &str = "close";
+const TRAY_ENABLED_SETTING_KEY: &str = "tray_enabled";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -29,7 +33,20 @@ pub struct TrayStatus {
     pub menu_items: Vec<TrayMenuItemStatus>,
 }
 
-pub fn tray_status() -> TrayStatus {
+pub fn tray_status_for_db(db: &Database) -> TrayStatus {
+    tray_status_for_setting(is_tray_enabled(db))
+}
+
+pub fn tray_status_for_setting(enabled: bool) -> TrayStatus {
+    if !enabled {
+        return TrayStatus {
+            enabled: false,
+            tooltip: TRAY_TOOLTIP.to_string(),
+            close_behavior: CLOSE_BEHAVIOR_CLOSE.to_string(),
+            menu_items: Vec::new(),
+        };
+    }
+
     TrayStatus {
         enabled: true,
         tooltip: TRAY_TOOLTIP.to_string(),
@@ -51,7 +68,20 @@ pub fn tray_status() -> TrayStatus {
     }
 }
 
-pub fn setup_app_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
+pub fn apply_tray_setting<R: Runtime>(app: &AppHandle<R>, db: &Database) -> tauri::Result<()> {
+    if is_tray_enabled(db) {
+        ensure_app_tray(app)
+    } else {
+        let _ = app.remove_tray_by_id("main");
+        Ok(())
+    }
+}
+
+fn ensure_app_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
+    if app.tray_by_id("main").is_some() {
+        return Ok(());
+    }
+
     let menu = MenuBuilder::new(app)
         .text(MENU_OPEN, LABEL_OPEN)
         .text(MENU_HIDE, LABEL_HIDE)
@@ -92,7 +122,11 @@ pub fn setup_app_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
     Ok(())
 }
 
-pub fn hide_instead_of_close<R: Runtime>(event: &WindowEvent, window: &Window<R>) {
+pub fn hide_instead_of_close<R: Runtime>(event: &WindowEvent, window: &Window<R>, db: &Database) {
+    if !is_tray_enabled(db) {
+        return;
+    }
+
     if let WindowEvent::CloseRequested { api, .. } = event {
         api.prevent_close();
         let _ = window.hide();
@@ -113,13 +147,21 @@ fn hide_main_window<R: Runtime>(app: &AppHandle<R>) {
     }
 }
 
+fn is_tray_enabled(db: &Database) -> bool {
+    db.get_setting(TRAY_ENABLED_SETTING_KEY)
+        .ok()
+        .flatten()
+        .as_deref()
+        != Some("false")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn tray_status_documents_menu_and_close_behavior() {
-        let status = tray_status();
+        let status = tray_status_for_setting(true);
 
         assert!(status.enabled);
         assert_eq!(status.tooltip, "MikaVN Library");
@@ -136,5 +178,14 @@ mod tests {
             .menu_items
             .iter()
             .any(|item| item.id == MENU_EXIT && item.label == "退出"));
+    }
+
+    #[test]
+    fn tray_status_follows_disabled_setting() {
+        let status = tray_status_for_setting(false);
+
+        assert!(!status.enabled);
+        assert_eq!(status.close_behavior, "close");
+        assert!(status.menu_items.is_empty());
     }
 }

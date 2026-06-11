@@ -31,13 +31,17 @@ pub fn run() {
             let paths = infrastructure::paths::AppPaths::from_app(app.handle())?;
             services::backups::apply_pending_database_restore(&paths)?;
             let db = Database::new(app.handle())?;
+            services::tray::apply_tray_setting(app.handle(), &db)?;
             app.manage(AppState { db: Mutex::new(db) });
-            services::tray::setup_app_tray(app.handle())?;
             Ok(())
         })
         .on_window_event(|window, event| {
             if window.label() == "main" {
-                services::tray::hide_instead_of_close(event, window);
+                if let Some(state) = window.try_state::<AppState>() {
+                    if let Ok(db) = state.db() {
+                        services::tray::hide_instead_of_close(event, window, &db);
+                    }
+                }
             }
         })
         .invoke_handler(tauri::generate_handler![

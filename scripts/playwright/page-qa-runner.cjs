@@ -172,6 +172,7 @@ const settings = {
   privacy_filter_reports: 'true',
   save_auto_backup_before_launch: 'false',
   save_auto_backup_after_exit: 'false',
+  tray_enabled: 'true',
 };
 
 function mockData(overrides = {}) {
@@ -858,6 +859,20 @@ async function main() {
         const deletedTagGame = tagGames.find((game) => game.id === 'qa-2');
         if (!renamedTagGame?.tags.includes('全年龄QA') || renamedTagGame.tags.includes('科幻')) throw new Error('page QA tag rename/merge did not update game tags');
         if (deletedTagGame?.tags.includes('恋爱')) throw new Error('page QA tag delete did not remove tag from games');
+      }],
+      ['settings-tray-disabled-toggle', 'settings', { settings: { ...settings, tray_enabled: 'false' } }, async (page) => {
+        await page.getByRole('tab', { name: /本地与隐私/ }).click();
+        await page.getByText('后台与托盘').first().waitFor({ timeout: 5000 });
+        await page.getByText('托盘图标未启用').first().waitFor({ timeout: 5000 });
+        await page.getByText('关闭主窗口时直接退出').first().waitFor({ timeout: 5000 });
+        const trayFlag = page.locator('section').filter({ hasText: '后台与托盘' }).first().locator('label').filter({ hasText: '启用' }).first().getByRole('checkbox');
+        if (await trayFlag.isChecked()) throw new Error('tray toggle should reflect disabled settings');
+        await trayFlag.check();
+        await page.getByRole('button', { name: /保存设置/ }).click();
+        await page.getByText('托盘图标已启用').first().waitFor({ timeout: 5000 });
+        await page.getByText('关闭主窗口时隐藏到托盘').first().waitFor({ timeout: 5000 });
+        const savedSettings = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.settings') || '{}'));
+        if (savedSettings.tray_enabled !== 'true') throw new Error('tray toggle did not persist enabled state');
       }],
     ];
 

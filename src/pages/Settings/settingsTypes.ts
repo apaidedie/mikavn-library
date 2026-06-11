@@ -12,4 +12,5 @@ export type SettingsForm = {
   privacy_filter_reports: boolean;
   save_auto_backup_before_launch: boolean;
   save_auto_backup_after_exit: boolean;
+  tray_enabled: boolean;
 };
