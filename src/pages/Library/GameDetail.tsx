@@ -559,6 +559,15 @@ function LaunchProfilesPanel({ game, profiles, selectedProfileId, onSelect, onCh
     if (selected) setForm((current) => ({ ...current, workingDirectory: selected }));
   };
 
+  const copyProfilePath = async (label: string, path: string) => {
+    try {
+      await navigator.clipboard.writeText(path);
+      onMessage(`已复制${label}路径。`);
+    } catch (reason) {
+      onMessage(errorMessage(reason));
+    }
+  };
+
   return (
     <div className="space-y-3">
       {profiles.length === 0 ? (
@@ -592,6 +601,7 @@ function LaunchProfilesPanel({ game, profiles, selectedProfileId, onSelect, onCh
                 {profile.compatibilityNotes && <div className="mt-2 text-xs text-slate-500">{profile.compatibilityNotes}</div>}
               </div>
               <div className="flex flex-wrap items-center gap-2">
+                <Button aria-label={`复制${profile.name}路径`} size="sm" variant="outline" onClick={() => void copyProfilePath(profile.name, profile.executablePath)}><Copy className="h-4 w-4" />复制</Button>
                 <Button disabled={profile.isDefault || profile.id.startsWith('legacy-')} size="sm" variant="outline" onClick={() => setDefault(profile.id)}>设默认</Button>
                 <Button size="sm" variant="ghost" onClick={() => remove(profile)}>删除</Button>
               </div>

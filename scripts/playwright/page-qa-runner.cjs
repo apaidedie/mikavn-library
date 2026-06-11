@@ -326,6 +326,11 @@ async function main() {
         if (assetGame?.coverImage !== downloadedCoverUrl) throw new Error('page QA asset download did not update primary cover field');
         if (!Array.isArray(assetRecords) || !assetRecords.some((asset) => asset.gameId === 'qa-1' && asset.source === 'download' && asset.uri === downloadedCoverUrl)) throw new Error('page QA asset download record was not persisted');
         await page.getByRole('tab', { name: /路径/ }).click();
+        await page.getByText('启动配置').first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: /复制默认启动路径/ }).first().click();
+        const copiedLaunchProfilePath = await page.evaluate(() => navigator.clipboard.readText());
+        if (copiedLaunchProfilePath !== 'D:\\Games\\VN\\星之终途\\stella.exe') throw new Error('launch profile path copy did not write the expected executable path');
+        await page.getByText('已复制默认启动路径。').first().waitFor({ timeout: 5000 });
         await page.getByText('本地路径').first().waitFor({ timeout: 5000 });
         await page.getByRole('button', { name: /复制安装目录/ }).first().click();
         const copiedInstallPath = await page.evaluate(() => navigator.clipboard.readText());
