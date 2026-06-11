@@ -331,6 +331,13 @@ async function main() {
         const copiedInstallPath = await page.evaluate(() => navigator.clipboard.readText());
         if (copiedInstallPath !== 'D:\\Games\\VN\\星之终途') throw new Error('game detail install path copy did not write the expected path');
         await page.getByText('已复制安装目录路径。').first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: /^编辑$/ }).click();
+        const editGameDialog = page.getByRole('dialog').filter({ hasText: '编辑游戏' }).first();
+        await editGameDialog.getByRole('button', { name: /复制安装目录/ }).click();
+        const copiedEditInstallPath = await page.evaluate(() => navigator.clipboard.readText());
+        if (copiedEditInstallPath !== 'D:\\Games\\VN\\星之终途') throw new Error('game form install path copy did not write the expected path');
+        await editGameDialog.getByText('已复制安装目录路径。').first().waitFor({ timeout: 5000 });
+        await editGameDialog.getByRole('button', { name: /^取消$/ }).click();
         await page.getByRole('tab', { name: /概览/ }).click();
         await page.getByText('媒体图库').first().waitFor({ timeout: 5000 });
         await page.locator('button[aria-label="设为主图"]:not([disabled])').first().click();

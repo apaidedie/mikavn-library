@@ -1,4 +1,4 @@
-import { ChevronDown, DatabaseZap, FolderSearch, Loader2 } from 'lucide-react';
+import { ChevronDown, Copy, DatabaseZap, FolderSearch, Loader2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -64,6 +64,7 @@ export function GameForm({ game, onSubmit, onCancel }: GameFormProps) {
   const [saving, setSaving] = useState(false);
   const [scraping, setScraping] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
   const [scrapeMessage, setScrapeMessage] = useState<string | null>(null);
   const [scrapeCandidates, setScrapeCandidates] = useState<MetadataSearchResult[]>([]);
   const [selectedCandidateKey, setSelectedCandidateKey] = useState<string | null>(null);
@@ -73,6 +74,7 @@ export function GameForm({ game, onSubmit, onCancel }: GameFormProps) {
   useEffect(() => {
     setForm(initial);
     setError(null);
+    setMessage(null);
     setScrapeMessage(null);
     setScrapeCandidates([]);
     setSelectedCandidateKey(null);
@@ -81,6 +83,18 @@ export function GameForm({ game, onSubmit, onCancel }: GameFormProps) {
 
   const update = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value }));
   const updateBool = (key: 'favorite' | 'hidden', value: boolean) => setForm((current) => ({ ...current, [key]: value }));
+
+  const copyPath = async (label: string, value: string) => {
+    const clean = value.trim();
+    if (!clean) return;
+    setError(null);
+    try {
+      await navigator.clipboard.writeText(clean);
+      setMessage(`已复制${label}路径。`);
+    } catch (reason) {
+      setError(errorMessage(reason));
+    }
+  };
 
   const pickDirectory = async (key: 'installPath' | 'workingDirectory') => {
     const selected = await chooseDirectory(form[key]);
@@ -238,6 +252,7 @@ export function GameForm({ game, onSubmit, onCancel }: GameFormProps) {
   return (
     <div className="space-y-3 text-slate-200">
       {error && <Notice tone="error">{error}</Notice>}
+      {message && <Notice>{message}</Notice>}
       {!isEditing && (
         <section className="rounded-lg border border-[rgb(var(--accent-rgb)/0.20)] bg-black/[0.18] p-3 shadow-sm shadow-black/20">
           <div className="flex gap-3">
@@ -312,8 +327,8 @@ export function GameForm({ game, onSubmit, onCancel }: GameFormProps) {
             </Select>
           </Field>
         )}
-        <Field label="安装目录" required><InputWithButton value={form.installPath} onChange={(value) => update('installPath', value)} onPick={() => void pickDirectory('installPath')} /></Field>
-        <Field label="启动程序"><InputWithButton value={form.executablePath} onChange={(value) => update('executablePath', value)} onPick={() => void pickExecutable()} /></Field>
+        <Field label="安装目录" required><InputWithButton copyLabel="安装目录" value={form.installPath} onChange={(value) => update('installPath', value)} onCopy={() => void copyPath('安装目录', form.installPath)} onPick={() => void pickDirectory('installPath')} /></Field>
+        <Field label="启动程序"><InputWithButton copyLabel="启动程序" value={form.executablePath} onChange={(value) => update('executablePath', value)} onCopy={() => void copyPath('启动程序', form.executablePath)} onPick={() => void pickExecutable()} /></Field>
       </div>
 
       <section className="rounded-lg border border-white/10 bg-black/[0.12]">
@@ -345,7 +360,7 @@ export function GameForm({ game, onSubmit, onCancel }: GameFormProps) {
             </div>
 
             <div className="grid gap-3 md:grid-cols-2">
-              <Field label="工作目录"><InputWithButton value={form.workingDirectory} onChange={(value) => update('workingDirectory', value)} onPick={() => void pickDirectory('workingDirectory')} /></Field>
+              <Field label="工作目录"><InputWithButton copyLabel="工作目录" value={form.workingDirectory} onChange={(value) => update('workingDirectory', value)} onCopy={() => void copyPath('工作目录', form.workingDirectory)} onPick={() => void pickDirectory('workingDirectory')} /></Field>
               <Field label="启动参数"><Input value={form.launchArgs} onChange={(event) => update('launchArgs', event.target.value)} /></Field>
             </div>
 
@@ -392,10 +407,11 @@ function Field({ label, required, children }: { label: string; required?: boolea
   );
 }
 
-function InputWithButton({ value, onChange, onPick }: { value: string; onChange: (value: string) => void; onPick: () => void }) {
+function InputWithButton({ copyLabel, value, onChange, onCopy, onPick }: { copyLabel?: string; value: string; onChange: (value: string) => void; onCopy?: () => void; onPick: () => void }) {
   return (
     <div className="flex gap-2">
       <Input value={value} onChange={(event) => onChange(event.target.value)} />
+      {onCopy && copyLabel && <Button aria-label={`复制${copyLabel}`} className="shrink-0" disabled={!value.trim()} type="button" variant="outline" onClick={onCopy}><Copy className="h-4 w-4" />复制</Button>}
       <Button className="shrink-0" type="button" variant="outline" onClick={onPick}>选择</Button>
     </div>
   );
