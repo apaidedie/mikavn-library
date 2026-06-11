@@ -842,6 +842,7 @@ async function main() {
         await page.getByRole('button', { name: /复制数据根目录/ }).first().click();
         const copiedDataDir = await page.evaluate(() => navigator.clipboard.readText());
         if (copiedDataDir !== 'E:\\MikaVN Library\\app-data') throw new Error('directory copy did not write the expected app data path');
+        await page.getByText('已复制数据根目录路径。').first().waitFor({ timeout: 5000 });
         await page.getByText('后台与托盘').first().waitFor({ timeout: 5000 });
         await page.getByText('托盘图标已启用').first().waitFor({ timeout: 5000 });
         await page.getByText('关闭主窗口时隐藏到托盘').first().waitFor({ timeout: 5000 });

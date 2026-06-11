@@ -203,13 +203,13 @@ export function SettingsPage({ onAccentPreview, onThemePreview, onSaved, onOpenT
                   </ConfigItem>
                   <ConfigItem title="目录位置速览" description="所有应用数据、图片、缓存、日志和备份目录都集中在这里，方便后期查找。" className="sm:items-start">
                     <div className="grid w-[min(48rem,calc(100vw-3rem))] gap-2 text-left text-xs lg:grid-cols-2">
-                      <DirectoryLocation label="数据根目录" path={diagnostics.appDataDir} detail={dataDirSourceLabel(diagnostics.dataDirSource)} onReveal={() => void revealPath(diagnostics.appDataDir)} />
-                      <DirectoryLocation label="数据库" path={diagnostics.database.path} detail={formatBytes(diagnostics.database.sizeBytes)} onReveal={() => void revealPath(diagnostics.database.path)} />
-                      <DirectoryLocation label="图片目录" path={diagnostics.images.path} detail={directoryDetail(diagnostics.images.fileCount, diagnostics.images.totalBytes)} onReveal={() => void revealPath(diagnostics.images.path)} />
-                      <DirectoryLocation label="缓存目录" path={diagnostics.cache.path} detail={directoryDetail(diagnostics.cache.fileCount, diagnostics.cache.totalBytes)} onReveal={() => void revealPath(diagnostics.cache.path)} />
-                      <DirectoryLocation label="存档备份" path={diagnostics.saveBackups.path} detail={directoryDetail(diagnostics.saveBackups.fileCount, diagnostics.saveBackups.totalBytes)} onReveal={() => void revealPath(diagnostics.saveBackups.path)} />
-                      <DirectoryLocation label="日志目录" path={diagnostics.logs.path} detail={directoryDetail(diagnostics.logs.fileCount, diagnostics.logs.totalBytes)} onReveal={() => void revealPath(diagnostics.logs.path)} />
-                      <DirectoryLocation label="数据库备份" path={diagnostics.databaseBackups.rootPath} detail={directoryDetail(diagnostics.databaseBackups.fileCount, diagnostics.databaseBackups.totalBytes)} onReveal={() => void revealPath(diagnostics.databaseBackups.rootPath)} />
+                      <DirectoryLocation label="数据根目录" path={diagnostics.appDataDir} detail={dataDirSourceLabel(diagnostics.dataDirSource)} onCopy={() => void copyDirectoryPath('数据根目录', diagnostics.appDataDir)} onReveal={() => void revealPath(diagnostics.appDataDir)} />
+                      <DirectoryLocation label="数据库" path={diagnostics.database.path} detail={formatBytes(diagnostics.database.sizeBytes)} onCopy={() => void copyDirectoryPath('数据库', diagnostics.database.path)} onReveal={() => void revealPath(diagnostics.database.path)} />
+                      <DirectoryLocation label="图片目录" path={diagnostics.images.path} detail={directoryDetail(diagnostics.images.fileCount, diagnostics.images.totalBytes)} onCopy={() => void copyDirectoryPath('图片目录', diagnostics.images.path)} onReveal={() => void revealPath(diagnostics.images.path)} />
+                      <DirectoryLocation label="缓存目录" path={diagnostics.cache.path} detail={directoryDetail(diagnostics.cache.fileCount, diagnostics.cache.totalBytes)} onCopy={() => void copyDirectoryPath('缓存目录', diagnostics.cache.path)} onReveal={() => void revealPath(diagnostics.cache.path)} />
+                      <DirectoryLocation label="存档备份" path={diagnostics.saveBackups.path} detail={directoryDetail(diagnostics.saveBackups.fileCount, diagnostics.saveBackups.totalBytes)} onCopy={() => void copyDirectoryPath('存档备份', diagnostics.saveBackups.path)} onReveal={() => void revealPath(diagnostics.saveBackups.path)} />
+                      <DirectoryLocation label="日志目录" path={diagnostics.logs.path} detail={directoryDetail(diagnostics.logs.fileCount, diagnostics.logs.totalBytes)} onCopy={() => void copyDirectoryPath('日志目录', diagnostics.logs.path)} onReveal={() => void revealPath(diagnostics.logs.path)} />
+                      <DirectoryLocation label="数据库备份" path={diagnostics.databaseBackups.rootPath} detail={directoryDetail(diagnostics.databaseBackups.fileCount, diagnostics.databaseBackups.totalBytes)} onCopy={() => void copyDirectoryPath('数据库备份', diagnostics.databaseBackups.rootPath)} onReveal={() => void revealPath(diagnostics.databaseBackups.rootPath)} />
                     </div>
                   </ConfigItem>
                   <ConfigItem title="数据库健康" description={diagnostics.database.path}>
@@ -445,6 +445,16 @@ export function SettingsPage({ onAccentPreview, onThemePreview, onSaved, onOpenT
     setError(null);
     try {
       await api.revealPath(path);
+    } catch (reason) {
+      setError(errorMessage(reason));
+    }
+  }
+
+  async function copyDirectoryPath(label: string, path: string) {
+    setError(null);
+    try {
+      await navigator.clipboard.writeText(path);
+      setMessage({ text: `已复制${label}路径。` });
     } catch (reason) {
       setError(errorMessage(reason));
     }
@@ -781,7 +791,7 @@ function Stat({ label, value, tone = 'neutral' }: { label: string; value: string
   );
 }
 
-function DirectoryLocation({ detail, label, onReveal, path }: { detail: string; label: string; onReveal: () => void; path: string }) {
+function DirectoryLocation({ detail, label, onCopy, onReveal, path }: { detail: string; label: string; onCopy: () => void; onReveal: () => void; path: string }) {
   return (
     <div className="grid gap-2 rounded-md border border-white/10 bg-black/[0.12] px-3 py-2 sm:grid-cols-[minmax(0,1fr)_auto]">
       <div className="min-w-0">
@@ -792,7 +802,7 @@ function DirectoryLocation({ detail, label, onReveal, path }: { detail: string; 
         <div className="mt-1 break-all font-mono text-xs text-slate-300">{path}</div>
       </div>
       <div className="flex items-start gap-2">
-        <Button aria-label={`复制${label}`} className="h-8 w-8" size="icon" title={`复制${label}`} variant="ghost" onClick={() => void navigator.clipboard.writeText(path)}>
+        <Button aria-label={`复制${label}`} className="h-8 w-8" size="icon" title={`复制${label}`} variant="ghost" onClick={onCopy}>
           <Copy className="h-4 w-4" />
         </Button>
         <Button aria-label={`打开${label}`} className="h-8 w-8" size="icon" title={`打开${label}`} variant="ghost" onClick={onReveal}>
