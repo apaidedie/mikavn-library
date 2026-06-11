@@ -833,11 +833,15 @@ async function main() {
         await page.getByText('设置').first().waitFor({ timeout: 5000 });
         await page.getByRole('tab', { name: /本地与隐私/ }).click();
         await page.getByText('目录位置速览').first().waitFor({ timeout: 5000 });
+        const dataDirLocation = page.locator('section').filter({ hasText: '目录位置速览' }).first().locator('text=数据根目录').first().locator('..');
         await page.getByText('E:\\MikaVN Library\\app-data\\images').first().waitFor({ timeout: 5000 });
         await page.getByText('E:\\MikaVN Library\\app-data\\cache').first().waitFor({ timeout: 5000 });
         await page.getByText('E:\\MikaVN Library\\app-data\\save-backups').first().waitFor({ timeout: 5000 });
         await page.getByText('E:\\MikaVN Library\\app-data\\logs').first().waitFor({ timeout: 5000 });
         await page.getByText('E:\\MikaVN Library\\app-data').first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: /复制数据根目录/ }).first().click();
+        const copiedDataDir = await page.evaluate(() => navigator.clipboard.readText());
+        if (copiedDataDir !== 'E:\\MikaVN Library\\app-data') throw new Error('directory copy did not write the expected app data path');
         await page.getByText('后台与托盘').first().waitFor({ timeout: 5000 });
         await page.getByText('托盘图标已启用').first().waitFor({ timeout: 5000 });
         await page.getByText('关闭主窗口时隐藏到托盘').first().waitFor({ timeout: 5000 });

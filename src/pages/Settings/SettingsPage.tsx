@@ -1,4 +1,4 @@
-import { Database, Download, FileText, Folder, FolderOpen, FolderSearch, Palette, RefreshCw, RotateCcw, Save, Search, Tags, Trash2 } from 'lucide-react';
+import { Copy, Database, Download, FileText, Folder, FolderOpen, FolderSearch, Palette, RefreshCw, RotateCcw, Save, Search, Tags, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ConfigItem, ConfigSection } from '@/components/ui/config-item';
@@ -791,9 +791,14 @@ function DirectoryLocation({ detail, label, onReveal, path }: { detail: string; 
         </div>
         <div className="mt-1 break-all font-mono text-xs text-slate-300">{path}</div>
       </div>
-      <Button aria-label={`打开${label}`} className="h-8 w-8 self-start" size="icon" title={`打开${label}`} variant="ghost" onClick={onReveal}>
-        <FolderOpen className="h-4 w-4" />
-      </Button>
+      <div className="flex items-start gap-2">
+        <Button aria-label={`复制${label}`} className="h-8 w-8" size="icon" title={`复制${label}`} variant="ghost" onClick={() => void navigator.clipboard.writeText(path)}>
+          <Copy className="h-4 w-4" />
+        </Button>
+        <Button aria-label={`打开${label}`} className="h-8 w-8" size="icon" title={`打开${label}`} variant="ghost" onClick={onReveal}>
+          <FolderOpen className="h-4 w-4" />
+        </Button>
+      </div>
     </div>
   );
 }
