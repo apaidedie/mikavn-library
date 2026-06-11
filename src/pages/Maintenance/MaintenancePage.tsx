@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2, Combine, Database, FolderOpen, HardDrive, Image, ListChecks, PlayCircle, RefreshCw, ShieldCheck, Trash2, Wrench } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Combine, Copy, Database, FolderOpen, HardDrive, Image, ListChecks, PlayCircle, RefreshCw, ShieldCheck, Trash2, Wrench } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -271,13 +271,13 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
             actions={<Button disabled={cleanupLoading || !diagnostics?.databaseBackups.fileCount} size="sm" variant="ghost" onClick={cleanupDatabaseBackups}><Trash2 className="h-4 w-4" />{cleanupLoading ? '清理中' : '清理旧备份'}</Button>}
           />
           <PanelContent className="space-y-2">
-            <PathRow label="数据目录" value={diagnostics?.appDataDir ?? '等待自检'} onReveal={diagnostics ? () => void revealPath(diagnostics.appDataDir) : undefined} />
-            <PathRow label="数据库" value={database?.path ?? '等待自检'} onReveal={database ? () => void revealPath(database.path) : undefined} />
+            <PathRow label="数据目录" value={diagnostics?.appDataDir ?? '等待自检'} onCopy={diagnostics ? () => void copyPath('数据目录', diagnostics.appDataDir) : undefined} onReveal={diagnostics ? () => void revealPath(diagnostics.appDataDir) : undefined} />
+            <PathRow label="数据库" value={database?.path ?? '等待自检'} onCopy={database ? () => void copyPath('数据库', database.path) : undefined} onReveal={database ? () => void revealPath(database.path) : undefined} />
             <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
-              <StorageStat label="图片缓存" path={diagnostics?.images.path} size={diagnostics?.images.totalBytes ?? 0} count={diagnostics?.images.fileCount ?? 0} onReveal={diagnostics ? () => void revealPath(diagnostics.images.path) : undefined} />
-              <StorageStat label="日志" path={diagnostics?.logs.path} size={diagnostics?.logs.totalBytes ?? 0} count={diagnostics?.logs.fileCount ?? 0} onReveal={diagnostics ? () => void revealPath(diagnostics.logs.path) : undefined} />
-              <StorageStat label="存档备份" path={diagnostics?.saveBackups.path} size={diagnostics?.saveBackups.totalBytes ?? 0} count={diagnostics?.saveBackups.fileCount ?? 0} onReveal={diagnostics ? () => void revealPath(diagnostics.saveBackups.path) : undefined} />
-              <StorageStat label="数据库备份" path={diagnostics?.databaseBackups.rootPath} size={diagnostics?.databaseBackups.totalBytes ?? 0} count={diagnostics?.databaseBackups.fileCount ?? 0} onReveal={diagnostics ? () => void revealPath(diagnostics.databaseBackups.rootPath) : undefined} />
+              <StorageStat label="图片缓存" path={diagnostics?.images.path} size={diagnostics?.images.totalBytes ?? 0} count={diagnostics?.images.fileCount ?? 0} onCopy={diagnostics ? () => void copyPath('图片缓存', diagnostics.images.path) : undefined} onReveal={diagnostics ? () => void revealPath(diagnostics.images.path) : undefined} />
+              <StorageStat label="日志" path={diagnostics?.logs.path} size={diagnostics?.logs.totalBytes ?? 0} count={diagnostics?.logs.fileCount ?? 0} onCopy={diagnostics ? () => void copyPath('日志', diagnostics.logs.path) : undefined} onReveal={diagnostics ? () => void revealPath(diagnostics.logs.path) : undefined} />
+              <StorageStat label="存档备份" path={diagnostics?.saveBackups.path} size={diagnostics?.saveBackups.totalBytes ?? 0} count={diagnostics?.saveBackups.fileCount ?? 0} onCopy={diagnostics ? () => void copyPath('存档备份', diagnostics.saveBackups.path) : undefined} onReveal={diagnostics ? () => void revealPath(diagnostics.saveBackups.path) : undefined} />
+              <StorageStat label="数据库备份" path={diagnostics?.databaseBackups.rootPath} size={diagnostics?.databaseBackups.totalBytes ?? 0} count={diagnostics?.databaseBackups.fileCount ?? 0} onCopy={diagnostics ? () => void copyPath('数据库备份', diagnostics.databaseBackups.rootPath) : undefined} onReveal={diagnostics ? () => void revealPath(diagnostics.databaseBackups.rootPath) : undefined} />
             </div>
             <SoftRow className="grid gap-3 px-3 py-3 xl:grid-cols-[minmax(0,1fr)_auto]">
               <div className="min-w-0">
@@ -1199,19 +1199,29 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
       setError(errorMessage(reason));
     }
   }
+
+  async function copyPath(label: string, path: string) {
+    setError(null);
+    try {
+      await navigator.clipboard.writeText(path);
+      setMessage({ text: `已复制${label}路径。` });
+    } catch (reason) {
+      setError(errorMessage(reason));
+    }
+  }
 }
 
-function PathRow({ label, value, onReveal }: { label: string; value: string; onReveal?: () => void }) {
+function PathRow({ label, value, onCopy, onReveal }: { label: string; value: string; onCopy?: () => void; onReveal?: () => void }) {
   return (
     <SoftRow className="grid gap-2 px-3 py-2 lg:grid-cols-[5rem_minmax(0,1fr)_auto]">
       <div className="text-xs text-slate-500">{label}</div>
       <div className="min-w-0 break-all font-mono text-xs text-slate-300">{value}</div>
-      {onReveal ? <Button aria-label={`打开${label}`} size="icon" title={`打开${label}`} variant="ghost" onClick={onReveal}><FolderOpen className="h-4 w-4" /></Button> : <span />}
+      <PathActions label={label} onCopy={onCopy} onReveal={onReveal} />
     </SoftRow>
   );
 }
 
-function StorageStat({ label, count, size, path, onReveal }: { label: string; count: number; size: number; path?: string; onReveal?: () => void }) {
+function StorageStat({ label, count, size, path, onCopy, onReveal }: { label: string; count: number; size: number; path?: string; onCopy?: () => void; onReveal?: () => void }) {
   return (
     <SoftRow className="flex items-start justify-between gap-3 px-3 py-2">
       <div className="min-w-0">
@@ -1219,8 +1229,18 @@ function StorageStat({ label, count, size, path, onReveal }: { label: string; co
         <div className="mt-1 font-mono text-sm text-slate-200">{formatCount(count)} · {formatBytes(size)}</div>
         {path && <div className="mt-1 truncate font-mono text-[11px] text-slate-600" title={path}>{path}</div>}
       </div>
-      {onReveal && <Button aria-label={`打开${label}`} size="icon" title={`打开${label}`} variant="ghost" onClick={onReveal}><FolderOpen className="h-4 w-4" /></Button>}
+      <PathActions label={label} onCopy={onCopy} onReveal={onReveal} />
     </SoftRow>
+  );
+}
+
+function PathActions({ label, onCopy, onReveal }: { label: string; onCopy?: () => void; onReveal?: () => void }) {
+  if (!onCopy && !onReveal) return <span />;
+  return (
+    <div className="flex shrink-0 items-start gap-1">
+      {onCopy && <Button aria-label={`复制${label}`} size="icon" title={`复制${label}`} variant="ghost" onClick={onCopy}><Copy className="h-4 w-4" /></Button>}
+      {onReveal && <Button aria-label={`打开${label}`} size="icon" title={`打开${label}`} variant="ghost" onClick={onReveal}><FolderOpen className="h-4 w-4" /></Button>}
+    </div>
   );
 }
 

@@ -599,6 +599,11 @@ async function main() {
       ['maintenance-health-description-repair', 'maintenance', { games: [...games, descriptionRepairGame, fanzaDescriptionRepairGame], tasks: [descriptionImageRepairFailedTask, fanzaDescriptionImageRepairTask, ...tasks], taskLogs }, async (page) => {
         await page.getByText('维护中心').first().waitFor({ timeout: 5000 });
         await page.getByText('最近维护任务').first().waitFor({ timeout: 5000 });
+        await page.getByText('数据位置').first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: /复制数据目录/ }).first().click();
+        const copiedMaintenanceDataDir = await page.evaluate(() => navigator.clipboard.readText());
+        if (copiedMaintenanceDataDir !== 'E:\\MikaVN Library\\app-data') throw new Error('maintenance data directory copy did not write the expected path');
+        await page.getByText('已复制数据目录路径。').first().waitFor({ timeout: 5000 });
         const mediaSummaryPanel = page.locator('section').filter({ hasText: '媒体与简介' }).first();
         await mediaSummaryPanel.getByRole('button', { name: /在游戏库查看缺封面/ }).click();
         await page.getByText('媒体健康').first().waitFor({ timeout: 5000 });
