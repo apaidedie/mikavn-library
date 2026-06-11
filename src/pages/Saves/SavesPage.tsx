@@ -1,4 +1,4 @@
-import { Archive, Clock3, FolderOpen, FolderPlus, ListChecks, LocateFixed, RotateCcw, Save, ShieldCheck, Trash2 } from 'lucide-react';
+import { Archive, Clock3, Copy, FolderOpen, FolderPlus, ListChecks, LocateFixed, RotateCcw, Save, ShieldCheck, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -217,6 +217,17 @@ export function SavesPage({ refreshKey, onOpenTask }: { refreshKey: number; onOp
     }
   };
 
+  const copyPath = async (label: string, targetPath: string) => {
+    setMessage(null);
+    setError(null);
+    try {
+      await navigator.clipboard.writeText(targetPath);
+      setMessage({ text: `已复制${label}路径。` });
+    } catch (reason) {
+      setError(errorMessage(reason));
+    }
+  };
+
   return (
     <PageShell>
       <PageFrame>
@@ -299,6 +310,7 @@ export function SavesPage({ refreshKey, onOpenTask }: { refreshKey: number; onOp
                     <div className="mt-1 break-all font-mono text-xs text-slate-500">{item.path}</div>
                   </div>
                   <div className="flex gap-2">
+                    <Button aria-label={`复制${item.label}路径`} size="sm" variant="outline" onClick={() => void copyPath(item.label, item.path)}><Copy className="h-4 w-4" />复制</Button>
                     <Button size="sm" variant="outline" onClick={() => void reveal(item.path)}><FolderOpen className="h-4 w-4" />打开</Button>
                     <Button disabled={loading} size="sm" variant="secondary" onClick={() => createBackup(item.id)}><Save className="h-4 w-4" />备份</Button>
                     <Button aria-label="移除存档路径记录" disabled={loading} size="icon" title="移除存档路径记录" variant="ghost" onClick={() => void removePath(item)}><Trash2 className="h-4 w-4" /></Button>
@@ -330,6 +342,7 @@ export function SavesPage({ refreshKey, onOpenTask }: { refreshKey: number; onOp
                     <div className="mt-2 break-all font-mono text-xs text-slate-500">{backup.backupPath}</div>
                   </div>
                   <div className="flex flex-wrap justify-end gap-2">
+                    <Button aria-label={`复制${backup.label}路径`} size="sm" variant="outline" onClick={() => void copyPath(backup.label, backup.backupPath)}><Copy className="h-4 w-4" />复制</Button>
                     <Button size="sm" variant="outline" onClick={() => void reveal(backup.backupPath)}><FolderOpen className="h-4 w-4" />打开</Button>
                     <Button disabled={loading || restorePreviewLoadingKey === mergeKey} size="sm" variant="ghost" onClick={() => void loadRestorePreview(backup, 'merge')}><ListChecks className="h-4 w-4" />{restorePreviewLoadingKey === mergeKey ? '预览中' : '预览'}</Button>
                     <Button disabled={loading || restorePreviewLoadingKey === mirrorKey} size="sm" variant="ghost" onClick={() => void loadRestorePreview(backup, 'mirror')}><ListChecks className="h-4 w-4" />{restorePreviewLoadingKey === mirrorKey ? '预览中' : '镜像预览'}</Button>
