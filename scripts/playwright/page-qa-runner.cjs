@@ -331,6 +331,13 @@ async function main() {
         const copiedLaunchProfilePath = await page.evaluate(() => navigator.clipboard.readText());
         if (copiedLaunchProfilePath !== 'D:\\Games\\VN\\星之终途\\stella.exe') throw new Error('launch profile path copy did not write the expected executable path');
         await page.getByText('已复制默认启动路径。').first().waitFor({ timeout: 5000 });
+        const launchConfigPanel = page.locator('section').filter({ hasText: '启动配置' }).first();
+        await launchConfigPanel.getByRole('button', { name: /新增启动配置/ }).click();
+        const launchProfileForm = launchConfigPanel.locator('.rounded-lg').filter({ hasText: '保存配置' }).first();
+        await launchProfileForm.getByRole('button', { name: /复制启动程序/ }).click();
+        const copiedLaunchFormPath = await page.evaluate(() => navigator.clipboard.readText());
+        if (copiedLaunchFormPath !== 'D:\\Games\\VN\\星之终途\\stella.exe') throw new Error('launch profile form path copy did not write the expected executable path');
+        await page.getByText('已复制启动程序路径。').first().waitFor({ timeout: 5000 });
         await page.getByText('本地路径').first().waitFor({ timeout: 5000 });
         await page.getByRole('button', { name: /复制安装目录/ }).first().click();
         const copiedInstallPath = await page.evaluate(() => navigator.clipboard.readText());
