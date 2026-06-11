@@ -1,4 +1,4 @@
-import { AlertTriangle, CalendarDays, CheckCircle2, Clock3, Download, Edit3, ExternalLink, FolderOpen, FolderSync, ImagePlus, Layers3, ListTodo, NotebookText, Play, Plus, RefreshCw, Save, Star, Trash2, Wrench, X } from 'lucide-react';
+import { AlertTriangle, CalendarDays, CheckCircle2, Clock3, Copy, Download, Edit3, ExternalLink, FolderOpen, FolderSync, ImagePlus, Layers3, ListTodo, NotebookText, Play, Plus, RefreshCw, Save, Star, Trash2, Wrench, X } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -148,6 +148,17 @@ export function GameDetail({ game, onEdit, onDeleted, onChanged, onOpenMaintenan
     setMessage(null);
     try {
       await api.revealPath(path);
+    } catch (reason) {
+      setMessage({ text: errorMessage(reason) });
+    }
+  };
+
+  const copyPath = async (label: string, path?: string | null) => {
+    if (!path) return;
+    setMessage(null);
+    try {
+      await navigator.clipboard.writeText(path);
+      setMessage({ text: `已复制${label}路径。` });
     } catch (reason) {
       setMessage({ text: errorMessage(reason) });
     }
@@ -341,9 +352,9 @@ export function GameDetail({ game, onEdit, onDeleted, onChanged, onOpenMaintenan
               </div>
             )}
             <dl className="space-y-2 text-sm">
-              <PathRow label="安装目录" value={game.installPath} onReveal={() => void reveal(game.installPath)} />
-              <PathRow label="启动程序" value={game.executablePath || '未选择'} onReveal={game.executablePath ? () => void reveal(game.executablePath) : undefined} />
-              <PathRow label="工作目录" value={game.workingDirectory || '默认安装目录'} onReveal={game.workingDirectory ? () => void reveal(game.workingDirectory) : undefined} />
+              <PathRow label="安装目录" value={game.installPath} onCopy={() => void copyPath('安装目录', game.installPath)} onReveal={() => void reveal(game.installPath)} />
+              <PathRow label="启动程序" value={game.executablePath || '未选择'} onCopy={game.executablePath ? () => void copyPath('启动程序', game.executablePath) : undefined} onReveal={game.executablePath ? () => void reveal(game.executablePath) : undefined} />
+              <PathRow label="工作目录" value={game.workingDirectory || '默认安装目录'} onCopy={game.workingDirectory ? () => void copyPath('工作目录', game.workingDirectory) : undefined} onReveal={game.workingDirectory ? () => void reveal(game.workingDirectory) : undefined} />
               <PathRow label="启动参数" value={game.launchArgs || '无'} />
             </dl>
           </Section>
@@ -1134,12 +1145,15 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-function PathRow({ label, value, onReveal }: { label: string; value: string; onReveal?: () => void }) {
+function PathRow({ label, value, onCopy, onReveal }: { label: string; value: string; onCopy?: () => void; onReveal?: () => void }) {
   return (
     <SoftRow className="grid gap-2 px-3 py-2 lg:grid-cols-[5rem_1fr_auto]">
       <dt className="text-slate-500">{label}</dt>
       <dd className="break-all font-mono text-xs text-slate-300">{value}</dd>
-      {onReveal ? <Button size="sm" variant="ghost" onClick={onReveal}>打开</Button> : <span />}
+      <div className="flex shrink-0 justify-end gap-1">
+        {onCopy && <Button aria-label={`复制${label}`} size="sm" variant="ghost" onClick={onCopy}><Copy className="h-4 w-4" />复制</Button>}
+        {onReveal && <Button aria-label={`打开${label}`} size="sm" variant="ghost" onClick={onReveal}>打开</Button>}
+      </div>
     </SoftRow>
   );
 }
