@@ -20,6 +20,7 @@ import { SettingFlag } from './SettingFlag';
 import type { SettingsForm } from './settingsTypes';
 
 type TaskMessage = { text: string; taskId?: string | null };
+type DirectoryLocationItem = { detail: string; label: string; path: string };
 
 const defaults: SettingsForm = {
   provider_vndb_enabled: true,
@@ -126,6 +127,8 @@ export function SettingsPage({ onAccentPreview, onThemePreview, onSaved, onOpenT
     }
   };
 
+  const directoryLocations = diagnostics ? getDirectoryLocations(diagnostics) : [];
+
   return (
     <PageShell>
       <PageFrame className="max-w-[76rem] gap-6">
@@ -202,14 +205,15 @@ export function SettingsPage({ onAccentPreview, onThemePreview, onSaved, onOpenT
                     <div className="max-w-[42rem] break-all text-right font-mono text-xs text-slate-300">{diagnostics.appDataDir}</div>
                   </ConfigItem>
                   <ConfigItem title="目录位置速览" description="所有应用数据、图片、缓存、日志和备份目录都集中在这里，方便后期查找。" className="sm:items-start">
-                    <div className="grid w-[min(48rem,calc(100vw-3rem))] gap-2 text-left text-xs lg:grid-cols-2">
-                      <DirectoryLocation label="数据根目录" path={diagnostics.appDataDir} detail={dataDirSourceLabel(diagnostics.dataDirSource)} onCopy={() => void copyDirectoryPath('数据根目录', diagnostics.appDataDir)} onReveal={() => void revealPath('数据根目录', diagnostics.appDataDir)} />
-                      <DirectoryLocation label="数据库" path={diagnostics.database.path} detail={formatBytes(diagnostics.database.sizeBytes)} onCopy={() => void copyDirectoryPath('数据库', diagnostics.database.path)} onReveal={() => void revealPath('数据库', diagnostics.database.path)} />
-                      <DirectoryLocation label="图片目录" path={diagnostics.images.path} detail={directoryDetail(diagnostics.images.fileCount, diagnostics.images.totalBytes)} onCopy={() => void copyDirectoryPath('图片目录', diagnostics.images.path)} onReveal={() => void revealPath('图片目录', diagnostics.images.path)} />
-                      <DirectoryLocation label="缓存目录" path={diagnostics.cache.path} detail={directoryDetail(diagnostics.cache.fileCount, diagnostics.cache.totalBytes)} onCopy={() => void copyDirectoryPath('缓存目录', diagnostics.cache.path)} onReveal={() => void revealPath('缓存目录', diagnostics.cache.path)} />
-                      <DirectoryLocation label="存档备份" path={diagnostics.saveBackups.path} detail={directoryDetail(diagnostics.saveBackups.fileCount, diagnostics.saveBackups.totalBytes)} onCopy={() => void copyDirectoryPath('存档备份', diagnostics.saveBackups.path)} onReveal={() => void revealPath('存档备份', diagnostics.saveBackups.path)} />
-                      <DirectoryLocation label="日志目录" path={diagnostics.logs.path} detail={directoryDetail(diagnostics.logs.fileCount, diagnostics.logs.totalBytes)} onCopy={() => void copyDirectoryPath('日志目录', diagnostics.logs.path)} onReveal={() => void revealPath('日志目录', diagnostics.logs.path)} />
-                      <DirectoryLocation label="数据库备份" path={diagnostics.databaseBackups.rootPath} detail={directoryDetail(diagnostics.databaseBackups.fileCount, diagnostics.databaseBackups.totalBytes)} onCopy={() => void copyDirectoryPath('数据库备份', diagnostics.databaseBackups.rootPath)} onReveal={() => void revealPath('数据库备份', diagnostics.databaseBackups.rootPath)} />
+                    <div className="grid w-[min(48rem,calc(100vw-3rem))] gap-3">
+                      <div className="flex justify-end">
+                        <Button size="sm" variant="outline" onClick={() => void copyAllDirectoryPaths(directoryLocations)}><Copy className="h-4 w-4" />复制全部目录路径</Button>
+                      </div>
+                      <div className="grid gap-2 text-left text-xs lg:grid-cols-2">
+                        {directoryLocations.map((item) => (
+                          <DirectoryLocation key={item.label} label={item.label} path={item.path} detail={item.detail} onCopy={() => void copyDirectoryPath(item.label, item.path)} onReveal={() => void revealPath(item.label, item.path)} />
+                        ))}
+                      </div>
                     </div>
                   </ConfigItem>
                   <ConfigItem title="数据库健康" description={diagnostics.database.path}>
@@ -456,6 +460,16 @@ export function SettingsPage({ onAccentPreview, onThemePreview, onSaved, onOpenT
     try {
       await navigator.clipboard.writeText(path);
       setMessage({ text: `已复制${label}路径。` });
+    } catch (reason) {
+      setError(errorMessage(reason));
+    }
+  }
+
+  async function copyAllDirectoryPaths(items: DirectoryLocationItem[]) {
+    setError(null);
+    try {
+      await navigator.clipboard.writeText(items.map((item) => `${item.label}\t${item.path}`).join('\n'));
+      setMessage({ text: `已复制 ${items.length} 个目录路径。` });
     } catch (reason) {
       setError(errorMessage(reason));
     }
@@ -790,6 +804,18 @@ function Stat({ label, value, tone = 'neutral' }: { label: string; value: string
       <div className={`mt-1 truncate font-mono ${toneClass}`} title={value}>{value}</div>
     </div>
   );
+}
+
+function getDirectoryLocations(diagnostics: AppDataDiagnostics): DirectoryLocationItem[] {
+  return [
+    { label: '数据根目录', path: diagnostics.appDataDir, detail: dataDirSourceLabel(diagnostics.dataDirSource) },
+    { label: '数据库', path: diagnostics.database.path, detail: formatBytes(diagnostics.database.sizeBytes) },
+    { label: '图片目录', path: diagnostics.images.path, detail: directoryDetail(diagnostics.images.fileCount, diagnostics.images.totalBytes) },
+    { label: '缓存目录', path: diagnostics.cache.path, detail: directoryDetail(diagnostics.cache.fileCount, diagnostics.cache.totalBytes) },
+    { label: '存档备份', path: diagnostics.saveBackups.path, detail: directoryDetail(diagnostics.saveBackups.fileCount, diagnostics.saveBackups.totalBytes) },
+    { label: '日志目录', path: diagnostics.logs.path, detail: directoryDetail(diagnostics.logs.fileCount, diagnostics.logs.totalBytes) },
+    { label: '数据库备份', path: diagnostics.databaseBackups.rootPath, detail: directoryDetail(diagnostics.databaseBackups.fileCount, diagnostics.databaseBackups.totalBytes) },
+  ];
 }
 
 function DirectoryLocation({ detail, label, onCopy, onReveal, path }: { detail: string; label: string; onCopy: () => void; onReveal: () => void; path: string }) {

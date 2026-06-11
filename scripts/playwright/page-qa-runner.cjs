@@ -845,6 +845,12 @@ async function main() {
         await page.getByText('已复制数据根目录路径。').first().waitFor({ timeout: 5000 });
         await page.getByRole('button', { name: /打开数据根目录/ }).first().click();
         await page.getByText('已打开数据根目录。').first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: /复制全部目录路径/ }).first().click();
+        const copiedDirectorySummary = await page.evaluate(() => navigator.clipboard.readText());
+        if (!copiedDirectorySummary.includes('数据根目录\tE:\\MikaVN Library\\app-data')) throw new Error('directory summary copy is missing the app data path');
+        if (!copiedDirectorySummary.includes('图片目录\tE:\\MikaVN Library\\app-data\\images')) throw new Error('directory summary copy is missing the image directory path');
+        if (!copiedDirectorySummary.includes('数据库备份\tE:\\MikaVN Library\\app-data')) throw new Error('directory summary copy is missing the database backup directory path');
+        await page.getByText('已复制 7 个目录路径。').first().waitFor({ timeout: 5000 });
         await page.getByText('后台与托盘').first().waitFor({ timeout: 5000 });
         await page.getByText('托盘图标已启用').first().waitFor({ timeout: 5000 });
         await page.getByText('关闭主窗口时隐藏到托盘').first().waitFor({ timeout: 5000 });
