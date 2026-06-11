@@ -868,9 +868,11 @@ async function main() {
         const trayFlag = page.locator('section').filter({ hasText: '后台与托盘' }).first().locator('label').filter({ hasText: '启用' }).first().getByRole('checkbox');
         if (await trayFlag.isChecked()) throw new Error('tray toggle should reflect disabled settings');
         await trayFlag.check();
+        await page.getByText('托盘设置有未保存改动，保存后立即应用。').first().waitFor({ timeout: 5000 });
         await page.getByRole('button', { name: /保存设置/ }).click();
         await page.getByText('托盘图标已启用').first().waitFor({ timeout: 5000 });
         await page.getByText('关闭主窗口时隐藏到托盘').first().waitFor({ timeout: 5000 });
+        if (await page.getByText('托盘设置有未保存改动，保存后立即应用。').count() > 0) throw new Error('tray pending hint should clear after saving settings');
         const savedSettings = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.settings') || '{}'));
         if (savedSettings.tray_enabled !== 'true') throw new Error('tray toggle did not persist enabled state');
       }],

@@ -49,6 +49,7 @@ export function SettingsPage({ onAccentPreview, onThemePreview, onSaved, onOpenT
   const [metadataSources, setMetadataSources] = useState<MetadataSourceRecord[]>([]);
   const [diagnostics, setDiagnostics] = useState<AppDataDiagnostics | null>(null);
   const [trayStatus, setTrayStatus] = useState<TrayStatus | null>(null);
+  const [savedTrayEnabled, setSavedTrayEnabled] = useState(defaults.tray_enabled);
   const [diagnosticsLoading, setDiagnosticsLoading] = useState(false);
   const [cleanupLoading, setCleanupLoading] = useState(false);
   const [libraryRoots, setLibraryRoots] = useState<LibraryRoot[]>([]);
@@ -63,6 +64,7 @@ export function SettingsPage({ onAccentPreview, onThemePreview, onSaved, onOpenT
 
   useEffect(() => {
     api.getAppSettings().then((settings) => {
+      const trayEnabled = settings.tray_enabled !== 'false';
       setForm({
         provider_vndb_enabled: settings.provider_vndb_enabled !== 'false',
         provider_dlsite_enabled: settings.provider_dlsite_enabled !== 'false',
@@ -77,8 +79,9 @@ export function SettingsPage({ onAccentPreview, onThemePreview, onSaved, onOpenT
         privacy_filter_reports: settings.privacy_filter_reports !== 'false',
         save_auto_backup_before_launch: settings.save_auto_backup_before_launch === 'true',
         save_auto_backup_after_exit: settings.save_auto_backup_after_exit === 'true',
-        tray_enabled: settings.tray_enabled !== 'false',
+        tray_enabled: trayEnabled,
       });
+      setSavedTrayEnabled(trayEnabled);
       onAccentPreview?.(settings.ui_accent_color ?? 'vnite');
       onThemePreview?.(settings.ui_theme_mode ?? 'dark');
     }).catch((reason: unknown) => setError(errorMessage(reason)));
@@ -115,6 +118,7 @@ export function SettingsPage({ onAccentPreview, onThemePreview, onSaved, onOpenT
         tray_enabled: String(form.tray_enabled),
       });
       await loadTrayStatus();
+      setSavedTrayEnabled(form.tray_enabled);
       setMessage({ text: form.ai_api_key.trim() ? '设置已保存到本机。API Key 属于本机私有配置，请勿共享数据库或配置文件。' : '设置已保存到本机。' });
       onSaved?.();
     } catch (reason) {
@@ -291,6 +295,7 @@ export function SettingsPage({ onAccentPreview, onThemePreview, onSaved, onOpenT
               <ConfigItem title="托盘图标" description="关闭主窗口后应用仍可留在系统托盘，方便长时间任务继续运行。">
                 <div className="flex flex-col items-end gap-3">
                   <SettingFlag checked={form.tray_enabled} label="启用" onChange={(value) => setForm((current) => ({ ...current, tray_enabled: value }))} />
+                  <div className="text-right text-xs text-slate-500">{form.tray_enabled === savedTrayEnabled ? '当前托盘状态与已保存设置一致。' : '托盘设置有未保存改动，保存后立即应用。'}</div>
                   {trayStatus ? <TrayStatusPanel status={trayStatus} /> : <div className="text-xs text-slate-500">正在读取托盘状态。</div>}
                 </div>
               </ConfigItem>
