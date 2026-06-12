@@ -950,6 +950,13 @@ async function main() {
         if (!copiedDirectorySummary.includes('图片目录\tE:\\MikaVN Library\\app-data\\images')) throw new Error('directory summary copy is missing the image directory path');
         if (!copiedDirectorySummary.includes('数据库备份\tE:\\MikaVN Library\\app-data')) throw new Error('directory summary copy is missing the database backup directory path');
         await page.getByText('已复制 7 个目录路径。').first().waitFor({ timeout: 5000 });
+        const diagnosticLogRow = page.locator('.rounded-lg').filter({ hasText: 'mock-1.log' }).filter({ hasText: 'localStorage://task/qa-task-failed' }).first();
+        await diagnosticLogRow.getByRole('button', { name: /复制诊断日志 mock-1\.log/ }).click();
+        const copiedDiagnosticLogPath = await page.evaluate(() => navigator.clipboard.readText());
+        if (copiedDiagnosticLogPath !== 'localStorage://task/qa-task-failed') throw new Error('diagnostic log copy did not write the expected path');
+        await page.getByText('已复制诊断日志路径。').first().waitFor({ timeout: 5000 });
+        await diagnosticLogRow.getByRole('button', { name: /打开诊断日志 mock-1\.log/ }).click();
+        await page.getByText('已打开诊断日志。').first().waitFor({ timeout: 5000 });
         await page.getByText('后台与托盘').first().waitFor({ timeout: 5000 });
         await page.getByText('托盘图标已启用').first().waitFor({ timeout: 5000 });
         await page.getByText('关闭主窗口时隐藏到托盘').first().waitFor({ timeout: 5000 });

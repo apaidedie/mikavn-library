@@ -329,6 +329,13 @@ export function SettingsPage({ onAccentPreview, onThemePreview, onSaved, onOpenT
                         <span className="font-mono text-slate-300">{log.fileName}</span>
                         <span className="text-slate-500">{Math.ceil(log.sizeBytes / 1024)} KB</span>
                       </div>
+                      <div className="mt-2 flex flex-wrap items-start justify-between gap-2 rounded-md border border-white/10 bg-black/[0.10] px-2 py-1.5">
+                        <div className="min-w-0 break-all font-mono text-[11px] text-slate-500">{log.path}</div>
+                        <div className="flex shrink-0 gap-1">
+                          <Button aria-label={`复制诊断日志 ${log.fileName}`} className="h-7 px-2" size="sm" variant="ghost" onClick={() => void copyDirectoryPath('诊断日志', log.path)}><Copy className="h-4 w-4" />复制</Button>
+                          <Button aria-label={`打开诊断日志 ${log.fileName}`} className="h-7 px-2" size="sm" variant="ghost" onClick={() => void revealPath('诊断日志', log.path)}><FolderOpen className="h-4 w-4" />打开</Button>
+                        </div>
+                      </div>
                       {log.preview.slice(-2).map((line) => <div className="mt-1 break-all font-mono text-[11px] text-slate-500" key={line}>{line}</div>)}
                     </div>
                   ))}
