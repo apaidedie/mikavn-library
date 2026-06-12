@@ -354,6 +354,12 @@ async function main() {
         if (copiedEditCoverPath !== downloadedCoverUrl) throw new Error('game form cover path copy did not write the expected path');
         await editGameDialog.getByText('已复制封面路径。').first().waitFor({ timeout: 5000 });
         await editGameDialog.getByRole('button', { name: /^取消$/ }).click();
+        await page.getByRole('tab', { name: /元数据/ }).click();
+        await page.getByPlaceholder('本地图片路径，用于 AI 识别标题').fill('D:\\Games\\VN\\星之终途\\cover.png');
+        await page.getByRole('button', { name: /复制识图图片路径/ }).click();
+        const copiedMetadataImagePath = await page.evaluate(() => navigator.clipboard.readText());
+        if (copiedMetadataImagePath !== 'D:\\Games\\VN\\星之终途\\cover.png') throw new Error('metadata image path copy did not write the expected path');
+        await page.getByText('已复制识图图片路径。').first().waitFor({ timeout: 5000 });
         await page.getByRole('tab', { name: /概览/ }).click();
         await page.getByText('媒体图库').first().waitFor({ timeout: 5000 });
         await page.locator('button[aria-label="设为主图"]:not([disabled])').first().click();

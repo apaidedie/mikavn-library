@@ -1,4 +1,4 @@
-import { Check, Image, Lock, LockOpen, Search, Sparkles } from 'lucide-react';
+import { Check, Copy, Image, Lock, LockOpen, Search, Sparkles } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -126,6 +126,18 @@ export function MetadataPanel({ game, onApplied }: MetadataPanelProps) {
     }
   };
 
+  const copyImagePath = async () => {
+    const clean = imagePath.trim();
+    if (!clean) return;
+    setErrors([]);
+    try {
+      await navigator.clipboard.writeText(clean);
+      setMessage('已复制识图图片路径。');
+    } catch (reason) {
+      setErrors([errorMessage(reason)]);
+    }
+  };
+
   const toggleProvider = (provider: MetadataProvider) => {
     setEnabledProviders((current) => current.includes(provider) ? current.filter((item) => item !== provider) : [...current, provider]);
   };
@@ -165,6 +177,7 @@ export function MetadataPanel({ game, onApplied }: MetadataPanelProps) {
 
       <SoftRow className="flex gap-2 p-2">
         <Input value={imagePath} onChange={(event) => setImagePath(event.target.value)} placeholder="本地图片路径，用于 AI 识别标题" />
+        <Button aria-label="复制识图图片路径" disabled={!imagePath.trim()} variant="outline" onClick={() => void copyImagePath()}><Copy className="h-4 w-4" />复制</Button>
         <Button disabled={loading} variant="outline" onClick={pickImage}><Image className="h-4 w-4" />选择</Button>
         <Button disabled={loading || !imagePath.trim()} variant="secondary" onClick={recognize}><Image className="h-4 w-4" />识图</Button>
       </SoftRow>
