@@ -286,6 +286,7 @@ export function SavesPage({ refreshKey, onOpenTask }: { refreshKey: number; onOp
                         <div className="mt-1 break-all font-mono text-xs text-slate-400">{candidate.path}</div>
                       </div>
                       <div className="flex shrink-0 gap-2">
+                        <Button aria-label="复制候选存档目录" size="sm" variant="outline" onClick={() => void copyPath('候选存档目录', candidate.path)}><Copy className="h-4 w-4" />复制</Button>
                         <Button size="sm" variant="ghost" onClick={() => void useCandidate(candidate, 'fill')}>填入</Button>
                         <Button disabled={candidate.alreadyAdded || loading} size="sm" variant="secondary" onClick={() => void useCandidate(candidate, 'add')}>添加</Button>
                       </div>

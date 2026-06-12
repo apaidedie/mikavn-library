@@ -606,6 +606,13 @@ async function main() {
         await page.getByText('存档管理').first().waitFor({ timeout: 5000 });
         await page.locator('select').first().selectOption('qa-1');
         await page.getByText('默认存档').first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: /查找候选/ }).click();
+        await page.getByText(/发现 3 个候选存档目录/).first().waitFor({ timeout: 5000 });
+        const saveCandidateRow = page.locator('.rounded-md').filter({ hasText: 'D:\\Games\\VN\\星之终途\\save' }).first();
+        await saveCandidateRow.getByRole('button', { name: /复制候选存档目录/ }).click();
+        const copiedCandidateSavePath = await page.evaluate(() => navigator.clipboard.readText());
+        if (copiedCandidateSavePath !== 'D:\\Games\\VN\\星之终途\\save') throw new Error('save candidate path copy did not write the expected path');
+        await page.getByText('已复制候选存档目录路径。').first().waitFor({ timeout: 5000 });
         await page.getByRole('button', { name: /复制默认存档路径/ }).first().click();
         const copiedSavePath = await page.evaluate(() => navigator.clipboard.readText());
         if (copiedSavePath !== 'D:\\Games\\VN\\星之终途\\save') throw new Error('save path copy did not write the expected path');
