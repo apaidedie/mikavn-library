@@ -926,6 +926,11 @@ async function main() {
         await page.getByText('E:\\MikaVN Library\\app-data\\save-backups').first().waitFor({ timeout: 5000 });
         await page.getByText('E:\\MikaVN Library\\app-data\\logs').first().waitFor({ timeout: 5000 });
         await page.getByText('E:\\MikaVN Library\\app-data').first().waitFor({ timeout: 5000 });
+        const databaseLocationRow = page.locator('.motion-soft-row').filter({ hasText: '数据库位置' }).filter({ hasText: 'E:\\MikaVN Library\\app-data\\mikavn.db' }).first();
+        await databaseLocationRow.getByRole('button', { name: /复制数据库位置/ }).click();
+        const copiedDatabaseLocation = await page.evaluate(() => navigator.clipboard.readText());
+        if (copiedDatabaseLocation !== 'E:\\MikaVN Library\\app-data\\mikavn.db') throw new Error('database location copy did not write the expected path');
+        await page.getByText('已复制数据库位置路径。').first().waitFor({ timeout: 5000 });
         await page.getByRole('button', { name: /复制数据根目录/ }).first().click();
         const copiedDataDir = await page.evaluate(() => navigator.clipboard.readText());
         if (copiedDataDir !== 'E:\\MikaVN Library\\app-data') throw new Error('directory copy did not write the expected app data path');

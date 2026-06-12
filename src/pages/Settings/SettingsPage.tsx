@@ -128,6 +128,7 @@ export function SettingsPage({ onAccentPreview, onThemePreview, onSaved, onOpenT
   };
 
   const directoryLocations = diagnostics ? getDirectoryLocations(diagnostics) : [];
+  const databasePath = diagnostics?.database.path ?? '';
 
   return (
     <PageShell>
@@ -252,7 +253,10 @@ export function SettingsPage({ onAccentPreview, onThemePreview, onSaved, onOpenT
                 </ConfigItem>
               )}
               <ConfigItem title="数据库位置" description="应用数据目录 / mikavn.db">
-                <div className="max-w-[42rem] break-all text-right font-mono text-xs text-slate-400">{diagnostics?.database.path ?? '等待自检刷新'}</div>
+                <div className="flex max-w-[42rem] flex-wrap items-center justify-end gap-2">
+                  <div className="min-w-0 break-all text-right font-mono text-xs text-slate-400">{databasePath || '等待自检刷新'}</div>
+                  <Button aria-label="复制数据库位置" disabled={!databasePath} size="sm" variant="ghost" onClick={() => void copyDirectoryPath('数据库位置', databasePath)}><Copy className="h-4 w-4" />复制</Button>
+                </div>
               </ConfigItem>
               <ConfigItem title="手动备份数据库" description="生成 SQLite 一致性备份，备份文件可由你选择保存位置。">
                 <Button variant="secondary" onClick={backupDatabase}><Download className="h-4 w-4" />备份</Button>
