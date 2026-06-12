@@ -164,6 +164,7 @@ export function SettingsPage({ onAccentPreview, onThemePreview, onSaved, onOpenT
               <ConfigItem title="添加本地库目录" description="登记常用游戏根目录。扫描仍会先进入候选复核，不会直接写库。">
                 <div className="flex flex-wrap items-center justify-end gap-2">
                   <Input className="w-72" value={libraryRootPath} onChange={(event) => setLibraryRootPath(event.target.value)} placeholder="D:\\Games\\VisualNovel" />
+                  <Button aria-label="复制待添加库目录" disabled={!libraryRootPath.trim()} variant="ghost" onClick={() => void copyDirectoryPath('待添加库目录', libraryRootPath.trim())}><Copy className="h-4 w-4" />复制</Button>
                   <Button variant="outline" onClick={pickLibraryRoot}><Folder className="h-4 w-4" />选择</Button>
                   <Button variant="secondary" onClick={addLibraryRoot}>添加</Button>
                 </div>
@@ -261,6 +262,7 @@ export function SettingsPage({ onAccentPreview, onThemePreview, onSaved, onOpenT
               <ConfigItem title="库归档位置" description="导出会在此目录下新建归档文件夹或 ZIP 文件；预览/导入可填写归档文件夹或 .zip 文件。">
                 <div className="flex flex-wrap items-center justify-end gap-2">
                   <Input className="w-72" value={archiveDir} onChange={(event) => setArchiveDir(event.target.value)} placeholder="D:\\MikaVN-Archives" />
+                  <Button aria-label="复制库归档位置" disabled={!archiveDir.trim()} variant="ghost" onClick={() => void copyDirectoryPath('库归档位置', archiveDir.trim())}><Copy className="h-4 w-4" />复制</Button>
                   <Button variant="outline" onClick={pickArchiveDir}>选择</Button>
                   <Button variant="ghost" onClick={pickArchivePath}>选择 ZIP</Button>
                 </div>
