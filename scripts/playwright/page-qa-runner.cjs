@@ -892,6 +892,11 @@ async function main() {
         const copiedArchiveDir = await page.evaluate(() => navigator.clipboard.readText());
         if (copiedArchiveDir !== 'D:\\MikaVN-Archives') throw new Error('archive location copy did not write the expected path');
         await page.getByText('已复制库归档位置路径。').first().waitFor({ timeout: 5000 });
+        const registeredLibraryRoot = page.locator('.rounded-lg').filter({ hasText: 'D:\\Games\\VN' }).first();
+        await registeredLibraryRoot.getByRole('button', { name: /复制已登记库目录/ }).click();
+        const copiedRegisteredLibraryRoot = await page.evaluate(() => navigator.clipboard.readText());
+        if (copiedRegisteredLibraryRoot !== 'D:\\Games\\VN') throw new Error('registered library root copy did not write the expected path');
+        await page.getByText('已复制已登记库目录路径。').first().waitFor({ timeout: 5000 });
         await page.getByText('目录位置速览').first().waitFor({ timeout: 5000 });
         const dataDirLocation = page.locator('section').filter({ hasText: '目录位置速览' }).first().locator('text=数据根目录').first().locator('..');
         await page.getByText('E:\\MikaVN Library\\app-data\\images').first().waitFor({ timeout: 5000 });

@@ -183,6 +183,7 @@ export function SettingsPage({ onAccentPreview, onThemePreview, onSaved, onOpenT
                         <div className="flex shrink-0 flex-wrap justify-end gap-2">
                           <SettingFlag checked={root.enabled} label="启用" onChange={(value) => void updateLibraryRoot(root, { enabled: value })} />
                           <SettingFlag checked={root.recursive} label="递归" onChange={(value) => void updateLibraryRoot(root, { recursive: value })} />
+                          <Button aria-label="复制已登记库目录" disabled={rootActionId === root.id} size="sm" variant="ghost" onClick={() => void copyDirectoryPath('已登记库目录', root.path)}><Copy className="h-4 w-4" />复制</Button>
                           <Button disabled={!root.enabled || rootActionId === root.id} size="sm" variant="secondary" onClick={() => void scanLibraryRoot(root)}><FolderSearch className="h-4 w-4" />扫描</Button>
                           <Button disabled={rootActionId === root.id} size="sm" variant="ghost" onClick={() => void removeLibraryRoot(root)}><Trash2 className="h-4 w-4" />移除</Button>
                         </div>
