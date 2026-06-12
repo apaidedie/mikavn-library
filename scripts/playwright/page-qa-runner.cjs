@@ -983,6 +983,10 @@ async function main() {
 
     await runCase(browser, 'scanner-conflict-review', 'scanner', {}, async (page) => {
       await page.getByPlaceholder(/例如/).fill('D:\\Games\\VN');
+      await page.getByRole('button', { name: /复制扫描目录/ }).click();
+      const copiedScannerPath = await page.evaluate(() => navigator.clipboard.readText());
+      if (copiedScannerPath !== 'D:\\Games\\VN') throw new Error('scanner path copy did not write the expected path');
+      await page.getByText('已复制扫描目录路径。').first().waitFor({ timeout: 5000 });
       await page.getByRole('button', { name: /开始扫描/ }).click();
       await page.getByText(/冲突/).first().waitFor({ timeout: 5000 });
       const mergeRow = page.locator('label').filter({ hasText: '星之终途' }).first();

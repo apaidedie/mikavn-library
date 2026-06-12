@@ -1,4 +1,4 @@
-import { CheckCircle2, DatabaseZap, FolderPlus, PlayCircle, Search, XCircle } from 'lucide-react';
+import { CheckCircle2, Copy, DatabaseZap, FolderPlus, PlayCircle, Search, XCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -175,6 +175,18 @@ export function ScannerPage({ onOpenTask }: { onOpenTask?: (taskId: string) => v
     }
   };
 
+  const copyScanPath = async () => {
+    const clean = path.trim();
+    if (!clean) return;
+    setError(null);
+    try {
+      await navigator.clipboard.writeText(clean);
+      setMessage({ text: '已复制扫描目录路径。' });
+    } catch (reason) {
+      setError(errorMessage(reason));
+    }
+  };
+
   return (
     <PageShell>
       <PageFrame>
@@ -197,6 +209,7 @@ export function ScannerPage({ onOpenTask }: { onOpenTask?: (taskId: string) => v
                     <Input placeholder="例如 D:\\Games\\VisualNovel" value={path} onChange={(event) => setPath(event.target.value)} />
                   </label>
                   <div className="flex items-end gap-2">
+                    <Button disabled={!path.trim()} variant="ghost" onClick={() => void copyScanPath()}><Copy className="h-4 w-4" />复制扫描目录</Button>
                     <Button variant="secondary" onClick={pickDirectory}><FolderPlus className="h-4 w-4" />选择目录</Button>
                     <Button disabled={!path.trim() || loading || scanning} onClick={scan}><Search className="h-4 w-4" />开始扫描</Button>
                     {scanning && <Button variant="outline" onClick={cancelScan}><XCircle className="h-4 w-4" />取消</Button>}
