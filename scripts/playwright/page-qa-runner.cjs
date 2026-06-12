@@ -373,7 +373,13 @@ async function main() {
         const copiedEditDlsiteId = await page.evaluate(() => navigator.clipboard.readText());
         if (copiedEditDlsiteId !== 'RJ01000000') throw new Error('game form DLsite ID copy did not write the expected ID');
         await editGameDialog.getByText('已复制DLsite ID。').first().waitFor({ timeout: 5000 });
-        await editGameDialog.getByRole('button', { name: /^取消$/ }).click();
+        await editGameDialog.getByRole('textbox', { name: /Bangumi ID/ }).fill('12345');
+        await editGameDialog.getByRole('textbox', { name: /YMGal ID/ }).fill('ym123');
+        await editGameDialog.getByRole('button', { name: /^保存$/ }).click();
+        await editGameDialog.waitFor({ state: 'hidden', timeout: 5000 });
+        const externalIdGames = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.games') || '[]'));
+        const externalIdGame = externalIdGames.find((item) => item.id === 'qa-1');
+        if (externalIdGame?.bangumiId !== '12345' || externalIdGame?.ymgalId !== 'ym123') throw new Error('game form did not persist Bangumi and YMGal IDs');
         await page.getByRole('tab', { name: /元数据/ }).click();
         await page.getByPlaceholder('本地图片路径，用于 AI 识别标题').fill('D:\\Games\\VN\\星之终途\\cover.png');
         await page.getByRole('button', { name: /复制识图图片路径/ }).click();

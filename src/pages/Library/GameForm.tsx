@@ -56,6 +56,7 @@ export function GameForm({ game, onSubmit, onCancel }: GameFormProps) {
     dlsiteId: game?.dlsiteId ?? '',
     fanzaId: game?.fanzaId ?? '',
     bangumiId: game?.bangumiId ?? '',
+    ymgalId: game?.ymgalId ?? '',
     favorite: game?.favorite ?? false,
     hidden: game?.hidden ?? false,
   }), [game]);
@@ -180,6 +181,7 @@ export function GameForm({ game, onSubmit, onCancel }: GameFormProps) {
         dlsiteId: form.dlsiteId,
         fanzaId: form.fanzaId,
         bangumiId: form.bangumiId,
+        ymgalId: form.ymgalId,
         favorite: form.favorite,
         hidden: form.hidden,
       });
@@ -394,6 +396,8 @@ export function GameForm({ game, onSubmit, onCancel }: GameFormProps) {
               <Field label="VNDB ID"><CopyableTextInput copyLabel="VNDB ID" value={form.vndbId} onChange={(value) => update('vndbId', value)} onCopy={() => void copyText('VNDB ID', form.vndbId)} /></Field>
               <Field label="DLsite ID"><CopyableTextInput copyLabel="DLsite ID" value={form.dlsiteId} onChange={(value) => update('dlsiteId', value)} onCopy={() => void copyText('DLsite ID', form.dlsiteId)} /></Field>
               <Field label="FANZA ID"><CopyableTextInput copyLabel="FANZA ID" value={form.fanzaId} onChange={(value) => update('fanzaId', value)} onCopy={() => void copyText('FANZA ID', form.fanzaId)} /></Field>
+              <Field label="Bangumi ID"><CopyableTextInput copyLabel="Bangumi ID" value={form.bangumiId} onChange={(value) => update('bangumiId', value)} onCopy={() => void copyText('Bangumi ID', form.bangumiId)} /></Field>
+              <Field label="YMGal ID"><CopyableTextInput copyLabel="YMGal ID" value={form.ymgalId} onChange={(value) => update('ymgalId', value)} onCopy={() => void copyText('YMGal ID', form.ymgalId)} /></Field>
             </div>
 
             <Field label="简介"><Textarea value={form.description} onChange={(event) => update('description', event.target.value)} /></Field>
@@ -505,7 +509,7 @@ async function loadMetadataDetail(candidate: MetadataSearchResult) {
 }
 
 const initialFormShape = {
-  title: '', originalTitle: '', aliases: '', developer: '', publisher: '', brand: '', releaseDate: '', description: '', notes: '', tags: '', genres: '', rating: '', ageRating: '', playStatus: 'planned' as PlayStatus, installPath: '', executablePath: '', workingDirectory: '', launchArgs: '', coverImage: '', bannerImage: '', backgroundImage: '', vndbId: '', dlsiteId: '', fanzaId: '', bangumiId: '', favorite: false, hidden: false,
+  title: '', originalTitle: '', aliases: '', developer: '', publisher: '', brand: '', releaseDate: '', description: '', notes: '', tags: '', genres: '', rating: '', ageRating: '', playStatus: 'planned' as PlayStatus, installPath: '', executablePath: '', workingDirectory: '', launchArgs: '', coverImage: '', bannerImage: '', backgroundImage: '', vndbId: '', dlsiteId: '', fanzaId: '', bangumiId: '', ymgalId: '', favorite: false, hidden: false,
 };
 
 function resultToMetadata(result: MetadataSearchResult): NormalizedMetadata {
