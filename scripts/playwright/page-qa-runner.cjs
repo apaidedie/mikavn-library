@@ -330,6 +330,10 @@ async function main() {
         const assetGame = assetGames.find((game) => game.id === 'qa-1');
         if (assetGame?.coverImage !== downloadedCoverUrl) throw new Error('page QA asset download did not update primary cover field');
         if (!Array.isArray(assetRecords) || !assetRecords.some((asset) => asset.gameId === 'qa-1' && asset.source === 'download' && asset.uri === downloadedCoverUrl)) throw new Error('page QA asset download record was not persisted');
+        await page.getByRole('button', { name: /复制 DLsite ID/ }).first().click();
+        const copiedDlsiteId = await page.evaluate(() => navigator.clipboard.readText());
+        if (copiedDlsiteId !== 'RJ01000000') throw new Error('game detail DLsite ID copy did not write the expected ID');
+        await page.getByText('已复制DLsite ID。').first().waitFor({ timeout: 5000 });
         await page.getByRole('tab', { name: /路径/ }).click();
         await page.getByText('启动配置').first().waitFor({ timeout: 5000 });
         await page.getByRole('button', { name: /复制默认启动路径/ }).first().click();

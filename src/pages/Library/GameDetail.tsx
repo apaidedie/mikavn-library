@@ -1,4 +1,4 @@
-import { AlertTriangle, CalendarDays, CheckCircle2, Clock3, Copy, Download, Edit3, ExternalLink, FolderOpen, FolderSync, ImagePlus, Layers3, ListTodo, NotebookText, Play, Plus, RefreshCw, Save, Star, Trash2, Wrench, X } from 'lucide-react';
+import { AlertTriangle, CalendarDays, CheckCircle2, Clock3, Copy, Download, Edit3, FolderOpen, FolderSync, ImagePlus, Layers3, ListTodo, NotebookText, Play, Plus, RefreshCw, Save, Star, Trash2, Wrench, X } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -164,6 +164,36 @@ export function GameDetail({ game, onEdit, onDeleted, onChanged, onOpenMaintenan
     }
   };
 
+  const copyText = async (label: string, value?: string | null) => {
+    if (!value) return;
+    setMessage(null);
+    try {
+      await navigator.clipboard.writeText(value);
+      setMessage({ text: `已复制${label}。` });
+    } catch (reason) {
+      setMessage({ text: errorMessage(reason) });
+    }
+  };
+
+  const externalIdItems = [
+    { label: 'VNDB', value: game.vndbId },
+    { label: 'DLsite', value: game.dlsiteId },
+    { label: 'FANZA', value: game.fanzaId },
+    { label: 'Bangumi', value: game.bangumiId },
+    { label: 'YMGal', value: game.ymgalId },
+  ].filter((item): item is { label: string; value: string } => Boolean(item.value?.trim()));
+
+  const renderExternalIds = () => externalIdItems.length > 0 ? (
+    <div className="flex flex-wrap gap-2">
+      {externalIdItems.map((item) => (
+        <Button aria-label={`复制 ${item.label} ID`} className="h-7 px-2" key={item.label} size="sm" title={`复制 ${item.label} ID`} variant="outline" onClick={() => void copyText(`${item.label} ID`, item.value)}>
+          <Copy className="h-3.5 w-3.5" />
+          {item.label} {item.value}
+        </Button>
+      ))}
+    </div>
+  ) : <span className="text-sm text-slate-500">暂无外部 ID</span>;
+
   const checkImageReferences = async () => {
     setImageAuditLoading(true);
     setMessage(null);
@@ -268,14 +298,7 @@ export function GameDetail({ game, onEdit, onDeleted, onChanged, onOpenMaintenan
               </InfoStack>
 
               <InfoStack title="外部 ID">
-                {game.vndbId || game.dlsiteId || game.fanzaId || game.bangumiId ? (
-                  <div className="flex flex-wrap gap-2">
-                    {game.vndbId && <Badge><ExternalLink className="mr-1 h-3 w-3" />VNDB {game.vndbId}</Badge>}
-                    {game.dlsiteId && <Badge>DLsite {game.dlsiteId}</Badge>}
-                    {game.fanzaId && <Badge>FANZA {game.fanzaId}</Badge>}
-                    {game.bangumiId && <Badge>Bangumi {game.bangumiId}</Badge>}
-                  </div>
-                ) : <span className="text-sm text-slate-500">暂无外部 ID</span>}
+                {renderExternalIds()}
               </InfoStack>
             </aside>
           </div>
@@ -361,13 +384,7 @@ export function GameDetail({ game, onEdit, onDeleted, onChanged, onOpenMaintenan
           </Section>
 
           <Section title="外部 ID">
-            <div className="flex flex-wrap gap-2">
-              {game.vndbId && <Badge><ExternalLink className="mr-1 h-3 w-3" />VNDB {game.vndbId}</Badge>}
-              {game.bangumiId && <Badge>Bangumi {game.bangumiId}</Badge>}
-              {game.dlsiteId && <Badge>DLsite {game.dlsiteId}</Badge>}
-              {game.fanzaId && <Badge>FANZA {game.fanzaId}</Badge>}
-              {!game.vndbId && !game.bangumiId && !game.dlsiteId && !game.fanzaId && <span className="text-sm text-slate-500">暂无外部 ID</span>}
-            </div>
+            {renderExternalIds()}
           </Section>
         </TabsContent>
       </Tabs>
