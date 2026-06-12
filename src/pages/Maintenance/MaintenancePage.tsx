@@ -638,7 +638,7 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
                       重复组 · {formatCount(filteredDuplicateGroups.length)} / {formatCount(duplicateGroups.length)}
                       <Select className="mt-1 w-full" disabled={filteredDuplicateGroups.length === 0} value={selectedDuplicateKey} onChange={(event) => { setSelectedDuplicateKey(event.target.value); setMergePreview(null); }}>
                         {filteredDuplicateGroups.map((group) => (
-                          <option key={duplicateGroupKey(group)} value={duplicateGroupKey(group)}>{group.provider} {group.externalId} · {group.gameCount} 条</option>
+                          <option key={duplicateGroupKey(group)} value={duplicateGroupKey(group)}>{providerLabel(group.provider)} {group.externalId} · {group.gameCount} 条</option>
                         ))}
                       </Select>
                     </label>
@@ -1502,8 +1502,10 @@ function artworkFieldLabel(value: string) {
 
 function providerLabel(value: string) {
   if (value === 'vndb') return 'VNDB';
+  if (value === 'bangumi') return 'Bangumi';
   if (value === 'dlsite') return 'DLsite';
   if (value === 'fanza') return 'FANZA';
+  if (value === 'ymgal') return 'YMGal';
   return value;
 }
 

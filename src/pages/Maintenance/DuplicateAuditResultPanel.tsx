@@ -116,8 +116,10 @@ function parseDuplicateAuditLog(log: TaskLogEntry): DuplicateAuditGroupSummary[]
 
 function providerLabel(value: string) {
   if (value === 'vndb') return 'VNDB';
+  if (value === 'bangumi') return 'Bangumi';
   if (value === 'dlsite') return 'DLsite';
   if (value === 'fanza') return 'FANZA';
+  if (value === 'ymgal') return 'YMGal';
   return value;
 }
 

@@ -102,6 +102,11 @@ const duplicateExternalIdGame = {
   executablePath: 'D:\\Games\\VN\\星之终途-重复记录\\stella.exe',
   workingDirectory: 'D:\\Games\\VN\\星之终途-重复记录',
 };
+const duplicateAuditGames = [
+  { ...games[0], bangumiId: 'bgm-29443' },
+  games[1],
+  { ...duplicateExternalIdGame, bangumiId: 'bgm-29443' },
+];
 const artworkRepairGame = {
   ...games[1],
   id: 'qa-artwork-repair',
@@ -878,7 +883,7 @@ async function main() {
         await page.getByText('媒体健康').first().waitFor({ timeout: 5000 });
         await page.getByText('媒体图片补全候选').first().waitFor({ timeout: 5000 });
       }],
-      ['maintenance-health-duplicate-id-audit', 'maintenance', { games: [...games, duplicateExternalIdGame] }, async (page) => {
+      ['maintenance-health-duplicate-id-audit', 'maintenance', { games: duplicateAuditGames }, async (page) => {
         await page.getByText('维护中心').first().waitFor({ timeout: 5000 });
         await page.getByText('维护队列').first().waitFor({ timeout: 5000 });
         await page.getByText('重复 ID 审查').first().waitFor({ timeout: 5000 });
@@ -889,11 +894,16 @@ async function main() {
         await duplicateAuditResultPanel.getByRole('button', { name: /读取结果/ }).click();
         await page.getByText(/已读取 \d+ 个重复 ID 审查任务结果/).first().waitFor({ timeout: 5000 });
         await duplicateAuditResultPanel.getByText('VNDB v29443').first().waitFor({ timeout: 5000 });
+        await duplicateAuditResultPanel.getByText('Bangumi bgm-29443').first().waitFor({ timeout: 5000 });
         await duplicateAuditResultPanel.getByText('星之终途 重复记录').first().waitFor({ timeout: 5000 });
         await duplicateAuditResultPanel.getByLabel('重复 ID 审查结果搜索').fill('v29443');
         await duplicateAuditResultPanel.getByText('VNDB v29443').first().waitFor({ timeout: 5000 });
         await duplicateAuditResultPanel.getByLabel('重复 ID 审查结果来源筛选').selectOption('dlsite');
         await duplicateAuditResultPanel.getByText('当前筛选没有匹配的重复 ID 审查结果。').first().waitFor({ timeout: 5000 });
+        await duplicateAuditResultPanel.getByLabel('重复 ID 审查结果搜索').fill('');
+        await duplicateAuditResultPanel.getByLabel('重复 ID 审查结果来源筛选').selectOption('bangumi');
+        await duplicateAuditResultPanel.getByText('Bangumi bgm-29443').first().waitFor({ timeout: 5000 });
+        if (await duplicateAuditResultPanel.getByText('VNDB v29443').count() > 0) throw new Error('duplicate audit Bangumi filter did not hide VNDB results');
         await duplicateAuditResultPanel.getByRole('button', { name: /重置筛选/ }).click();
         await duplicateAuditResultPanel.getByText('VNDB v29443').first().waitFor({ timeout: 5000 });
         const duplicateMergePanel = page.locator('section').filter({ hasText: '重复游戏安全合并' }).first();
