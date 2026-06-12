@@ -199,6 +199,18 @@ export function ScannerPage({ onOpenTask }: { onOpenTask?: (taskId: string) => v
     }
   };
 
+  const copyAuditInstallPath = async (installPath: string) => {
+    const clean = installPath.trim();
+    if (!clean) return;
+    setError(null);
+    try {
+      await navigator.clipboard.writeText(clean);
+      setMessage({ text: '已复制审计安装目录路径。' });
+    } catch (reason) {
+      setError(errorMessage(reason));
+    }
+  };
+
   return (
     <PageShell>
       <PageFrame>
@@ -274,7 +286,7 @@ export function ScannerPage({ onOpenTask }: { onOpenTask?: (taskId: string) => v
                     </div>
                   </div>
                 )}
-                {importReport && <ImportReportPanel filter={reportActionFilter} onFilterChange={setReportActionFilter} report={importReport} />}
+                {importReport && <ImportReportPanel filter={reportActionFilter} onCopyInstallPath={copyAuditInstallPath} onFilterChange={setReportActionFilter} report={importReport} />}
               </PanelContent>
             </Panel>
           </div>
@@ -356,7 +368,7 @@ export function ScannerPage({ onOpenTask }: { onOpenTask?: (taskId: string) => v
   );
 }
 
-function ImportReportPanel({ filter, onFilterChange, report }: { filter: string; onFilterChange: (value: string) => void; report: ImportScanReport }) {
+function ImportReportPanel({ filter, onCopyInstallPath, onFilterChange, report }: { filter: string; onCopyInstallPath: (installPath: string) => void; onFilterChange: (value: string) => void; report: ImportScanReport }) {
   const [query, setQuery] = useState('');
   const items = report.items.filter((item) => (filter === 'all' || item.action === filter) && matchesImportReportQuery(item, query));
   const resetFilters = () => {
@@ -394,13 +406,13 @@ function ImportReportPanel({ filter, onFilterChange, report }: { filter: string;
       <div className="max-h-80 space-y-1.5 overflow-auto pr-1">
         {items.length === 0 ? (
           <div className="rounded-md border border-white/10 bg-black/[0.10] px-3 py-3 text-xs text-slate-500">当前筛选没有明细。</div>
-        ) : items.map((item) => <ImportReportRow item={item} key={`${item.action}-${item.installPath}-${item.candidateTitle}`} />)}
+        ) : items.map((item) => <ImportReportRow item={item} key={`${item.action}-${item.installPath}-${item.candidateTitle}`} onCopyInstallPath={onCopyInstallPath} />)}
       </div>
     </div>
   );
 }
 
-function ImportReportRow({ item }: { item: ImportScanReportItem }) {
+function ImportReportRow({ item, onCopyInstallPath }: { item: ImportScanReportItem; onCopyInstallPath: (installPath: string) => void }) {
   return (
     <div className="rounded-md border border-white/10 bg-black/[0.10] px-3 py-2 text-xs">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -409,7 +421,10 @@ function ImportReportRow({ item }: { item: ImportScanReportItem }) {
       </div>
       <div className="mt-1 text-slate-500">{item.message}{item.targetTitle ? `：${item.targetTitle}` : ''}</div>
       {item.conflictReason && <div className="mt-1 text-amber-100">冲突原因：{item.conflictReason}</div>}
-      <div className="mt-2 break-all font-mono text-[11px] text-slate-600">{item.installPath}</div>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <span className="min-w-0 break-all font-mono text-[11px] text-slate-600">{item.installPath}</span>
+        <Button aria-label="复制审计安装目录" size="sm" variant="ghost" onClick={() => onCopyInstallPath(item.installPath)}><Copy className="h-4 w-4" />复制</Button>
+      </div>
       {item.gameId && <div className="mt-1 break-all font-mono text-[11px] text-slate-600">记录 ID：{item.gameId}</div>}
     </div>
   );

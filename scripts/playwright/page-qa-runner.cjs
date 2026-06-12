@@ -1007,6 +1007,11 @@ async function main() {
       await page.getByText('导入审计').first().waitFor({ timeout: 5000 });
       await page.getByLabel('导入审计动作筛选').selectOption('merge');
       await page.getByText(/已合并到现有记录/).first().waitFor({ timeout: 5000 });
+      const mergeAuditRow = page.locator('.rounded-md').filter({ hasText: '已合并到现有记录' }).first();
+      await mergeAuditRow.getByRole('button', { name: /复制审计安装目录/ }).click();
+      const copiedAuditInstallPath = await page.evaluate(() => navigator.clipboard.readText());
+      if (copiedAuditInstallPath !== 'D:\\Games\\VN\\星之终途') throw new Error('scanner audit install path copy did not write the expected path');
+      await page.getByText('已复制审计安装目录路径。').first().waitFor({ timeout: 5000 });
       await page.getByText(/记录 ID：qa-1/).first().waitFor({ timeout: 5000 });
       await page.getByLabel('导入审计搜索').fill('星之终途');
       await page.getByText(/当前显示 1 \/ 1 条处理明细/).first().waitFor({ timeout: 5000 });
