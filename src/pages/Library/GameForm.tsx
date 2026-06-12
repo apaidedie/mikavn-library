@@ -495,8 +495,10 @@ function mergeMetadataIntoForm(current: typeof initialFormShape, metadata: Norma
     genres: mode === 'replace' ? mergeListText('', ...(metadata.genres?.length ? metadata.genres : ['Visual Novel'])) : mergeListText(current.genres, ...(metadata.genres?.length ? metadata.genres : ['Visual Novel'])),
     coverImage: shouldUse(current.coverImage) ? metadata.images[0] || '' : current.coverImage,
     vndbId: shouldUse(current.vndbId) ? metadata.externalIds.vndb || '' : current.vndbId,
+    bangumiId: shouldUse(current.bangumiId) ? metadata.externalIds.bangumi || '' : current.bangumiId,
     dlsiteId: shouldUse(current.dlsiteId) ? metadata.externalIds.dlsite || '' : current.dlsiteId,
     fanzaId: shouldUse(current.fanzaId) ? metadata.externalIds.fanza || '' : current.fanzaId,
+    ymgalId: shouldUse(current.ymgalId) ? metadata.externalIds.ymgal || '' : current.ymgalId,
   };
 }
 

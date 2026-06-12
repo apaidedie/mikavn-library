@@ -562,8 +562,10 @@ pub struct ImportScanReportItem {
 #[serde(rename_all = "camelCase")]
 pub struct ExternalIds {
     pub vndb: Option<String>,
+    pub bangumi: Option<String>,
     pub dlsite: Option<String>,
     pub fanza: Option<String>,
+    pub ymgal: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -560,6 +560,9 @@ async function main() {
         await page.getByText(/推荐：/).first().waitFor({ timeout: 5000 });
         await page.getByRole('button', { name: /应用当前推荐/ }).click();
         await page.getByText(/已写入/).first().waitFor({ timeout: 5000 });
+        const appliedMetadataGames = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.games') || '[]'));
+        const appliedMetadataGame = appliedMetadataGames.find((game) => game.id === 'qa-2');
+        if (appliedMetadataGame?.bangumiId !== 'bgm-29443' || appliedMetadataGame?.ymgalId !== 'ymgal-29443') throw new Error('metadata apply did not preserve secondary external IDs');
         await page.getByLabel('匹配写入状态筛选').selectOption('applied');
         await page.getByText(/已写入/).first().waitFor({ timeout: 5000 });
         await page.getByLabel('匹配写入状态筛选').selectOption('writable');

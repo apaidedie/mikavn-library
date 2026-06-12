@@ -50,7 +50,7 @@ const mockMetadata: MetadataSearchResult[] = [
     releaseDate: '2022-09-30',
     developers: ['Key'],
     tags: ['Post-apocalyptic', 'Android', 'Kinetic Novel'],
-    externalIds: { vndb: 'v29443' },
+    externalIds: { vndb: 'v29443', bangumi: 'bgm-29443', ymgal: 'ymgal-29443' },
     relevanceScore: 0.98,
     fromVndbSniff: false,
   },
@@ -64,7 +64,7 @@ const mockMetadata: MetadataSearchResult[] = [
     releaseDate: '2022-09-30',
     developers: ['Key'],
     tags: ['ADV', '全年龄'],
-    externalIds: { dlsite: 'RJ01000000' },
+    externalIds: { bangumi: 'bgm-29443', dlsite: 'RJ01000000', ymgal: 'ymgal-29443' },
     relevanceScore: 0.74,
     fromVndbSniff: true,
   },
@@ -1741,8 +1741,10 @@ export const mockStore = {
     if (has('coverImage')) input.coverImage = metadata.images[0];
     if (has('externalIds')) {
       input.vndbId = metadata.externalIds.vndb ?? undefined;
+      input.bangumiId = metadata.externalIds.bangumi ?? undefined;
       input.dlsiteId = metadata.externalIds.dlsite ?? undefined;
       input.fanzaId = metadata.externalIds.fanza ?? undefined;
+      input.ymgalId = metadata.externalIds.ymgal ?? undefined;
     }
     if (has('ageRating')) input.ageRating = metadata.ageRating ?? undefined;
     return this.updateGame(gameId, input);
@@ -1762,8 +1764,10 @@ export const mockStore = {
     const now = new Date().toISOString();
     return [
       game.vndbId ? { id: `${game.id}-vndb`, gameId: game.id, provider: 'vndb', externalId: game.vndbId, source: 'games', confidence: null, createdAt: now, updatedAt: now } : null,
+      game.bangumiId ? { id: `${game.id}-bangumi`, gameId: game.id, provider: 'bangumi', externalId: game.bangumiId, source: 'games', confidence: null, createdAt: now, updatedAt: now } : null,
       game.dlsiteId ? { id: `${game.id}-dlsite`, gameId: game.id, provider: 'dlsite', externalId: game.dlsiteId, source: 'games', confidence: null, createdAt: now, updatedAt: now } : null,
       game.fanzaId ? { id: `${game.id}-fanza`, gameId: game.id, provider: 'fanza', externalId: game.fanzaId, source: 'games', confidence: null, createdAt: now, updatedAt: now } : null,
+      game.ymgalId ? { id: `${game.id}-ymgal`, gameId: game.id, provider: 'ymgal', externalId: game.ymgalId, source: 'games', confidence: null, createdAt: now, updatedAt: now } : null,
     ].filter(Boolean) as ExternalIdRecord[];
   },
 

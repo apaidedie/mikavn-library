@@ -429,8 +429,10 @@ fn build_metadata_update_input(
     }
     if is_selected_unlocked("externalIds", fields, locked_fields) {
         input.vndb_id = metadata.external_ids.vndb.clone();
+        input.bangumi_id = metadata.external_ids.bangumi.clone();
         input.dlsite_id = metadata.external_ids.dlsite.clone();
         input.fanza_id = metadata.external_ids.fanza.clone();
+        input.ymgal_id = metadata.external_ids.ymgal.clone();
     }
     if is_selected_unlocked("ageRating", fields, locked_fields) {
         input.age_rating = metadata.age_rating.clone();
@@ -447,11 +449,17 @@ fn sync_metadata_external_ids(
     if let Some(value) = metadata.external_ids.vndb.as_deref() {
         db.upsert_external_id(game_id, "vndb", value, Some("metadata_apply"), Some(1.0))?;
     }
+    if let Some(value) = metadata.external_ids.bangumi.as_deref() {
+        db.upsert_external_id(game_id, "bangumi", value, Some("metadata_apply"), Some(1.0))?;
+    }
     if let Some(value) = metadata.external_ids.dlsite.as_deref() {
         db.upsert_external_id(game_id, "dlsite", value, Some("metadata_apply"), Some(1.0))?;
     }
     if let Some(value) = metadata.external_ids.fanza.as_deref() {
         db.upsert_external_id(game_id, "fanza", value, Some("metadata_apply"), Some(1.0))?;
+    }
+    if let Some(value) = metadata.external_ids.ymgal.as_deref() {
+        db.upsert_external_id(game_id, "ymgal", value, Some("metadata_apply"), Some(1.0))?;
     }
     Ok(())
 }
@@ -590,8 +598,10 @@ pub fn make_result(provider: &str, id: String, title: String, url: String) -> Me
     let mut external_ids = ExternalIds::default();
     match provider {
         "vndb" => external_ids.vndb = Some(id.clone()),
+        "bangumi" => external_ids.bangumi = Some(id.clone()),
         "dlsite" => external_ids.dlsite = Some(id.clone()),
         "fanza" => external_ids.fanza = Some(id.clone()),
+        "ymgal" => external_ids.ymgal = Some(id.clone()),
         _ => {}
     }
     MetadataSearchResult {

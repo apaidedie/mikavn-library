@@ -4,8 +4,10 @@ export type MetadataProvider = 'vndb' | 'dlsite' | 'fanza';
 
 export type ExternalIds = {
   vndb?: string | null;
+  bangumi?: string | null;
   dlsite?: string | null;
   fanza?: string | null;
+  ymgal?: string | null;
 };
 
 export type MetadataSearchResult = {
