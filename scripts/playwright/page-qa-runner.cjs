@@ -999,6 +999,10 @@ async function main() {
       const copiedCandidateInstallPath = await page.evaluate(() => navigator.clipboard.readText());
       if (copiedCandidateInstallPath !== 'D:\\Games\\VN\\星之终途') throw new Error('scanner candidate install path copy did not write the expected path');
       await page.getByText('已复制候选安装目录路径。').first().waitFor({ timeout: 5000 });
+      await mergeRow.getByRole('button', { name: /复制候选启动程序/ }).click();
+      const copiedCandidateExecutablePath = await page.evaluate(() => navigator.clipboard.readText());
+      if (copiedCandidateExecutablePath !== 'D:\\Games\\VN\\星之终途\\stella.exe') throw new Error('scanner candidate executable path copy did not write the expected path');
+      await page.getByText('已复制候选启动程序路径。').first().waitFor({ timeout: 5000 });
       await mergeRow.getByRole('checkbox').check();
       await mergeRow.locator('select').selectOption('merge');
       await page.getByText(/将更新 星之终途/).first().waitFor({ timeout: 5000 });

@@ -199,6 +199,18 @@ export function ScannerPage({ onOpenTask }: { onOpenTask?: (taskId: string) => v
     }
   };
 
+  const copyCandidateExecutablePath = async (executablePath: string) => {
+    const clean = executablePath.trim();
+    if (!clean) return;
+    setError(null);
+    try {
+      await navigator.clipboard.writeText(clean);
+      setMessage({ text: '已复制候选启动程序路径。' });
+    } catch (reason) {
+      setError(errorMessage(reason));
+    }
+  };
+
   const copyAuditInstallPath = async (installPath: string) => {
     const clean = installPath.trim();
     if (!clean) return;
@@ -352,7 +364,23 @@ export function ScannerPage({ onOpenTask }: { onOpenTask?: (taskId: string) => v
                             </div>
                           )}
                           <div className="mt-2 flex flex-wrap gap-1.5 text-xs text-slate-500">
-                            {candidate.executables.map((exe) => <span key={exe.path}>{exe.name}</span>)}
+                            {candidate.executables.map((exe) => (
+                              <span className="inline-flex items-center gap-1" key={exe.path}>
+                                {exe.name}
+                                <Button
+                                  aria-label="复制候选启动程序"
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={(event) => {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                    void copyCandidateExecutablePath(exe.path);
+                                  }}
+                                >
+                                  <Copy className="h-4 w-4" />复制
+                                </Button>
+                              </span>
+                            ))}
                           </div>
                         </div>
                       </SoftRow>
