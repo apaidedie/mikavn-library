@@ -281,7 +281,7 @@ function mockMatchesClause(game: Game, clause: SearchClause) {
     case 'brand': return Boolean(game.brand?.toLowerCase().includes(value));
     case 'status': return game.playStatus === value;
     case 'path': return game.pathStatus === value || game.installPath.toLowerCase().includes(value);
-    case 'meta': return value === 'complete' ? Boolean(game.coverImage && game.description && game.releaseDate && (game.vndbId || game.dlsiteId || game.fanzaId)) : true;
+    case 'meta': return value === 'complete' ? hasCompleteMetadata(game) : true;
     case 'age': return Boolean(game.ageRating?.toLowerCase().includes(value));
     default: return fields.includes(value);
   }
@@ -433,6 +433,11 @@ function ensureGameDefaults(game: Game): Game {
 
 function externalIdCount(game: Game) {
   return [game.vndbId, game.bangumiId, game.dlsiteId, game.fanzaId, game.ymgalId].filter((value) => value?.trim()).length;
+}
+
+function hasCompleteMetadata(game: Game) {
+  const hasDeveloper = Boolean(game.developer?.trim() || game.brand?.trim());
+  return Boolean(game.description?.trim() && game.releaseDate?.trim() && hasDeveloper && game.coverImage?.trim() && externalIdCount(game) > 0);
 }
 
 function mockExternalIdEntries(options: DuplicateExternalIdAuditOptions = {}) {
@@ -679,8 +684,7 @@ function mockArtworkRepairDiagnosis(options: ArtworkRepairOptions = {}): Artwork
 
 function metadataStatusMatches(game: Game, status?: string) {
   if (!status || status === 'all') return true;
-  const hasDeveloper = Boolean(game.developer?.trim() || game.brand?.trim());
-  const complete = Boolean(game.description?.trim() && game.releaseDate?.trim() && hasDeveloper && game.coverImage?.trim() && externalIdCount(game) > 0);
+  const complete = hasCompleteMetadata(game);
   if (status === 'complete') return complete;
   if (status === 'missing_description') return !game.description?.trim();
   if (status === 'missing_cover') return !game.coverImage?.trim();
@@ -1438,8 +1442,8 @@ export const mockStore = {
         cDriveImageRefsCount: 0,
         playniteImageRefsCount: 0,
         metadataCoverage: {
-          completeGameCount: games.filter((game) => game.description && game.releaseDate && (game.developer || game.brand) && game.coverImage && externalIdCount(game) > 0).length,
-          needsMetadataCount: games.filter((game) => !(game.description && game.releaseDate && (game.developer || game.brand) && game.coverImage && externalIdCount(game) > 0)).length,
+          completeGameCount: games.filter(hasCompleteMetadata).length,
+          needsMetadataCount: games.filter((game) => !hasCompleteMetadata(game)).length,
           missingCoverCount: games.filter((game) => !game.coverImage).length,
           missingBannerCount: games.filter((game) => !game.bannerImage).length,
           missingBackgroundCount: games.filter((game) => !game.backgroundImage).length,

@@ -107,6 +107,25 @@ const duplicateAuditGames = [
   games[1],
   { ...duplicateExternalIdGame, bangumiId: 'bgm-29443' },
 ];
+const secondaryExternalIdCompleteGame = {
+  ...games[1],
+  id: 'qa-secondary-id-complete',
+  title: '二级 ID 完整条目',
+  originalTitle: 'Secondary ID Complete',
+  developer: 'Secondary Provider Studio',
+  brand: 'Secondary Provider Studio',
+  releaseDate: '2024-01-26',
+  description: '只有 Bangumi 外部 ID，但基础元数据齐全。',
+  coverImage: hero,
+  bannerImage: hero,
+  backgroundImage: hero,
+  vndbId: null,
+  bangumiId: 'bgm-secondary-complete',
+  dlsiteId: null,
+  fanzaId: null,
+  ymgalId: null,
+  pathStatus: 'ok',
+};
 const artworkRepairGame = {
   ...games[1],
   id: 'qa-artwork-repair',
@@ -1044,11 +1063,13 @@ async function main() {
       await runCase(browser, name, view, overrides || {}, interact);
     }
 
-    await runCase(browser, 'advanced-search-results', 'advanced-search', {}, async (page) => {
+    await runCase(browser, 'advanced-search-results', 'advanced-search', { games: [...games, secondaryExternalIdCompleteGame] }, async (page) => {
+      const searchInput = page.getByPlaceholder(/输入标题|关键词|快捷搜索/);
+      await searchInput.fill('meta:complete');
       await page.getByRole('button', { name: /^搜索$/ }).click();
+      await page.getByText('二级 ID 完整条目').first().waitFor({ timeout: 5000 });
       await page.getByText('星之终途').first().waitFor({ timeout: 5000 });
       await page.locator('button').filter({ hasText: '高分全年龄' }).first().click();
-      const searchInput = page.getByPlaceholder(/输入标题|关键词|快捷搜索/);
       await page.waitForFunction(() => document.body.innerText.includes('星之终途'), null, { timeout: 5000 });
       if (await searchInput.inputValue() !== 'tag:全年龄 rating>=80') throw new Error('advanced search page QA did not apply the saved search query');
       await searchInput.fill('dev:Yuzusoft');
