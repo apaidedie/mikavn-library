@@ -343,10 +343,11 @@ export function GameDetail({ game, onEdit, onDeleted, onChanged, onOpenMaintenan
             {pathHealth && (
               <div className="mb-3 space-y-2">
                 {pathHealth.items.map((item) => (
-                  <SoftRow className="grid gap-2 px-3 py-2 lg:grid-cols-[6rem_5rem_1fr]" key={item.kind}>
+                  <SoftRow className="grid gap-2 px-3 py-2 lg:grid-cols-[6rem_5rem_minmax(0,1fr)_auto]" key={item.kind}>
                     <span className="text-slate-500">{item.label}</span>
                     <Badge>{pathItemLabel(item.status)}</Badge>
                     <span className="break-all font-mono text-xs text-slate-300">{item.path || item.message || '未配置'}</span>
+                    {item.path ? <Button aria-label={`复制路径检查${item.label}`} size="sm" variant="ghost" onClick={() => void copyPath(`路径检查${item.label}`, item.path)}><Copy className="h-4 w-4" />复制</Button> : <span />}
                   </SoftRow>
                 ))}
               </div>

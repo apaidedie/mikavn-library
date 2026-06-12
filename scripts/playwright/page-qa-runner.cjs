@@ -344,6 +344,13 @@ async function main() {
         if (copiedLaunchFormPath !== 'D:\\Games\\VN\\星之终途\\stella.exe') throw new Error('launch profile form path copy did not write the expected executable path');
         await page.getByText('已复制启动程序路径。').first().waitFor({ timeout: 5000 });
         await page.getByText('本地路径').first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: /^检查路径$/ }).click();
+        await page.getByText('路径检查完成，所有关键路径可用。').first().waitFor({ timeout: 5000 });
+        const pathHealthExecutableRow = page.locator('.motion-soft-row').filter({ hasText: '启动程序' }).filter({ hasText: 'D:\\Games\\VN\\星之终途\\stella.exe' }).first();
+        await pathHealthExecutableRow.getByRole('button', { name: /复制路径检查启动程序/ }).click();
+        const copiedPathHealthExecutablePath = await page.evaluate(() => navigator.clipboard.readText());
+        if (copiedPathHealthExecutablePath !== 'D:\\Games\\VN\\星之终途\\stella.exe') throw new Error('path health executable copy did not write the expected path');
+        await page.getByText('已复制路径检查启动程序路径。').first().waitFor({ timeout: 5000 });
         await page.getByRole('button', { name: /复制安装目录/ }).first().click();
         const copiedInstallPath = await page.evaluate(() => navigator.clipboard.readText());
         if (copiedInstallPath !== 'D:\\Games\\VN\\星之终途') throw new Error('game detail install path copy did not write the expected path');
