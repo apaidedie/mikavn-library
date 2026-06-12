@@ -1242,6 +1242,11 @@ async function main() {
       await page.getByText('当前日志筛选无结果。').first().waitFor({ timeout: 5000 });
       await page.getByRole('button', { name: /清空/ }).last().click();
       await page.getByText('路径不存在，等待用户重试。').first().waitFor({ timeout: 5000 });
+      const failedTaskLogLine = page.locator('[data-task-log-id="log-2"]').first();
+      await failedTaskLogLine.getByRole('button', { name: /复制记录/ }).click();
+      const copiedTaskLogLine = await page.evaluate(() => navigator.clipboard.readText());
+      if (!copiedTaskLogLine.includes('错误') || !copiedTaskLogLine.includes('路径不存在，等待用户重试。')) throw new Error('task log copy did not include the expected level and message');
+      await page.getByText('已复制任务日志。').first().waitFor({ timeout: 5000 });
       const runningMetadataRow = page.locator('.motion-soft-row').filter({ hasText: '正在匹配 2 个游戏' }).first();
       await runningMetadataRow.getByRole('button', { name: /取消/ }).click();
       await page.getByText(/已取消任务：批量元数据匹配/).first().waitFor({ timeout: 5000 });

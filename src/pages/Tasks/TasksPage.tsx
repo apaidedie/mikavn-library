@@ -1,4 +1,4 @@
-import { Activity, AlertTriangle, CheckCircle2, ChevronDown, FileText, ListFilter, RefreshCw, RotateCcw, StopCircle, Timer } from 'lucide-react';
+import { Activity, AlertTriangle, CheckCircle2, ChevronDown, Copy, FileText, ListFilter, RefreshCw, RotateCcw, StopCircle, Timer } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { Badge } from '@/components/ui/badge';
@@ -205,6 +205,16 @@ export function TasksPage({ refreshKey, focusTaskId, focusRequestKey = 0, filter
     }
   }
 
+  async function copyTaskLog(log: TaskLogEntry) {
+    setError(null);
+    try {
+      await navigator.clipboard.writeText(`${formatDateTime(log.createdAt)} ${levelLabel(log.level)} ${log.message}`);
+      setMessage('已复制任务日志。');
+    } catch (reason) {
+      setError(errorMessage(reason));
+    }
+  }
+
   return (
     <PageShell>
       <PageFrame className="max-w-[76rem] gap-6">
@@ -381,10 +391,11 @@ export function TasksPage({ refreshKey, focusTaskId, focusRequestKey = 0, filter
                         ) : (
                           <div className="space-y-2">
                             {filteredLogs.map((log) => (
-                              <div key={log.id} className="grid gap-1 text-xs sm:grid-cols-[6.5rem_4rem_1fr]">
+                              <div className="grid gap-1 text-xs sm:grid-cols-[6.5rem_4rem_minmax(0,1fr)_auto]" data-task-log-id={log.id} key={log.id}>
                                 <span className="text-slate-500">{formatDateTime(log.createdAt)}</span>
                                 <span className={cn('font-medium', log.level === 'error' ? 'text-rose-200' : log.level === 'warn' ? 'text-amber-200' : 'text-slate-400')}>{levelLabel(log.level)}</span>
                                 <span className="text-slate-300">{log.message}</span>
+                                <Button aria-label="复制记录" className="h-6 px-2" size="sm" title="复制任务日志" variant="ghost" onClick={() => void copyTaskLog(log)}><Copy className="h-3.5 w-3.5" />复制</Button>
                               </div>
                             ))}
                           </div>
