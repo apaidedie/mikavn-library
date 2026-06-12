@@ -660,7 +660,12 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
                             {game.gameId === mergeTargetId ? <Badge>保留</Badge> : <Badge>并入</Badge>}
                             {game.gameId === recommendedMergeTargetId && <Badge className="border-emerald-300/20 bg-emerald-400/10 text-emerald-100">推荐保留</Badge>}
                           </div>
-                          <div className="mt-1 break-all font-mono text-[11px] text-slate-600">{game.installPath}</div>
+                          <div className="mt-1 flex min-w-0 items-start gap-1">
+                            <div className="min-w-0 break-all font-mono text-[11px] text-slate-600">{game.installPath}</div>
+                            <Button aria-label="复制重复游戏安装目录" className="h-6 w-6 shrink-0" size="icon" title="复制重复游戏安装目录" variant="ghost" onClick={() => void copyPath('重复游戏安装目录', game.installPath)}>
+                              <Copy className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
                         </div>
                         <div className="flex flex-wrap items-center justify-end gap-2 text-right text-[11px] text-slate-500">
                           <span>{game.sources.join(' / ')}</span>

@@ -872,6 +872,11 @@ async function main() {
         await page.getByLabel('重复组搜索').fill('星之终途');
         await page.getByLabel('重复组来源筛选').selectOption('vndb');
         await page.getByText('推荐保留').first().waitFor({ timeout: 5000 });
+        const duplicateGameRow = duplicateMergePanel.locator('.motion-soft-row').filter({ hasText: '星之终途' }).filter({ hasText: 'D:\\Games\\VN\\星之终途' }).first();
+        await duplicateGameRow.getByRole('button', { name: /复制重复游戏安装目录/ }).click();
+        const copiedDuplicateInstallPath = await page.evaluate(() => navigator.clipboard.readText());
+        if (copiedDuplicateInstallPath !== 'D:\\Games\\VN\\星之终途') throw new Error('duplicate merge install path copy did not write the expected path');
+        await page.getByText('已复制重复游戏安装目录路径。').first().waitFor({ timeout: 5000 });
         await duplicateMergePanel.getByRole('button', { name: /重置筛选/ }).click();
         if (await page.getByLabel('重复组搜索').inputValue() !== '') throw new Error('duplicate group filter reset did not clear query');
         await page.getByText('推荐保留').first().waitFor({ timeout: 5000 });
