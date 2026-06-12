@@ -24,8 +24,10 @@ type DirectoryLocationItem = { detail: string; label: string; path: string };
 
 const defaults: SettingsForm = {
   provider_vndb_enabled: true,
+  provider_bangumi_enabled: true,
   provider_dlsite_enabled: true,
   provider_fanza_enabled: true,
+  provider_ymgal_enabled: true,
   ai_base_url: '',
   ai_model: 'gpt-4o-mini',
   ai_api_key: '',
@@ -68,8 +70,10 @@ export function SettingsPage({ onAccentPreview, onThemePreview, onSaved, onOpenT
       const trayEnabled = settings.tray_enabled !== 'false';
       setForm({
         provider_vndb_enabled: settings.provider_vndb_enabled !== 'false',
+        provider_bangumi_enabled: settings.provider_bangumi_enabled !== 'false',
         provider_dlsite_enabled: settings.provider_dlsite_enabled !== 'false',
         provider_fanza_enabled: settings.provider_fanza_enabled !== 'false',
+        provider_ymgal_enabled: settings.provider_ymgal_enabled !== 'false',
         ai_base_url: settings.ai_base_url ?? '',
         ai_model: settings.ai_model ?? 'gpt-4o-mini',
         ai_api_key: settings.ai_api_key ?? '',
@@ -103,8 +107,10 @@ export function SettingsPage({ onAccentPreview, onThemePreview, onSaved, onOpenT
     try {
       await api.setAppSettings({
         provider_vndb_enabled: String(form.provider_vndb_enabled),
+        provider_bangumi_enabled: String(form.provider_bangumi_enabled),
         provider_dlsite_enabled: String(form.provider_dlsite_enabled),
         provider_fanza_enabled: String(form.provider_fanza_enabled),
+        provider_ymgal_enabled: String(form.provider_ymgal_enabled),
         ai_base_url: form.ai_base_url,
         ai_model: form.ai_model,
         ai_api_key: form.ai_api_key,

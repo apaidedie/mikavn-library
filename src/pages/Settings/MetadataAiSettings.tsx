@@ -28,11 +28,17 @@ export function MetadataAiSettings({ form, metadataSources, testingAi, onFormCha
         <ConfigItem title="启用 VNDB" description="用于视觉小说基础元数据、标签和开发商信息。">
           <SettingFlag checked={form.provider_vndb_enabled} label="VNDB" onChange={(value) => onFormChange({ provider_vndb_enabled: value })} />
         </ConfigItem>
+        <ConfigItem title="启用 Bangumi" description="用于保留和同步 Bangumi 外部 ID，供后续扩展检索使用。">
+          <SettingFlag checked={form.provider_bangumi_enabled} label="Bangumi" onChange={(value) => onFormChange({ provider_bangumi_enabled: value })} />
+        </ConfigItem>
         <ConfigItem title="启用 DLsite" description="仅检索公开页面和公开搜索结果。">
           <SettingFlag checked={form.provider_dlsite_enabled} label="DLsite" onChange={(value) => onFormChange({ provider_dlsite_enabled: value })} />
         </ConfigItem>
         <ConfigItem title="启用 FANZA" description="失败时只记录 provider 级错误，不中断整体搜索。">
           <SettingFlag checked={form.provider_fanza_enabled} label="FANZA" onChange={(value) => onFormChange({ provider_fanza_enabled: value })} />
+        </ConfigItem>
+        <ConfigItem title="启用 YMGal" description="用于保留和同步 YMGal 外部 ID，供后续扩展检索使用。">
+          <SettingFlag checked={form.provider_ymgal_enabled} label="YMGal" onChange={(value) => onFormChange({ provider_ymgal_enabled: value })} />
         </ConfigItem>
       </ConfigSection>
 

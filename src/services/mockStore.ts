@@ -25,8 +25,10 @@ const SAVED_SEARCHES_KEY = 'mikavn-library.mock.savedSearches';
 
 const defaultSettings: Record<string, string> = {
   provider_vndb_enabled: 'true',
+  provider_bangumi_enabled: 'true',
   provider_dlsite_enabled: 'true',
   provider_fanza_enabled: 'true',
+  provider_ymgal_enabled: 'true',
   ai_base_url: '',
   ai_model: 'gpt-4o-mini',
   ui_accent_color: 'vnite',
@@ -1756,6 +1758,8 @@ export const mockStore = {
       { id: 'source-vndb', provider: 'vndb', label: 'VNDB', enabled: true, priority: 10, createdAt: now, updatedAt: now },
       { id: 'source-dlsite', provider: 'dlsite', label: 'DLsite', enabled: true, priority: 20, createdAt: now, updatedAt: now },
       { id: 'source-fanza', provider: 'fanza', label: 'FANZA', enabled: true, priority: 30, createdAt: now, updatedAt: now },
+      { id: 'source-bangumi', provider: 'bangumi', label: 'Bangumi', enabled: true, priority: 40, createdAt: now, updatedAt: now },
+      { id: 'source-ymgal', provider: 'ymgal', label: 'YMGal', enabled: true, priority: 50, createdAt: now, updatedAt: now },
     ]);
   },
 

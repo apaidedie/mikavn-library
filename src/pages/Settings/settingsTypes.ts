@@ -1,7 +1,9 @@
 export type SettingsForm = {
   provider_vndb_enabled: boolean;
+  provider_bangumi_enabled: boolean;
   provider_dlsite_enabled: boolean;
   provider_fanza_enabled: boolean;
+  provider_ymgal_enabled: boolean;
   ai_base_url: string;
   ai_model: string;
   ai_api_key: string;

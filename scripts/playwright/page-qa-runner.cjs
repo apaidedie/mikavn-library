@@ -168,8 +168,10 @@ const savedSearches = [{ id: 'qa-search-1', name: '高分全年龄', query: 'tag
 const libraryRoots = [{ id: 'qa-root-1', path: 'D:\\Games\\VN', label: 'VN Library', recursive: true, enabled: true, createdAt: now, updatedAt: now }];
 const settings = {
   provider_vndb_enabled: 'true',
+  provider_bangumi_enabled: 'true',
   provider_dlsite_enabled: 'true',
   provider_fanza_enabled: 'true',
+  provider_ymgal_enabled: 'true',
   ui_accent_color: 'vnite',
   ui_theme_mode: 'dark',
   privacy_hide_hidden: 'false',
@@ -927,6 +929,16 @@ async function main() {
       }],
       ['settings-local-privacy-backup', 'settings', {}, async (page) => {
         await page.getByText('设置').first().waitFor({ timeout: 5000 });
+        await page.getByRole('tab', { name: /数据源与 AI/ }).click();
+        await page.getByText('Bangumi · 40').first().waitFor({ timeout: 5000 });
+        await page.getByText('YMGal · 50').first().waitFor({ timeout: 5000 });
+        const bangumiFlag = page.locator('section').filter({ hasText: '启用 Bangumi' }).first().getByRole('checkbox', { name: /Bangumi/ });
+        const ymgalFlag = page.locator('section').filter({ hasText: '启用 YMGal' }).first().getByRole('checkbox', { name: /YMGal/ });
+        await bangumiFlag.uncheck();
+        await ymgalFlag.uncheck();
+        await page.getByRole('button', { name: /保存设置/ }).click();
+        const savedMetadataProviderSettings = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.settings') || '{}'));
+        if (savedMetadataProviderSettings.provider_bangumi_enabled !== 'false' || savedMetadataProviderSettings.provider_ymgal_enabled !== 'false') throw new Error('secondary metadata provider toggles did not persist');
         await page.getByRole('tab', { name: /本地与隐私/ }).click();
         await page.getByPlaceholder(/VisualNovel/).fill('D:\\Games\\VisualNovel');
         await page.getByRole('button', { name: /复制待添加库目录/ }).click();
