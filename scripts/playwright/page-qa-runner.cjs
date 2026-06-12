@@ -532,6 +532,10 @@ async function main() {
         await page.getByText('天使☆騒々 RE-BOOT!').first().waitFor({ timeout: 5000 });
         await queueGapShortcuts.getByRole('button', { name: /FANZA\s+2/ }).click();
         if (await page.getByLabel('缺失来源筛选').inputValue() !== 'fanza') throw new Error('metadata quick gap filter did not select FANZA filter');
+        await queueGapShortcuts.getByRole('button', { name: /Bangumi\s+2/ }).click();
+        if (await page.getByLabel('缺失来源筛选').inputValue() !== 'bangumi') throw new Error('metadata quick gap filter did not select Bangumi filter');
+        await queueGapShortcuts.getByRole('button', { name: /YMGal\s+2/ }).click();
+        if (await page.getByLabel('缺失来源筛选').inputValue() !== 'ymgal') throw new Error('metadata quick gap filter did not select YMGal filter');
         await queueGapShortcuts.getByRole('button', { name: /全部\s+2/ }).click();
         if (await page.getByLabel('缺失来源筛选').inputValue() !== 'all') throw new Error('metadata quick gap filter did not reset to all missing providers');
         await page.getByLabel('匹配队列搜索').fill('天使');

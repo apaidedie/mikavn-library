@@ -20,14 +20,16 @@ const mediaFields: ApplyMetadataFields = ['coverImage', 'externalIds'];
 const textFields: ApplyMetadataFields = ['originalTitle', 'description', 'releaseDate', 'developer', 'tags', 'genres'];
 type TaskMessage = { text: string; taskId?: string | null };
 type QueuePresetRequest = { key: number; query?: string; missingProvider?: string };
-type MissingProviderFilter = 'all' | 'external_id' | 'vndb' | 'dlsite' | 'fanza';
+type MissingProviderFilter = 'all' | 'external_id' | 'vndb' | 'bangumi' | 'dlsite' | 'fanza' | 'ymgal';
 
 const missingProviderOptions: { id: MissingProviderFilter; label: string; shortLabel: string }[] = [
   { id: 'all', label: '全部缺失来源', shortLabel: '全部' },
   { id: 'external_id', label: '缺全部外部 ID', shortLabel: '缺全部 ID' },
   { id: 'vndb', label: '缺 VNDB', shortLabel: 'VNDB' },
+  { id: 'bangumi', label: '缺 Bangumi', shortLabel: 'Bangumi' },
   { id: 'dlsite', label: '缺 DLsite', shortLabel: 'DLsite' },
   { id: 'fanza', label: '缺 FANZA', shortLabel: 'FANZA' },
+  { id: 'ymgal', label: '缺 YMGal', shortLabel: 'YMGal' },
 ];
 
 export function BatchMetadataPage({ refreshKey, queuePresetRequest, onOpenTask }: { refreshKey: number; queuePresetRequest?: QueuePresetRequest | null; onOpenTask?: (taskId: string) => void }) {
@@ -69,24 +71,22 @@ export function BatchMetadataPage({ refreshKey, queuePresetRequest, onOpenTask }
     return () => window.clearInterval(timer);
   }, [status]);
 
-  const incompleteGames = useMemo(() => games.filter((game) => !game.vndbId || !game.dlsiteId || !game.fanzaId), [games]);
+  const incompleteGames = useMemo(() => games.filter(hasMissingExternalId), [games]);
   const queueGapCounts = useMemo(() => ({
     all: incompleteGames.length,
-    external_id: incompleteGames.filter((game) => !game.vndbId && !game.dlsiteId && !game.fanzaId).length,
-    vndb: incompleteGames.filter((game) => !game.vndbId).length,
-    dlsite: incompleteGames.filter((game) => !game.dlsiteId).length,
-    fanza: incompleteGames.filter((game) => !game.fanzaId).length,
-  }), [incompleteGames]);
+    external_id: games.filter((game) => !hasAnyExternalId(game)).length,
+    vndb: games.filter((game) => !hasExternalIdValue(game.vndbId)).length,
+    bangumi: games.filter((game) => !hasExternalIdValue(game.bangumiId)).length,
+    dlsite: games.filter((game) => !hasExternalIdValue(game.dlsiteId)).length,
+    fanza: games.filter((game) => !hasExternalIdValue(game.fanzaId)).length,
+    ymgal: games.filter((game) => !hasExternalIdValue(game.ymgalId)).length,
+  }), [games, incompleteGames]);
   const filteredIncompleteGames = useMemo(() => incompleteGames.filter((game) => {
     const queryText = queueQuery.trim().toLowerCase();
     const matchesQuery = !queryText || [game.title, game.originalTitle, game.developer, game.brand, game.publisher, game.installPath]
       .filter(Boolean)
       .some((value) => String(value).toLowerCase().includes(queryText));
-    const matchesProvider = missingProviderFilter === 'all'
-      || (missingProviderFilter === 'external_id' && !game.vndbId && !game.dlsiteId && !game.fanzaId)
-      || (missingProviderFilter === 'vndb' && !game.vndbId)
-      || (missingProviderFilter === 'dlsite' && !game.dlsiteId)
-      || (missingProviderFilter === 'fanza' && !game.fanzaId);
+    const matchesProvider = matchesMissingProviderFilter(game, missingProviderFilter);
     return matchesQuery && matchesProvider;
   }), [incompleteGames, missingProviderFilter, queueQuery]);
   const filteredResults = useMemo(() => status?.results.filter((result) => {
@@ -480,4 +480,26 @@ function providerLabel(value?: string | null) {
 
 function normalizeMissingProviderFilter(value?: string | null): MissingProviderFilter {
   return missingProviderOptions.some((option) => option.id === value) ? value as MissingProviderFilter : 'all';
+}
+
+function hasExternalIdValue(value?: string | null) {
+  return Boolean(value?.trim());
+}
+
+function hasAnyExternalId(game: Game) {
+  return [game.vndbId, game.bangumiId, game.dlsiteId, game.fanzaId, game.ymgalId].some(hasExternalIdValue);
+}
+
+function hasMissingExternalId(game: Game) {
+  return [game.vndbId, game.bangumiId, game.dlsiteId, game.fanzaId, game.ymgalId].some((value) => !hasExternalIdValue(value));
+}
+
+function matchesMissingProviderFilter(game: Game, filter: MissingProviderFilter) {
+  if (filter === 'all') return true;
+  if (filter === 'external_id') return !hasAnyExternalId(game);
+  if (filter === 'vndb') return !hasExternalIdValue(game.vndbId);
+  if (filter === 'bangumi') return !hasExternalIdValue(game.bangumiId);
+  if (filter === 'dlsite') return !hasExternalIdValue(game.dlsiteId);
+  if (filter === 'fanza') return !hasExternalIdValue(game.fanzaId);
+  return !hasExternalIdValue(game.ymgalId);
 }
