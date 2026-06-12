@@ -369,6 +369,10 @@ async function main() {
         const copiedEditCoverPath = await page.evaluate(() => navigator.clipboard.readText());
         if (copiedEditCoverPath !== downloadedCoverUrl) throw new Error('game form cover path copy did not write the expected path');
         await editGameDialog.getByText('已复制封面路径。').first().waitFor({ timeout: 5000 });
+        await editGameDialog.getByRole('button', { name: /复制 DLsite ID/ }).click();
+        const copiedEditDlsiteId = await page.evaluate(() => navigator.clipboard.readText());
+        if (copiedEditDlsiteId !== 'RJ01000000') throw new Error('game form DLsite ID copy did not write the expected ID');
+        await editGameDialog.getByText('已复制DLsite ID。').first().waitFor({ timeout: 5000 });
         await editGameDialog.getByRole('button', { name: /^取消$/ }).click();
         await page.getByRole('tab', { name: /元数据/ }).click();
         await page.getByPlaceholder('本地图片路径，用于 AI 识别标题').fill('D:\\Games\\VN\\星之终途\\cover.png');

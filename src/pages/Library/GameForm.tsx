@@ -96,6 +96,18 @@ export function GameForm({ game, onSubmit, onCancel }: GameFormProps) {
     }
   };
 
+  const copyText = async (label: string, value: string) => {
+    const clean = value.trim();
+    if (!clean) return;
+    setError(null);
+    try {
+      await navigator.clipboard.writeText(clean);
+      setMessage(`已复制${label}。`);
+    } catch (reason) {
+      setError(errorMessage(reason));
+    }
+  };
+
   const pickDirectory = async (key: 'installPath' | 'workingDirectory') => {
     const selected = await chooseDirectory(form[key]);
     if (!selected) return;
@@ -379,9 +391,9 @@ export function GameForm({ game, onSubmit, onCancel }: GameFormProps) {
               <Field label="标签"><Input placeholder="逗号分隔" value={form.tags} onChange={(event) => update('tags', event.target.value)} /></Field>
               <Field label="类型"><Input placeholder="逗号分隔" value={form.genres} onChange={(event) => update('genres', event.target.value)} /></Field>
               <Field label="别名"><Input placeholder="逗号分隔" value={form.aliases} onChange={(event) => update('aliases', event.target.value)} /></Field>
-              <Field label="VNDB ID"><Input value={form.vndbId} onChange={(event) => update('vndbId', event.target.value)} /></Field>
-              <Field label="DLsite ID"><Input value={form.dlsiteId} onChange={(event) => update('dlsiteId', event.target.value)} /></Field>
-              <Field label="FANZA ID"><Input value={form.fanzaId} onChange={(event) => update('fanzaId', event.target.value)} /></Field>
+              <Field label="VNDB ID"><CopyableTextInput copyLabel="VNDB ID" value={form.vndbId} onChange={(value) => update('vndbId', value)} onCopy={() => void copyText('VNDB ID', form.vndbId)} /></Field>
+              <Field label="DLsite ID"><CopyableTextInput copyLabel="DLsite ID" value={form.dlsiteId} onChange={(value) => update('dlsiteId', value)} onCopy={() => void copyText('DLsite ID', form.dlsiteId)} /></Field>
+              <Field label="FANZA ID"><CopyableTextInput copyLabel="FANZA ID" value={form.fanzaId} onChange={(value) => update('fanzaId', value)} onCopy={() => void copyText('FANZA ID', form.fanzaId)} /></Field>
             </div>
 
             <Field label="简介"><Textarea value={form.description} onChange={(event) => update('description', event.target.value)} /></Field>
@@ -413,6 +425,15 @@ function InputWithButton({ copyLabel, value, onChange, onCopy, onPick }: { copyL
       <Input value={value} onChange={(event) => onChange(event.target.value)} />
       {onCopy && copyLabel && <Button aria-label={`复制${copyLabel}`} className="shrink-0" disabled={!value.trim()} type="button" variant="outline" onClick={onCopy}><Copy className="h-4 w-4" />复制</Button>}
       <Button className="shrink-0" type="button" variant="outline" onClick={onPick}>选择</Button>
+    </div>
+  );
+}
+
+function CopyableTextInput({ copyLabel, value, onChange, onCopy }: { copyLabel: string; value: string; onChange: (value: string) => void; onCopy: () => void }) {
+  return (
+    <div className="flex gap-2">
+      <Input value={value} onChange={(event) => onChange(event.target.value)} />
+      <Button aria-label={`复制 ${copyLabel}`} className="shrink-0" disabled={!value.trim()} type="button" variant="outline" onClick={onCopy}><Copy className="h-4 w-4" />复制</Button>
     </div>
   );
 }
