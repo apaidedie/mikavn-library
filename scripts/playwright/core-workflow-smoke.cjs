@@ -25,6 +25,11 @@ const repoRoot = path.resolve(__dirname, '..', '..');
 const outDir = path.resolve(process.env.MIKAVN_QA_OUT_DIR || path.join(repoRoot, 'output', 'playwright', 'workflow-smoke-current'));
 fs.mkdirSync(outDir, { recursive: true });
 
+function browserLaunchOptions() {
+  const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
+  return executablePath ? { executablePath, headless: true } : { headless: true };
+}
+
 const now = new Date().toISOString();
 const hero = '/src/assets/hero.png';
 const games = [
@@ -116,7 +121,7 @@ function taskQueueRow(page, label) {
 }
 
 async function main() {
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch(browserLaunchOptions());
   const context = await browser.newContext({ viewport: { width: 1440, height: 1050 }, deviceScaleFactor: 1 });
   const page = await context.newPage();
   const consoleErrors = [];

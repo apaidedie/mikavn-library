@@ -30,6 +30,11 @@ const repoRoot = path.resolve(__dirname, '..', '..');
 const outDir = path.resolve(process.env.MIKAVN_QA_OUT_DIR || path.join(repoRoot, 'output', 'playwright', 'page-qa-current'));
 fs.mkdirSync(outDir, { recursive: true });
 
+function browserLaunchOptions() {
+  const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
+  return executablePath ? { executablePath, headless: true } : { headless: true };
+}
+
 function descriptionRepairRows(panel) {
   return panel.locator('.rounded-md').filter({ hasText: /^(已修复|跳过|失败)/ });
 }
@@ -271,7 +276,7 @@ async function clickMaintenanceStart(page, label) {
 }
 
 async function main() {
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch(browserLaunchOptions());
   try {
     const cases = [
       ['dashboard-populated', 'dashboard'],
@@ -990,6 +995,10 @@ async function main() {
       await page.getByRole('button', { name: /开始扫描/ }).click();
       await page.getByText(/冲突/).first().waitFor({ timeout: 5000 });
       const mergeRow = page.locator('label').filter({ hasText: '星之终途' }).first();
+      await mergeRow.getByRole('button', { name: /复制候选安装目录/ }).click();
+      const copiedCandidateInstallPath = await page.evaluate(() => navigator.clipboard.readText());
+      if (copiedCandidateInstallPath !== 'D:\\Games\\VN\\星之终途') throw new Error('scanner candidate install path copy did not write the expected path');
+      await page.getByText('已复制候选安装目录路径。').first().waitFor({ timeout: 5000 });
       await mergeRow.getByRole('checkbox').check();
       await mergeRow.locator('select').selectOption('merge');
       await page.getByText(/将更新 星之终途/).first().waitFor({ timeout: 5000 });

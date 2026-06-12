@@ -187,6 +187,18 @@ export function ScannerPage({ onOpenTask }: { onOpenTask?: (taskId: string) => v
     }
   };
 
+  const copyCandidateInstallPath = async (installPath: string) => {
+    const clean = installPath.trim();
+    if (!clean) return;
+    setError(null);
+    try {
+      await navigator.clipboard.writeText(clean);
+      setMessage({ text: '已复制候选安装目录路径。' });
+    } catch (reason) {
+      setError(errorMessage(reason));
+    }
+  };
+
   return (
     <PageShell>
       <PageFrame>
@@ -293,7 +305,21 @@ export function ScannerPage({ onOpenTask }: { onOpenTask?: (taskId: string) => v
                               <Badge>{candidate.executables.length} exe</Badge>
                             </div>
                           </div>
-                          <div className="mt-1 break-all font-mono text-xs text-slate-500">{candidate.installPath}</div>
+                          <div className="mt-1 flex flex-wrap items-center gap-2">
+                            <span className="min-w-0 break-all font-mono text-xs text-slate-500">{candidate.installPath}</span>
+                            <Button
+                              aria-label="复制候选安装目录"
+                              size="sm"
+                              variant="ghost"
+                              onClick={(event) => {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                void copyCandidateInstallPath(candidate.installPath);
+                              }}
+                            >
+                              <Copy className="h-4 w-4" />复制
+                            </Button>
+                          </div>
                           {candidate.conflict && <div className="mt-1 text-xs text-amber-100">{candidate.conflict.reason}：{candidate.conflict.title}</div>}
                           {candidate.conflict && (
                             <div className="mt-3 flex flex-wrap items-center gap-2 rounded-md border border-amber-200/10 bg-amber-200/[0.04] p-2">

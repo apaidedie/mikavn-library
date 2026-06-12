@@ -39,6 +39,11 @@ function resolvePlaywright() {
   return candidates[0]?.modulePath || 'playwright';
 }
 
+function browserLaunchOptions() {
+  const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
+  return executablePath ? { executablePath, headless: true } : { headless: true };
+}
+
 function checkUrl(urlString) {
   return new Promise((resolve) => {
     let settled = false;
@@ -107,7 +112,7 @@ async function waitForVite(server) {
 
 async function warmViteForBudgetedSmoke() {
   const { chromium } = require(resolvePlaywright());
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch(browserLaunchOptions());
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 });
   try {
     await page.goto(baseUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
