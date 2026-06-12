@@ -258,6 +258,7 @@ export function SavesPage({ refreshKey, onOpenTask }: { refreshKey: number; onOp
             <label className="space-y-1.5"><Label>标签</Label><Input value={label} onChange={(event) => setLabel(event.target.value)} /></label>
             <label className="space-y-1.5"><Label>存档目录</Label><Input value={path} onChange={(event) => setPath(event.target.value)} /></label>
             <div className="flex items-end gap-2">
+              <Button aria-label="复制待添加存档目录" disabled={!path.trim()} variant="outline" onClick={() => void copyPath('待添加存档目录', path)}><Copy className="h-4 w-4" />复制</Button>
               <Button variant="secondary" onClick={pickPath}><FolderPlus className="h-4 w-4" />选择</Button>
               <Button disabled={!selectedGameId || !path.trim() || loading} onClick={addPath}>添加</Button>
             </div>
