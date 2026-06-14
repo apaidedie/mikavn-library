@@ -439,7 +439,7 @@ fn metadata_coverage_health(conn: &Connection) -> DbResult<MetadataCoverageHealt
     let vndb = provider_linked_expr(conn, "vndb", Some("vndb_id"))?;
     let dlsite = provider_linked_expr(conn, "dlsite", Some("dlsite_id"))?;
     let fanza = provider_linked_expr(conn, "fanza", Some("fanza_id"))?;
-    let provider_linked = format!("({vndb}) OR ({dlsite}) OR ({fanza})");
+    let provider_linked = external.clone();
 
     Ok(MetadataCoverageHealth {
         complete_game_count: table_count_where(conn, "games", &complete)?,
@@ -1183,8 +1183,10 @@ mod tests {
               banner_image TEXT,
               background_image TEXT,
               vndb_id TEXT,
+              bangumi_id TEXT,
               dlsite_id TEXT,
               fanza_id TEXT,
+              ymgal_id TEXT,
               path_status TEXT
             );
             "#,
@@ -1232,12 +1234,45 @@ mod tests {
             params!["g3", "Empty VN", "", "", "", Option::<String>::None, "abc_1234", "incomplete"],
         )
         .unwrap();
+        conn.execute(
+            r#"
+            INSERT INTO games (id, title, description, release_date, brand, cover_image, bangumi_id, path_status)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+            "#,
+            params![
+                "g4",
+                "Bangumi VN",
+                "Bangumi-only metadata",
+                "2026-01-04",
+                "Studio",
+                "https://example.com/bangumi.jpg",
+                "bgm-29443",
+                "unknown"
+            ],
+        )
+        .unwrap();
+        conn.execute(
+            r#"
+            INSERT INTO games (id, title, description, release_date, developer, cover_image, ymgal_id)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+            "#,
+            params![
+                "g5",
+                "YMGal VN",
+                "YMGal-only metadata",
+                "2026-01-05",
+                "Studio",
+                "https://example.com/ymgal.jpg",
+                "ymgal-29443"
+            ],
+        )
+        .unwrap();
 
         let diagnostics = get_app_data_diagnostics_with_paths(&paths, "test".to_string()).unwrap();
 
         assert_eq!(
             diagnostics.database.metadata_coverage.complete_game_count,
-            2
+            4
         );
         assert_eq!(
             diagnostics.database.metadata_coverage.needs_metadata_count,
@@ -1259,7 +1294,7 @@ mod tests {
                 .database
                 .metadata_coverage
                 .provider_linked_game_count,
-            3
+            5
         );
         assert_eq!(diagnostics.database.metadata_coverage.dlsite_game_count, 2);
         assert_eq!(diagnostics.database.metadata_coverage.fanza_game_count, 1);

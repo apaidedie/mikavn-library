@@ -1,17 +1,6 @@
 import { Archive, ArrowLeft, ArrowRight, BarChart3, Cloud, DatabaseZap, FolderSearch, Grid2X2, Home, Layers3, LibraryBig, ListTodo, Moon, Plus, RefreshCw, Search, SearchCheck, Settings, SlidersHorizontal, Sun, Wrench } from 'lucide-react';
 import type { CSSProperties, ReactNode } from 'react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { DashboardPage } from '@/pages/Dashboard/DashboardPage';
-import { LibraryPage } from '@/pages/Library/LibraryPage';
-import { ReportsPage } from '@/pages/Reports/ReportsPage';
-import { SavesPage } from '@/pages/Saves/SavesPage';
-import { ScannerPage } from '@/pages/Scanner/ScannerPage';
-import { SettingsPage } from '@/pages/Settings/SettingsPage';
-import { BatchMetadataPage } from '@/pages/Metadata/BatchMetadataPage';
-import { MaintenancePage } from '@/pages/Maintenance/MaintenancePage';
-import { TasksPage } from '@/pages/Tasks/TasksPage';
-import { CollectionsPage } from '@/pages/Collections/CollectionsPage';
-import { AdvancedSearchPage } from '@/pages/Search/AdvancedSearchPage';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { api } from '@/services/api';
 import type { LibraryFilterPreset } from '@/types/game';
@@ -20,6 +9,18 @@ import { cn } from '@/utils/cn';
 
 type View = 'dashboard' | 'library' | 'collections' | 'advanced-search' | 'scanner' | 'metadata' | 'tasks' | 'reports' | 'saves' | 'maintenance' | 'settings';
 type ThemeMode = 'dark' | 'light' | 'system';
+
+const DashboardPage = lazy(() => import('@/pages/Dashboard/DashboardPage').then((module) => ({ default: module.DashboardPage })));
+const LibraryPage = lazy(() => import('@/pages/Library/LibraryPage').then((module) => ({ default: module.LibraryPage })));
+const CollectionsPage = lazy(() => import('@/pages/Collections/CollectionsPage').then((module) => ({ default: module.CollectionsPage })));
+const AdvancedSearchPage = lazy(() => import('@/pages/Search/AdvancedSearchPage').then((module) => ({ default: module.AdvancedSearchPage })));
+const ScannerPage = lazy(() => import('@/pages/Scanner/ScannerPage').then((module) => ({ default: module.ScannerPage })));
+const BatchMetadataPage = lazy(() => import('@/pages/Metadata/BatchMetadataPage').then((module) => ({ default: module.BatchMetadataPage })));
+const TasksPage = lazy(() => import('@/pages/Tasks/TasksPage').then((module) => ({ default: module.TasksPage })));
+const ReportsPage = lazy(() => import('@/pages/Reports/ReportsPage').then((module) => ({ default: module.ReportsPage })));
+const SavesPage = lazy(() => import('@/pages/Saves/SavesPage').then((module) => ({ default: module.SavesPage })));
+const MaintenancePage = lazy(() => import('@/pages/Maintenance/MaintenancePage').then((module) => ({ default: module.MaintenancePage })));
+const SettingsPage = lazy(() => import('@/pages/Settings/SettingsPage').then((module) => ({ default: module.SettingsPage })));
 
 const navItems = [
   { id: 'dashboard', label: '首页', icon: Home },
@@ -301,20 +302,30 @@ export function App() {
           </div>
         </header>
 
-        <div className="min-h-0 flex-1 overflow-hidden">
-          {view === 'dashboard' && <DashboardPage refreshKey={refreshKey} onOpenGame={openGame} onOpenTasks={openTasks} />}
-          {view === 'library' && <LibraryPage refreshKey={refreshKey} selectedGameId={selectedGameId} onSelectedGameChange={setSelectedGameId} onChanged={refresh} addRequestKey={addRequestKey} onAddRequestConsumed={() => setAddRequestKey(null)} filterPreset={libraryFilterPresetRequest} filterToggleKey={libraryFilterToggleKey} toolbarQuery={librarySearchValue} onOpenTasks={openTasks} onOpenMaintenance={openMaintenance} />}
-          {view === 'collections' && <CollectionsPage refreshKey={refreshKey} onOpenGame={openGame} onChanged={refresh} />}
-          {view === 'advanced-search' && <AdvancedSearchPage refreshKey={refreshKey} onOpenGame={openGame} />}
-          {view === 'scanner' && <ScannerPage onOpenTask={openTasks} />}
-          {view === 'metadata' && <BatchMetadataPage queuePresetRequest={metadataQueuePresetRequest} refreshKey={refreshKey} onOpenTask={openTasks} />}
-          {view === 'tasks' && <TasksPage filterPreset={taskFilterPresetRequest} focusTaskId={taskFocusRequest.id} focusRequestKey={taskFocusRequest.key} refreshKey={refreshKey} />}
-          {view === 'reports' && <ReportsPage refreshKey={refreshKey} onOpenGame={openGame} onOpenLibrary={openLibrary} onOpenTask={openTasks} />}
-          {view === 'saves' && <SavesPage refreshKey={refreshKey} onOpenTask={openTasks} />}
-          {view === 'maintenance' && <MaintenancePage focusRequestKey={maintenanceFocusRequest.key} focusSection={maintenanceFocusRequest.section} refreshKey={refreshKey} onOpenGame={openGame} onOpenLibrary={openLibrary} onOpenMetadata={openMetadata} onOpenTasks={openTasks} />}
-          {view === 'settings' && <SettingsPage onAccentPreview={previewAccent} onThemePreview={previewTheme} onSaved={refresh} onOpenTask={openTasks} />}
-        </div>
+        <Suspense fallback={<PageLoading />}>
+          <div className="min-h-0 flex-1 overflow-hidden">
+            {view === 'dashboard' && <DashboardPage refreshKey={refreshKey} onOpenGame={openGame} onOpenTasks={openTasks} />}
+            {view === 'library' && <LibraryPage refreshKey={refreshKey} selectedGameId={selectedGameId} onSelectedGameChange={setSelectedGameId} onChanged={refresh} addRequestKey={addRequestKey} onAddRequestConsumed={() => setAddRequestKey(null)} filterPreset={libraryFilterPresetRequest} filterToggleKey={libraryFilterToggleKey} toolbarQuery={librarySearchValue} onOpenTasks={openTasks} onOpenMaintenance={openMaintenance} />}
+            {view === 'collections' && <CollectionsPage refreshKey={refreshKey} onOpenGame={openGame} onChanged={refresh} />}
+            {view === 'advanced-search' && <AdvancedSearchPage refreshKey={refreshKey} onOpenGame={openGame} />}
+            {view === 'scanner' && <ScannerPage onOpenTask={openTasks} />}
+            {view === 'metadata' && <BatchMetadataPage queuePresetRequest={metadataQueuePresetRequest} refreshKey={refreshKey} onOpenTask={openTasks} />}
+            {view === 'tasks' && <TasksPage filterPreset={taskFilterPresetRequest} focusTaskId={taskFocusRequest.id} focusRequestKey={taskFocusRequest.key} refreshKey={refreshKey} />}
+            {view === 'reports' && <ReportsPage refreshKey={refreshKey} onOpenGame={openGame} onOpenLibrary={openLibrary} onOpenTask={openTasks} />}
+            {view === 'saves' && <SavesPage refreshKey={refreshKey} onOpenTask={openTasks} />}
+            {view === 'maintenance' && <MaintenancePage focusRequestKey={maintenanceFocusRequest.key} focusSection={maintenanceFocusRequest.section} refreshKey={refreshKey} onOpenGame={openGame} onOpenLibrary={openLibrary} onOpenMetadata={openMetadata} onOpenTasks={openTasks} />}
+            {view === 'settings' && <SettingsPage onAccentPreview={previewAccent} onThemePreview={previewTheme} onSaved={refresh} onOpenTask={openTasks} />}
+          </div>
+        </Suspense>
       </main>
+    </div>
+  );
+}
+
+function PageLoading() {
+  return (
+    <div className="flex min-h-0 flex-1 items-center justify-center text-sm text-slate-400">
+      载入页面...
     </div>
   );
 }

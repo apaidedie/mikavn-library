@@ -131,14 +131,16 @@ Use `RELEASE_CHECKLIST.md` before tagging or publishing a GitHub release.
 Latest mature V1 acceptance pass. For the repeatable release checklist, see `RELEASE_CHECKLIST.md`.
 
 - `npm run release:check` verifies version alignment, release metadata, Tauri security hardening, browser/large smoke gates, and release desktop-smoke gating; `npm run release:check:strict` also verifies public GitHub release links. `npm run release:validate:strict` runs the local release validation chain end to end, and `npm run release:validate:core` reruns the strict non-smoke core checks.
-- `cargo fmt --check`, `cargo clippy -- -D warnings`, and `cargo test` under `src-tauri` pass with 114 Rust tests.
+- `cargo fmt --check`, `cargo clippy -- -D warnings`, and `cargo test` under `src-tauri` pass with the current repository test count (125 Rust tests in the latest local run).
+- `npm run test:release-scripts` and `npm run test:playwright-scripts` cover release handoff, source-size, build-chunk, and Playwright module-resolution helpers.
 - `npm run build` passes TypeScript and Vite production build checks.
 - `npm run smoke:browser` starts or reuses a local Vite server, then runs page-level Playwright QA plus core workflow smoke.
-- `npm run smoke:large` starts or reuses a local Vite server, seeds 1500 browser-preview records, and verifies library rendering/filtering plus advanced-search timings; latest local run loaded the library in 1055ms and advanced search in 346ms.
+- `npm run smoke:large` starts or reuses a local Vite server, seeds 1500 browser-preview records, and verifies library rendering/filtering plus advanced-search timings; latest local run loaded the library in 793ms and advanced search in 669ms.
 - `npm run tauri:build` produces the Windows release executable and NSIS installer; latest local release/package run rebuilt both artifacts successfully.
 - `npm run smoke:install` silently installs the NSIS package into `output/clean-install-smoke/run-*/install`, launches the installed app with isolated app data, verifies first-run database/window creation, and silently uninstalls it.
 - `npm run smoke:portable-data` silently installs the NSIS package without `MIKAVN_APP_DATA_DIR`, verifies first-run `mikavn.db` plus `.mikavn-portable` are created under executable-adjacent `app-data/`, and fails if a fallback `%APPDATA%` database appears.
 - `npm run smoke:desktop` verifies the release executable starts, exposes a main window handle, and creates `mikavn.db` only under the isolated `output/desktop-smoke/run-*/isolated-app-data` root; latest local desktop smoke passed against the rebuilt release executable.
+- `npm run release:handoff:check` verifies the copied release handoff directory contains the rebuilt executable, NSIS installer, matching SHA256 sums, validation report, signing-status documentation, and manual risk-pass checklist.
 - `npm run release:signing:check` reports Windows Authenticode status; public installers should be signed with a trusted certificate as described in `docs/CODE_SIGNING.md`.
 
 ## Implemented Commands
@@ -262,6 +264,7 @@ The metadata layer ports the useful ButterFetch ideas into native Rust/Tauri mod
 - When applying metadata, remote cover URLs are downloaded to `images/` when possible. Downloads are capped at 10MB and limited to public image MIME types; failures keep the original URL and do not block metadata writeback.
 - User-edited fields can be locked. Metadata apply skips locked fields by default and only overwrites them when the user explicitly enables override.
 - `metadata_sources` registers source providers and `external_ids` stores normalized per-game IDs. The legacy columns on `games` are still kept as the current compatibility surface for existing UI and imports.
+- Bangumi and YMGal external IDs are registered and normalized for local records, filters, diagnostics, and duplicate audits. Full Bangumi / YMGal public search and detail providers remain future work.
 
 DLsite and FANZA access is intentionally limited to public pages. The app does not log in, bypass restrictions, or fetch paid content.
 
@@ -336,7 +339,7 @@ Not included yet:
 - Cloud sync
 - Plugin system
 - Complex privacy mode beyond local hide/blur/report filters
-- Bangumi / YMGal providers
+- Full Bangumi / YMGal metadata search/detail providers beyond the current external-ID registry
 - Rich per-file save diff viewers beyond the current restore preview summary
 - Normalized log indexing beyond file preview/pruning
 - A dedicated `domain/` crate/module split

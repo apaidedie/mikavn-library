@@ -3,6 +3,7 @@ const http = require('http');
 const https = require('https');
 const path = require('path');
 const { spawn } = require('child_process');
+const { resolvePlaywright } = require('./playwright-resolution.cjs');
 
 const repoRoot = path.resolve(__dirname, '..', '..');
 const baseUrl = process.env.MIKAVN_QA_URL || 'http://127.0.0.1:1420/';
@@ -16,27 +17,6 @@ const smokeScripts = {
 if (!smokeScripts[mode]) {
   console.error('Usage: node scripts/playwright/run-smoke-with-vite.cjs <browser|large>');
   process.exit(1);
-}
-
-function resolvePlaywright() {
-  const explicit = process.env.PLAYWRIGHT_MODULE;
-  if (explicit) return explicit;
-
-  const npxRoot = path.join(process.env.LOCALAPPDATA || '', 'npm-cache', '_npx');
-  const candidates = [];
-  if (fs.existsSync(npxRoot)) {
-    for (const entry of fs.readdirSync(npxRoot, { withFileTypes: true })) {
-      if (!entry.isDirectory()) continue;
-      const modulePath = path.join(npxRoot, entry.name, 'node_modules', 'playwright');
-      const packageJson = path.join(modulePath, 'package.json');
-      if (fs.existsSync(packageJson)) {
-        candidates.push({ modulePath, mtimeMs: fs.statSync(packageJson).mtimeMs });
-      }
-    }
-  }
-
-  candidates.sort((a, b) => b.mtimeMs - a.mtimeMs);
-  return candidates[0]?.modulePath || 'playwright';
 }
 
 function browserLaunchOptions() {
@@ -111,12 +91,16 @@ async function waitForVite(server) {
 }
 
 async function warmViteForBudgetedSmoke() {
-  const { chromium } = require(resolvePlaywright());
+  const { chromium } = require(resolvePlaywright(repoRoot));
   const browser = await chromium.launch(browserLaunchOptions());
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 });
   try {
     await page.goto(baseUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await page.waitForFunction(() => document.body.innerText.length > 20, null, { timeout: 15000 });
+    await page.waitForFunction(
+      () => !document.body.innerText.includes('载入页面...') && document.body.innerText.length > 20,
+      null,
+      { timeout: 60000 },
+    );
     await page.waitForTimeout(500);
   } finally {
     await browser.close();

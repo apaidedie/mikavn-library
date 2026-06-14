@@ -1,32 +1,10 @@
 const fs = require('fs');
 const path = require('path');
-
-function resolvePlaywright() {
-  const explicit = process.env.PLAYWRIGHT_MODULE;
-  if (explicit) return explicit;
-
-  const npxRoot = path.join(process.env.LOCALAPPDATA || '', 'npm-cache', '_npx');
-  const candidates = [];
-  if (fs.existsSync(npxRoot)) {
-    for (const entry of fs.readdirSync(npxRoot, { withFileTypes: true })) {
-      if (!entry.isDirectory()) continue;
-      const modulePath = path.join(npxRoot, entry.name, 'node_modules', 'playwright');
-      const packageJson = path.join(modulePath, 'package.json');
-      if (fs.existsSync(packageJson)) {
-        candidates.push({ modulePath, mtimeMs: fs.statSync(packageJson).mtimeMs });
-      }
-    }
-  }
-
-  candidates.sort((a, b) => b.mtimeMs - a.mtimeMs);
-  if (candidates[0]) return candidates[0].modulePath;
-  return 'playwright';
-}
-
-const { chromium } = require(resolvePlaywright());
+const { resolvePlaywright } = require('./playwright-resolution.cjs');
 
 const baseUrl = process.env.MIKAVN_QA_URL || 'http://127.0.0.1:1420/';
 const repoRoot = path.resolve(__dirname, '..', '..');
+const { chromium } = require(resolvePlaywright(repoRoot));
 const outDir = path.resolve(process.env.MIKAVN_QA_OUT_DIR || path.join(repoRoot, 'output', 'playwright', 'page-qa-current'));
 fs.mkdirSync(outDir, { recursive: true });
 

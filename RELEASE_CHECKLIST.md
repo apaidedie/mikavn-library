@@ -9,6 +9,7 @@ Use this checklist before packaging or sharing a build. The app is Windows-first
 - Check version alignment across `package.json`, `package-lock.json`, `src-tauri/Cargo.toml`, and `src-tauri/tauri.conf.json`.
 - Run `npm run release:check`; this verifies version alignment, required release metadata, license consistency, and the hardened Tauri security baseline (explicit CSP, prototype freezing, and scoped asset protocol). Before a public GitHub release, run `npm run release:check:strict` so repository-link placeholders are checked without relying on npm argument forwarding.
 - For a full local release candidate pass, run `npm run release:validate:strict`. When browser smoke, large smoke, Tauri build, and desktop smoke were already verified separately, run `npm run release:validate:core` to repeat the strict non-smoke core checks.
+- Run `npm run test:release-scripts` and `npm run test:playwright-scripts` when release tooling or smoke runners change.
 
 ## 2. Automated Checks
 
@@ -21,10 +22,12 @@ cargo test
 
 ```powershell
 cd ..
+npm run test:release-scripts
+npm run test:playwright-scripts
 npm run build
 ```
 
-Expected baseline for the current mature V1 snapshot: Rust tests pass with the current repository test count, the frontend build completes TypeScript plus Vite production checks, and browser smoke covers backup/restore/archival task logs.
+Expected baseline for the current mature V1 snapshot: Rust tests pass with the current repository test count, release/playwright script unit tests pass, the frontend build completes TypeScript plus Vite production checks, and browser smoke covers backup/restore/archival task logs.
 
 `npm run release:validate:strict` runs these checks in sequence before the smoke and packaging steps, so release candidates can be validated from one command when a full pass is needed. `npm run release:validate:core` skips browser, large-library, Tauri build, clean-install, portable app-data, and desktop smoke when those slower checks were already verified separately.
 
@@ -56,11 +59,14 @@ After a release build exists, run:
 npm run smoke:install
 npm run smoke:portable-data
 npm run smoke:desktop
+npm run release:handoff:check
 ```
 
 `npm run smoke:install` silently installs the NSIS package into `output/clean-install-smoke/run-*/install`, launches the installed app with isolated app data, verifies first-run database/window creation, and silently uninstalls it. `npm run smoke:portable-data` installs without `MIKAVN_APP_DATA_DIR`, verifies executable-adjacent `app-data/` plus `.mikavn-portable`, and fails if `%APPDATA%` receives `mikavn.db`.
 
 The smoke should start `src-tauri/target/release/mikavn-library.exe`, detect that the main window was exposed, and create or open `mikavn.db` only under `output/desktop-smoke/run-*/isolated-app-data`. The report records `mainWindowDetected`, `mainWindowHandle`, and `mainWindowTitle` when available. The script sets `MIKAVN_APP_DATA_DIR` for the launched process and must fail if the database appears outside that isolated root; desktop smoke must not read from or write to the real `%APPDATA%\dev.mikavn.library` profile.
+
+After copying the release executable, installer, `SHA256SUMS.txt`, `RELEASE_VALIDATION_REPORT.md`, and `MANUAL_RISK_PASS_CHECKLIST.md` into `output/release/<version>-windows-x64/`, run `npm run release:handoff:check` to verify the handoff artifacts, checksums, signing-status documentation, and manual risk-pass checklist have not drifted.
 
 ## 5. Manual Risk Pass
 
@@ -73,6 +79,7 @@ The smoke should start `src-tauri/target/release/mikavn-library.exe`, detect tha
 
 - `npm run tauri:build` produces the NSIS installer under `src-tauri/target/release/bundle/nsis/`.
 - Before public sharing, follow `docs/CODE_SIGNING.md`: sign with a trusted certificate, then run `npm run release:signing:require`.
-- GitHub tag releases are handled by `.github/workflows/release.yml`; tag versions should use `vMAJOR.MINOR.PATCH`, such as `v0.1.0`. The release workflow runs `npm run smoke:install`, `npm run smoke:portable-data`, and `npm run smoke:desktop` after `npm run tauri:build` and before uploading installer artifacts, then uploads the isolated clean-install, portable app-data, and desktop smoke reports under `output/clean-install-smoke/`, `output/portable-app-data-smoke/`, and `output/desktop-smoke/`.
+- If signed artifacts are recopied into `output/release/<version>-windows-x64/`, regenerate `SHA256SUMS.txt` and rerun `npm run release:handoff:check`.
+- GitHub tag releases are handled by `.github/workflows/release.yml`; tag versions should use `vMAJOR.MINOR.PATCH`, such as `v0.1.0`. The release workflow runs `npm run test:release-scripts`, `npm run test:playwright-scripts`, `npm run smoke:install`, `npm run smoke:portable-data`, and `npm run smoke:desktop` after strict metadata checks and before uploading installer artifacts, then uploads the isolated clean-install, portable app-data, and desktop smoke reports under `output/clean-install-smoke/`, `output/portable-app-data-smoke/`, and `output/desktop-smoke/`.
 - Keep release notes focused on local-only data safety: real game directories are never moved, rewritten, or deleted by import/export/archive flows.
 - If the version changes, update every versioned file before rebuilding.

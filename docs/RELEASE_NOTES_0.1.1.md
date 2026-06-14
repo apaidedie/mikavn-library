@@ -21,10 +21,12 @@ This build passed:
 
 - `npm run release:validate:strict`
 - `npm run release:check:strict`
+- `npm run test:release-scripts`
+- `npm run test:playwright-scripts`
 - `npm run build`
 - `cargo fmt --check`
 - `cargo clippy -- -D warnings`
-- `cargo test` with 87 Rust tests
+- `cargo test` with 125 Rust tests
 - `npm run smoke:browser`
 - `npm run smoke:large`
 - `npm run tauri:build`

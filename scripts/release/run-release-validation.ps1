@@ -24,6 +24,10 @@ try {
   }
 
   Invoke-Step "Release metadata" { pwsh @releaseCheckArgs }
+  Invoke-Step "Script unit tests" {
+    npm run test:release-scripts
+    npm run test:playwright-scripts
+  }
   Invoke-Step "Frontend build" { npm run build }
 
   Push-Location (Join-Path $repoRoot "src-tauri")

@@ -32,6 +32,11 @@ jobs:
       - name: Check release metadata
         run: npm run release:check
 
+      - name: Run script unit tests
+        run: |
+          npm run test:release-scripts
+          npm run test:playwright-scripts
+
       - name: Build frontend
         run: npm run build
 

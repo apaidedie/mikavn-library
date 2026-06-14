@@ -1,0 +1,39 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const test = require('node:test');
+
+const { checkSourceSize } = require('./check-source-size.cjs');
+
+function createSourceFile(contents) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'mikavn-source-size-'));
+  const filePath = path.join(root, 'mockStore.ts');
+  fs.writeFileSync(filePath, contents, 'utf8');
+  return { filePath, root };
+}
+
+test('checkSourceSize passes when watched files stay within byte and line budgets', () => {
+  const { filePath, root } = createSourceFile('const ok = true;\n');
+
+  const result = checkSourceSize({
+    rootDir: root,
+    budgets: [{ filePath, maxBytes: 128, maxLines: 4 }],
+  });
+
+  assert.equal(result.checkedFiles.length, 1);
+  assert.deepEqual(result.oversizedFiles, []);
+  assert.equal(result.checkedFiles[0].lineCount, 1);
+});
+
+test('checkSourceSize rejects files that exceed configured budgets', () => {
+  const { filePath, root } = createSourceFile('a\nb\nc\n');
+
+  assert.throws(
+    () => checkSourceSize({
+      rootDir: root,
+      budgets: [{ filePath, maxBytes: 4, maxLines: 2 }],
+    }),
+    /source files exceed size budget: mockStore\.ts 6 bytes > 4 bytes, 3 lines > 2 lines/,
+  );
+});

@@ -41,8 +41,8 @@ export function BatchMetadataPage({ refreshKey, queuePresetRequest, onOpenTask }
   const [applyingIds, setApplyingIds] = useState<string[]>([]);
   const [expandedIds, setExpandedIds] = useState<string[]>([]);
   const [selectedCandidates, setSelectedCandidates] = useState<Record<string, MetadataSearchResult>>({});
-  const [queueQuery, setQueueQuery] = useState('');
-  const [missingProviderFilter, setMissingProviderFilter] = useState<MissingProviderFilter>('all');
+  const [queueQuery, setQueueQuery] = useState(() => queuePresetRequest?.query ?? '');
+  const [missingProviderFilter, setMissingProviderFilter] = useState<MissingProviderFilter>(() => normalizeMissingProviderFilter(queuePresetRequest?.missingProvider));
   const [resultQuery, setResultQuery] = useState('');
   const [resultStatusFilter, setResultStatusFilter] = useState('all');
   const [writeFilter, setWriteFilter] = useState('all');
