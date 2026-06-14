@@ -13,6 +13,7 @@ import { cn } from '@/utils/cn';
 import { errorMessage } from '@/utils/errorMessage';
 import { taskLabel, taskStatusClass, taskStatusLabel } from '@/utils/taskLabels';
 import { formatDateTime } from '@/utils/time';
+import { buildTaskDiagnosticMarkdown } from './taskDiagnostics';
 
 export function TasksPage({ refreshKey, focusTaskId, focusRequestKey = 0, filterPreset }: { refreshKey: number; focusTaskId?: string | null; focusRequestKey?: number; filterPreset?: (TaskFilterPreset & { key: number }) | null }) {
   const [tasks, setTasks] = useState<TaskRecord[]>([]);
@@ -215,6 +216,18 @@ export function TasksPage({ refreshKey, focusTaskId, focusRequestKey = 0, filter
     }
   }
 
+  async function copyTaskDiagnostic(task: TaskRecord) {
+    setError(null);
+    try {
+      const logs = logsByTask[task.id] ?? await api.listTaskLogs(task.id);
+      setLogsByTask((current) => ({ ...current, [task.id]: logs }));
+      await navigator.clipboard.writeText(buildTaskDiagnosticMarkdown(task, logs));
+      setMessage('已复制任务诊断摘要。');
+    } catch (reason) {
+      setError(errorMessage(reason));
+    }
+  }
+
   return (
     <PageShell>
       <PageFrame className="max-w-[76rem] gap-6">
@@ -295,6 +308,7 @@ export function TasksPage({ refreshKey, focusTaskId, focusRequestKey = 0, filter
                         </div>
                         <div className="flex justify-end gap-2">
                           <Button size="sm" variant="ghost" onClick={() => void openResultLogs(task.id)}><FileText className="h-4 w-4" />日志</Button>
+                          <Button size="sm" variant="ghost" onClick={() => void copyTaskDiagnostic(task)}><Copy className="h-4 w-4" />诊断</Button>
                           {canRetryTask(task) && <Button size="sm" variant="outline" onClick={() => void retry(task.id)}><RotateCcw className="h-4 w-4" />重试</Button>}
                         </div>
                       </div>
@@ -405,6 +419,7 @@ export function TasksPage({ refreshKey, focusTaskId, focusRequestKey = 0, filter
                   </div>
                   <div className="flex shrink-0 flex-wrap justify-end gap-2">
                     <Button size="sm" variant="ghost" onClick={() => void toggleExpanded(task.id)}><ChevronDown className={cn('h-4 w-4 transition-transform', expanded && 'rotate-180')} />日志</Button>
+                    <Button size="sm" variant="ghost" onClick={() => void copyTaskDiagnostic(task)}><Copy className="h-4 w-4" />诊断</Button>
                     <Button disabled={!canRetryTask(task)} size="sm" variant="outline" onClick={() => void retry(task.id)}><RotateCcw className="h-4 w-4" />重试</Button>
                     <Button disabled={task.status !== 'running' && task.status !== 'pending'} size="sm" variant="outline" onClick={() => void cancel(task.id)}><StopCircle className="h-4 w-4" />取消</Button>
                   </div>
