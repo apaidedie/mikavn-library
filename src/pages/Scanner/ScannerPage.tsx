@@ -449,6 +449,7 @@ function ImportReportRow({ item, onCopyInstallPath }: { item: ImportScanReportIt
       </div>
       <div className="mt-1 text-slate-500">{item.message}{item.targetTitle ? `：${item.targetTitle}` : ''}</div>
       {item.conflictReason && <div className="mt-1 text-amber-100">冲突原因：{item.conflictReason}</div>}
+      <div className="mt-1 text-slate-400">{importActionHint(item.action)}</div>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <span className="min-w-0 break-all font-mono text-[11px] text-slate-600">{item.installPath}</span>
         <Button aria-label="复制审计安装目录" size="sm" variant="ghost" onClick={() => onCopyInstallPath(item.installPath)}><Copy className="h-4 w-4" />复制</Button>
@@ -498,6 +499,17 @@ function importActionLabel(action: ImportScanReportItem['action']) {
     case 'duplicate': return '副本';
     case 'skip': return '跳过';
     default: return action;
+  }
+}
+
+function importActionHint(action: ImportScanReportItem['action']) {
+  switch (action) {
+    case 'add': return '下一步：建议继续批量匹配元数据，并检查封面与外部 ID。';
+    case 'merge': return '下一步：已更新现有记录路径、启动程序与别名，建议打开详情页检查路径健康。';
+    case 'replace': return '下一步：已覆盖数据库记录字段，建议核对标题、启动程序和别名是否符合预期。';
+    case 'duplicate': return '下一步：已保留为独立记录，建议之后在维护页检查是否需要合并重复项。';
+    case 'skip': return '下一步：未写入数据库；如需导入，请重新扫描后选择合并、替换或副本导入。';
+    default: return '下一步：查看处理消息和冲突原因，确认是否需要手动修正。';
   }
 }
 
