@@ -342,6 +342,14 @@ pub fn enqueue_save_restore_task(
                 "info",
                 &format!("存档恢复保护备份：{}", protection.backup_path),
             )?;
+            let preview = preview_restore_files(
+                Path::new(&backup.backup_path),
+                Path::new(&save_path.path),
+                &mode,
+            )?;
+            for line in restore_preview_log_lines(&preview, &protection.backup_path) {
+                db.append_task_log(&task_id, "info", &line)?;
+            }
             let _ = tasks::update_task(
                 &app_handle,
                 &db,
@@ -427,6 +435,35 @@ fn restore_mode_label(mode: &str) -> &'static str {
     match mode {
         "mirror" => "镜像",
         _ => "合并",
+    }
+}
+
+fn restore_preview_log_lines(preview: &SaveRestorePreview, protection_path: &str) -> Vec<String> {
+    let mut lines = vec![
+        format!("存档恢复模式：{}", restore_mode_label(&preview.mode)),
+        format!("备份来源：{}", preview.backup_path),
+        format!("恢复目标：{}", preview.save_path),
+        format!(
+            "存档恢复差异：备份 {}，当前 {}，新增 {}，覆盖 {}，保留 {}，清理 {}。",
+            preview.backup_file_count,
+            preview.current_file_count,
+            preview.new_files,
+            preview.overwritten_files,
+            preview.kept_files,
+            preview.removed_files
+        ),
+    ];
+    push_sample_line(&mut lines, "新增样例", &preview.sample_new_files);
+    push_sample_line(&mut lines, "覆盖样例", &preview.sample_overwritten_files);
+    push_sample_line(&mut lines, "保留样例", &preview.sample_kept_files);
+    push_sample_line(&mut lines, "清理样例", &preview.sample_removed_files);
+    lines.push(format!("保护备份：{protection_path}"));
+    lines
+}
+
+fn push_sample_line(lines: &mut Vec<String>, label: &str, samples: &[String]) {
+    if !samples.is_empty() {
+        lines.push(format!("{label}：{}", samples.join("，")));
     }
 }
 
@@ -1028,6 +1065,40 @@ mod tests {
         assert!(save.join("local-only.dat").exists());
 
         let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn restore_preview_log_lines_include_counts_samples_and_paths() {
+        let preview = SaveRestorePreview {
+            mode: "mirror".to_string(),
+            backup_path: "D:\\Backups\\slot".to_string(),
+            save_path: "D:\\Games\\VN\\save".to_string(),
+            backup_file_count: 3,
+            current_file_count: 2,
+            new_files: 1,
+            overwritten_files: 1,
+            kept_files: 0,
+            removed_files: 2,
+            sample_new_files: vec!["new.dat".to_string()],
+            sample_overwritten_files: vec!["slot1.dat".to_string()],
+            sample_kept_files: Vec::new(),
+            sample_removed_files: vec!["old.dat".to_string()],
+        };
+
+        let lines = restore_preview_log_lines(&preview, "D:\\Protection\\before-restore");
+
+        assert!(lines.iter().any(|line| line.contains("存档恢复模式：镜像")));
+        assert!(lines
+            .iter()
+            .any(|line| line.contains("新增 1，覆盖 1，保留 0，清理 2")));
+        assert!(lines.iter().any(|line| line.contains("新增样例：new.dat")));
+        assert!(lines
+            .iter()
+            .any(|line| line.contains("覆盖样例：slot1.dat")));
+        assert!(lines.iter().any(|line| line.contains("清理样例：old.dat")));
+        assert!(lines
+            .iter()
+            .any(|line| line.contains("保护备份：D:\\Protection\\before-restore")));
     }
 
     #[test]
