@@ -8,6 +8,7 @@ const { resolvePlaywright } = require('./playwright-resolution.cjs');
 const repoRoot = path.resolve(__dirname, '..', '..');
 const baseUrl = process.env.MIKAVN_QA_URL || 'http://127.0.0.1:1420/';
 const mode = process.argv[2];
+const warmupTimeoutMs = Number.parseInt(process.env.MIKAVN_VITE_WARM_TIMEOUT_MS || '120000', 10);
 
 const smokeScripts = {
   browser: ['page-qa-runner.cjs', 'core-workflow-smoke.cjs'],
@@ -99,7 +100,7 @@ async function warmViteForBudgetedSmoke() {
     await page.waitForFunction(
       () => !document.body.innerText.includes('载入页面...') && document.body.innerText.length > 20,
       null,
-      { timeout: 60000 },
+      { timeout: warmupTimeoutMs },
     );
     await page.waitForTimeout(500);
   } finally {

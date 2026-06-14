@@ -52,3 +52,12 @@ test('smoke scripts use the shared Playwright resolver instead of inline npx loo
     assert.doesNotMatch(source, /npm-cache['"], ['"]_npx|npm-cache\\['"]\s*,\s*['"]_npx/);
   }
 });
+
+test('large smoke warmup timeout is configurable and long enough for cold Vite transforms', () => {
+  const source = fs.readFileSync(path.join(__dirname, 'run-smoke-with-vite.cjs'), 'utf8');
+  assert.match(source, /MIKAVN_VITE_WARM_TIMEOUT_MS/);
+
+  const defaultMatch = source.match(/const warmupTimeoutMs = .*?parseInt\([^)]*'(\d+)'/s);
+  assert.ok(defaultMatch, 'expected a default warmup timeout');
+  assert.ok(Number.parseInt(defaultMatch[1], 10) >= 120000);
+});
