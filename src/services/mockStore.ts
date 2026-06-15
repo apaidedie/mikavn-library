@@ -7,6 +7,13 @@ import type { ScanTaskStatus, TaskDetail, TaskLogEntry, TaskRecord } from '@/typ
 import { defaultSettings, mockMetadata, sampleGames, sampleHeroUrl } from './mockStoreFixtures';
 import { ASSETS_KEY, BATCH_KEY, COLLECTION_GAMES_KEY, COLLECTIONS_KEY, FIELD_LOCKS_KEY, LAUNCH_PROFILES_KEY, LIBRARY_ROOTS_KEY, PLAY_SESSIONS_KEY, SAVED_SEARCHES_KEY, SAVE_BACKUPS_KEY, SAVE_PATHS_KEY, SCAN_TASKS_KEY, SETTINGS_KEY, STORAGE_KEY, TASKS_KEY, TASK_LOGS_KEY, readJson, readSettings, writeJson } from './mockStoreStorage';
 
+const MOCK_APP_DATA_DIR = 'E:\\MikaVN Library\\app-data';
+const MOCK_IMAGE_DIR = `${MOCK_APP_DATA_DIR}\\images`;
+
+function mockAppDataPath(...parts: string[]) {
+  return [MOCK_APP_DATA_DIR, ...parts].join('\\');
+}
+
 function readGames() {
   const raw = localStorage.getItem(STORAGE_KEY);
   if (!raw) {
@@ -600,7 +607,7 @@ function mockAuditImageValue(value: string) {
   const embedded = clean.startsWith('data:') || clean.startsWith('asset:') || clean === sampleHeroUrl || clean.startsWith('/assets/');
   const local = clean !== '' && !remote && !embedded;
   const issues: string[] = [];
-  if (local && !clean.startsWith('E:\\MikaVN Library\\app-data\\images\\') && !clean.startsWith('images\\') && !clean.startsWith('images/')) issues.push('missing');
+  if (local && !clean.startsWith(`${MOCK_IMAGE_DIR}\\`) && !clean.startsWith('images\\') && !clean.startsWith('images/')) issues.push('missing');
   if (lower.startsWith('c:\\')) issues.push('c_drive');
   if (lower.includes('\\playnite\\') || lower.startsWith('d:\\playnite')) issues.push('playnite');
   return {
@@ -1241,10 +1248,10 @@ export const mockStore = {
     const providerGames = games.filter((game) => game.dlsiteId || game.fanzaId);
     const duplicateExternalIds = mockDuplicateExternalIdPreview();
     return Promise.resolve({
-      appDataDir: 'E:\\MikaVN Library\\app-data',
+      appDataDir: MOCK_APP_DATA_DIR,
       dataDirSource: 'mock',
       database: {
-        path: 'E:\\MikaVN Library\\app-data\\mikavn.db',
+        path: mockAppDataPath('mikavn.db'),
         exists: true,
         sizeBytes: 12 * 1024 * 1024,
         userVersion: 13,
@@ -1299,17 +1306,17 @@ export const mockStore = {
           uncheckedCount: games.filter((game) => !game.pathStatus || game.pathStatus === 'unknown').length,
         },
       },
-      images: { path: 'E:\\MikaVN Library\\app-data\\images', exists: true, fileCount: Math.max(assets.length, 1), totalBytes: Math.max(assets.length, 1) * 96 * 1024 },
-      cache: { path: 'E:\\MikaVN Library\\app-data\\cache', exists: true, fileCount: 0, totalBytes: 0 },
-      logs: { path: 'E:\\MikaVN Library\\app-data\\logs', exists: true, fileCount: readTasks().length, totalBytes: readTasks().length * 512 },
-      saveBackups: { path: 'E:\\MikaVN Library\\app-data\\save-backups', exists: true, fileCount: readJson<SaveBackup[]>(SAVE_BACKUPS_KEY, []).length, totalBytes: readJson<SaveBackup[]>(SAVE_BACKUPS_KEY, []).length * 2048 },
+      images: { path: MOCK_IMAGE_DIR, exists: true, fileCount: Math.max(assets.length, 1), totalBytes: Math.max(assets.length, 1) * 96 * 1024 },
+      cache: { path: mockAppDataPath('cache'), exists: true, fileCount: 0, totalBytes: 0 },
+      logs: { path: mockAppDataPath('logs'), exists: true, fileCount: readTasks().length, totalBytes: readTasks().length * 512 },
+      saveBackups: { path: mockAppDataPath('save-backups'), exists: true, fileCount: readJson<SaveBackup[]>(SAVE_BACKUPS_KEY, []).length, totalBytes: readJson<SaveBackup[]>(SAVE_BACKUPS_KEY, []).length * 2048 },
       databaseBackups: {
-        rootPath: 'E:\\MikaVN Library\\app-data',
+        rootPath: MOCK_APP_DATA_DIR,
         fileCount: 2,
         totalBytes: 24 * 1024 * 1024,
         files: [
-          { fileName: 'mikavn.before-playnite-import-20260603-120000.db', path: 'E:\\MikaVN Library\\app-data\\mikavn.before-playnite-import-20260603-120000.db', sizeBytes: 12 * 1024 * 1024, modifiedAt: new Date().toISOString() },
-          { fileName: 'before-restore-20260603-130000.db', path: 'E:\\MikaVN Library\\app-data\\database-restore-protection\\before-restore-20260603-130000.db', sizeBytes: 12 * 1024 * 1024, modifiedAt: new Date(Date.now() - 86400000).toISOString() },
+          { fileName: 'mikavn.before-playnite-import-20260603-120000.db', path: mockAppDataPath('mikavn.before-playnite-import-20260603-120000.db'), sizeBytes: 12 * 1024 * 1024, modifiedAt: new Date().toISOString() },
+          { fileName: 'before-restore-20260603-130000.db', path: mockAppDataPath('database-restore-protection', 'before-restore-20260603-130000.db'), sizeBytes: 12 * 1024 * 1024, modifiedAt: new Date(Date.now() - 86400000).toISOString() },
         ],
       },
       warnings: [],

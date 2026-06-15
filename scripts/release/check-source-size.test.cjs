@@ -4,7 +4,7 @@ const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 
-const { checkSourceSize } = require('./check-source-size.cjs');
+const { DEFAULT_SOURCE_BUDGETS, checkSourceSize } = require('./check-source-size.cjs');
 
 function createSourceFile(contents) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'mikavn-source-size-'));
@@ -36,4 +36,20 @@ test('checkSourceSize rejects files that exceed configured budgets', () => {
     }),
     /source files exceed size budget: mockStore\.ts 6 bytes > 4 bytes, 3 lines > 2 lines/,
   );
+});
+
+test('default source budgets cover frontend, Rust service, and smoke runner hot spots', () => {
+  const watchedPaths = DEFAULT_SOURCE_BUDGETS
+    .map((budget) => budget.filePath.replace(/\\/g, '/'))
+    .join('\n');
+
+  for (const expectedPath of [
+    'src/services/mockStore.ts',
+    'src-tauri/src/services/archives.rs',
+    'src-tauri/src/services/diagnostics.rs',
+    'src-tauri/src/db/game_merge_ext.rs',
+    'scripts/playwright/page-qa-runner.cjs',
+  ]) {
+    assert.match(watchedPaths, new RegExp(expectedPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  }
 });

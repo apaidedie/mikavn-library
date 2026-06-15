@@ -76,9 +76,13 @@ src-tauri/
 scripts/
   playwright/
   desktop-smoke/
+  README.md
 docs/
+  README.md
 .github/
 ```
+
+For documentation navigation, see `docs/README.md`. For script ownership, generated-artifact rules, and maintenance utility defaults, see `scripts/README.md`.
 
 ## Run Frontend Preview
 
@@ -122,7 +126,7 @@ This repository includes GitHub-ready project metadata and automation:
 
 - `LICENSE`, `CHANGELOG.md`, `CONTRIBUTING.md`, `DESIGN.md`, `SECURITY.md`, and `SUPPORT.md`.
 - Issue templates, pull request template, Dependabot configuration, CI, and release workflow under `.github/`.
-- Repeatable browser and desktop smoke scripts under `scripts/`.
+- Repeatable browser and desktop smoke scripts under `scripts/`; see `scripts/README.md` for script categories and app-data defaults used by maintenance utilities.
 - Generated smoke screenshots, logs, installers, and local Tauri packaging tools belong under `output/` and are ignored by Git except for `output/README.md`.
 
 Use `RELEASE_CHECKLIST.md` before tagging or publishing a GitHub release.

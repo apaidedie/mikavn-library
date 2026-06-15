@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shutil
 import sqlite3
@@ -43,6 +44,7 @@ IMAGE_EXT_BY_TYPE = {
     "image/webp": ".webp",
     "image/gif": ".gif",
 }
+DEFAULT_APP_DATA_DIR_NAME = "dev.mikavn.library"
 
 
 @dataclass(frozen=True)
@@ -155,12 +157,14 @@ def main() -> int:
 
 
 def parse_args() -> argparse.Namespace:
+    default_root = default_app_data_root()
     parser = argparse.ArgumentParser(description="Repair MikaVN description image links from DLsite/FANZA pages.")
-    parser.add_argument("--mikavn-db", default=r"E:\MikaVN Library\app-data\mikavn.db", help="Path to mikavn.db.")
-    parser.add_argument("--image-root", default=r"E:\MikaVN Library\app-data\images\metadata", help="Where downloaded description images are stored.")
+    parser.add_argument("--app-data-root", default=str(default_root), help="MikaVN app-data root. Defaults to MIKAVN_APP_DATA_DIR or %%APPDATA%%\\dev.mikavn.library.")
+    parser.add_argument("--mikavn-db", help="Path to mikavn.db. Defaults to <app-data-root>\\mikavn.db.")
+    parser.add_argument("--image-root", help="Where downloaded description images are stored. Defaults to <app-data-root>\\images\\metadata.")
     parser.add_argument("--helper", default=str(Path(__file__).with_name("extract-description-images.cjs")), help="Node helper that extracts provider image URLs.")
-    parser.add_argument("--state-log", default=r"E:\MikaVN Library\app-data\metadata-repair\description-images.jsonl", help="JSONL log of attempted provider IDs.")
-    parser.add_argument("--backup-dir", default=r"E:\MikaVN Library\app-data\database-backups\metadata-repair", help="Directory for timestamped database backup.")
+    parser.add_argument("--state-log", help="JSONL log of attempted provider IDs. Defaults to <app-data-root>\\metadata-repair\\description-images.jsonl.")
+    parser.add_argument("--backup-dir", help="Directory for timestamped database backup. Defaults to <app-data-root>\\database-backups\\metadata-repair.")
     parser.add_argument("--provider", choices=["all", "dlsite", "fanza"], default="all", help="Provider to repair.")
     parser.add_argument("--ids", help="Comma-separated provider IDs to repair first, e.g. RJ01409751,VJ01001172.")
     parser.add_argument("--limit", type=int, default=0, help="Maximum unique provider IDs to process.")
@@ -170,7 +174,23 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--timeout-ms", type=int, default=45000, help="Navigation timeout for each provider URL.")
     parser.add_argument("--retry-failed", action="store_true", help="Retry provider IDs already recorded as failed or skipped in the state log.")
     parser.add_argument("--dry-run", action="store_true", help="Print candidates without changing the database.")
-    return parser.parse_args()
+    args = parser.parse_args()
+    app_data_root = Path(args.app_data_root).expanduser()
+    args.mikavn_db = args.mikavn_db or str(app_data_root / "mikavn.db")
+    args.image_root = args.image_root or str(app_data_root / "images" / "metadata")
+    args.state_log = args.state_log or str(app_data_root / "metadata-repair" / "description-images.jsonl")
+    args.backup_dir = args.backup_dir or str(app_data_root / "database-backups" / "metadata-repair")
+    return args
+
+
+def default_app_data_root() -> Path:
+    override = os.environ.get("MIKAVN_APP_DATA_DIR")
+    if override and override.strip():
+        return Path(override.strip()).expanduser()
+    appdata = os.environ.get("APPDATA")
+    if appdata and appdata.strip():
+        return Path(appdata.strip()) / DEFAULT_APP_DATA_DIR_NAME
+    return Path.home() / ".local" / "share" / DEFAULT_APP_DATA_DIR_NAME
 
 
 def load_candidates(db_path: Path, provider_filter: str) -> list[Candidate]:

@@ -44,9 +44,11 @@ $requiredFiles = @(
   "SUPPORT.md",
   "README.md",
   "RELEASE_CHECKLIST.md",
+  "docs\README.md",
   "docs\RELEASE_NOTES_TEMPLATE.md",
   "docs\RELEASE_NOTES_0.1.1.md",
   "docs\CODE_SIGNING.md",
+  "scripts\README.md",
   "output\README.md",
   ".github\workflows\ci.yml",
   ".github\workflows\release.yml",
@@ -407,6 +409,11 @@ foreach ($allowedPath in @("`$APPDATA/**", "`$APPLOCALDATA/**", "`$APPCACHE/**",
     throw "Tauri asset protocol allow scope is missing $allowedPath."
   }
 }
+foreach ($allowedPath in $assetAllow) {
+  if ([string]$allowedPath -match '^[A-Za-z]:[\\/]') {
+    throw "Tauri asset protocol allow scope must not hard-code a local drive path: $allowedPath."
+  }
+}
 foreach ($deniedPath in @("`$APPDATA/**/mikavn.db", "`$APPDATA/**/*.db", "`$APPDATA/**/*.sqlite", "`$APPDATA/**/*.sqlite3", "`$APPDATA/**/logs/**")) {
   if ($assetDeny -notcontains $deniedPath) {
     throw "Tauri asset protocol deny scope is missing $deniedPath."
@@ -431,10 +438,12 @@ if ($StrictGitHubLinks) {
     "SECURITY.md",
     "SUPPORT.md",
     "RELEASE_CHECKLIST.md",
+    "docs\README.md",
     ".github\ISSUE_TEMPLATE\config.yml",
     "docs\RELEASE_NOTES_TEMPLATE.md",
     "docs\RELEASE_NOTES_0.1.1.md",
     "docs\CODE_SIGNING.md",
+    "scripts\README.md",
     "output\README.md"
   )
   foreach ($file in $filesToCheck) {

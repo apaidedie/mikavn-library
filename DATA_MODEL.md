@@ -7,7 +7,7 @@ SQLite is the source of truth for core data. Browser mock mode may use localStor
 Current app data layout is resolved in this order:
 
 1. `MIKAVN_APP_DATA_DIR` when set to an absolute path, used by smoke tests and explicit overrides.
-2. `app-data/` next to the executable when `mikavn.db`, `.mikavn-portable`, or an installer-created user-writable install directory is detected. This is the expected installed layout for `E:\MikaVN Library\app-data`.
+2. `app-data/` next to the executable when `mikavn.db`, `.mikavn-portable`, or an installer-created user-writable install directory is detected. This is the expected installed layout for user-writable installs: `<install-dir>\app-data`.
 3. The Tauri default app data directory as a fallback.
 
 Portable/current layout:

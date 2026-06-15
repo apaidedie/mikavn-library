@@ -1,5 +1,6 @@
 param(
-  [string]$ProjectRoot = 'E:\codex\mikavn-library',
+  [string]$ProjectRoot = '',
+  [string]$AppDataRoot = '',
   [string]$Providers = 'dlsite,fanza',
   [int]$Limit = 500,
   [int]$BatchSize = 16,
@@ -8,8 +9,8 @@ param(
   [int]$TimeoutMs = 60000,
   [int]$InitialPollSeconds = 60,
   [int]$MaxRoundsPerProvider = 0,
-  [string]$OutputDir = 'E:\MikaVN Library\app-data\metadata-repair\logs',
-  [string]$BackupDir = 'E:\MikaVN Library\app-data\database-backups\metadata-repair',
+  [string]$OutputDir = '',
+  [string]$BackupDir = '',
   [switch]$RetryFailed
 )
 
@@ -17,6 +18,26 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8
+
+if ([string]::IsNullOrWhiteSpace($ProjectRoot)) {
+  $ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
+}
+
+if ([string]::IsNullOrWhiteSpace($AppDataRoot)) {
+  if (![string]::IsNullOrWhiteSpace($env:MIKAVN_APP_DATA_DIR)) {
+    $AppDataRoot = $env:MIKAVN_APP_DATA_DIR
+  } else {
+    $AppDataRoot = Join-Path $env:APPDATA 'dev.mikavn.library'
+  }
+}
+
+if ([string]::IsNullOrWhiteSpace($OutputDir)) {
+  $OutputDir = Join-Path $AppDataRoot 'metadata-repair\logs'
+}
+
+if ([string]::IsNullOrWhiteSpace($BackupDir)) {
+  $BackupDir = Join-Path $AppDataRoot 'database-backups\metadata-repair'
+}
 
 $providerList = @(
   $Providers -split ',' |
@@ -45,7 +66,7 @@ function Get-RepairProcess {
 
 function Get-CandidateCount {
   param([string]$Provider)
-  $dryRunArgs = @($repairScript, '--dry-run', '--provider', $Provider, '--limit', '1')
+  $dryRunArgs = @($repairScript, '--dry-run', '--app-data-root', $AppDataRoot, '--provider', $Provider, '--limit', '1')
   if ($RetryFailed) {
     $dryRunArgs += '--retry-failed'
   }
@@ -86,6 +107,7 @@ foreach ($provider in $providerList) {
     $runArgs = @(
       '-u',
       $repairScript,
+      '--app-data-root', $AppDataRoot,
       '--provider', $provider,
       '--limit', [string]$Limit,
       '--batch-size', [string]$BatchSize,

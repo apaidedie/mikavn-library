@@ -22,6 +22,36 @@ const DEFAULT_SOURCE_BUDGETS = [
     maxBytes: 44 * 1024,
     maxLines: 820,
   },
+  {
+    filePath: path.resolve(__dirname, '..', '..', 'src-tauri', 'src', 'services', 'archives.rs'),
+    maxBytes: 70 * 1024,
+    maxLines: 1950,
+  },
+  {
+    filePath: path.resolve(__dirname, '..', '..', 'src-tauri', 'src', 'services', 'diagnostics.rs'),
+    maxBytes: 52 * 1024,
+    maxLines: 1525,
+  },
+  {
+    filePath: path.resolve(__dirname, '..', '..', 'src-tauri', 'src', 'db', 'game_merge_ext.rs'),
+    maxBytes: 44 * 1024,
+    maxLines: 1200,
+  },
+  {
+    filePath: path.resolve(__dirname, '..', '..', 'src-tauri', 'src', 'services', 'saves.rs'),
+    maxBytes: 40 * 1024,
+    maxLines: 1220,
+  },
+  {
+    filePath: path.resolve(__dirname, '..', '..', 'src-tauri', 'src', 'services', 'scanner.rs'),
+    maxBytes: 38 * 1024,
+    maxLines: 1150,
+  },
+  {
+    filePath: path.resolve(__dirname, '..', '..', 'scripts', 'playwright', 'page-qa-runner.cjs'),
+    maxBytes: 128 * 1024,
+    maxLines: 1350,
+  },
 ];
 
 function countLines(contents) {
@@ -97,4 +127,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { checkSourceSize };
+module.exports = { DEFAULT_SOURCE_BUDGETS, checkSourceSize };

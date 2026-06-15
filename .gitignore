@@ -16,6 +16,10 @@ dist-ssr
 output/*
 !output/README.md
 
+# Python bytecode/cache
+__pycache__/
+*.py[cod]
+
 # Rust / Tauri build output
 src-tauri/target
 
