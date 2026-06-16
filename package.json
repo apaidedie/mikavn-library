@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit",
     "test:release-scripts": "node --test scripts/release/check-build-chunks.test.cjs scripts/release/check-source-size.test.cjs scripts/release/check-release-handoff.test.cjs",
     "test:playwright-scripts": "node --test scripts/playwright/playwright-resolution.test.cjs",
+    "test:dashboard-personal": "node --test scripts/dashboard-personal-helper.test.cjs",
     "release:check": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/release/check-release-metadata.ps1",
     "release:check:strict": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/release/check-release-metadata.ps1 -StrictGitHubLinks",
     "release:signing:check": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/release/check-windows-signing.ps1",
