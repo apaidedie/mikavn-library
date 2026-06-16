@@ -179,6 +179,18 @@ export function App() {
     setView('metadata');
   }, []);
 
+  const openScanner = useCallback(() => {
+    setView('scanner');
+  }, []);
+
+  const openSaves = useCallback(() => {
+    setView('saves');
+  }, []);
+
+  const openSettings = useCallback(() => {
+    setView('settings');
+  }, []);
+
   useEffect(() => {
     const isEditingTarget = (target: EventTarget | null) => {
       if (!(target instanceof HTMLElement)) return false;
@@ -304,7 +316,20 @@ export function App() {
 
         <Suspense fallback={<PageLoading />}>
           <div className="min-h-0 flex-1 overflow-hidden">
-            {view === 'dashboard' && <DashboardPage refreshKey={refreshKey} onOpenGame={openGame} onOpenTasks={openTasks} />}
+            {view === 'dashboard' && (
+              <DashboardPage
+                refreshKey={refreshKey}
+                onOpenGame={openGame}
+                onAddGame={requestAddGame}
+                onOpenScanner={openScanner}
+                onOpenLibrary={openLibrary}
+                onOpenMaintenance={openMaintenance}
+                onOpenMetadata={openMetadata}
+                onOpenSaves={openSaves}
+                onOpenSettings={openSettings}
+                onOpenTasks={openTasks}
+              />
+            )}
             {view === 'library' && <LibraryPage refreshKey={refreshKey} selectedGameId={selectedGameId} onSelectedGameChange={setSelectedGameId} onChanged={refresh} addRequestKey={addRequestKey} onAddRequestConsumed={() => setAddRequestKey(null)} filterPreset={libraryFilterPresetRequest} filterToggleKey={libraryFilterToggleKey} toolbarQuery={librarySearchValue} onOpenTasks={openTasks} onOpenMaintenance={openMaintenance} />}
             {view === 'collections' && <CollectionsPage refreshKey={refreshKey} onOpenGame={openGame} onChanged={refresh} />}
             {view === 'advanced-search' && <AdvancedSearchPage refreshKey={refreshKey} onOpenGame={openGame} />}

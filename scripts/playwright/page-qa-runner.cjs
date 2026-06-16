@@ -283,7 +283,11 @@ async function main() {
   const browser = await chromium.launch(browserLaunchOptions());
   try {
     const cases = [
-      ['dashboard-populated', 'dashboard'],
+      ['dashboard-populated', 'dashboard', {}, async (page) => {
+        for (const text of ['今日状态', '继续游玩', '需要关注', '本地安全', '添加游戏', '扫描入库']) {
+          await page.getByText(text, { exact: false }).first().waitFor({ timeout: 5000 });
+        }
+      }],
       ['dashboard-task-shortcuts', 'dashboard', { games: [...games, descriptionRepairGame], tasks: [descriptionImageRepairFailedTask, fanzaDescriptionImageRepairTask, ...tasks], taskLogs }, async (page) => {
         await page.getByText('近期任务').first().waitFor({ timeout: 5000 });
         await page.getByText('最近结果').first().waitFor({ timeout: 5000 });
