@@ -5,10 +5,13 @@ import type { AdvancedSearchInput, AdvancedSearchResult, AiConnectionTestResult,
 import type { SaveBackup, SavePath, SavePathCandidate, SaveRestoreMode, SaveRestorePreview } from '@/types/saves';
 import type { ScanTaskStatus, TaskDetail, TaskLogEntry, TaskRecord } from '@/types/task';
 import { defaultSettings, mockMetadata, sampleGames, sampleHeroUrl } from './mockStoreFixtures';
+import { readAssets, syncGameCompatibilityAssets, writeAssets } from './mockStoreAssets';
+import { readCollectionLinks, readCollections, withCollectionCounts, writeCollectionLinks, writeCollections } from './mockStoreCollections';
 import { cleanList, ensureGameDefaults, makeGame } from './mockStoreGames';
 import { mockAssetCacheCleanupResult, mockImageReferenceAudit } from './mockStoreImages';
 import { cleanTitle, externalIdCount, hasCompleteMetadata, hasMockDescriptionImage, metadataStatusMatches, mockMatchesClause, parseMockSearch, score } from './mockStoreMetadata';
-import { ASSETS_KEY, BATCH_KEY, COLLECTION_GAMES_KEY, COLLECTIONS_KEY, FIELD_LOCKS_KEY, LAUNCH_PROFILES_KEY, LIBRARY_ROOTS_KEY, PLAY_SESSIONS_KEY, SAVED_SEARCHES_KEY, SAVE_BACKUPS_KEY, SAVE_PATHS_KEY, SCAN_TASKS_KEY, SETTINGS_KEY, STORAGE_KEY, readJson, readSettings, writeJson } from './mockStoreStorage';
+import { BATCH_KEY, FIELD_LOCKS_KEY, LAUNCH_PROFILES_KEY, LIBRARY_ROOTS_KEY, PLAY_SESSIONS_KEY, SAVED_SEARCHES_KEY, SAVE_BACKUPS_KEY, SAVE_PATHS_KEY, SCAN_TASKS_KEY, SETTINGS_KEY, STORAGE_KEY, readJson, readSettings, writeJson } from './mockStoreStorage';
+import { syncGameTags } from './mockStoreTags';
 import { addTaskLog, makeTask, readTaskLogs, readTasks, reportGapExamplesLog, reportGapSummaryLog, writeTasks } from './mockStoreTasks';
 
 const MOCK_APP_DATA_DIR = 'E:\\MikaVN Library\\app-data';
@@ -298,79 +301,6 @@ function mockArtworkRepairDiagnosis(options: ArtworkRepairOptions = {}): Artwork
   };
 }
 
-function readCollections() {
-  return readJson<GameCollection[]>(COLLECTIONS_KEY, []);
-}
-
-function writeCollections(collections: GameCollection[]) {
-  writeJson(COLLECTIONS_KEY, collections);
-}
-
-function readCollectionLinks() {
-  return readJson<CollectionGameLink[]>(COLLECTION_GAMES_KEY, []);
-}
-
-function writeCollectionLinks(links: CollectionGameLink[]) {
-  writeJson(COLLECTION_GAMES_KEY, links);
-}
-
-function withCollectionCounts(collections = readCollections()) {
-  const links = readCollectionLinks();
-  return collections.map((collection) => ({
-    ...collection,
-    gameCount: links.filter((link) => link.collectionId === collection.id).length,
-  }));
-}
-
-function readAssets() {
-  return readJson<GameAsset[]>(ASSETS_KEY, []);
-}
-
-function writeAssets(assets: GameAsset[]) {
-  writeJson(ASSETS_KEY, assets);
-}
-
-function syncGameCompatibilityAssets(game: Game) {
-  const now = new Date().toISOString();
-  const existing = readAssets().filter((asset) => asset.gameId !== game.id || asset.source !== 'games');
-  const assets: GameAsset[] = [
-    ['cover', game.coverImage],
-    ['banner', game.bannerImage],
-    ['background', game.backgroundImage],
-  ].flatMap(([assetType, uri]) => uri ? [{
-    id: crypto.randomUUID(),
-    gameId: game.id,
-    assetType: assetType as string,
-    uri: String(uri),
-    source: 'games',
-    isPrimary: true,
-    createdAt: now,
-    updatedAt: now,
-  }] : []);
-  writeAssets([...assets, ...existing]);
-}
-
-function syncGameTags(games = readGames()) {
-  const counts = new Map<string, TagRecord>();
-  for (const game of games) {
-    for (const [kind, values] of [['tag', game.tags], ['genre', game.genres]] as const) {
-      for (const name of cleanList(values)) {
-        const key = `${kind}:${name}`;
-        const existing = counts.get(key);
-        counts.set(key, {
-          id: `${kind}:${encodeURIComponent(name)}`,
-          name,
-          kind,
-          gameCount: (existing?.gameCount ?? 0) + 1,
-          createdAt: existing?.createdAt ?? new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        });
-      }
-    }
-  }
-  return [...counts.values()].sort((a, b) => b.gameCount - a.gameCount || a.name.localeCompare(b.name, 'zh-CN'));
-}
-
 export const mockStore = {
   listGames(filter: GameFilter = {}) {
     const query = filter.query?.trim().toLocaleLowerCase() ?? '';
@@ -612,11 +542,11 @@ export const mockStore = {
   },
 
   listTags(kind?: string) {
-    return Promise.resolve(syncGameTags().filter((tag) => !kind || tag.kind === kind));
+    return Promise.resolve(syncGameTags(readGames()).filter((tag) => !kind || tag.kind === kind));
   },
 
   renameTag(id: string, name: string): Promise<TagRecord> {
-    const tag = syncGameTags().find((item) => item.id === id);
+    const tag = syncGameTags(readGames()).find((item) => item.id === id);
     if (!tag) return Promise.reject(new Error('Tag not found'));
     const nextName = name.trim();
     if (!nextName) return Promise.reject(new Error('Tag name is required'));
@@ -626,12 +556,12 @@ export const mockStore = {
       genres: tag.kind === 'genre' ? game.genres.map((item) => item === tag.name ? nextName : item) : game.genres,
       updatedAt: new Date().toISOString(),
     })));
-    const renamed = syncGameTags().find((item) => item.name === nextName && item.kind === tag.kind);
+    const renamed = syncGameTags(readGames()).find((item) => item.name === nextName && item.kind === tag.kind);
     return renamed ? Promise.resolve(renamed) : Promise.reject(new Error('Tag rename failed'));
   },
 
   mergeTags(sourceIds: string[], targetId: string): Promise<TagRecord> {
-    const tags = syncGameTags();
+    const tags = syncGameTags(readGames());
     const target = tags.find((item) => item.id === targetId);
     if (!target) return Promise.reject(new Error('Target tag not found'));
     const sources = tags.filter((item) => sourceIds.includes(item.id) && item.kind === target.kind && item.id !== target.id);
@@ -640,12 +570,12 @@ export const mockStore = {
       const values = game[field].map((item) => sources.some((source) => source.name === item) ? target.name : item);
       return { ...game, [field]: cleanList(values), updatedAt: new Date().toISOString() };
     }));
-    const merged = syncGameTags().find((item) => item.name === target.name && item.kind === target.kind);
+    const merged = syncGameTags(readGames()).find((item) => item.name === target.name && item.kind === target.kind);
     return merged ? Promise.resolve(merged) : Promise.reject(new Error('Tag merge failed'));
   },
 
   deleteTag(id: string) {
-    const tag = syncGameTags().find((item) => item.id === id);
+    const tag = syncGameTags(readGames()).find((item) => item.id === id);
     if (!tag) return Promise.reject(new Error('Tag not found'));
     writeGames(readGames().map((game) => ({
       ...game,
