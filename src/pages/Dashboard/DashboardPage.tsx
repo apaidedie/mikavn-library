@@ -14,7 +14,7 @@ import { cn } from '@/utils/cn';
 import { errorMessage } from '@/utils/errorMessage';
 import { taskLabel, taskStatusClass, taskStatusLabel } from '@/utils/taskLabels';
 import { formatDateTime, formatPlayTime } from '@/utils/time';
-import { deriveDashboardAttentionItems, rankContinueGames, type DashboardAttentionItem } from './dashboardPersonal';
+import { deriveDashboardAttentionItems, deriveDatabaseBackupStatus, rankContinueGames, type DashboardAttentionItem } from './dashboardPersonal';
 
 type DashboardPageProps = {
   refreshKey: number;
@@ -202,7 +202,9 @@ function NeedsAttentionPanel({ items, onOpenLibrary, onOpenMaintenance, onOpenMe
 }
 
 function LocalSafetyPanel({ diagnostics, onOpenSaves, onOpenSettings, onOpenTasks }: { diagnostics: AppDataDiagnostics | null; onOpenSaves?: () => void; onOpenSettings?: () => void; onOpenTasks?: (taskId?: string | null, preset?: TaskFilterPreset | null) => void }) {
-  const databaseSummary = diagnostics ? `${diagnostics.database.gameCount} 个游戏 · ${diagnostics.databaseBackups.fileCount} 个数据库备份` : '读取本地自检后显示数据库和备份状态。';
+  const backupStatus = deriveDatabaseBackupStatus(diagnostics?.databaseBackups);
+  const databaseSummary = diagnostics ? `${diagnostics.database.gameCount} 个游戏 · ${backupStatus.summary}` : '读取本地自检后显示数据库和备份状态。';
+  const backupDetail = diagnostics ? `${backupStatus.detail}${backupStatus.latestBackupAt ? ` 最近：${formatDateTime(backupStatus.latestBackupAt)}` : ''}` : '数据库备份会保存在本机 app-data 中。';
   const imageSummary = diagnostics ? `${diagnostics.images.fileCount} 个图片缓存 · ${diagnostics.logs.fileCount} 个日志文件` : '图片、日志和缓存都保存在本机 app-data。';
 
   return (
@@ -210,10 +212,11 @@ function LocalSafetyPanel({ diagnostics, onOpenSaves, onOpenSettings, onOpenTask
       <PanelHeader title="本地安全" description="自用版优先保证数据位置清楚、备份入口明显、恢复前可复核。" icon={<ShieldCheck className="h-4 w-4" />} />
       <PanelContent>
         <div className="grid gap-3 lg:grid-cols-3">
-          <SoftRow className="flex flex-col justify-between gap-3">
+          <SoftRow className={cn('flex flex-col justify-between gap-3', backupStatus.actionNeeded && 'border-amber-300/20 bg-amber-400/[0.055]')}>
             <div>
               <div className="flex items-center gap-2 text-sm font-medium text-slate-100"><Database className="h-4 w-4 text-[rgb(var(--accent-rgb))]" />数据库与自检</div>
               <div className="mt-1 text-xs text-slate-500">{databaseSummary}</div>
+              <div className={cn('mt-1 text-xs', backupStatus.actionNeeded ? 'text-amber-200' : 'text-slate-500')}>{backupDetail}</div>
             </div>
             <Button size="sm" variant="outline" onClick={onOpenSettings}>打开设置</Button>
           </SoftRow>

@@ -1,4 +1,4 @@
-import type { AppDataDiagnostics } from '@/types/archive';
+import type { AppDataDiagnostics, DatabaseBackupSummary } from '@/types/archive';
 import type { Game } from '@/types/game';
 import type { TaskRecord } from '@/types/task';
 
@@ -17,6 +17,14 @@ export type DashboardAttentionItem = {
   count: number;
   tone: 'danger' | 'warning' | 'info';
   action: 'tasks_attention' | 'tasks_active' | 'library_paths' | 'maintenance_artwork' | 'metadata_missing_ids' | 'settings_local';
+};
+
+export type DatabaseBackupStatus = {
+  level: 'missing' | 'fresh' | 'stale' | 'unknown';
+  actionNeeded: boolean;
+  summary: string;
+  detail: string;
+  latestBackupAt: string | null;
 };
 
 type RankOptions = {
@@ -118,14 +126,65 @@ export function deriveDashboardAttentionItems(input: AttentionInput): DashboardA
   return items;
 }
 
+export function deriveDatabaseBackupStatus(backups: Pick<DatabaseBackupSummary, 'fileCount' | 'files'> | null | undefined, now: string | Date = new Date()): DatabaseBackupStatus {
+  const fileCount = backups?.fileCount ?? 0;
+  if (fileCount === 0) {
+    return {
+      level: 'missing',
+      actionNeeded: true,
+      summary: '还没有数据库备份',
+      detail: '建议先做一次本地数据库备份。',
+      latestBackupAt: null,
+    };
+  }
+
+  const latestBackupAt = latestModifiedAt(backups?.files ?? []);
+  if (!latestBackupAt) {
+    return {
+      level: 'unknown',
+      actionNeeded: true,
+      summary: '数据库备份时间未知',
+      detail: `当前有 ${fileCount} 个数据库备份，建议确认备份文件是否可用。`,
+      latestBackupAt: null,
+    };
+  }
+
+  const ageDays = Math.max(0, Math.floor((dateMillis(now) - dateMillis(latestBackupAt)) / 86_400_000));
+  if (ageDays > 14) {
+    return {
+      level: 'stale',
+      actionNeeded: true,
+      summary: '最近备份已超过 14 天',
+      detail: `当前有 ${fileCount} 个数据库备份，建议更新一次。`,
+      latestBackupAt,
+    };
+  }
+
+  return {
+    level: 'fresh',
+    actionNeeded: false,
+    summary: `最近 ${ageDays} 天内备份过`,
+    detail: `当前有 ${fileCount} 个数据库备份。`,
+    latestBackupAt,
+  };
+}
+
 function continueScore(game: Game) {
   const statusScore = game.playStatus === 'playing' ? 1_000_000_000_000_000 : game.playStatus === 'paused' ? 700_000_000_000_000 : 0;
   const playedScore = Math.min(game.totalPlaySeconds, 500 * 60 * 60) * 1000;
   return statusScore + dateMillis(game.lastPlayedAt ?? game.updatedAt ?? game.createdAt) + playedScore;
 }
 
-function dateMillis(value?: string | null) {
+function latestModifiedAt(files: Array<{ modifiedAt?: string | null }>) {
+  return files
+    .map((file) => file.modifiedAt)
+    .filter((value): value is string => Boolean(value))
+    .sort((a, b) => dateMillis(b) - dateMillis(a))[0] ?? null;
+}
+
+function dateMillis(value?: string | Date | null) {
   if (!value) return 0;
+  if (value instanceof Date) return value.getTime();
   const millis = new Date(value).getTime();
   return Number.isFinite(millis) ? millis : 0;
 }

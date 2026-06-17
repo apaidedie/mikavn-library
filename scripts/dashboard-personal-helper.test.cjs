@@ -115,3 +115,40 @@ test('deriveDashboardAttentionItems creates deterministic local action items', (
   assert.equal(items.find((item) => item.kind === 'missing_artwork').count, 3);
   assert.equal(items.find((item) => item.kind === 'missing_external_ids').count, 4);
 });
+
+test('deriveDatabaseBackupStatus reports missing, fresh, and stale local backups', () => {
+  const { deriveDatabaseBackupStatus } = loadDashboardPersonal();
+
+  assert.deepEqual(deriveDatabaseBackupStatus({ fileCount: 0, files: [] }, '2026-06-17T00:00:00.000Z'), {
+    level: 'missing',
+    actionNeeded: true,
+    summary: '还没有数据库备份',
+    detail: '建议先做一次本地数据库备份。',
+    latestBackupAt: null,
+  });
+
+  assert.deepEqual(deriveDatabaseBackupStatus({
+    fileCount: 2,
+    files: [
+      { modifiedAt: '2026-05-01T00:00:00.000Z' },
+      { modifiedAt: '2026-06-10T00:00:00.000Z' },
+    ],
+  }, '2026-06-17T00:00:00.000Z'), {
+    level: 'fresh',
+    actionNeeded: false,
+    summary: '最近 7 天内备份过',
+    detail: '当前有 2 个数据库备份。',
+    latestBackupAt: '2026-06-10T00:00:00.000Z',
+  });
+
+  assert.deepEqual(deriveDatabaseBackupStatus({
+    fileCount: 1,
+    files: [{ modifiedAt: '2026-05-20T00:00:00.000Z' }],
+  }, '2026-06-17T00:00:00.000Z'), {
+    level: 'stale',
+    actionNeeded: true,
+    summary: '最近备份已超过 14 天',
+    detail: '当前有 1 个数据库备份，建议更新一次。',
+    latestBackupAt: '2026-05-20T00:00:00.000Z',
+  });
+});
