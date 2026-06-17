@@ -1,11 +1,12 @@
 import type { AddGameInput, AssetCacheCleanupResult, AssetDownloadInput, AssetImportInput, AssetInput, CollectionGameLink, CollectionInput, DashboardData, Game, GameAsset, GameCollection, GameFilter, GamePathHealth, ImportCandidate, ImportScanReport, ImportScanReportItem, LibraryRoot, PathCheckItem, PlaySession, PlayStatus, ScanCandidate, ScanConflict, TagRecord, UpdateGameInput } from '@/types/game';
-import type { AppDataDiagnostics, DatabaseBackupCleanupPolicy, DatabaseBackupCleanupReport, ImageReferenceAudit, ImageReferenceAuditOptions, ImageReferenceAuditItem, LibraryArchiveExportOptions, LibraryArchiveImportOptions, LibraryArchivePreview, LibraryArchiveRestoreOptions, LogRecord, LogRetentionPolicy, TrayStatus } from '@/types/archive';
+import type { AppDataDiagnostics, DatabaseBackupCleanupPolicy, DatabaseBackupCleanupReport, ImageReferenceAudit, ImageReferenceAuditOptions, LibraryArchiveExportOptions, LibraryArchiveImportOptions, LibraryArchivePreview, LibraryArchiveRestoreOptions, LogRecord, LogRetentionPolicy, TrayStatus } from '@/types/archive';
 import type { LaunchProfile, LaunchProfileInput, LaunchProfileUpdate } from '@/types/launch';
 import type { AdvancedSearchInput, AdvancedSearchResult, AiConnectionTestResult, AiRecognitionResult, ApplyMetadataFields, ArtworkRepairDiagnosis, ArtworkRepairOptions, ArtworkRepairPreview, BatchMatchJob, BatchMatchStatus, DescriptionImageRepairOptions, DescriptionImageRepairPreview, DuplicateExternalIdAuditOptions, DuplicateExternalIdGroup, DuplicateExternalIdPreview, DuplicateGameMergeExternalId, DuplicateGameMergeOptions, DuplicateGameMergePreview, DuplicateGameMergeResult, ExternalIdRecord, FieldLock, MatchSuggestion, MetadataProvider, MetadataSearchResponse, MetadataSearchResult, MetadataSourceRecord, NormalizedMetadata, SavedSearch, SavedSearchInput, SearchQueryValidation } from '@/types/metadata';
 import type { SaveBackup, SavePath, SavePathCandidate, SaveRestoreMode, SaveRestorePreview } from '@/types/saves';
 import type { ScanTaskStatus, TaskDetail, TaskLogEntry, TaskRecord } from '@/types/task';
 import { defaultSettings, mockMetadata, sampleGames, sampleHeroUrl } from './mockStoreFixtures';
 import { cleanList, ensureGameDefaults, makeGame } from './mockStoreGames';
+import { mockAssetCacheCleanupResult, mockImageReferenceAudit } from './mockStoreImages';
 import { cleanTitle, externalIdCount, hasCompleteMetadata, hasMockDescriptionImage, metadataStatusMatches, mockMatchesClause, parseMockSearch, score } from './mockStoreMetadata';
 import { ASSETS_KEY, BATCH_KEY, COLLECTION_GAMES_KEY, COLLECTIONS_KEY, FIELD_LOCKS_KEY, LAUNCH_PROFILES_KEY, LIBRARY_ROOTS_KEY, PLAY_SESSIONS_KEY, SAVED_SEARCHES_KEY, SAVE_BACKUPS_KEY, SAVE_PATHS_KEY, SCAN_TASKS_KEY, SETTINGS_KEY, STORAGE_KEY, readJson, readSettings, writeJson } from './mockStoreStorage';
 import { addTaskLog, makeTask, readTaskLogs, readTasks, reportGapExamplesLog, reportGapSummaryLog, writeTasks } from './mockStoreTasks';
@@ -347,94 +348,6 @@ function syncGameCompatibilityAssets(game: Game) {
     updatedAt: now,
   }] : []);
   writeAssets([...assets, ...existing]);
-}
-
-function mockAssetCacheCleanupResult(assets: GameAsset[]): AssetCacheCleanupResult {
-  const keptBytes = Math.max(assets.length, 0) * 96 * 1024;
-  return {
-    scannedFiles: assets.length,
-    removedFiles: 0,
-    keptFiles: assets.length,
-    removedBytes: 0,
-    keptBytes,
-  };
-}
-
-function mockDescriptionImageSources(value?: string | null) {
-  const pattern = /!\[[^\]]*\]\(([^)]*?)\)|<img\b[^>]*>|\[img\]([\s\S]*?)\[\/img\]|https?:\/\/[^\s<>"']+?\.(?:png|jpe?g|webp|gif)(?:\?[^\s<>"']*)?/gi;
-  return [...(value ?? '').matchAll(pattern)]
-    .map((match) => {
-      if (match[1]) return match[1].trim();
-      if (match[2]) return match[2].trim();
-      const token = match[0];
-      if (token.toLowerCase().startsWith('<img')) {
-        const src = token.match(/\b(?:src|data-src|data-original|data-lazy-src)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i);
-        return (src?.[1] ?? src?.[2] ?? src?.[3] ?? '').trim();
-      }
-      return token.trim().replace(/[),，。.;；]+$/g, '');
-    })
-    .filter(Boolean);
-}
-
-function mockAuditImageValue(value: string) {
-  const clean = value.trim();
-  const lower = clean.toLowerCase().replace(/\//g, '\\');
-  const remote = /^https?:\/\//i.test(clean);
-  const embedded = clean.startsWith('data:') || clean.startsWith('asset:') || clean === sampleHeroUrl || clean.startsWith('/assets/');
-  const local = clean !== '' && !remote && !embedded;
-  const issues: string[] = [];
-  if (local && !clean.startsWith(`${MOCK_IMAGE_DIR}\\`) && !clean.startsWith('images\\') && !clean.startsWith('images/')) issues.push('missing');
-  if (lower.startsWith('c:\\')) issues.push('c_drive');
-  if (lower.includes('\\playnite\\') || lower.startsWith('d:\\playnite')) issues.push('playnite');
-  return {
-    local,
-    remote,
-    missing: issues.includes('missing'),
-    cDrive: issues.includes('c_drive'),
-    playnite: issues.includes('playnite'),
-    status: issues.includes('missing') ? 'missing' : issues.length > 0 ? 'warning' : remote ? 'remote' : 'ok',
-    issues,
-    resolvedPath: local && issues.length === 0 ? clean : null,
-  };
-}
-
-function mockImageReferenceAudit(options: ImageReferenceAuditOptions = {}): ImageReferenceAudit {
-  const refs: ImageReferenceAuditItem[] = [];
-  const push = (item: Omit<ImageReferenceAuditItem, 'status' | 'issues' | 'resolvedPath'>) => {
-    const audit = mockAuditImageValue(item.value);
-    refs.push({ ...item, status: audit.status, issues: audit.issues, resolvedPath: audit.resolvedPath });
-  };
-  for (const game of readGames().map(ensureGameDefaults)) {
-    ([['coverImage', '封面', game.coverImage], ['bannerImage', '横幅', game.bannerImage], ['backgroundImage', '背景', game.backgroundImage]] as const)
-      .forEach(([fieldName, sourceLabel, value]) => {
-        if (!value?.trim()) return;
-        push({ gameId: game.id, gameTitle: game.title, sourceKind: 'game_field', sourceLabel, fieldName, value });
-      });
-    for (const source of mockDescriptionImageSources(game.description)) {
-      push({ gameId: game.id, gameTitle: game.title, sourceKind: 'description', sourceLabel: '简介图片', fieldName: 'description', value: source });
-    }
-  }
-  for (const asset of readAssets()) {
-    const game = readGames().map(ensureGameDefaults).find((item) => item.id === asset.gameId);
-    push({ gameId: asset.gameId, gameTitle: game?.title ?? null, sourceKind: 'game_asset', sourceLabel: asset.assetType || '媒体图库', fieldName: 'game_assets.uri', value: asset.uri });
-  }
-
-  const limit = Math.max(1, Math.min(Number(options.limit ?? 200) || 200, 1000));
-  const includeOk = Boolean(options.includeOk);
-  const gameId = options.gameId?.trim();
-  const scopedRefs = gameId ? refs.filter((item) => item.gameId === gameId) : refs;
-  const filtered = scopedRefs.filter((item) => includeOk || item.issues.length > 0);
-  return {
-    totalRefs: scopedRefs.length,
-    issueCount: scopedRefs.filter((item) => item.issues.length > 0).length,
-    localCount: scopedRefs.filter((item) => mockAuditImageValue(item.value).local).length,
-    remoteCount: scopedRefs.filter((item) => mockAuditImageValue(item.value).remote).length,
-    missingCount: scopedRefs.filter((item) => item.issues.includes('missing')).length,
-    cDriveCount: scopedRefs.filter((item) => item.issues.includes('c_drive')).length,
-    playniteCount: scopedRefs.filter((item) => item.issues.includes('playnite')).length,
-    items: filtered.slice(0, limit),
-    truncated: filtered.length > limit,
-  };
 }
 
 function syncGameTags(games = readGames()) {
@@ -1100,7 +1013,12 @@ export const mockStore = {
   },
 
   auditImageReferences(options: ImageReferenceAuditOptions = {}): Promise<ImageReferenceAudit> {
-    return Promise.resolve(mockImageReferenceAudit(options));
+    return Promise.resolve(mockImageReferenceAudit(options, {
+      assets: readAssets(),
+      games: readGames().map(ensureGameDefaults),
+      imageDir: MOCK_IMAGE_DIR,
+      sampleHeroUrl,
+    }));
   },
 
   cleanupOldDatabaseBackups(policy: DatabaseBackupCleanupPolicy = {}): Promise<DatabaseBackupCleanupReport> {
