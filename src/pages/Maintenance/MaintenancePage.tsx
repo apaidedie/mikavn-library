@@ -19,7 +19,8 @@ import { BatchMatchHistoryTaskRow, filterBatchMatchHistorySummary, type BatchMat
 import { DescriptionImageRepairTaskRow, filterDescriptionImageRepairSummary, summarizeDescriptionImageRepairTask, type DescriptionImageRepairTaskSummary } from './DescriptionImageRepairResultPanel';
 import { DuplicateAuditTaskRow, filterDuplicateAuditSummary, summarizeDuplicateAuditTask, type DuplicateAuditTaskSummary } from './DuplicateAuditResultPanel';
 import { ImageAuditDetailPanel, matchesImageAuditItem } from './ImageAuditDetailPanel';
-import { ArtworkDiagnosisRow, CompactStat, MaintenanceAction, MaintenanceTaskRow, PathRow, ProgressBlock, StorageStat, dataDirSourceLabel, duplicateGroupKey, formatBytes, formatCount, isActiveTask, isMaintenanceTask, matchesArtworkDiagnosisItem, matchesMaintenanceTaskFilter, percent, providerLabel, recommendDuplicateMergeTarget, summarizeMaintenanceTasks, type MaintenanceTaskFilter } from './MaintenancePageParts';
+import { MaintenanceTasksPanel } from './MaintenanceTasksPanel';
+import { ArtworkDiagnosisRow, CompactStat, MaintenanceAction, PathRow, ProgressBlock, StorageStat, dataDirSourceLabel, duplicateGroupKey, formatBytes, formatCount, isActiveTask, isMaintenanceTask, matchesArtworkDiagnosisItem, matchesMaintenanceTaskFilter, percent, providerLabel, recommendDuplicateMergeTarget, summarizeMaintenanceTasks, type MaintenanceTaskFilter } from './MaintenancePageParts';
 
 type TaskMessage = { text: string; taskId?: string | null };
 
@@ -714,60 +715,20 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
           </PanelContent>
         </Panel>
 
-        <Panel>
-          <PanelHeader
-            title="最近维护任务"
-            description="只汇总批量匹配、简介修复、媒体补图和重复 ID 审查。"
-            icon={<ListChecks className="h-4 w-4" />}
-            actions={<Button disabled={maintenanceTasksLoading} size="sm" variant="ghost" onClick={() => void loadMaintenanceTasks()}><RefreshCw className="h-4 w-4" />{maintenanceTasksLoading ? '读取中' : '刷新任务'}</Button>}
-          />
-          <PanelContent className="space-y-3">
-            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-              <CompactStat label="维护任务" value={maintenanceTasks.length} />
-              <CompactStat label="进行中" value={maintenanceTaskSummary.activeCount} tone={maintenanceTaskSummary.activeCount > 0 ? 'warn' : 'ok'} />
-              <CompactStat label="需处理" value={maintenanceTaskSummary.attentionCount} tone={maintenanceTaskSummary.attentionCount > 0 ? 'warn' : 'ok'} />
-              <CompactStat label="已完成" value={maintenanceTaskSummary.completedCount} tone={maintenanceTaskSummary.completedCount > 0 ? 'ok' : 'neutral'} />
-            </div>
-            <div className="grid gap-1.5 sm:grid-cols-4" aria-label="维护任务状态快捷筛选">
-              {maintenanceTaskShortcuts.map((shortcut) => {
-                const active = maintenanceTaskFilter === shortcut.id;
-                return (
-                  <Button
-                    aria-pressed={active}
-                    className={active ? 'border-[rgb(var(--accent-rgb)/0.42)] bg-[rgb(var(--accent-rgb)/0.16)] text-slate-100' : 'text-slate-300'}
-                    key={shortcut.id}
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setMaintenanceTaskFilter(shortcut.id)}
-                  >
-                    <span>{shortcut.label}</span>
-                    <span className="font-mono text-[11px] text-slate-400">{formatCount(shortcut.count)}</span>
-                  </Button>
-                );
-              })}
-            </div>
-            {maintenanceTasks.length > 0 ? (
-              filteredMaintenanceTasks.length > 0 ? (
-                <div className="space-y-2">
-                  {filteredMaintenanceTasks.map((task) => (
-                  <MaintenanceTaskRow
-                    actionBusy={maintenanceTaskActionId === task.id}
-                    key={task.id}
-                    onCancelTask={cancelMaintenanceTask}
-                    onOpenTask={onOpenTasks}
-                    onRetryTask={retryMaintenanceTask}
-                    task={task}
-                  />
-                  ))}
-                </div>
-              ) : (
-                <SoftRow className="px-3 py-3 text-sm text-slate-400">当前筛选没有匹配的维护任务。</SoftRow>
-              )
-            ) : (
-              <SoftRow className="px-3 py-3 text-sm text-slate-400">还没有维护任务记录。创建批量匹配、简介修复、媒体补图或重复 ID 审查后会显示在这里。</SoftRow>
-            )}
-          </PanelContent>
-        </Panel>
+        <MaintenanceTasksPanel
+          actionBusyTaskId={maintenanceTaskActionId}
+          filteredTasks={filteredMaintenanceTasks}
+          filter={maintenanceTaskFilter}
+          loading={maintenanceTasksLoading}
+          shortcuts={maintenanceTaskShortcuts}
+          summary={maintenanceTaskSummary}
+          tasks={maintenanceTasks}
+          onCancelTask={cancelMaintenanceTask}
+          onFilterChange={setMaintenanceTaskFilter}
+          onOpenTask={onOpenTasks}
+          onRefresh={() => void loadMaintenanceTasks()}
+          onRetryTask={retryMaintenanceTask}
+        />
 
         <Panel>
           <PanelHeader title="维护队列" description="已落地的统计基础和下一批整理入口。" icon={<ListChecks className="h-4 w-4" />} />
