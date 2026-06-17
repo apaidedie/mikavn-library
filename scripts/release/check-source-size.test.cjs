@@ -49,6 +49,7 @@ test('default source budgets cover frontend, Rust service, and smoke runner hot 
     'src-tauri/src/services/diagnostics.rs',
     'src-tauri/src/db/game_merge_ext.rs',
     'scripts/playwright/page-qa-runner.cjs',
+    'scripts/playwright/page-qa-fixtures.cjs',
   ]) {
     assert.match(watchedPaths, new RegExp(expectedPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   }

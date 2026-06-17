@@ -52,6 +52,11 @@ const DEFAULT_SOURCE_BUDGETS = [
     maxBytes: 128 * 1024,
     maxLines: 1350,
   },
+  {
+    filePath: path.resolve(__dirname, '..', '..', 'scripts', 'playwright', 'page-qa-fixtures.cjs'),
+    maxBytes: 32 * 1024,
+    maxLines: 260,
+  },
 ];
 
 function countLines(contents) {
