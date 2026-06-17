@@ -15,11 +15,12 @@ import { errorMessage } from '@/utils/errorMessage';
 import { taskLabel } from '@/utils/taskLabels';
 import { Select } from '@/components/ui/select';
 import { ArtworkRepairTaskRow, filterArtworkRepairSummary, summarizeArtworkRepairTask, type ArtworkRepairTaskSummary } from './ArtworkRepairResultPanel';
-import { BatchMatchHistoryTaskRow, filterBatchMatchHistorySummary, type BatchMatchHistorySummary } from './BatchMatchResultPanel';
+import type { BatchMatchHistorySummary } from './BatchMatchResultPanel';
 import { DescriptionImageRepairTaskRow, filterDescriptionImageRepairSummary, summarizeDescriptionImageRepairTask, type DescriptionImageRepairTaskSummary } from './DescriptionImageRepairResultPanel';
 import { DuplicateAuditTaskRow, filterDuplicateAuditSummary, summarizeDuplicateAuditTask, type DuplicateAuditTaskSummary } from './DuplicateAuditResultPanel';
 import { ImageAuditDetailPanel, matchesImageAuditItem } from './ImageAuditDetailPanel';
 import { MaintenanceArtworkDiagnosisPanel } from './MaintenanceArtworkDiagnosisPanel';
+import { MaintenanceBatchMatchHistoryPanel } from './MaintenanceBatchMatchHistoryPanel';
 import { MaintenanceDataLocationPanel } from './MaintenanceDataLocationPanel';
 import { MaintenanceOverviewPanels } from './MaintenanceOverviewPanels';
 import { MaintenanceQueuePanel } from './MaintenanceQueuePanel';
@@ -149,7 +150,6 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
     { id: 'completed', label: '已完成', count: maintenanceTaskSummary.completedCount },
   ] as const, [maintenanceTaskSummary, maintenanceTasks.length]);
   const filteredMaintenanceTasks = useMemo(() => maintenanceTasks.filter((task) => matchesMaintenanceTaskFilter(task, maintenanceTaskFilter)), [maintenanceTaskFilter, maintenanceTasks]);
-  const filteredBatchMatchHistory = useMemo(() => batchMatchHistory?.map((summary) => filterBatchMatchHistorySummary(summary, batchMatchHistoryQuery, batchMatchHistoryStatusFilter, providerLabel)).filter((summary) => summary.results.length > 0) ?? [], [batchMatchHistory, batchMatchHistoryQuery, batchMatchHistoryStatusFilter]);
   const filteredArtworkHistory = useMemo(() => artworkHistory?.map((summary) => filterArtworkRepairSummary(summary, artworkHistoryQuery, artworkHistoryStatusFilter)).filter((summary) => summary.updated.length + summary.skipped.length + summary.failed.length > 0) ?? [], [artworkHistory, artworkHistoryQuery, artworkHistoryStatusFilter]);
   const filteredDescriptionHistory = useMemo(() => descriptionHistory?.map((summary) => filterDescriptionImageRepairSummary(summary, descriptionHistoryQuery, descriptionHistoryStatusFilter, descriptionHistoryProviderFilter)).filter((summary) => summary.updated.length + summary.skipped.length + summary.failed.length > 0) ?? [], [descriptionHistory, descriptionHistoryProviderFilter, descriptionHistoryQuery, descriptionHistoryStatusFilter]);
   const filteredDuplicateAuditHistory = useMemo(() => duplicateAuditHistory?.map((summary) => filterDuplicateAuditSummary(summary, duplicateAuditHistoryQuery, duplicateAuditHistoryProvider)).filter((summary) => summary.groups.length > 0) ?? [], [duplicateAuditHistory, duplicateAuditHistoryProvider, duplicateAuditHistoryQuery]);
@@ -276,48 +276,18 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
           onStatusFilterChange={setArtworkDiagnosisStatusFilter}
         />
 
-        <Panel>
-          <PanelHeader
-            title="批量匹配结果"
-            description="汇总最近批量元数据匹配任务的成功、复核、无结果和错误条目。"
-            icon={<ListChecks className="h-4 w-4" />}
-            actions={<Button disabled={batchMatchHistoryLoading} size="sm" variant="ghost" onClick={() => loadBatchMatchHistory()}><RefreshCw className="h-4 w-4" />{batchMatchHistoryLoading ? '读取中' : '读取结果'}</Button>}
-          />
-          <PanelContent className="space-y-3">
-            {batchMatchHistory ? (
-              batchMatchHistory.length > 0 ? (
-                <div className="space-y-3">
-                  <SoftRow className="grid gap-2 px-3 py-3 md:grid-cols-[minmax(0,1fr)_minmax(10rem,14rem)_auto] md:items-end">
-                    <label className="min-w-0 text-xs text-slate-500">
-                      搜索匹配结果
-                      <Input aria-label="批量匹配结果搜索" className="mt-1 w-full" placeholder="标题 / 来源 / ID / 原因" value={batchMatchHistoryQuery} onChange={(event) => setBatchMatchHistoryQuery(event.target.value)} />
-                    </label>
-                    <label className="min-w-0 text-xs text-slate-500">
-                      结果状态
-                      <Select aria-label="批量匹配结果状态筛选" className="mt-1 w-full" value={batchMatchHistoryStatusFilter} onChange={(event) => setBatchMatchHistoryStatusFilter(event.target.value)}>
-                        <option value="all">全部结果</option>
-                        <option value="success">成功</option>
-                        <option value="review">待复核</option>
-                        <option value="no_result">无结果</option>
-                        <option value="error">错误</option>
-                      </Select>
-                    </label>
-                    <Button className="h-9" disabled={!batchMatchHistoryQuery.trim() && batchMatchHistoryStatusFilter === 'all'} size="sm" variant="outline" onClick={resetBatchMatchHistoryFilters}>重置筛选</Button>
-                  </SoftRow>
-                  <div className="px-1 text-xs text-slate-500">当前显示 {formatCount(filteredBatchMatchHistory.reduce((count, summary) => count + summary.results.length, 0))} / {formatCount(batchMatchHistory.reduce((count, summary) => count + summary.results.length, 0))} 条匹配结果。</div>
-                  {filteredBatchMatchHistory.length > 0 ? filteredBatchMatchHistory.map((summary) => <BatchMatchHistoryTaskRow formatCount={formatCount} key={summary.task.id} onOpenTask={onOpenTasks} providerLabel={providerLabel} summary={summary} />) : <SoftRow className="px-3 py-3 text-sm text-slate-400">当前筛选没有匹配的批量匹配结果。</SoftRow>}
-                </div>
-              ) : (
-                <SoftRow className="px-3 py-3 text-sm text-slate-400">还没有批量匹配任务记录。</SoftRow>
-              )
-            ) : (
-              <SoftRow className="flex items-center justify-between gap-3 px-3 py-3">
-                <div className="min-w-0 text-sm text-slate-400">读取后会解析最近批量匹配结果，展示推荐来源和候选数量。</div>
-                <Button disabled={batchMatchHistoryLoading} size="sm" variant="secondary" onClick={() => loadBatchMatchHistory()}><ListChecks className="h-4 w-4" />读取</Button>
-              </SoftRow>
-            )}
-          </PanelContent>
-        </Panel>
+        <MaintenanceBatchMatchHistoryPanel
+          history={batchMatchHistory}
+          loading={batchMatchHistoryLoading}
+          query={batchMatchHistoryQuery}
+          statusFilter={batchMatchHistoryStatusFilter}
+          onLoadHistory={() => loadBatchMatchHistory()}
+          onOpenTask={onOpenTasks}
+          onQueryChange={setBatchMatchHistoryQuery}
+          onResetFilters={resetBatchMatchHistoryFilters}
+          onStatusFilterChange={setBatchMatchHistoryStatusFilter}
+          providerLabel={providerLabel}
+        />
 
         <Panel>
           <PanelHeader
