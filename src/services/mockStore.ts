@@ -13,6 +13,7 @@ import { cleanList, ensureGameDefaults, makeGame } from './mockStoreGames';
 import { mockAssetCacheCleanupResult, mockImageReferenceAudit } from './mockStoreImages';
 import { cleanTitle, externalIdCount, hasCompleteMetadata, hasMockDescriptionImage, metadataStatusMatches, mockMatchesClause, parseMockSearch, score } from './mockStoreMetadata';
 import { findScanConflict, mockScanPathPreview, normalizeMockPath } from './mockStoreScanner';
+import { mockSavePathCandidates, mockSaveRestorePreview } from './mockStoreSaves';
 import { BATCH_KEY, FIELD_LOCKS_KEY, LAUNCH_PROFILES_KEY, LIBRARY_ROOTS_KEY, PLAY_SESSIONS_KEY, SAVED_SEARCHES_KEY, SAVE_BACKUPS_KEY, SAVE_PATHS_KEY, SCAN_TASKS_KEY, SETTINGS_KEY, STORAGE_KEY, readJson, readSettings, writeJson } from './mockStoreStorage';
 import { syncGameTags } from './mockStoreTags';
 import { addTaskLog, makeTask, readTaskLogs, readTasks, reportGapExamplesLog, reportGapSummaryLog, writeTasks } from './mockStoreTasks';
@@ -1496,17 +1497,7 @@ export const mockStore = {
   async suggestSavePaths(gameId: string): Promise<SavePathCandidate[]> {
     const game = await this.getGame(gameId);
     const existing = new Set(readJson<SavePath[]>(SAVE_PATHS_KEY, []).filter((item) => item.gameId === gameId).map((item) => item.path.toLowerCase()));
-    const install = game.installPath.replace(/[\\/]$/, '');
-    return ['save', 'savedata', 'SaveData'].map((folder) => {
-      const candidatePath = `${install}\\${folder}`;
-      return {
-        label: '游戏目录存档',
-        path: candidatePath,
-        reason: '浏览器预览候选：安装目录下的常见存档文件夹',
-        exists: true,
-        alreadyAdded: existing.has(candidatePath.toLowerCase()),
-      };
-    });
+    return mockSavePathCandidates(game, existing);
   },
 
   createSaveBackup(savePathId: string, label: string): Promise<SaveBackup> {
@@ -1572,21 +1563,7 @@ export const mockStore = {
   previewSaveRestore(backupId: string, mode: SaveRestoreMode = 'merge'): Promise<SaveRestorePreview> {
     const backup = readJson<SaveBackup[]>(SAVE_BACKUPS_KEY, []).find((item) => item.id === backupId);
     if (!backup) return Promise.reject(new Error('Save backup not found'));
-    return Promise.resolve({
-      mode,
-      backupPath: backup.backupPath,
-      savePath: backup.sourcePath,
-      backupFileCount: 3,
-      currentFileCount: 4,
-      newFiles: 1,
-      overwrittenFiles: 2,
-      keptFiles: mode === 'merge' ? 2 : 0,
-      removedFiles: mode === 'mirror' ? 4 : 0,
-      sampleNewFiles: ['new-slot.dat'],
-      sampleOverwrittenFiles: ['slot1.dat', 'nested/slot2.dat'],
-      sampleKeptFiles: mode === 'merge' ? ['local-only.dat', 'config/user.ini'] : [],
-      sampleRemovedFiles: mode === 'mirror' ? ['slot1.dat', 'local-only.dat', 'config/user.ini'] : [],
-    });
+    return Promise.resolve(mockSaveRestorePreview(backup, mode));
   },
 
   deleteSaveBackupRecord(id: string) {
