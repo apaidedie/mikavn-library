@@ -4,6 +4,7 @@ import type { LaunchProfile, LaunchProfileInput, LaunchProfileUpdate } from '@/t
 import type { AdvancedSearchInput, AdvancedSearchResult, AiConnectionTestResult, AiRecognitionResult, ApplyMetadataFields, ArtworkRepairDiagnosis, ArtworkRepairOptions, ArtworkRepairPreview, BatchMatchJob, BatchMatchStatus, DescriptionImageRepairOptions, DescriptionImageRepairPreview, DuplicateExternalIdAuditOptions, DuplicateExternalIdGroup, DuplicateExternalIdPreview, DuplicateGameMergeExternalId, DuplicateGameMergeOptions, DuplicateGameMergePreview, DuplicateGameMergeResult, ExternalIdRecord, FieldLock, MatchSuggestion, MetadataProvider, MetadataSearchResponse, MetadataSearchResult, MetadataSourceRecord, NormalizedMetadata, SavedSearch, SavedSearchInput, SearchQueryValidation } from '@/types/metadata';
 import type { SaveBackup, SavePath, SavePathCandidate, SaveRestoreMode, SaveRestorePreview } from '@/types/saves';
 import type { ScanTaskStatus, TaskDetail, TaskLogEntry, TaskRecord } from '@/types/task';
+import { mockArtworkRepairDiagnosis, mockArtworkRepairPreview, mockDescriptionImageCandidates } from './mockStoreArtworkRepair';
 import { defaultSettings, mockMetadata, sampleGames, sampleHeroUrl } from './mockStoreFixtures';
 import { readAssets, syncGameCompatibilityAssets, writeAssets } from './mockStoreAssets';
 import { readCollectionLinks, readCollections, withCollectionCounts, writeCollectionLinks, writeCollections } from './mockStoreCollections';
@@ -205,100 +206,6 @@ function mockMergeDuplicateGames(options: DuplicateGameMergeOptions): DuplicateG
     .filter((asset, index, assets) => assets.findIndex((item) => item.gameId === asset.gameId && item.assetType === asset.assetType && item.uri === asset.uri) === index));
   syncGameCompatibilityAssets(merged);
   return { mergedGame: merged, deletedSourceGameIds: [...sourceIds], movedCounts: preview.movedCounts, warnings: preview.warnings };
-}
-
-function mockDescriptionImageCandidates(options: DescriptionImageRepairOptions = {}) {
-  const provider = String(options.provider ?? 'all').toLowerCase();
-  const limit = Math.max(1, Math.min(Number(options.limit ?? 20) || 20, 200));
-  return readGames().map(ensureGameDefaults)
-    .filter((game) => game.description?.trim() && !hasMockDescriptionImage(game.description))
-    .flatMap((game) => {
-      if ((provider === 'all' || provider === 'dlsite') && game.dlsiteId) {
-        return [{ gameId: game.id, title: game.title, provider: 'dlsite', providerId: game.dlsiteId }];
-      }
-      if ((provider === 'all' || provider === 'fanza') && game.fanzaId) {
-        return [{ gameId: game.id, title: game.title, provider: 'fanza', providerId: game.fanzaId }];
-      }
-      return [];
-    })
-    .slice(0, limit);
-}
-
-function normalizeMockArtworkFields(fields: ArtworkRepairOptions['fields'] = null) {
-  const raw = (fields ?? []).map((field) => String(field).trim().toLowerCase()).filter(Boolean);
-  if (raw.length === 0 || raw.includes('all')) return ['cover', 'banner', 'background'];
-  return [...new Set(raw.filter((field) => field === 'cover' || field === 'banner' || field === 'background'))];
-}
-
-function normalizeMockArtworkProviders(providers: ArtworkRepairOptions['providers'] = null) {
-  const raw = (providers ?? []).map((provider) => String(provider).trim().toLowerCase()).filter(Boolean);
-  if (raw.length === 0 || raw.includes('all')) return ['vndb', 'dlsite', 'fanza'];
-  return [...new Set(raw.filter((provider) => provider === 'vndb' || provider === 'dlsite' || provider === 'fanza'))];
-}
-
-function mockArtworkRepairPreview(options: ArtworkRepairOptions = {}): ArtworkRepairPreview {
-  const fields = normalizeMockArtworkFields(options.fields);
-  const providers = normalizeMockArtworkProviders(options.providers);
-  const limit = Math.max(1, Math.min(Number(options.limit ?? 20) || 20, 200));
-  const candidates = readGames().map(ensureGameDefaults).flatMap((game) => {
-    const missingFields = fields.filter((field) => {
-      if (field === 'cover') return !game.coverImage?.trim();
-      if (field === 'banner') return !game.bannerImage?.trim();
-      return !game.backgroundImage?.trim();
-    });
-    if (missingFields.length === 0) return [];
-    const refs = providers.flatMap((provider) => {
-      const providerId = provider === 'vndb' ? game.vndbId : provider === 'dlsite' ? game.dlsiteId : game.fanzaId;
-      return providerId ? [{ provider, providerId }] : [];
-    });
-    if (refs.length === 0) return [];
-    return [{ gameId: game.id, title: game.title, missingFields, providers: refs }];
-  });
-  return {
-    candidates: candidates.slice(0, limit),
-    totalCandidates: candidates.length,
-    totalMissingFields: candidates.reduce((count, candidate) => count + candidate.missingFields.length, 0),
-  };
-}
-
-function mockArtworkRepairDiagnosis(options: ArtworkRepairOptions = {}): ArtworkRepairDiagnosis {
-  const fields = normalizeMockArtworkFields(options.fields);
-  const providers = normalizeMockArtworkProviders(options.providers);
-  const limit = Math.max(1, Math.min(Number(options.limit ?? 50) || 50, 200));
-  const missingGames = readGames().map(ensureGameDefaults).flatMap((game) => {
-    const missingFields = fields.filter((field) => {
-      if (field === 'cover') return !game.coverImage?.trim();
-      if (field === 'banner') return !game.bannerImage?.trim();
-      return !game.backgroundImage?.trim();
-    });
-    if (missingFields.length === 0) return [];
-    const refs = providers.flatMap((provider) => {
-      const providerId = provider === 'vndb' ? game.vndbId : provider === 'dlsite' ? game.dlsiteId : game.fanzaId;
-      return providerId ? [{ provider, providerId }] : [];
-    });
-    const repairable = refs.length > 0;
-    return [{
-      gameId: game.id,
-      title: game.title,
-      missingFields,
-      providers: refs,
-      providerResults: refs.map((ref) => ({ provider: ref.provider, providerId: ref.providerId, status: 'has_image', reason: null, imageUrl: `mock://metadata/${game.id}/${ref.provider}-artwork.webp` })),
-      status: repairable ? 'repairable' : 'missing_external_id',
-      reason: repairable ? '找到可用于补全的远程主图' : '没有可用的 VNDB/DLsite/FANZA 外部 ID',
-    }];
-  });
-  const items = missingGames.slice(0, limit);
-  return {
-    items,
-    totalMissingGames: missingGames.length,
-    totalMissingFields: missingGames.reduce((count, item) => count + item.missingFields.length, 0),
-    diagnosedGames: items.length,
-    repairableCount: items.filter((item) => item.status === 'repairable').length,
-    missingExternalIdCount: items.filter((item) => item.status === 'missing_external_id').length,
-    noRemoteImageCount: items.filter((item) => item.status === 'no_remote_image').length,
-    providerErrorCount: items.filter((item) => item.status === 'provider_error').length,
-    truncated: missingGames.length > items.length,
-  };
 }
 
 export const mockStore = {
@@ -1283,14 +1190,14 @@ export const mockStore = {
   },
 
   previewDescriptionImageRepair(options: DescriptionImageRepairOptions = {}): Promise<DescriptionImageRepairPreview> {
-    const candidates = mockDescriptionImageCandidates(options);
+    const candidates = mockDescriptionImageCandidates(readGames().map(ensureGameDefaults), options);
     return Promise.resolve({ candidates, totalCandidates: candidates.length });
   },
 
   async repairDescriptionImages(options: DescriptionImageRepairOptions = {}): Promise<TaskRecord> {
-    const candidates = mockDescriptionImageCandidates(options);
-    if (candidates.length === 0) return Promise.reject(new Error('no description image repair candidates'));
     const games = readGames().map(ensureGameDefaults);
+    const candidates = mockDescriptionImageCandidates(games, options);
+    if (candidates.length === 0) return Promise.reject(new Error('no description image repair candidates'));
     const updatedIds = new Set(candidates.map((candidate) => candidate.gameId));
     writeGames(games.map((game) => updatedIds.has(game.id) ? {
       ...game,
@@ -1310,18 +1217,19 @@ export const mockStore = {
   },
 
   previewArtworkRepair(options: ArtworkRepairOptions = {}): Promise<ArtworkRepairPreview> {
-    return Promise.resolve(mockArtworkRepairPreview(options));
+    return Promise.resolve(mockArtworkRepairPreview(readGames().map(ensureGameDefaults), options));
   },
 
   diagnoseArtworkRepair(options: ArtworkRepairOptions = {}): Promise<ArtworkRepairDiagnosis> {
-    return Promise.resolve(mockArtworkRepairDiagnosis(options));
+    return Promise.resolve(mockArtworkRepairDiagnosis(readGames().map(ensureGameDefaults), options));
   },
 
   repairArtwork(options: ArtworkRepairOptions = {}): Promise<TaskRecord> {
-    const preview = mockArtworkRepairPreview(options);
+    const games = readGames().map(ensureGameDefaults);
+    const preview = mockArtworkRepairPreview(games, options);
     if (preview.totalCandidates === 0) return Promise.reject(new Error('no artwork repair candidates'));
     const updatedIds = new Map(preview.candidates.map((candidate) => [candidate.gameId, candidate.missingFields]));
-    writeGames(readGames().map(ensureGameDefaults).map((game) => {
+    writeGames(games.map((game) => {
       const fields = updatedIds.get(game.id);
       if (!fields) return game;
       return {
