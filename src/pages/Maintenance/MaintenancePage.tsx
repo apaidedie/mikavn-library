@@ -16,13 +16,14 @@ import { taskLabel } from '@/utils/taskLabels';
 import { Select } from '@/components/ui/select';
 import { summarizeArtworkRepairTask, type ArtworkRepairTaskSummary } from './ArtworkRepairResultPanel';
 import type { BatchMatchHistorySummary } from './BatchMatchResultPanel';
-import { DescriptionImageRepairTaskRow, filterDescriptionImageRepairSummary, summarizeDescriptionImageRepairTask, type DescriptionImageRepairTaskSummary } from './DescriptionImageRepairResultPanel';
+import { summarizeDescriptionImageRepairTask, type DescriptionImageRepairTaskSummary } from './DescriptionImageRepairResultPanel';
 import { DuplicateAuditTaskRow, filterDuplicateAuditSummary, summarizeDuplicateAuditTask, type DuplicateAuditTaskSummary } from './DuplicateAuditResultPanel';
 import { ImageAuditDetailPanel, matchesImageAuditItem } from './ImageAuditDetailPanel';
 import { MaintenanceArtworkDiagnosisPanel } from './MaintenanceArtworkDiagnosisPanel';
 import { MaintenanceArtworkHistoryPanel } from './MaintenanceArtworkHistoryPanel';
 import { MaintenanceBatchMatchHistoryPanel } from './MaintenanceBatchMatchHistoryPanel';
 import { MaintenanceDataLocationPanel } from './MaintenanceDataLocationPanel';
+import { MaintenanceDescriptionHistoryPanel } from './MaintenanceDescriptionHistoryPanel';
 import { MaintenanceOverviewPanels } from './MaintenanceOverviewPanels';
 import { MaintenanceQueuePanel } from './MaintenanceQueuePanel';
 import { MaintenanceTasksPanel } from './MaintenanceTasksPanel';
@@ -151,7 +152,6 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
     { id: 'completed', label: '已完成', count: maintenanceTaskSummary.completedCount },
   ] as const, [maintenanceTaskSummary, maintenanceTasks.length]);
   const filteredMaintenanceTasks = useMemo(() => maintenanceTasks.filter((task) => matchesMaintenanceTaskFilter(task, maintenanceTaskFilter)), [maintenanceTaskFilter, maintenanceTasks]);
-  const filteredDescriptionHistory = useMemo(() => descriptionHistory?.map((summary) => filterDescriptionImageRepairSummary(summary, descriptionHistoryQuery, descriptionHistoryStatusFilter, descriptionHistoryProviderFilter)).filter((summary) => summary.updated.length + summary.skipped.length + summary.failed.length > 0) ?? [], [descriptionHistory, descriptionHistoryProviderFilter, descriptionHistoryQuery, descriptionHistoryStatusFilter]);
   const filteredDuplicateAuditHistory = useMemo(() => duplicateAuditHistory?.map((summary) => filterDuplicateAuditSummary(summary, duplicateAuditHistoryQuery, duplicateAuditHistoryProvider)).filter((summary) => summary.groups.length > 0) ?? [], [duplicateAuditHistory, duplicateAuditHistoryProvider, duplicateAuditHistoryQuery]);
 
   const resetDuplicateGroupFilters = () => {
@@ -304,55 +304,22 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
           onStatusFilterChange={setArtworkHistoryStatusFilter}
         />
 
-        <Panel>
-          <PanelHeader
-            title="简介图片修复结果"
-            description="汇总最近简介图片修复任务的来源、结果和可重试状态。"
-            icon={<ListChecks className="h-4 w-4" />}
-            actions={<Button disabled={descriptionHistoryLoading} size="sm" variant="ghost" onClick={() => loadDescriptionRepairHistory()}><RefreshCw className="h-4 w-4" />{descriptionHistoryLoading ? '读取中' : '读取结果'}</Button>}
-          />
-          <PanelContent className="space-y-3">
-            {descriptionHistory ? (
-              descriptionHistory.length > 0 ? (
-                <div className="space-y-3">
-                  <SoftRow className="grid gap-2 px-3 py-3 md:grid-cols-[minmax(0,1fr)_minmax(8rem,12rem)_minmax(10rem,14rem)_auto] md:items-end">
-                    <label className="min-w-0 text-xs text-slate-500">
-                      搜索修复结果
-                      <Input aria-label="简介图片修复结果搜索" className="mt-1 w-full" placeholder="游戏 / ID / 来源 / 原因" value={descriptionHistoryQuery} onChange={(event) => setDescriptionHistoryQuery(event.target.value)} />
-                    </label>
-                    <label className="min-w-0 text-xs text-slate-500">
-                      来源
-                      <Select aria-label="简介图片修复结果来源筛选" className="mt-1 w-full" value={descriptionHistoryProviderFilter} onChange={(event) => setDescriptionHistoryProviderFilter(event.target.value)}>
-                        <option value="all">全部来源</option>
-                        <option value="dlsite">DLsite</option>
-                        <option value="fanza">FANZA</option>
-                      </Select>
-                    </label>
-                    <label className="min-w-0 text-xs text-slate-500">
-                      结果状态
-                      <Select aria-label="简介图片修复结果状态筛选" className="mt-1 w-full" value={descriptionHistoryStatusFilter} onChange={(event) => setDescriptionHistoryStatusFilter(event.target.value)}>
-                        <option value="all">全部结果</option>
-                        <option value="updated">已修复</option>
-                        <option value="skipped">跳过</option>
-                        <option value="failed">失败</option>
-                      </Select>
-                    </label>
-                    <Button className="h-9" disabled={!descriptionHistoryQuery.trim() && descriptionHistoryStatusFilter === 'all' && descriptionHistoryProviderFilter === 'all'} size="sm" variant="outline" onClick={resetDescriptionHistoryFilters}>重置筛选</Button>
-                  </SoftRow>
-                  <div className="px-1 text-xs text-slate-500">当前显示 {formatCount(filteredDescriptionHistory.reduce((count, summary) => count + summary.updated.length + summary.skipped.length + summary.failed.length, 0))} / {formatCount(descriptionHistory.reduce((count, summary) => count + summary.updated.length + summary.skipped.length + summary.failed.length, 0))} 条简介图片修复明细。</div>
-                  {filteredDescriptionHistory.length > 0 ? filteredDescriptionHistory.map((summary) => <DescriptionImageRepairTaskRow actionBusy={maintenanceTaskActionId === summary.task.id} key={summary.task.id} onOpenGame={onOpenGame} onOpenTask={onOpenTasks} onRetryTask={retryMaintenanceTask} summary={summary} />) : <SoftRow className="px-3 py-3 text-sm text-slate-400">当前筛选没有匹配的简介图片修复结果。</SoftRow>}
-                </div>
-              ) : (
-                <SoftRow className="px-3 py-3 text-sm text-slate-400">还没有简介图片修复任务记录。</SoftRow>
-              )
-            ) : (
-              <SoftRow className="flex items-center justify-between gap-3 px-3 py-3">
-                <div className="min-w-0 text-sm text-slate-400">读取后会解析最近 5 个简介图片修复任务日志，展示已修复、跳过和失败来源。</div>
-                <Button disabled={descriptionHistoryLoading} size="sm" variant="secondary" onClick={() => loadDescriptionRepairHistory()}><ListChecks className="h-4 w-4" />读取</Button>
-              </SoftRow>
-            )}
-          </PanelContent>
-        </Panel>
+        <MaintenanceDescriptionHistoryPanel
+          actionBusyTaskId={maintenanceTaskActionId}
+          history={descriptionHistory}
+          loading={descriptionHistoryLoading}
+          providerFilter={descriptionHistoryProviderFilter}
+          query={descriptionHistoryQuery}
+          statusFilter={descriptionHistoryStatusFilter}
+          onLoadHistory={() => loadDescriptionRepairHistory()}
+          onOpenGame={onOpenGame}
+          onOpenTask={onOpenTasks}
+          onProviderFilterChange={setDescriptionHistoryProviderFilter}
+          onQueryChange={setDescriptionHistoryQuery}
+          onResetFilters={resetDescriptionHistoryFilters}
+          onRetryTask={retryMaintenanceTask}
+          onStatusFilterChange={setDescriptionHistoryStatusFilter}
+        />
 
         <Panel ref={imageAuditRef}>
           <PanelHeader
