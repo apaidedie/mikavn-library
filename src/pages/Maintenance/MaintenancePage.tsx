@@ -14,12 +14,13 @@ import type { TaskRecord } from '@/types/task';
 import { errorMessage } from '@/utils/errorMessage';
 import { taskLabel } from '@/utils/taskLabels';
 import { Select } from '@/components/ui/select';
-import { ArtworkRepairTaskRow, filterArtworkRepairSummary, summarizeArtworkRepairTask, type ArtworkRepairTaskSummary } from './ArtworkRepairResultPanel';
+import { summarizeArtworkRepairTask, type ArtworkRepairTaskSummary } from './ArtworkRepairResultPanel';
 import type { BatchMatchHistorySummary } from './BatchMatchResultPanel';
 import { DescriptionImageRepairTaskRow, filterDescriptionImageRepairSummary, summarizeDescriptionImageRepairTask, type DescriptionImageRepairTaskSummary } from './DescriptionImageRepairResultPanel';
 import { DuplicateAuditTaskRow, filterDuplicateAuditSummary, summarizeDuplicateAuditTask, type DuplicateAuditTaskSummary } from './DuplicateAuditResultPanel';
 import { ImageAuditDetailPanel, matchesImageAuditItem } from './ImageAuditDetailPanel';
 import { MaintenanceArtworkDiagnosisPanel } from './MaintenanceArtworkDiagnosisPanel';
+import { MaintenanceArtworkHistoryPanel } from './MaintenanceArtworkHistoryPanel';
 import { MaintenanceBatchMatchHistoryPanel } from './MaintenanceBatchMatchHistoryPanel';
 import { MaintenanceDataLocationPanel } from './MaintenanceDataLocationPanel';
 import { MaintenanceOverviewPanels } from './MaintenanceOverviewPanels';
@@ -150,7 +151,6 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
     { id: 'completed', label: '已完成', count: maintenanceTaskSummary.completedCount },
   ] as const, [maintenanceTaskSummary, maintenanceTasks.length]);
   const filteredMaintenanceTasks = useMemo(() => maintenanceTasks.filter((task) => matchesMaintenanceTaskFilter(task, maintenanceTaskFilter)), [maintenanceTaskFilter, maintenanceTasks]);
-  const filteredArtworkHistory = useMemo(() => artworkHistory?.map((summary) => filterArtworkRepairSummary(summary, artworkHistoryQuery, artworkHistoryStatusFilter)).filter((summary) => summary.updated.length + summary.skipped.length + summary.failed.length > 0) ?? [], [artworkHistory, artworkHistoryQuery, artworkHistoryStatusFilter]);
   const filteredDescriptionHistory = useMemo(() => descriptionHistory?.map((summary) => filterDescriptionImageRepairSummary(summary, descriptionHistoryQuery, descriptionHistoryStatusFilter, descriptionHistoryProviderFilter)).filter((summary) => summary.updated.length + summary.skipped.length + summary.failed.length > 0) ?? [], [descriptionHistory, descriptionHistoryProviderFilter, descriptionHistoryQuery, descriptionHistoryStatusFilter]);
   const filteredDuplicateAuditHistory = useMemo(() => duplicateAuditHistory?.map((summary) => filterDuplicateAuditSummary(summary, duplicateAuditHistoryQuery, duplicateAuditHistoryProvider)).filter((summary) => summary.groups.length > 0) ?? [], [duplicateAuditHistory, duplicateAuditHistoryProvider, duplicateAuditHistoryQuery]);
 
@@ -289,47 +289,20 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
           providerLabel={providerLabel}
         />
 
-        <Panel>
-          <PanelHeader
-            title="媒体补全结果"
-            description="汇总最近媒体图片补全任务的成功、跳过和失败明细。"
-            icon={<ListChecks className="h-4 w-4" />}
-            actions={<Button disabled={artworkHistoryLoading} size="sm" variant="ghost" onClick={() => loadArtworkHistory()}><RefreshCw className="h-4 w-4" />{artworkHistoryLoading ? '读取中' : '读取结果'}</Button>}
-          />
-          <PanelContent className="space-y-3">
-            {artworkHistory ? (
-              artworkHistory.length > 0 ? (
-                <div className="space-y-3">
-                  <SoftRow className="grid gap-2 px-3 py-3 md:grid-cols-[minmax(0,1fr)_minmax(10rem,14rem)_auto] md:items-end">
-                    <label className="min-w-0 text-xs text-slate-500">
-                      搜索补全结果
-                      <Input aria-label="媒体补全结果搜索" className="mt-1 w-full" placeholder="游戏 / ID / 字段 / 原因 / 来源" value={artworkHistoryQuery} onChange={(event) => setArtworkHistoryQuery(event.target.value)} />
-                    </label>
-                    <label className="min-w-0 text-xs text-slate-500">
-                      结果状态
-                      <Select aria-label="媒体补全结果状态筛选" className="mt-1 w-full" value={artworkHistoryStatusFilter} onChange={(event) => setArtworkHistoryStatusFilter(event.target.value)}>
-                        <option value="all">全部结果</option>
-                        <option value="updated">已补全</option>
-                        <option value="skipped">跳过</option>
-                        <option value="failed">失败</option>
-                      </Select>
-                    </label>
-                    <Button className="h-9" disabled={!artworkHistoryQuery.trim() && artworkHistoryStatusFilter === 'all'} size="sm" variant="outline" onClick={resetArtworkHistoryFilters}>重置筛选</Button>
-                  </SoftRow>
-                  <div className="px-1 text-xs text-slate-500">当前显示 {formatCount(filteredArtworkHistory.reduce((count, summary) => count + summary.updated.length + summary.skipped.length + summary.failed.length, 0))} / {formatCount(artworkHistory.reduce((count, summary) => count + summary.updated.length + summary.skipped.length + summary.failed.length, 0))} 条补图明细。</div>
-                  {filteredArtworkHistory.length > 0 ? filteredArtworkHistory.map((summary) => <ArtworkRepairTaskRow actionBusy={maintenanceTaskActionId === summary.task.id} key={summary.task.id} onOpenGame={onOpenGame} onOpenTask={onOpenTasks} onRetryTask={retryMaintenanceTask} summary={summary} />) : <SoftRow className="px-3 py-3 text-sm text-slate-400">当前筛选没有匹配的媒体补全结果。</SoftRow>}
-                </div>
-              ) : (
-                <SoftRow className="px-3 py-3 text-sm text-slate-400">还没有媒体图片补全任务记录。</SoftRow>
-              )
-            ) : (
-              <SoftRow className="flex items-center justify-between gap-3 px-3 py-3">
-                <div className="min-w-0 text-sm text-slate-400">读取后会解析最近 5 个媒体补全任务日志，展示成功、跳过和失败原因。</div>
-                <Button disabled={artworkHistoryLoading} size="sm" variant="secondary" onClick={() => loadArtworkHistory()}><ListChecks className="h-4 w-4" />读取</Button>
-              </SoftRow>
-            )}
-          </PanelContent>
-        </Panel>
+        <MaintenanceArtworkHistoryPanel
+          actionBusyTaskId={maintenanceTaskActionId}
+          history={artworkHistory}
+          loading={artworkHistoryLoading}
+          query={artworkHistoryQuery}
+          statusFilter={artworkHistoryStatusFilter}
+          onLoadHistory={() => loadArtworkHistory()}
+          onOpenGame={onOpenGame}
+          onOpenTask={onOpenTasks}
+          onQueryChange={setArtworkHistoryQuery}
+          onResetFilters={resetArtworkHistoryFilters}
+          onRetryTask={retryMaintenanceTask}
+          onStatusFilterChange={setArtworkHistoryStatusFilter}
+        />
 
         <Panel>
           <PanelHeader
