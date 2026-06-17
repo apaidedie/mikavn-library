@@ -1,14 +1,14 @@
 import type { AddGameInput, AssetCacheCleanupResult, AssetDownloadInput, AssetImportInput, AssetInput, CollectionGameLink, CollectionInput, DashboardData, Game, GameAsset, GameCollection, GameFilter, GamePathHealth, ImportCandidate, ImportScanReport, ImportScanReportItem, LibraryRoot, PathCheckItem, PlaySession, PlayStatus, ScanCandidate, ScanConflict, TagRecord, UpdateGameInput } from '@/types/game';
 import type { AppDataDiagnostics, DatabaseBackupCleanupPolicy, DatabaseBackupCleanupReport, ImageReferenceAudit, ImageReferenceAuditOptions, LibraryArchiveExportOptions, LibraryArchiveImportOptions, LibraryArchivePreview, LibraryArchiveRestoreOptions, LogRecord, LogRetentionPolicy, TrayStatus } from '@/types/archive';
 import type { LaunchProfile, LaunchProfileInput, LaunchProfileUpdate } from '@/types/launch';
-import type { AdvancedSearchInput, AdvancedSearchResult, AiConnectionTestResult, AiRecognitionResult, ApplyMetadataFields, ArtworkRepairDiagnosis, ArtworkRepairOptions, ArtworkRepairPreview, BatchMatchJob, BatchMatchStatus, DescriptionImageRepairOptions, DescriptionImageRepairPreview, DuplicateExternalIdAuditOptions, DuplicateExternalIdPreview, DuplicateGameMergeExternalId, DuplicateGameMergeOptions, DuplicateGameMergePreview, DuplicateGameMergeResult, ExternalIdRecord, FieldLock, MatchSuggestion, MetadataProvider, MetadataSearchResponse, MetadataSearchResult, MetadataSourceRecord, NormalizedMetadata, SavedSearch, SavedSearchInput, SearchQueryValidation } from '@/types/metadata';
+import type { AdvancedSearchInput, AdvancedSearchResult, AiConnectionTestResult, AiRecognitionResult, ApplyMetadataFields, ArtworkRepairDiagnosis, ArtworkRepairOptions, ArtworkRepairPreview, BatchMatchJob, BatchMatchStatus, DescriptionImageRepairOptions, DescriptionImageRepairPreview, DuplicateExternalIdAuditOptions, DuplicateExternalIdPreview, DuplicateGameMergeOptions, DuplicateGameMergePreview, DuplicateGameMergeResult, ExternalIdRecord, FieldLock, MatchSuggestion, MetadataProvider, MetadataSearchResponse, MetadataSearchResult, MetadataSourceRecord, NormalizedMetadata, SavedSearch, SavedSearchInput, SearchQueryValidation } from '@/types/metadata';
 import type { SaveBackup, SavePath, SavePathCandidate, SaveRestoreMode, SaveRestorePreview } from '@/types/saves';
 import type { ScanTaskStatus, TaskDetail, TaskLogEntry, TaskRecord } from '@/types/task';
 import { mockArtworkRepairDiagnosis, mockArtworkRepairPreview, mockDescriptionImageCandidates } from './mockStoreArtworkRepair';
 import { defaultSettings, mockMetadata, sampleGames, sampleHeroUrl } from './mockStoreFixtures';
 import { readAssets, syncGameCompatibilityAssets, writeAssets } from './mockStoreAssets';
 import { readCollectionLinks, readCollections, withCollectionCounts, writeCollectionLinks, writeCollections } from './mockStoreCollections';
-import { gameExternalIds, mockDuplicateExternalIdPreview } from './mockStoreDuplicates';
+import { mockDuplicateExternalIdPreview, mockDuplicateGameMergePreview } from './mockStoreDuplicates';
 import { cleanList, ensureGameDefaults, makeGame } from './mockStoreGames';
 import { mockAssetCacheCleanupResult, mockImageReferenceAudit } from './mockStoreImages';
 import { cleanTitle, externalIdCount, hasCompleteMetadata, hasMockDescriptionImage, metadataStatusMatches, mockMatchesClause, parseMockSearch, score } from './mockStoreMetadata';
@@ -65,49 +65,13 @@ function toMetadata(result: MetadataSearchResult): NormalizedMetadata {
   };
 }
 
-function mockDuplicateGameMergePreview(options: DuplicateGameMergeOptions): DuplicateGameMergePreview {
-  const games = readGames().map(ensureGameDefaults);
-  const target = games.find((game) => game.id === options.targetGameId);
-  const sources = cleanList(options.sourceGameIds).map((id) => games.find((game) => game.id === id)).filter(Boolean) as Game[];
-  if (!target) throw new Error('target game not found');
-  if (sources.length === 0) throw new Error('at least one source game is required');
-  const targetKeys = new Set(gameExternalIds(target).map((item) => `${item.provider}:${item.externalId.toLowerCase()}`));
-  const shared = new Map<string, DuplicateGameMergeExternalId>();
-  const warnings: string[] = [];
-  for (const source of sources) {
-    const sourceShared = gameExternalIds(source).filter((item) => targetKeys.has(`${item.provider}:${item.externalId.toLowerCase()}`));
-    if (sourceShared.length === 0) throw new Error(`${source.title} does not share an external id with target`);
-    for (const item of sourceShared) shared.set(`${item.provider}:${item.externalId.toLowerCase()}`, item);
-    if (target.description?.trim() && source.description?.trim() && target.description.trim() !== source.description.trim()) warnings.push(`${source.title} 的简介与目标不同，目标已有值会保留。`);
-  }
-  const fieldLocks = readJson<Record<string, FieldLock[]>>(FIELD_LOCKS_KEY, {});
-  const movedCounts = {
-    sourceGames: sources.length,
-    playSessions: 0,
-    launchProfiles: 0,
-    savePaths: 0,
-    saveBackups: 0,
-    externalIds: sources.reduce((sum, source) => sum + gameExternalIds(source).length, 0),
-    collectionLinks: readCollectionLinks().filter((link) => options.sourceGameIds.includes(link.gameId)).length,
-    assets: readAssets().filter((asset) => options.sourceGameIds.includes(asset.gameId)).length,
-    tags: sources.reduce((sum, source) => sum + source.tags.length + source.genres.length, 0),
-    fieldLocks: sources.reduce((sum, source) => sum + (fieldLocks[source.id]?.length ?? 0), 0),
-    metadataMatchResults: 0,
-  };
-  const summary = (game: Game) => ({
-    gameId: game.id,
-    title: game.title,
-    installPath: game.installPath,
-    externalIds: gameExternalIds(game),
-    totalPlaySeconds: game.totalPlaySeconds,
-    lastPlayedAt: game.lastPlayedAt ?? null,
-  });
-  return { target: summary(target), sources: sources.map(summary), sharedExternalIds: [...shared.values()], movedCounts, warnings };
-}
-
 function mockMergeDuplicateGames(options: DuplicateGameMergeOptions): DuplicateGameMergeResult {
-  const preview = mockDuplicateGameMergePreview(options);
   const games = readGames().map(ensureGameDefaults);
+  const preview = mockDuplicateGameMergePreview(games, {
+    collectionLinks: readCollectionLinks(),
+    assets: readAssets(),
+    fieldLocks: readJson<Record<string, FieldLock[]>>(FIELD_LOCKS_KEY, {}),
+  }, options);
   const target = games.find((game) => game.id === options.targetGameId);
   const sources = options.sourceGameIds.map((id) => games.find((game) => game.id === id)).filter(Boolean) as Game[];
   if (!target) throw new Error('target game not found');
@@ -1220,7 +1184,11 @@ export const mockStore = {
 
   previewDuplicateGameMerge(options: DuplicateGameMergeOptions): Promise<DuplicateGameMergePreview> {
     try {
-      return Promise.resolve(mockDuplicateGameMergePreview(options));
+      return Promise.resolve(mockDuplicateGameMergePreview(readGames().map(ensureGameDefaults), {
+        collectionLinks: readCollectionLinks(),
+        assets: readAssets(),
+        fieldLocks: readJson<Record<string, FieldLock[]>>(FIELD_LOCKS_KEY, {}),
+      }, options));
     } catch (reason) {
       return Promise.reject(reason);
     }

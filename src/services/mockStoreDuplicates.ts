@@ -1,5 +1,6 @@
-import type { Game } from '@/types/game';
-import type { DuplicateExternalIdAuditOptions, DuplicateExternalIdGroup, DuplicateExternalIdPreview, DuplicateGameMergeExternalId } from '@/types/metadata';
+import type { CollectionGameLink, Game, GameAsset } from '@/types/game';
+import type { DuplicateExternalIdAuditOptions, DuplicateExternalIdGroup, DuplicateExternalIdPreview, DuplicateGameMergeExternalId, DuplicateGameMergeOptions, DuplicateGameMergePreview, FieldLock } from '@/types/metadata';
+import { cleanList } from './mockStoreGames';
 
 function mockExternalIdEntries(games: Game[], options: DuplicateExternalIdAuditOptions = {}) {
   const providers = (options.providers ?? []).map((provider) => String(provider).trim().toLowerCase()).filter(Boolean);
@@ -57,4 +58,46 @@ export function gameExternalIds(game: Game): DuplicateGameMergeExternalId[] {
   push('fanza', game.fanzaId);
   push('ymgal', game.ymgalId);
   return items;
+}
+
+export function mockDuplicateGameMergePreview(
+  games: Game[],
+  context: { collectionLinks: CollectionGameLink[]; assets: GameAsset[]; fieldLocks: Record<string, FieldLock[]> },
+  options: DuplicateGameMergeOptions
+): DuplicateGameMergePreview {
+  const target = games.find((game) => game.id === options.targetGameId);
+  const sources = cleanList(options.sourceGameIds).map((id) => games.find((game) => game.id === id)).filter(Boolean) as Game[];
+  if (!target) throw new Error('target game not found');
+  if (sources.length === 0) throw new Error('at least one source game is required');
+  const targetKeys = new Set(gameExternalIds(target).map((item) => `${item.provider}:${item.externalId.toLowerCase()}`));
+  const shared = new Map<string, DuplicateGameMergeExternalId>();
+  const warnings: string[] = [];
+  for (const source of sources) {
+    const sourceShared = gameExternalIds(source).filter((item) => targetKeys.has(`${item.provider}:${item.externalId.toLowerCase()}`));
+    if (sourceShared.length === 0) throw new Error(`${source.title} does not share an external id with target`);
+    for (const item of sourceShared) shared.set(`${item.provider}:${item.externalId.toLowerCase()}`, item);
+    if (target.description?.trim() && source.description?.trim() && target.description.trim() !== source.description.trim()) warnings.push(`${source.title} 的简介与目标不同，目标已有值会保留。`);
+  }
+  const movedCounts = {
+    sourceGames: sources.length,
+    playSessions: 0,
+    launchProfiles: 0,
+    savePaths: 0,
+    saveBackups: 0,
+    externalIds: sources.reduce((sum, source) => sum + gameExternalIds(source).length, 0),
+    collectionLinks: context.collectionLinks.filter((link) => options.sourceGameIds.includes(link.gameId)).length,
+    assets: context.assets.filter((asset) => options.sourceGameIds.includes(asset.gameId)).length,
+    tags: sources.reduce((sum, source) => sum + source.tags.length + source.genres.length, 0),
+    fieldLocks: sources.reduce((sum, source) => sum + (context.fieldLocks[source.id]?.length ?? 0), 0),
+    metadataMatchResults: 0,
+  };
+  const summary = (game: Game) => ({
+    gameId: game.id,
+    title: game.title,
+    installPath: game.installPath,
+    externalIds: gameExternalIds(game),
+    totalPlaySeconds: game.totalPlaySeconds,
+    lastPlayedAt: game.lastPlayedAt ?? null,
+  });
+  return { target: summary(target), sources: sources.map(summary), sharedExternalIds: [...shared.values()], movedCounts, warnings };
 }
