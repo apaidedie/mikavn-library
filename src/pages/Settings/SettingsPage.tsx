@@ -21,6 +21,7 @@ import { DirectoryLocation, Stat, TrayStatusPanel, dataDirSourceLabel, formatByt
 import type { SettingsForm } from './settingsTypes';
 
 type TaskMessage = { text: string; taskId?: string | null };
+export type SettingsTab = 'appearance' | 'sources' | 'local';
 
 const defaults: SettingsForm = {
   provider_vndb_enabled: true,
@@ -41,7 +42,8 @@ const defaults: SettingsForm = {
   tray_enabled: true,
 };
 
-export function SettingsPage({ onAccentPreview, onThemePreview, onSaved, onOpenTask }: { onAccentPreview?: (uiAccentColor: string) => void; onThemePreview?: (uiThemeMode: string) => void; onSaved?: () => void; onOpenTask?: (taskId: string) => void }) {
+export function SettingsPage({ tabRequest, onAccentPreview, onThemePreview, onSaved, onOpenTask }: { tabRequest?: { tab: SettingsTab; key: number } | null; onAccentPreview?: (uiAccentColor: string) => void; onThemePreview?: (uiThemeMode: string) => void; onSaved?: () => void; onOpenTask?: (taskId: string) => void }) {
+  const [activeTab, setActiveTab] = useState<SettingsTab>(tabRequest?.tab ?? 'appearance');
   const [form, setForm] = useState<SettingsForm>(defaults);
   const [message, setMessage] = useState<TaskMessage | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -64,6 +66,8 @@ export function SettingsPage({ onAccentPreview, onThemePreview, onSaved, onOpenT
   const [libraryRootPath, setLibraryRootPath] = useState('');
   const [rootActionId, setRootActionId] = useState<string | null>(null);
   const [testingAi, setTestingAi] = useState(false);
+
+  useEffect(() => { if (tabRequest) setActiveTab(tabRequest.tab); }, [tabRequest]);
 
   useEffect(() => {
     api.getAppSettings().then((settings) => {
@@ -151,7 +155,7 @@ export function SettingsPage({ onAccentPreview, onThemePreview, onSaved, onOpenT
           </div>
         )}
 
-        <Tabs defaultValue="appearance">
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as SettingsTab)}>
           <TabsList className="border-b border-white/10">
             <TabsTrigger value="appearance"><Palette className="mr-2 h-4 w-4" />外观</TabsTrigger>
             <TabsTrigger value="sources"><Search className="mr-2 h-4 w-4" />数据源与 AI</TabsTrigger>

@@ -287,6 +287,9 @@ async function main() {
         for (const text of ['今日状态', '继续游玩', '需要关注', '本地安全', '添加游戏', '扫描入库']) {
           await page.getByText(text, { exact: false }).first().waitFor({ timeout: 5000 });
         }
+        await page.locator('section').filter({ hasText: '本地安全' }).first().getByRole('button', { name: /打开设置/ }).click();
+        await page.waitForFunction(() => [...document.querySelectorAll('[role="tab"]')].some((tab) => tab.textContent?.includes('本地与隐私') && tab.getAttribute('data-state') === 'active'), null, { timeout: 5000 });
+        await page.getByText('数据目录自检').first().waitFor({ timeout: 5000 });
       }],
       ['dashboard-task-shortcuts', 'dashboard', { games: [...games, descriptionRepairGame], tasks: [descriptionImageRepairFailedTask, fanzaDescriptionImageRepairTask, ...tasks], taskLogs }, async (page) => {
         await page.getByText('近期任务').first().waitFor({ timeout: 5000 });

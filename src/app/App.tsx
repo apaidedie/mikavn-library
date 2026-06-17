@@ -3,6 +3,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { api } from '@/services/api';
+import type { SettingsTab } from '@/pages/Settings/SettingsPage';
 import type { LibraryFilterPreset } from '@/types/game';
 import type { TaskFilterPreset } from '@/types/task';
 import { cn } from '@/utils/cn';
@@ -59,6 +60,7 @@ export function App() {
   const [maintenanceFocusRequest, setMaintenanceFocusRequest] = useState<{ section: string | null; key: number }>({ section: null, key: 0 });
   const [libraryFilterPresetRequest, setLibraryFilterPresetRequest] = useState<(LibraryFilterPreset & { key: number }) | null>(null);
   const [metadataQueuePresetRequest, setMetadataQueuePresetRequest] = useState<{ key: number; query?: string; missingProvider?: string }>({ key: 0 });
+  const [settingsTabRequest, setSettingsTabRequest] = useState<{ tab: SettingsTab; key: number } | null>(null);
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [systemPrefersDark, setSystemPrefersDark] = useState(() => typeof window === 'undefined' ? true : window.matchMedia('(prefers-color-scheme: dark)').matches);
 
@@ -187,7 +189,10 @@ export function App() {
     setView('saves');
   }, []);
 
-  const openSettings = useCallback(() => {
+  const openSettings = useCallback((tab?: SettingsTab) => {
+    if (tab) {
+      setSettingsTabRequest((current) => ({ tab, key: (current?.key ?? 0) + 1 }));
+    }
     setView('settings');
   }, []);
 
@@ -339,7 +344,7 @@ export function App() {
             {view === 'reports' && <ReportsPage refreshKey={refreshKey} onOpenGame={openGame} onOpenLibrary={openLibrary} onOpenTask={openTasks} />}
             {view === 'saves' && <SavesPage refreshKey={refreshKey} onOpenTask={openTasks} />}
             {view === 'maintenance' && <MaintenancePage focusRequestKey={maintenanceFocusRequest.key} focusSection={maintenanceFocusRequest.section} refreshKey={refreshKey} onOpenGame={openGame} onOpenLibrary={openLibrary} onOpenMetadata={openMetadata} onOpenTasks={openTasks} />}
-            {view === 'settings' && <SettingsPage onAccentPreview={previewAccent} onThemePreview={previewTheme} onSaved={refresh} onOpenTask={openTasks} />}
+            {view === 'settings' && <SettingsPage tabRequest={settingsTabRequest} onAccentPreview={previewAccent} onThemePreview={previewTheme} onSaved={refresh} onOpenTask={openTasks} />}
           </div>
         </Suspense>
       </main>

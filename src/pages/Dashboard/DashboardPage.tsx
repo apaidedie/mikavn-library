@@ -6,6 +6,7 @@ import { CoverImage } from '@/components/ui/cover';
 import { EmptyState, Notice } from '@/components/ui/notice';
 import { MetricTile, PageFrame, PageShell, Panel, PanelContent, PanelHeader, SoftRow } from '@/components/ui/page';
 import { api } from '@/services/api';
+import type { SettingsTab } from '@/pages/Settings/SettingsPage';
 import type { AppDataDiagnostics } from '@/types/archive';
 import type { DashboardData, Game, LibraryFilterPreset } from '@/types/game';
 import { PLAY_STATUS_LABEL } from '@/types/game';
@@ -25,7 +26,7 @@ type DashboardPageProps = {
   onOpenMaintenance?: (section?: string | null) => void;
   onOpenMetadata?: (preset?: { query?: string; missingProvider?: string } | null) => void;
   onOpenSaves?: () => void;
-  onOpenSettings?: () => void;
+  onOpenSettings?: (tab?: SettingsTab) => void;
   onOpenTasks?: (taskId?: string | null, preset?: TaskFilterPreset | null) => void;
 };
 
@@ -174,7 +175,7 @@ function ContinuePanel({ games, onOpenGame, onAddGame, onOpenScanner }: { games:
   );
 }
 
-function NeedsAttentionPanel({ items, onOpenLibrary, onOpenMaintenance, onOpenMetadata, onOpenSettings, onOpenTasks }: { items: DashboardAttentionItem[]; onOpenLibrary?: (preset?: LibraryFilterPreset | null) => void; onOpenMaintenance?: (section?: string | null) => void; onOpenMetadata?: (preset?: { query?: string; missingProvider?: string } | null) => void; onOpenSettings?: () => void; onOpenTasks?: (taskId?: string | null, preset?: TaskFilterPreset | null) => void }) {
+function NeedsAttentionPanel({ items, onOpenLibrary, onOpenMaintenance, onOpenMetadata, onOpenSettings, onOpenTasks }: { items: DashboardAttentionItem[]; onOpenLibrary?: (preset?: LibraryFilterPreset | null) => void; onOpenMaintenance?: (section?: string | null) => void; onOpenMetadata?: (preset?: { query?: string; missingProvider?: string } | null) => void; onOpenSettings?: (tab?: SettingsTab) => void; onOpenTasks?: (taskId?: string | null, preset?: TaskFilterPreset | null) => void }) {
   return (
     <Panel>
       <PanelHeader title="需要关注" description={items.length > 0 ? '这些提醒都指向本地修复入口。' : '当前没有需要立刻处理的本地提醒。'} icon={<AlertTriangle className="h-4 w-4" />} />
@@ -201,7 +202,7 @@ function NeedsAttentionPanel({ items, onOpenLibrary, onOpenMaintenance, onOpenMe
   );
 }
 
-function LocalSafetyPanel({ diagnostics, onOpenSaves, onOpenSettings, onOpenTasks }: { diagnostics: AppDataDiagnostics | null; onOpenSaves?: () => void; onOpenSettings?: () => void; onOpenTasks?: (taskId?: string | null, preset?: TaskFilterPreset | null) => void }) {
+function LocalSafetyPanel({ diagnostics, onOpenSaves, onOpenSettings, onOpenTasks }: { diagnostics: AppDataDiagnostics | null; onOpenSaves?: () => void; onOpenSettings?: (tab?: SettingsTab) => void; onOpenTasks?: (taskId?: string | null, preset?: TaskFilterPreset | null) => void }) {
   const backupStatus = deriveDatabaseBackupStatus(diagnostics?.databaseBackups);
   const databaseSummary = diagnostics ? `${diagnostics.database.gameCount} 个游戏 · ${backupStatus.summary}` : '读取本地自检后显示数据库和备份状态。';
   const backupDetail = diagnostics ? `${backupStatus.detail}${backupStatus.latestBackupAt ? ` 最近：${formatDateTime(backupStatus.latestBackupAt)}` : ''}` : '数据库备份会保存在本机 app-data 中。';
@@ -218,7 +219,7 @@ function LocalSafetyPanel({ diagnostics, onOpenSaves, onOpenSettings, onOpenTask
               <div className="mt-1 text-xs text-slate-500">{databaseSummary}</div>
               <div className={cn('mt-1 text-xs', backupStatus.actionNeeded ? 'text-amber-200' : 'text-slate-500')}>{backupDetail}</div>
             </div>
-            <Button size="sm" variant="outline" onClick={onOpenSettings}>打开设置</Button>
+            <Button size="sm" variant="outline" onClick={() => onOpenSettings?.('local')}>打开设置</Button>
           </SoftRow>
           <SoftRow className="flex flex-col justify-between gap-3">
             <div>
@@ -233,7 +234,7 @@ function LocalSafetyPanel({ diagnostics, onOpenSaves, onOpenSettings, onOpenTask
               <div className="mt-1 text-xs text-slate-500">{imageSummary}</div>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button size="sm" variant="outline" onClick={onOpenSettings}>数据目录</Button>
+              <Button size="sm" variant="outline" onClick={() => onOpenSettings?.('local')}>数据目录</Button>
               {onOpenTasks && <Button size="sm" variant="ghost" onClick={() => onOpenTasks(null, { statusFilter: 'attention' })}>任务日志</Button>}
             </div>
           </SoftRow>
@@ -365,7 +366,7 @@ function AttentionIcon({ kind }: { kind: DashboardAttentionItem['kind'] }) {
   }
 }
 
-function openAttentionItem(item: DashboardAttentionItem, actions: { onOpenLibrary?: (preset?: LibraryFilterPreset | null) => void; onOpenMaintenance?: (section?: string | null) => void; onOpenMetadata?: (preset?: { query?: string; missingProvider?: string } | null) => void; onOpenSettings?: () => void; onOpenTasks?: (taskId?: string | null, preset?: TaskFilterPreset | null) => void }) {
+function openAttentionItem(item: DashboardAttentionItem, actions: { onOpenLibrary?: (preset?: LibraryFilterPreset | null) => void; onOpenMaintenance?: (section?: string | null) => void; onOpenMetadata?: (preset?: { query?: string; missingProvider?: string } | null) => void; onOpenSettings?: (tab?: SettingsTab) => void; onOpenTasks?: (taskId?: string | null, preset?: TaskFilterPreset | null) => void }) {
   switch (item.action) {
     case 'tasks_attention':
       actions.onOpenTasks?.(null, { statusFilter: 'attention' });
@@ -383,7 +384,7 @@ function openAttentionItem(item: DashboardAttentionItem, actions: { onOpenLibrar
       actions.onOpenMetadata?.({ missingProvider: 'all' });
       break;
     case 'settings_local':
-      actions.onOpenSettings?.();
+      actions.onOpenSettings?.('local');
       break;
   }
 }
