@@ -1,13 +1,14 @@
 import type { AddGameInput, AssetCacheCleanupResult, AssetDownloadInput, AssetImportInput, AssetInput, CollectionGameLink, CollectionInput, DashboardData, Game, GameAsset, GameCollection, GameFilter, GamePathHealth, ImportCandidate, ImportScanReport, ImportScanReportItem, LibraryRoot, PathCheckItem, PlaySession, PlayStatus, ScanCandidate, ScanConflict, TagRecord, UpdateGameInput } from '@/types/game';
 import type { AppDataDiagnostics, DatabaseBackupCleanupPolicy, DatabaseBackupCleanupReport, ImageReferenceAudit, ImageReferenceAuditOptions, LibraryArchiveExportOptions, LibraryArchiveImportOptions, LibraryArchivePreview, LibraryArchiveRestoreOptions, LogRecord, LogRetentionPolicy, TrayStatus } from '@/types/archive';
 import type { LaunchProfile, LaunchProfileInput, LaunchProfileUpdate } from '@/types/launch';
-import type { AdvancedSearchInput, AdvancedSearchResult, AiConnectionTestResult, AiRecognitionResult, ApplyMetadataFields, ArtworkRepairDiagnosis, ArtworkRepairOptions, ArtworkRepairPreview, BatchMatchJob, BatchMatchStatus, DescriptionImageRepairOptions, DescriptionImageRepairPreview, DuplicateExternalIdAuditOptions, DuplicateExternalIdGroup, DuplicateExternalIdPreview, DuplicateGameMergeExternalId, DuplicateGameMergeOptions, DuplicateGameMergePreview, DuplicateGameMergeResult, ExternalIdRecord, FieldLock, MatchSuggestion, MetadataProvider, MetadataSearchResponse, MetadataSearchResult, MetadataSourceRecord, NormalizedMetadata, SavedSearch, SavedSearchInput, SearchQueryValidation } from '@/types/metadata';
+import type { AdvancedSearchInput, AdvancedSearchResult, AiConnectionTestResult, AiRecognitionResult, ApplyMetadataFields, ArtworkRepairDiagnosis, ArtworkRepairOptions, ArtworkRepairPreview, BatchMatchJob, BatchMatchStatus, DescriptionImageRepairOptions, DescriptionImageRepairPreview, DuplicateExternalIdAuditOptions, DuplicateExternalIdPreview, DuplicateGameMergeExternalId, DuplicateGameMergeOptions, DuplicateGameMergePreview, DuplicateGameMergeResult, ExternalIdRecord, FieldLock, MatchSuggestion, MetadataProvider, MetadataSearchResponse, MetadataSearchResult, MetadataSourceRecord, NormalizedMetadata, SavedSearch, SavedSearchInput, SearchQueryValidation } from '@/types/metadata';
 import type { SaveBackup, SavePath, SavePathCandidate, SaveRestoreMode, SaveRestorePreview } from '@/types/saves';
 import type { ScanTaskStatus, TaskDetail, TaskLogEntry, TaskRecord } from '@/types/task';
 import { mockArtworkRepairDiagnosis, mockArtworkRepairPreview, mockDescriptionImageCandidates } from './mockStoreArtworkRepair';
 import { defaultSettings, mockMetadata, sampleGames, sampleHeroUrl } from './mockStoreFixtures';
 import { readAssets, syncGameCompatibilityAssets, writeAssets } from './mockStoreAssets';
 import { readCollectionLinks, readCollections, withCollectionCounts, writeCollectionLinks, writeCollections } from './mockStoreCollections';
+import { gameExternalIds, mockDuplicateExternalIdPreview } from './mockStoreDuplicates';
 import { cleanList, ensureGameDefaults, makeGame } from './mockStoreGames';
 import { mockAssetCacheCleanupResult, mockImageReferenceAudit } from './mockStoreImages';
 import { cleanTitle, externalIdCount, hasCompleteMetadata, hasMockDescriptionImage, metadataStatusMatches, mockMatchesClause, parseMockSearch, score } from './mockStoreMetadata';
@@ -62,64 +63,6 @@ function toMetadata(result: MetadataSearchResult): NormalizedMetadata {
     externalIds: result.externalIds,
     ageRating: null,
   };
-}
-
-function mockExternalIdEntries(options: DuplicateExternalIdAuditOptions = {}) {
-  const providers = (options.providers ?? []).map((provider) => String(provider).trim().toLowerCase()).filter(Boolean);
-  const providerSet = providers.length && !providers.includes('all') ? new Set(providers) : null;
-  const entries: Array<{ provider: string; externalId: string; normalizedExternalId: string; game: Game; source: string }> = [];
-  const push = (game: Game, provider: string, externalId: string | null | undefined, source: string) => {
-    const cleanProvider = provider.trim().toLowerCase();
-    const cleanId = externalId?.trim();
-    if (!cleanId || (providerSet && !providerSet.has(cleanProvider))) return;
-    entries.push({ provider: cleanProvider, externalId: cleanId, normalizedExternalId: cleanId.toLowerCase(), game, source });
-  };
-  for (const game of readGames().map(ensureGameDefaults)) {
-    push(game, 'vndb', game.vndbId, 'games.vndbId');
-    push(game, 'bangumi', game.bangumiId, 'games.bangumiId');
-    push(game, 'dlsite', game.dlsiteId, 'games.dlsiteId');
-    push(game, 'fanza', game.fanzaId, 'games.fanzaId');
-    push(game, 'ymgal', game.ymgalId, 'games.ymgalId');
-  }
-  return entries;
-}
-
-function mockDuplicateExternalIdPreview(options: DuplicateExternalIdAuditOptions = {}): DuplicateExternalIdPreview {
-  const limit = Math.max(1, Math.min(Number(options.limit ?? 50) || 50, 500));
-  const groups = new Map<string, DuplicateExternalIdGroup>();
-  for (const entry of mockExternalIdEntries(options)) {
-    const key = `${entry.provider}:${entry.normalizedExternalId}`;
-    const group = groups.get(key) ?? { provider: entry.provider, externalId: entry.externalId, gameCount: 0, games: [] };
-    const existing = group.games.find((game) => game.gameId === entry.game.id);
-    if (existing) {
-      if (!existing.sources.includes(entry.source)) existing.sources.push(entry.source);
-    } else {
-      group.games.push({ gameId: entry.game.id, title: entry.game.title, installPath: entry.game.installPath, sources: [entry.source] });
-      group.gameCount = group.games.length;
-    }
-    groups.set(key, group);
-  }
-  const duplicateGroups = [...groups.values()]
-    .filter((group) => group.games.length > 1)
-    .sort((left, right) => right.gameCount - left.gameCount || left.provider.localeCompare(right.provider) || left.externalId.localeCompare(right.externalId));
-  const totalGames = new Set(duplicateGroups.flatMap((group) => group.games.map((game) => game.gameId))).size;
-  return { groups: duplicateGroups.slice(0, limit), totalGroups: duplicateGroups.length, totalGames };
-}
-
-function gameExternalIds(game: Game): DuplicateGameMergeExternalId[] {
-  const items: DuplicateGameMergeExternalId[] = [];
-  const push = (provider: string, externalId?: string | null) => {
-    const cleanId = externalId?.trim();
-    if (!cleanId) return;
-    if (items.some((item) => item.provider === provider && item.externalId.toLowerCase() === cleanId.toLowerCase())) return;
-    items.push({ provider, externalId: cleanId });
-  };
-  push('vndb', game.vndbId);
-  push('bangumi', game.bangumiId);
-  push('dlsite', game.dlsiteId);
-  push('fanza', game.fanzaId);
-  push('ymgal', game.ymgalId);
-  return items;
 }
 
 function mockDuplicateGameMergePreview(options: DuplicateGameMergeOptions): DuplicateGameMergePreview {
@@ -772,7 +715,7 @@ export const mockStore = {
     const externalIdLinkedCount = games.filter((game) => externalIdCount(game) > 0).length;
     const descriptionImageGames = games.filter((game) => hasMockDescriptionImage(game.description)).length;
     const providerGames = games.filter((game) => game.dlsiteId || game.fanzaId);
-    const duplicateExternalIds = mockDuplicateExternalIdPreview();
+    const duplicateExternalIds = mockDuplicateExternalIdPreview(games);
     return Promise.resolve({
       appDataDir: MOCK_APP_DATA_DIR,
       dataDirSource: 'mock',
@@ -821,9 +764,9 @@ export const mockStore = {
           fanzaIdCount: games.filter((game) => game.fanzaId).length,
           duplicateExternalIdGroupsCount: duplicateExternalIds.totalGroups,
           duplicateExternalIdGamesCount: duplicateExternalIds.totalGames,
-          duplicateVndbIdGroupsCount: mockDuplicateExternalIdPreview({ providers: ['vndb'] }).totalGroups,
-          duplicateDlsiteIdGroupsCount: mockDuplicateExternalIdPreview({ providers: ['dlsite'] }).totalGroups,
-          duplicateFanzaIdGroupsCount: mockDuplicateExternalIdPreview({ providers: ['fanza'] }).totalGroups,
+          duplicateVndbIdGroupsCount: mockDuplicateExternalIdPreview(games, { providers: ['vndb'] }).totalGroups,
+          duplicateDlsiteIdGroupsCount: mockDuplicateExternalIdPreview(games, { providers: ['dlsite'] }).totalGroups,
+          duplicateFanzaIdGroupsCount: mockDuplicateExternalIdPreview(games, { providers: ['fanza'] }).totalGroups,
         },
         pathStatus: {
           okCount: games.filter((game) => game.pathStatus === 'ok').length,
@@ -1255,11 +1198,11 @@ export const mockStore = {
   },
 
   previewDuplicateExternalIds(options: DuplicateExternalIdAuditOptions = {}): Promise<DuplicateExternalIdPreview> {
-    return Promise.resolve(mockDuplicateExternalIdPreview(options));
+    return Promise.resolve(mockDuplicateExternalIdPreview(readGames().map(ensureGameDefaults), options));
   },
 
   auditDuplicateExternalIds(options: DuplicateExternalIdAuditOptions = {}): Promise<TaskRecord> {
-    const preview = mockDuplicateExternalIdPreview(options);
+    const preview = mockDuplicateExternalIdPreview(readGames().map(ensureGameDefaults), options);
     if (preview.totalGroups === 0) return Promise.reject(new Error('no duplicate external ids'));
     const task = makeTask({
       taskType: 'metadata.duplicate_id_audit',
