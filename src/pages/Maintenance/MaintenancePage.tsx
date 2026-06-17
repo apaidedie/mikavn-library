@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2, Combine, Copy, Database, HardDrive, Image, ListChecks, PlayCircle, RefreshCw, ShieldCheck, Trash2, Wrench } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Combine, Copy, Database, Image, ListChecks, PlayCircle, RefreshCw, ShieldCheck, Wrench } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -19,8 +19,9 @@ import { BatchMatchHistoryTaskRow, filterBatchMatchHistorySummary, type BatchMat
 import { DescriptionImageRepairTaskRow, filterDescriptionImageRepairSummary, summarizeDescriptionImageRepairTask, type DescriptionImageRepairTaskSummary } from './DescriptionImageRepairResultPanel';
 import { DuplicateAuditTaskRow, filterDuplicateAuditSummary, summarizeDuplicateAuditTask, type DuplicateAuditTaskSummary } from './DuplicateAuditResultPanel';
 import { ImageAuditDetailPanel, matchesImageAuditItem } from './ImageAuditDetailPanel';
+import { MaintenanceDataLocationPanel } from './MaintenanceDataLocationPanel';
 import { MaintenanceTasksPanel } from './MaintenanceTasksPanel';
-import { ArtworkDiagnosisRow, CompactStat, MaintenanceAction, PathRow, ProgressBlock, StorageStat, dataDirSourceLabel, duplicateGroupKey, formatBytes, formatCount, isActiveTask, isMaintenanceTask, matchesArtworkDiagnosisItem, matchesMaintenanceTaskFilter, percent, providerLabel, recommendDuplicateMergeTarget, summarizeMaintenanceTasks, type MaintenanceTaskFilter } from './MaintenancePageParts';
+import { ArtworkDiagnosisRow, CompactStat, MaintenanceAction, ProgressBlock, duplicateGroupKey, formatBytes, formatCount, isActiveTask, isMaintenanceTask, matchesArtworkDiagnosisItem, matchesMaintenanceTaskFilter, percent, providerLabel, recommendDuplicateMergeTarget, summarizeMaintenanceTasks, type MaintenanceTaskFilter } from './MaintenancePageParts';
 
 type TaskMessage = { text: string; taskId?: string | null };
 
@@ -262,47 +263,17 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
           />
         </div>
 
-        <Panel>
-          <PanelHeader
-            title="数据位置"
-            description={diagnostics ? `来源：${dataDirSourceLabel(diagnostics.dataDirSource)}` : '当前 app-data 路径'}
-            icon={<HardDrive className="h-4 w-4" />}
-            actions={<Button disabled={cleanupLoading || !diagnostics?.databaseBackups.fileCount} size="sm" variant="ghost" onClick={cleanupDatabaseBackups}><Trash2 className="h-4 w-4" />{cleanupLoading ? '清理中' : '清理旧备份'}</Button>}
-          />
-          <PanelContent className="space-y-2">
-            <PathRow label="数据目录" value={diagnostics?.appDataDir ?? '等待自检'} onCopy={diagnostics ? () => void copyPath('数据目录', diagnostics.appDataDir) : undefined} onReveal={diagnostics ? () => void revealPath(diagnostics.appDataDir) : undefined} />
-            <PathRow label="数据库" value={database?.path ?? '等待自检'} onCopy={database ? () => void copyPath('数据库', database.path) : undefined} onReveal={database ? () => void revealPath(database.path) : undefined} />
-            <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
-              <StorageStat label="图片缓存" path={diagnostics?.images.path} size={diagnostics?.images.totalBytes ?? 0} count={diagnostics?.images.fileCount ?? 0} onCopy={diagnostics ? () => void copyPath('图片缓存', diagnostics.images.path) : undefined} onReveal={diagnostics ? () => void revealPath(diagnostics.images.path) : undefined} />
-              <StorageStat label="日志" path={diagnostics?.logs.path} size={diagnostics?.logs.totalBytes ?? 0} count={diagnostics?.logs.fileCount ?? 0} onCopy={diagnostics ? () => void copyPath('日志', diagnostics.logs.path) : undefined} onReveal={diagnostics ? () => void revealPath(diagnostics.logs.path) : undefined} />
-              <StorageStat label="存档备份" path={diagnostics?.saveBackups.path} size={diagnostics?.saveBackups.totalBytes ?? 0} count={diagnostics?.saveBackups.fileCount ?? 0} onCopy={diagnostics ? () => void copyPath('存档备份', diagnostics.saveBackups.path) : undefined} onReveal={diagnostics ? () => void revealPath(diagnostics.saveBackups.path) : undefined} />
-              <StorageStat label="数据库备份" path={diagnostics?.databaseBackups.rootPath} size={diagnostics?.databaseBackups.totalBytes ?? 0} count={diagnostics?.databaseBackups.fileCount ?? 0} onCopy={diagnostics ? () => void copyPath('数据库备份', diagnostics.databaseBackups.rootPath) : undefined} onReveal={diagnostics ? () => void revealPath(diagnostics.databaseBackups.rootPath) : undefined} />
-            </div>
-            <SoftRow className="grid gap-3 px-3 py-3 xl:grid-cols-[minmax(0,1fr)_auto]">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-slate-100">
-                  <span>图片缓存清理</span>
-                  <Badge>先预览</Badge>
-                </div>
-                <div className="mt-1 text-xs leading-5 text-slate-500">只清理未被主图、媒体图库或简介本地图引用的 app-data/images 文件。</div>
-                {assetCleanupPreview ? (
-                  <div className="mt-3 grid gap-2 sm:grid-cols-4">
-                    <CompactStat label="扫描文件" value={assetCleanupPreview.scannedFiles} />
-                    <CompactStat label="可清理" value={assetCleanupPreview.removedFiles} tone={assetCleanupPreview.removedFiles > 0 ? 'warn' : 'ok'} />
-                    <CompactStat label="可释放" value={formatBytes(assetCleanupPreview.removedBytes)} tone={assetCleanupPreview.removedBytes > 0 ? 'warn' : 'ok'} />
-                    <CompactStat label="保留文件" value={assetCleanupPreview.keptFiles} />
-                  </div>
-                ) : (
-                  <div className="mt-2 text-xs text-slate-600">预览会扫描图片缓存，不会删除文件。</div>
-                )}
-              </div>
-              <div className="flex shrink-0 flex-wrap items-start gap-2 xl:justify-end">
-                <Button disabled={assetCleanupLoading || !diagnostics} size="sm" variant="outline" onClick={previewAssetCacheCleanup}><ShieldCheck className="h-4 w-4" />{assetCleanupLoading ? '检查中' : '预览'}</Button>
-                <Button disabled={assetCleanupLoading || !diagnostics || (assetCleanupPreview ? assetCleanupPreview.removedFiles === 0 : false)} size="sm" variant="danger" onClick={cleanupAssetCache}><Trash2 className="h-4 w-4" />{assetCleanupLoading ? '处理中' : '清理'}</Button>
-              </div>
-            </SoftRow>
-          </PanelContent>
-        </Panel>
+        <MaintenanceDataLocationPanel
+          assetCleanupLoading={assetCleanupLoading}
+          assetCleanupPreview={assetCleanupPreview}
+          cleanupLoading={cleanupLoading}
+          diagnostics={diagnostics}
+          onCleanupAssetCache={cleanupAssetCache}
+          onCleanupDatabaseBackups={cleanupDatabaseBackups}
+          onCopyPath={(label, path) => void copyPath(label, path)}
+          onPreviewAssetCacheCleanup={previewAssetCacheCleanup}
+          onRevealPath={(path) => void revealPath(path)}
+        />
 
         <div className="grid gap-5 xl:grid-cols-2">
           <Panel>
