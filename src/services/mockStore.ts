@@ -6,7 +6,8 @@ import type { SaveBackup, SavePath, SavePathCandidate, SaveRestoreMode, SaveRest
 import type { ScanTaskStatus, TaskDetail, TaskLogEntry, TaskRecord } from '@/types/task';
 import { defaultSettings, mockMetadata, sampleGames, sampleHeroUrl } from './mockStoreFixtures';
 import { cleanTitle, externalIdCount, hasCompleteMetadata, hasMockDescriptionImage, metadataStatusMatches, mockMatchesClause, parseMockSearch, score } from './mockStoreMetadata';
-import { ASSETS_KEY, BATCH_KEY, COLLECTION_GAMES_KEY, COLLECTIONS_KEY, FIELD_LOCKS_KEY, LAUNCH_PROFILES_KEY, LIBRARY_ROOTS_KEY, PLAY_SESSIONS_KEY, SAVED_SEARCHES_KEY, SAVE_BACKUPS_KEY, SAVE_PATHS_KEY, SCAN_TASKS_KEY, SETTINGS_KEY, STORAGE_KEY, TASKS_KEY, TASK_LOGS_KEY, readJson, readSettings, writeJson } from './mockStoreStorage';
+import { ASSETS_KEY, BATCH_KEY, COLLECTION_GAMES_KEY, COLLECTIONS_KEY, FIELD_LOCKS_KEY, LAUNCH_PROFILES_KEY, LIBRARY_ROOTS_KEY, PLAY_SESSIONS_KEY, SAVED_SEARCHES_KEY, SAVE_BACKUPS_KEY, SAVE_PATHS_KEY, SCAN_TASKS_KEY, SETTINGS_KEY, STORAGE_KEY, readJson, readSettings, writeJson } from './mockStoreStorage';
+import { addTaskLog, makeTask, readTaskLogs, readTasks, reportGapExamplesLog, reportGapSummaryLog, writeTasks } from './mockStoreTasks';
 
 const MOCK_APP_DATA_DIR = 'E:\\MikaVN Library\\app-data';
 const MOCK_IMAGE_DIR = `${MOCK_APP_DATA_DIR}\\images`;
@@ -36,73 +37,6 @@ function writeGames(games: Game[]) {
 
 function normalizeMockPath(value: string) {
   return value.trim().replace(/[/]+/g, '\\').replace(/[\\/]+$/g, '').toLowerCase();
-}
-
-function readTasks() {
-  return readJson<TaskRecord[]>(TASKS_KEY, []);
-}
-
-function writeTasks(tasks: TaskRecord[]) {
-  writeJson(TASKS_KEY, tasks);
-}
-
-function addTaskLog(taskId: string, level: TaskLogEntry['level'], message: string) {
-  const logs = readJson<Record<string, TaskLogEntry[]>>(TASK_LOGS_KEY, {});
-  const entry: TaskLogEntry = {
-    id: crypto.randomUUID(),
-    taskId,
-    level,
-    message,
-    createdAt: new Date().toISOString(),
-  };
-  writeJson(TASK_LOGS_KEY, { ...logs, [taskId]: [...(logs[taskId] ?? []), entry] });
-  return entry;
-}
-
-function recordTask(task: TaskRecord, logs: string[] = []) {
-  writeTasks([task, ...readTasks().filter((item) => item.id !== task.id)].slice(0, 100));
-  for (const log of logs) addTaskLog(task.id, task.status === 'failed' ? 'error' : 'info', log);
-  return task;
-}
-
-function makeTask(input: {
-  taskType: string;
-  status?: TaskRecord['status'];
-  progress?: number;
-  message?: string | null;
-  error?: string | null;
-  retryPayload?: string | null;
-  retryable?: boolean;
-}) {
-  const now = new Date().toISOString();
-  return recordTask({
-    id: crypto.randomUUID(),
-    taskType: input.taskType,
-    status: input.status ?? 'completed',
-    progress: input.progress ?? 1,
-    message: input.message ?? null,
-    error: input.error ?? null,
-    retryPayload: input.retryPayload ?? null,
-    retryable: input.retryable ?? false,
-    createdAt: now,
-    updatedAt: now,
-  }, [input.message ?? '任务已记录'].filter(Boolean) as string[]);
-}
-
-function reportGapSummaryLog(content: string) {
-  const countFor = (label: string) => {
-    const match = content.match(new RegExp(`^- ${label}:\\s*(\\d+)`, 'm'));
-    return match?.[1] ?? '0';
-  };
-  return `报告缺口摘要：缺封面 ${countFor('缺封面')}，缺简介图片 ${countFor('缺简介图片')}，缺外部 ID ${countFor('缺外部 ID')}，路径异常 ${countFor('路径异常')}`;
-}
-
-function reportGapExamplesLog(content: string) {
-  const exampleFor = (label: string) => {
-    const match = content.match(new RegExp(`^- ${label}:\\s*\\d+\\n\\s+- 样例:\\s*([^\\n]+)`, 'm'));
-    return match?.[1]?.trim() || '无';
-  };
-  return `报告缺口样例：缺封面 ${exampleFor('缺封面')}，缺简介图片 ${exampleFor('缺简介图片')}，缺外部 ID ${exampleFor('缺外部 ID')}，路径异常 ${exampleFor('路径异常')}`;
 }
 
 function toMetadata(result: MetadataSearchResult): NormalizedMetadata {
@@ -1904,7 +1838,7 @@ export const mockStore = {
   },
 
   listTaskLogs(taskId: string): Promise<TaskLogEntry[]> {
-    return Promise.resolve(readJson<Record<string, TaskLogEntry[]>>(TASK_LOGS_KEY, {})[taskId] ?? []);
+    return Promise.resolve(readTaskLogs(taskId));
   },
 
   async getTaskDetail(id: string): Promise<TaskDetail> {
