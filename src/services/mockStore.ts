@@ -12,6 +12,7 @@ import { mockDuplicateExternalIdPreview, mockDuplicateGameMergePreview } from '.
 import { cleanList, ensureGameDefaults, makeGame } from './mockStoreGames';
 import { mockAssetCacheCleanupResult, mockImageReferenceAudit } from './mockStoreImages';
 import { cleanTitle, externalIdCount, hasCompleteMetadata, hasMockDescriptionImage, metadataStatusMatches, mockMatchesClause, parseMockSearch, score } from './mockStoreMetadata';
+import { findScanConflict, mockScanPathPreview, normalizeMockPath } from './mockStoreScanner';
 import { BATCH_KEY, FIELD_LOCKS_KEY, LAUNCH_PROFILES_KEY, LIBRARY_ROOTS_KEY, PLAY_SESSIONS_KEY, SAVED_SEARCHES_KEY, SAVE_BACKUPS_KEY, SAVE_PATHS_KEY, SCAN_TASKS_KEY, SETTINGS_KEY, STORAGE_KEY, readJson, readSettings, writeJson } from './mockStoreStorage';
 import { syncGameTags } from './mockStoreTags';
 import { addTaskLog, makeTask, readTaskLogs, readTasks, reportGapExamplesLog, reportGapSummaryLog, writeTasks } from './mockStoreTasks';
@@ -40,10 +41,6 @@ function readGames() {
 
 function writeGames(games: Game[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(games));
-}
-
-function normalizeMockPath(value: string) {
-  return value.trim().replace(/[/]+/g, '\\').replace(/[\\/]+$/g, '').toLowerCase();
 }
 
 function toMetadata(result: MetadataSearchResult): NormalizedMetadata {
@@ -1272,39 +1269,7 @@ export const mockStore = {
   },
 
   scanPathPreview(path: string, recursive: boolean): Promise<ScanCandidate[]> {
-    const root = path.trim() || 'D:\\Games\\VisualNovel';
-    const baseDepth = recursive ? 'ゆずソフト\\天使騒々' : '天使騒々';
-    const games = readGames().map(ensureGameDefaults);
-    const conflictFor = (installPath: string, title: string) => {
-      const normalizePath = (value: string) => value.trim().replace(/[/]+/g, '\\').replace(/[\\/]+$/g, '').toLowerCase();
-      const normalizeTitle = (value: string) => value.trim().replace(/[\s　_-]+/g, '').toLowerCase();
-      const found = games.find((game) => normalizePath(game.installPath) === normalizePath(installPath) || normalizeTitle(game.title) === normalizeTitle(title));
-      return found ? { gameId: found.id, title: found.title, reason: normalizePath(found.installPath) === normalizePath(installPath) ? '安装目录已存在' : '标题相同' } : null;
-    };
-    return Promise.resolve([
-      {
-        id: crypto.randomUUID(),
-        rootPath: root,
-        installPath: `${root}\\星之终途`,
-        folderName: '[汉化硬盘版] 星之终途 v1.02',
-        suggestedTitle: '星之终途',
-        aliases: ['[汉化硬盘版] 星之终途 v1.02'],
-        executables: [{ name: 'stella.exe', path: `${root}\\星之终途\\stella.exe` }],
-        selectedExecutable: `${root}\\星之终途\\stella.exe`,
-        conflict: conflictFor(`${root}\\星之终途`, '星之终途'),
-      },
-      {
-        id: crypto.randomUUID(),
-        rootPath: root,
-        installPath: `${root}\\${baseDepth}`,
-        folderName: '[230428][ゆずソフト] 天使☆騒々 RE-BOOT!',
-        suggestedTitle: '天使☆騒々 RE-BOOT!',
-        aliases: ['[230428][ゆずソフト] 天使☆騒々 RE-BOOT!'],
-        executables: [{ name: '天使騒々.exe', path: `${root}\\${baseDepth}\\天使騒々.exe` }],
-        selectedExecutable: `${root}\\${baseDepth}\\天使騒々.exe`,
-        conflict: conflictFor(`${root}\\${baseDepth}`, '天使☆騒々 RE-BOOT!'),
-      },
-    ]);
+    return Promise.resolve(mockScanPathPreview(readGames().map(ensureGameDefaults), path, recursive));
   },
 
   async startScanTask(path: string, recursive: boolean): Promise<TaskRecord> {
@@ -1352,10 +1317,7 @@ export const mockStore = {
 
     for (const candidate of candidates) {
       const games = readGames().map(ensureGameDefaults);
-      const normalizePath = (value: string) => value.trim().replace(/[/]+/g, '\\').replace(/[\\/]+$/g, '').toLowerCase();
-      const normalizeTitle = (value: string) => value.trim().replace(/[\s　_-]+/g, '').toLowerCase();
-      const found = games.find((game) => normalizePath(game.installPath) === normalizePath(candidate.installPath) || normalizeTitle(game.title) === normalizeTitle(candidate.title));
-      const conflict = found ? { gameId: found.id, title: found.title, reason: normalizePath(found.installPath) === normalizePath(candidate.installPath) ? '安装目录已存在' : '标题相同' } : null;
+      const conflict = findScanConflict(games, candidate.installPath, candidate.title);
       const action = candidate.conflictAction ?? (conflict ? 'skip' : 'duplicate');
       if (conflict && action === 'skip') {
         skipped += 1;
