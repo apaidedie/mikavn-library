@@ -17,13 +17,14 @@ import { Select } from '@/components/ui/select';
 import { summarizeArtworkRepairTask, type ArtworkRepairTaskSummary } from './ArtworkRepairResultPanel';
 import type { BatchMatchHistorySummary } from './BatchMatchResultPanel';
 import { summarizeDescriptionImageRepairTask, type DescriptionImageRepairTaskSummary } from './DescriptionImageRepairResultPanel';
-import { DuplicateAuditTaskRow, filterDuplicateAuditSummary, summarizeDuplicateAuditTask, type DuplicateAuditTaskSummary } from './DuplicateAuditResultPanel';
+import { summarizeDuplicateAuditTask, type DuplicateAuditTaskSummary } from './DuplicateAuditResultPanel';
 import { ImageAuditDetailPanel, matchesImageAuditItem } from './ImageAuditDetailPanel';
 import { MaintenanceArtworkDiagnosisPanel } from './MaintenanceArtworkDiagnosisPanel';
 import { MaintenanceArtworkHistoryPanel } from './MaintenanceArtworkHistoryPanel';
 import { MaintenanceBatchMatchHistoryPanel } from './MaintenanceBatchMatchHistoryPanel';
 import { MaintenanceDataLocationPanel } from './MaintenanceDataLocationPanel';
 import { MaintenanceDescriptionHistoryPanel } from './MaintenanceDescriptionHistoryPanel';
+import { MaintenanceDuplicateAuditHistoryPanel } from './MaintenanceDuplicateAuditHistoryPanel';
 import { MaintenanceOverviewPanels } from './MaintenanceOverviewPanels';
 import { MaintenanceQueuePanel } from './MaintenanceQueuePanel';
 import { MaintenanceTasksPanel } from './MaintenanceTasksPanel';
@@ -152,8 +153,6 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
     { id: 'completed', label: '已完成', count: maintenanceTaskSummary.completedCount },
   ] as const, [maintenanceTaskSummary, maintenanceTasks.length]);
   const filteredMaintenanceTasks = useMemo(() => maintenanceTasks.filter((task) => matchesMaintenanceTaskFilter(task, maintenanceTaskFilter)), [maintenanceTaskFilter, maintenanceTasks]);
-  const filteredDuplicateAuditHistory = useMemo(() => duplicateAuditHistory?.map((summary) => filterDuplicateAuditSummary(summary, duplicateAuditHistoryQuery, duplicateAuditHistoryProvider)).filter((summary) => summary.groups.length > 0) ?? [], [duplicateAuditHistory, duplicateAuditHistoryProvider, duplicateAuditHistoryQuery]);
-
   const resetDuplicateGroupFilters = () => {
     setDuplicateGroupQuery('');
     setDuplicateGroupProvider('all');
@@ -350,49 +349,17 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
           </PanelContent>
         </Panel>
 
-        <Panel>
-          <PanelHeader
-            title="重复 ID 审查结果"
-            description="汇总最近重复 ID 审查任务发现的来源、外部 ID 和涉及游戏。"
-            icon={<ListChecks className="h-4 w-4" />}
-            actions={<Button disabled={duplicateAuditHistoryLoading} size="sm" variant="ghost" onClick={() => loadDuplicateAuditHistory()}><RefreshCw className="h-4 w-4" />{duplicateAuditHistoryLoading ? '读取中' : '读取结果'}</Button>}
-          />
-          <PanelContent className="space-y-3">
-            {duplicateAuditHistory ? (
-              duplicateAuditHistory.length > 0 ? (
-                <div className="space-y-3">
-                  <SoftRow className="grid gap-2 px-3 py-3 md:grid-cols-[minmax(0,1fr)_minmax(10rem,14rem)_auto] md:items-end">
-                    <label className="min-w-0 text-xs text-slate-500">
-                      搜索审查结果
-                      <Input aria-label="重复 ID 审查结果搜索" className="mt-1 w-full" placeholder="来源 / 外部 ID / 游戏" value={duplicateAuditHistoryQuery} onChange={(event) => setDuplicateAuditHistoryQuery(event.target.value)} />
-                    </label>
-                    <label className="min-w-0 text-xs text-slate-500">
-                      来源筛选
-                      <Select aria-label="重复 ID 审查结果来源筛选" className="mt-1 w-full" value={duplicateAuditHistoryProvider} onChange={(event) => setDuplicateAuditHistoryProvider(event.target.value)}>
-                        <option value="all">全部来源</option>
-                        <option value="vndb">VNDB</option>
-                        <option value="dlsite">DLsite</option>
-                        <option value="fanza">FANZA</option>
-                        <option value="bangumi">Bangumi</option>
-                        <option value="ymgal">YMGal</option>
-                      </Select>
-                    </label>
-                    <Button className="h-9" disabled={!duplicateAuditHistoryQuery.trim() && duplicateAuditHistoryProvider === 'all'} size="sm" variant="outline" onClick={resetDuplicateAuditHistoryFilters}>重置筛选</Button>
-                  </SoftRow>
-                  <div className="px-1 text-xs text-slate-500">当前显示 {formatCount(filteredDuplicateAuditHistory.reduce((count, summary) => count + summary.groups.length, 0))} / {formatCount(duplicateAuditHistory.reduce((count, summary) => count + summary.groups.length, 0))} 个重复组。</div>
-                  {filteredDuplicateAuditHistory.length > 0 ? filteredDuplicateAuditHistory.map((summary) => <DuplicateAuditTaskRow key={summary.task.id} onOpenTask={onOpenTasks} summary={summary} />) : <SoftRow className="px-3 py-3 text-sm text-slate-400">当前筛选没有匹配的重复 ID 审查结果。</SoftRow>}
-                </div>
-              ) : (
-                <SoftRow className="px-3 py-3 text-sm text-slate-400">还没有重复 ID 审查任务记录。</SoftRow>
-              )
-            ) : (
-              <SoftRow className="flex items-center justify-between gap-3 px-3 py-3">
-                <div className="min-w-0 text-sm text-slate-400">读取后会解析最近 5 个重复 ID 审查任务日志，展示重复来源和涉及游戏。</div>
-                <Button disabled={duplicateAuditHistoryLoading} size="sm" variant="secondary" onClick={() => loadDuplicateAuditHistory()}><ListChecks className="h-4 w-4" />读取</Button>
-              </SoftRow>
-            )}
-          </PanelContent>
-        </Panel>
+        <MaintenanceDuplicateAuditHistoryPanel
+          history={duplicateAuditHistory}
+          loading={duplicateAuditHistoryLoading}
+          providerFilter={duplicateAuditHistoryProvider}
+          query={duplicateAuditHistoryQuery}
+          onLoadHistory={() => loadDuplicateAuditHistory()}
+          onOpenTask={onOpenTasks}
+          onProviderFilterChange={setDuplicateAuditHistoryProvider}
+          onQueryChange={setDuplicateAuditHistoryQuery}
+          onResetFilters={resetDuplicateAuditHistoryFilters}
+        />
 
         <Panel>
           <PanelHeader
