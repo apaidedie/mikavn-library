@@ -1,8 +1,8 @@
-import { CheckCircle2, Image, ListChecks, RefreshCw } from 'lucide-react';
+import { CheckCircle2, ListChecks, RefreshCw } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Notice } from '@/components/ui/notice';
-import { PageFrame, PageHeader, PageShell, Panel, PanelContent, PanelHeader, SoftRow } from '@/components/ui/page';
+import { PageFrame, PageHeader, PageShell } from '@/components/ui/page';
 import { TaskNotice } from '@/components/ui/task-notice';
 import { api } from '@/services/api';
 import type { AppDataDiagnostics, ImageReferenceAudit } from '@/types/archive';
@@ -15,7 +15,6 @@ import { summarizeArtworkRepairTask, type ArtworkRepairTaskSummary } from './Art
 import type { BatchMatchHistorySummary } from './BatchMatchResultPanel';
 import { summarizeDescriptionImageRepairTask, type DescriptionImageRepairTaskSummary } from './DescriptionImageRepairResultPanel';
 import { summarizeDuplicateAuditTask, type DuplicateAuditTaskSummary } from './DuplicateAuditResultPanel';
-import { ImageAuditDetailPanel, matchesImageAuditItem } from './ImageAuditDetailPanel';
 import { MaintenanceArtworkDiagnosisPanel } from './MaintenanceArtworkDiagnosisPanel';
 import { MaintenanceArtworkHistoryPanel } from './MaintenanceArtworkHistoryPanel';
 import { MaintenanceBatchMatchHistoryPanel } from './MaintenanceBatchMatchHistoryPanel';
@@ -23,6 +22,7 @@ import { MaintenanceDataLocationPanel } from './MaintenanceDataLocationPanel';
 import { MaintenanceDescriptionHistoryPanel } from './MaintenanceDescriptionHistoryPanel';
 import { MaintenanceDuplicateAuditHistoryPanel } from './MaintenanceDuplicateAuditHistoryPanel';
 import { MaintenanceDuplicateMergePanel } from './MaintenanceDuplicateMergePanel';
+import { MaintenanceImageAuditPanel } from './MaintenanceImageAuditPanel';
 import { MaintenanceOverviewPanels } from './MaintenanceOverviewPanels';
 import { MaintenanceQueuePanel } from './MaintenanceQueuePanel';
 import { MaintenanceTasksPanel } from './MaintenanceTasksPanel';
@@ -135,10 +135,6 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
       || group.games.some((game) => [game.title, game.installPath].some((value) => value.toLowerCase().includes(query)));
     return matchesProvider && matchesQuery;
   }), [duplicateGroupProvider, duplicateGroupQuery, duplicateGroups]);
-  const filteredImageAuditItems = useMemo(
-    () => imageAudit?.items.filter((item) => matchesImageAuditItem(item, imageAuditQuery, imageAuditIssueFilter)) ?? [],
-    [imageAudit, imageAuditIssueFilter, imageAuditQuery]
-  );
   const selectedDuplicateGroup = useMemo(() => filteredDuplicateGroups.find((group) => duplicateGroupKey(group) === selectedDuplicateKey) ?? filteredDuplicateGroups[0] ?? null, [filteredDuplicateGroups, selectedDuplicateKey]);
   const recommendedMergeTargetId = useMemo(() => recommendDuplicateMergeTarget(selectedDuplicateGroup), [selectedDuplicateGroup]);
   const mergeSourceIds = useMemo(() => selectedDuplicateGroup?.games.map((game) => game.gameId).filter((id) => id !== mergeTargetId) ?? [], [mergeTargetId, selectedDuplicateGroup]);
@@ -318,34 +314,20 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
           onStatusFilterChange={setDescriptionHistoryStatusFilter}
         />
 
-        <Panel ref={imageAuditRef}>
-          <PanelHeader
-            title="图片引用问题"
-            description="定位缺失、C 盘残留和 Playnite 残留图片引用。"
-            icon={<Image className="h-4 w-4" />}
-            actions={<Button disabled={imageAuditLoading || !diagnostics} size="sm" variant="ghost" onClick={loadImageAudit}><ListChecks className="h-4 w-4" />{imageAuditLoading ? '读取中' : '读取明细'}</Button>}
-          />
-          <PanelContent className="space-y-3">
-            {imageAudit ? (
-              <ImageAuditDetailPanel
-                audit={imageAudit}
-                filteredItems={filteredImageAuditItems}
-                issueFilter={imageAuditIssueFilter}
-                query={imageAuditQuery}
-                onIssueFilterChange={setImageAuditIssueFilter}
-                onOpenGame={onOpenGame}
-                onQueryChange={setImageAuditQuery}
-                onRevealPath={(path) => void revealPath(path)}
-                onResetFilters={resetImageAuditFilters}
-              />
-            ) : (
-              <SoftRow className="flex items-center justify-between gap-3 px-3 py-3">
-                <div className="min-w-0 text-sm text-slate-400">读取后会列出具体游戏、来源字段、原始路径和已解析到的文件路径。</div>
-                <Button disabled={imageAuditLoading || !diagnostics} size="sm" variant="secondary" onClick={loadImageAudit}><ListChecks className="h-4 w-4" />读取</Button>
-              </SoftRow>
-            )}
-          </PanelContent>
-        </Panel>
+        <MaintenanceImageAuditPanel
+          ref={imageAuditRef}
+          audit={imageAudit}
+          canLoad={Boolean(diagnostics)}
+          issueFilter={imageAuditIssueFilter}
+          loading={imageAuditLoading}
+          query={imageAuditQuery}
+          onIssueFilterChange={setImageAuditIssueFilter}
+          onLoadAudit={loadImageAudit}
+          onOpenGame={onOpenGame}
+          onQueryChange={setImageAuditQuery}
+          onResetFilters={resetImageAuditFilters}
+          onRevealPath={(path) => void revealPath(path)}
+        />
 
         <MaintenanceDuplicateAuditHistoryPanel
           history={duplicateAuditHistory}
