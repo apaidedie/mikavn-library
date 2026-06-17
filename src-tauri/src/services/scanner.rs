@@ -1114,4 +1114,66 @@ mod tests {
         assert!(added.conflict_reason.is_none());
         assert_eq!(added.message, "已新增游戏记录");
     }
+
+    #[test]
+    fn local_windows_workflow_scans_imports_backs_up_and_validates_paths() {
+        let root = std::env::temp_dir().join(format!("mikavn-local-workflow-{}", Uuid::new_v4()));
+        let library = root.join("library");
+        let game_dir = library.join("[240101][QA Circle] Local Workflow VN");
+        let exe = game_dir.join("LocalWorkflow.exe");
+        fs::create_dir_all(&game_dir).unwrap();
+        fs::write(&exe, b"fake exe for local workflow smoke").unwrap();
+
+        let db_path = root.join("mikavn.db");
+        let db = Database::new_from_path(db_path.clone()).unwrap();
+        let candidates = scan_path_preview(&db, library.to_string_lossy().to_string(), true).unwrap();
+        let candidate = candidates
+            .iter()
+            .find(|item| item.install_path == game_dir.to_string_lossy())
+            .expect("scanned local workflow candidate");
+        assert_eq!(candidate.suggested_title, "Local Workflow VN");
+        assert_eq!(
+            candidate.selected_executable.as_deref(),
+            Some(exe.to_string_lossy().as_ref())
+        );
+
+        let report = import_scan_candidates(
+            &db,
+            vec![ImportCandidate {
+                title: candidate.suggested_title.clone(),
+                install_path: candidate.install_path.clone(),
+                executable_path: candidate.selected_executable.clone(),
+                aliases: Some(candidate.aliases.clone()),
+                allow_duplicate: Some(false),
+                conflict_action: None,
+                conflict_game_id: None,
+            }],
+        )
+        .unwrap();
+        assert_eq!(report.imported_count, 1);
+        assert_eq!(db.list_games(GameFilter::default()).unwrap().len(), 1);
+
+        let backup = root.join("backups").join("manual.db");
+        db.backup_to_path(&backup).unwrap();
+        assert!(backup.is_file());
+        assert!(backup.metadata().unwrap().len() > 0);
+
+        assert!(validate_reveal_target(&game_dir).is_ok());
+        assert_eq!(
+            validate_reveal_target(&root.join("missing")).unwrap_err().code,
+            "PATH_NOT_FOUND"
+        );
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    fn validate_reveal_target(path: &Path) -> DbResult<()> {
+        if path.as_os_str().is_empty() {
+            return Err(DbError::validation("path is required"));
+        }
+        if !path.exists() {
+            return Err(DbError::path_not_found("path does not exist"));
+        }
+        Ok(())
+    }
 }
