@@ -5,6 +5,7 @@ import type { AdvancedSearchInput, AdvancedSearchResult, AiConnectionTestResult,
 import type { SaveBackup, SavePath, SavePathCandidate, SaveRestoreMode, SaveRestorePreview } from '@/types/saves';
 import type { ScanTaskStatus, TaskDetail, TaskLogEntry, TaskRecord } from '@/types/task';
 import { defaultSettings, mockMetadata, sampleGames, sampleHeroUrl } from './mockStoreFixtures';
+import { cleanList, ensureGameDefaults, makeGame } from './mockStoreGames';
 import { cleanTitle, externalIdCount, hasCompleteMetadata, hasMockDescriptionImage, metadataStatusMatches, mockMatchesClause, parseMockSearch, score } from './mockStoreMetadata';
 import { ASSETS_KEY, BATCH_KEY, COLLECTION_GAMES_KEY, COLLECTIONS_KEY, FIELD_LOCKS_KEY, LAUNCH_PROFILES_KEY, LIBRARY_ROOTS_KEY, PLAY_SESSIONS_KEY, SAVED_SEARCHES_KEY, SAVE_BACKUPS_KEY, SAVE_PATHS_KEY, SCAN_TASKS_KEY, SETTINGS_KEY, STORAGE_KEY, readJson, readSettings, writeJson } from './mockStoreStorage';
 import { addTaskLog, makeTask, readTaskLogs, readTasks, reportGapExamplesLog, reportGapSummaryLog, writeTasks } from './mockStoreTasks';
@@ -55,64 +56,6 @@ function toMetadata(result: MetadataSearchResult): NormalizedMetadata {
     images: result.imageUrl ? [result.imageUrl] : [],
     externalIds: result.externalIds,
     ageRating: null,
-  };
-}
-
-function cleanList(values?: string[]) {
-  return [...new Set((values ?? []).map((value) => value.trim()).filter(Boolean))];
-}
-
-function makeGame(input: AddGameInput): Game {
-  const now = new Date().toISOString();
-  return {
-    id: crypto.randomUUID(),
-    title: input.title.trim(),
-    originalTitle: input.originalTitle?.trim() || null,
-    aliases: cleanList(input.aliases),
-    developer: input.developer?.trim() || null,
-    publisher: input.publisher?.trim() || null,
-    brand: input.brand?.trim() || null,
-    releaseDate: input.releaseDate?.trim() || null,
-    description: input.description?.trim() || null,
-    notes: input.notes?.trim() || null,
-    tags: cleanList(input.tags),
-    genres: cleanList(input.genres),
-    rating: input.rating ?? null,
-    ageRating: input.ageRating?.trim() || null,
-    playStatus: input.playStatus ?? 'planned',
-    favorite: Boolean(input.favorite),
-    hidden: Boolean(input.hidden),
-    installPath: input.installPath.trim(),
-    executablePath: input.executablePath?.trim() || null,
-    workingDirectory: input.workingDirectory?.trim() || input.installPath.trim(),
-    launchArgs: input.launchArgs?.trim() || null,
-    pathStatus: 'unknown',
-    lastPathCheckedAt: null,
-    coverImage: input.coverImage?.trim() || null,
-    bannerImage: input.bannerImage?.trim() || null,
-    backgroundImage: input.backgroundImage?.trim() || null,
-    vndbId: input.vndbId?.trim() || null,
-    bangumiId: input.bangumiId?.trim() || null,
-    dlsiteId: input.dlsiteId?.trim() || null,
-    fanzaId: input.fanzaId?.trim() || null,
-    ymgalId: input.ymgalId?.trim() || null,
-    totalPlaySeconds: 0,
-    lastPlayedAt: null,
-    createdAt: now,
-    updatedAt: now,
-  };
-}
-
-function ensureGameDefaults(game: Game): Game {
-  const sampleMedia = game.id === 'sample-1' ? sampleHeroUrl : null;
-  return {
-    ...game,
-    notes: game.notes ?? null,
-    pathStatus: game.pathStatus ?? 'unknown',
-    lastPathCheckedAt: game.lastPathCheckedAt ?? null,
-    coverImage: game.coverImage ?? sampleMedia,
-    bannerImage: game.bannerImage ?? sampleMedia,
-    backgroundImage: game.backgroundImage ?? sampleMedia,
   };
 }
 
