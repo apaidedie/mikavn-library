@@ -1,11 +1,10 @@
-import { Copy, Database, Download, FileText, Folder, FolderOpen, FolderSearch, Palette, RefreshCw, RotateCcw, Save, Search, Tags, Trash2 } from 'lucide-react';
+import { Copy, Database, Download, FileText, Folder, FolderOpen, Palette, RefreshCw, RotateCcw, Save, Search, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ConfigItem, ConfigSection } from '@/components/ui/config-item';
 import { Input } from '@/components/ui/input';
 import { Notice } from '@/components/ui/notice';
 import { PageFrame, PageHeader, PageShell } from '@/components/ui/page';
-import { Select } from '@/components/ui/select';
 import { TaskNotice } from '@/components/ui/task-notice';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { api } from '@/services/api';
@@ -17,7 +16,9 @@ import { errorMessage } from '@/utils/errorMessage';
 import { AppearanceSettings } from './AppearanceSettings';
 import { MetadataAiSettings } from './MetadataAiSettings';
 import { SettingFlag } from './SettingFlag';
-import { DirectoryLocation, Stat, TrayStatusPanel, dataDirSourceLabel, formatBytes, formatCount, getDirectoryLocations, tagLabel, type DirectoryLocationItem } from './SettingsPageParts';
+import { SettingsLibraryRootsSection } from './SettingsLibraryRootsSection';
+import { SettingsTagMaintenanceSection } from './SettingsTagMaintenanceSection';
+import { DirectoryLocation, Stat, TrayStatusPanel, dataDirSourceLabel, formatBytes, formatCount, getDirectoryLocations, type DirectoryLocationItem } from './SettingsPageParts';
 import type { SettingsForm } from './settingsTypes';
 
 type TaskMessage = { text: string; taskId?: string | null };
@@ -171,39 +172,18 @@ export function SettingsPage({ tabRequest, onAccentPreview, onThemePreview, onSa
           </TabsContent>
 
           <TabsContent className="space-y-6" value="local">
-            <ConfigSection title="库目录">
-              <ConfigItem title="添加本地库目录" description="登记常用游戏根目录。扫描仍会先进入候选复核，不会直接写库。">
-                <div className="flex flex-wrap items-center justify-end gap-2">
-                  <Input className="w-72" value={libraryRootPath} onChange={(event) => setLibraryRootPath(event.target.value)} placeholder="D:\\Games\\VisualNovel" />
-                  <Button aria-label="复制待添加库目录" disabled={!libraryRootPath.trim()} variant="ghost" onClick={() => void copyDirectoryPath('待添加库目录', libraryRootPath.trim())}><Copy className="h-4 w-4" />复制</Button>
-                  <Button variant="outline" onClick={pickLibraryRoot}><Folder className="h-4 w-4" />选择</Button>
-                  <Button variant="secondary" onClick={addLibraryRoot}>添加</Button>
-                </div>
-              </ConfigItem>
-              <ConfigItem title="已登记目录" description="可启用/停用、切换递归扫描，或创建扫描任务。">
-                <div className="w-full max-w-[42rem] space-y-2">
-                  {libraryRoots.length === 0 ? (
-                    <div className="rounded-lg border border-dashed border-white/10 bg-black/[0.10] px-3 py-4 text-right text-xs text-slate-500">还没有库目录。</div>
-                  ) : libraryRoots.map((root) => (
-                    <div className="rounded-lg border border-white/10 bg-black/[0.12] p-3" key={root.id}>
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div className="min-w-0 text-left">
-                          <div className="break-all font-mono text-xs text-slate-300">{root.path}</div>
-                          <div className="mt-1 text-[11px] text-slate-500">{root.enabled ? '已启用' : '已停用'} · {root.recursive ? '递归扫描' : '仅一级目录'}</div>
-                        </div>
-                        <div className="flex shrink-0 flex-wrap justify-end gap-2">
-                          <SettingFlag checked={root.enabled} label="启用" onChange={(value) => void updateLibraryRoot(root, { enabled: value })} />
-                          <SettingFlag checked={root.recursive} label="递归" onChange={(value) => void updateLibraryRoot(root, { recursive: value })} />
-                          <Button aria-label="复制已登记库目录" disabled={rootActionId === root.id} size="sm" variant="ghost" onClick={() => void copyDirectoryPath('已登记库目录', root.path)}><Copy className="h-4 w-4" />复制</Button>
-                          <Button disabled={!root.enabled || rootActionId === root.id} size="sm" variant="secondary" onClick={() => void scanLibraryRoot(root)}><FolderSearch className="h-4 w-4" />扫描</Button>
-                          <Button disabled={rootActionId === root.id} size="sm" variant="ghost" onClick={() => void removeLibraryRoot(root)}><Trash2 className="h-4 w-4" />移除</Button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </ConfigItem>
-            </ConfigSection>
+            <SettingsLibraryRootsSection
+              libraryRootPath={libraryRootPath}
+              libraryRoots={libraryRoots}
+              rootActionId={rootActionId}
+              onAddLibraryRoot={addLibraryRoot}
+              onCopyDirectoryPath={copyDirectoryPath}
+              onLibraryRootPathChange={setLibraryRootPath}
+              onPickLibraryRoot={pickLibraryRoot}
+              onRemoveLibraryRoot={removeLibraryRoot}
+              onScanLibraryRoot={scanLibraryRoot}
+              onUpdateLibraryRoot={updateLibraryRoot}
+            />
 
             <ConfigSection title="本地数据">
               <ConfigItem title="数据目录自检" description="读取当前应用数据目录、数据库完整性、图片引用和备份文件状态。">
@@ -353,50 +333,19 @@ export function SettingsPage({ tabRequest, onAccentPreview, onThemePreview, onSa
               </ConfigItem>
             </ConfigSection>
 
-            <ConfigSection title="标签维护">
-              <ConfigItem title="标签总览" description="重命名、合并或删除 normalized tags/game_tags 中的标签，不会删除游戏条目。">
-                <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={loadTags}><Tags className="h-4 w-4" />刷新</Button>
-                </div>
-              </ConfigItem>
-              <ConfigItem title="选择标签" description="合并时只能合并同类标签；删除会从所有游戏中移除此标签。">
-                <div className="flex w-full max-w-[42rem] flex-col gap-3 text-left">
-                  {tags.length === 0 ? (
-                    <div className="rounded-lg border border-dashed border-white/10 bg-black/[0.10] px-3 py-4 text-right text-xs text-slate-500">还没有标签。</div>
-                  ) : (
-                    <div className="grid gap-2 md:grid-cols-[1fr_1fr]">
-                      <Select value={selectedTagId} onChange={(event) => selectTag(event.target.value)}>
-                        <option value="">选择目标标签</option>
-                        {tags.map((tag) => <option key={tag.id} value={tag.id}>{tagLabel(tag)}</option>)}
-                      </Select>
-                      <Input value={renameTagName} onChange={(event) => setRenameTagName(event.target.value)} placeholder="新标签名" />
-                    </div>
-                  )}
-                  {selectedTagId && (
-                    <div className="flex flex-wrap gap-2">
-                      <Button variant="secondary" onClick={renameSelectedTag}>重命名</Button>
-                      <Button variant="outline" onClick={mergeSelectedTags}>合并所选</Button>
-                      <Button variant="ghost" onClick={deleteSelectedTag}><Trash2 className="h-4 w-4" />删除标签</Button>
-                    </div>
-                  )}
-                  {selectedTagId && sameKindMergeCandidates().length > 0 && (
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      {sameKindMergeCandidates().map((tag) => (
-                        <label className="flex items-center justify-between gap-3 rounded-md border border-white/10 bg-black/[0.10] px-3 py-2 text-xs" key={tag.id}>
-                          <span className="min-w-0 truncate text-slate-300">{tagLabel(tag)}</span>
-                          <input checked={mergeSourceIds.includes(tag.id)} type="checkbox" onChange={(event) => toggleMergeSource(tag.id, event.target.checked)} />
-                        </label>
-                      ))}
-                    </div>
-                  )}
-                  {tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5">
-                      {tags.slice(0, 18).map((tag) => <span className="rounded-full border border-white/10 bg-black/[0.12] px-2 py-1 text-xs text-slate-300" key={tag.id}>{tagLabel(tag)}</span>)}
-                    </div>
-                  )}
-                </div>
-              </ConfigItem>
-            </ConfigSection>
+            <SettingsTagMaintenanceSection
+              mergeSourceIds={mergeSourceIds}
+              renameTagName={renameTagName}
+              selectedTagId={selectedTagId}
+              tags={tags}
+              onDeleteSelectedTag={deleteSelectedTag}
+              onLoadTags={loadTags}
+              onMergeSelectedTags={mergeSelectedTags}
+              onRenameSelectedTag={renameSelectedTag}
+              onRenameTagNameChange={setRenameTagName}
+              onSelectTag={selectTag}
+              onToggleMergeSource={toggleMergeSource}
+            />
 
             <ConfigSection title="存档自动备份">
               <ConfigItem title="启动前自动备份" description="启动游戏前复制已登记的存档路径到应用数据目录，并写入任务日志。">
@@ -560,12 +509,6 @@ export function SettingsPage({ tabRequest, onAccentPreview, onThemePreview, onSa
     const tag = tags.find((item) => item.id === id);
     setRenameTagName(tag?.name ?? '');
     setMergeSourceIds([]);
-  }
-
-  function sameKindMergeCandidates() {
-    const target = tags.find((tag) => tag.id === selectedTagId);
-    if (!target) return [];
-    return tags.filter((tag) => tag.kind === target.kind && tag.id !== target.id);
   }
 
   function toggleMergeSource(id: string, checked: boolean) {
