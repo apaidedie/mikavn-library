@@ -1,14 +1,13 @@
-import type { AddGameInput, AssetCacheCleanupResult, AssetDownloadInput, AssetImportInput, AssetInput, DashboardData, Game, GameAsset, GameFilter, GamePathHealth, PathCheckItem, PlayStatus, UpdateGameInput } from '@/types/game';
+import type { AddGameInput, DashboardData, Game, GameFilter, GamePathHealth, PathCheckItem, PlayStatus, UpdateGameInput } from '@/types/game';
 import type { AdvancedSearchInput, AdvancedSearchResult, AiConnectionTestResult, AiRecognitionResult, ApplyMetadataFields, ArtworkRepairDiagnosis, ArtworkRepairOptions, ArtworkRepairPreview, BatchMatchJob, BatchMatchStatus, DescriptionImageRepairOptions, DescriptionImageRepairPreview, DuplicateExternalIdAuditOptions, DuplicateExternalIdPreview, DuplicateGameMergeOptions, DuplicateGameMergePreview, DuplicateGameMergeResult, ExternalIdRecord, FieldLock, MatchSuggestion, MetadataProvider, MetadataSearchResponse, MetadataSearchResult, MetadataSourceRecord, NormalizedMetadata, SavedSearch, SavedSearchInput, SearchQueryValidation } from '@/types/metadata';
 import type { TaskDetail, TaskLogEntry, TaskRecord } from '@/types/task';
 import { mockArtworkRepairDiagnosis, mockArtworkRepairPreview, mockDescriptionImageCandidates } from './mockStoreArtworkRepair';
 import { createMockStoreArchives } from './mockStoreArchives';
 import { defaultSettings, mockMetadata, sampleGames, sampleHeroUrl } from './mockStoreFixtures';
-import { readAssets, syncGameCompatibilityAssets, writeAssets } from './mockStoreAssets';
+import { createMockStoreAssets, readAssets, syncGameCompatibilityAssets, writeAssets } from './mockStoreAssets';
 import { createMockStoreCollections, readCollectionLinks, writeCollectionLinks } from './mockStoreCollections';
 import { mockDuplicateExternalIdPreview, mockDuplicateGameMergePreview } from './mockStoreDuplicates';
 import { cleanList, ensureGameDefaults, makeGame } from './mockStoreGames';
-import { mockAssetCacheCleanupResult } from './mockStoreImages';
 import { createMockStoreDiagnostics } from './mockStoreDiagnostics';
 import { createMockStoreLaunchProfiles } from './mockStoreLaunchProfiles';
 import { cleanTitle, metadataStatusMatches, mockMatchesClause, parseMockSearch, score } from './mockStoreMetadata';
@@ -36,6 +35,11 @@ function readGames() {
 
 function writeGames(games: Game[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(games));
+}
+
+function getMockGame(id: string) {
+  const game = readGames().map(ensureGameDefaults).find((item) => item.id === id);
+  return game ? Promise.resolve(game) : Promise.reject(new Error('Game not found'));
 }
 
 function toMetadata(result: MetadataSearchResult): NormalizedMetadata {
@@ -154,6 +158,7 @@ export const mockStore = {
   ...createMockStoreSaves(readGames),
   ...createMockStoreCollections(readGames),
   ...createMockStoreTags(readGames, writeGames),
+  ...createMockStoreAssets({ readGames, getGame: getMockGame, updateGame: updateMockGame }),
   ...mockLaunchProfiles,
   ...createMockStorePlaySessions({ readGames, writeGames, listLaunchProfiles: mockLaunchProfiles.listLaunchProfiles }),
   ...createMockStoreScanner({ readGames, addGame: addMockGame, updateGame: updateMockGame }),
@@ -214,10 +219,7 @@ export const mockStore = {
     return Promise.resolve(games);
   },
 
-  getGame(id: string) {
-    const game = readGames().map(ensureGameDefaults).find((item) => item.id === id);
-    return game ? Promise.resolve(game) : Promise.reject(new Error('Game not found'));
-  },
+  getGame: getMockGame,
 
   async checkGamePaths(id: string): Promise<GamePathHealth> {
     const game = await this.getGame(id);
@@ -289,73 +291,6 @@ export const mockStore = {
     writeGames(readGames().filter((game) => game.id !== id));
     writeCollectionLinks(readCollectionLinks().filter((link) => link.gameId !== id));
     return Promise.resolve();
-  },
-
-  listGameAssets(gameId: string) {
-    const game = readGames().map(ensureGameDefaults).find((item) => item.id === gameId);
-    if (game) syncGameCompatibilityAssets(game);
-    return Promise.resolve(readAssets().filter((asset) => asset.gameId === gameId).sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary) || b.updatedAt.localeCompare(a.updatedAt)));
-  },
-
-  upsertGameAsset(gameId: string, input: AssetInput) {
-    const uri = input.uri.trim();
-    if (!uri) return Promise.reject(new Error('Asset uri is required'));
-    const assetType = input.assetType.trim() || 'cover';
-    const now = new Date().toISOString();
-    const assets = readAssets().filter((asset) => !(asset.gameId === gameId && asset.assetType === assetType && asset.uri === uri));
-    const nextAssets = input.isPrimary !== false ? assets.map((asset) => asset.gameId === gameId && asset.assetType === assetType ? { ...asset, isPrimary: false } : asset) : assets;
-    const asset: GameAsset = {
-      id: crypto.randomUUID(),
-      gameId,
-      assetType,
-      uri,
-      source: input.source?.trim() || 'manual',
-      isPrimary: input.isPrimary !== false,
-      createdAt: now,
-      updatedAt: now,
-    };
-    writeAssets([asset, ...nextAssets]);
-    if (asset.isPrimary) {
-      const field = assetType === 'cover' ? 'coverImage' : assetType === 'banner' ? 'bannerImage' : assetType === 'background' ? 'backgroundImage' : null;
-      if (field) void this.updateGame(gameId, { [field]: uri } as UpdateGameInput);
-    }
-    return Promise.resolve(asset);
-  },
-
-  removeGameAsset(id: string) {
-    const asset = readAssets().find((item) => item.id === id);
-    if (!asset) return Promise.reject(new Error('Asset not found'));
-    writeAssets(readAssets().filter((item) => item.id !== id));
-    const field = asset.assetType === 'cover' ? 'coverImage' : asset.assetType === 'banner' ? 'bannerImage' : asset.assetType === 'background' ? 'backgroundImage' : null;
-    if (field && asset.isPrimary) {
-      return this.updateGame(asset.gameId, { [field]: '' } as UpdateGameInput);
-    }
-    return this.getGame(asset.gameId);
-  },
-
-  setPrimaryAsset(id: string) {
-    const asset = readAssets().find((item) => item.id === id);
-    if (!asset) return Promise.reject(new Error('Asset not found'));
-    writeAssets(readAssets().map((item) => item.gameId === asset.gameId && item.assetType === asset.assetType ? { ...item, isPrimary: item.id === id, updatedAt: new Date().toISOString() } : item));
-    const field = asset.assetType === 'cover' ? 'coverImage' : asset.assetType === 'banner' ? 'bannerImage' : asset.assetType === 'background' ? 'backgroundImage' : null;
-    return field ? this.updateGame(asset.gameId, { [field]: asset.uri } as UpdateGameInput) : this.getGame(asset.gameId);
-  },
-
-  importGameAssetFromPath(gameId: string, input: AssetImportInput) {
-    return this.upsertGameAsset(gameId, { assetType: input.assetType, uri: input.sourcePath, source: 'user', isPrimary: input.isPrimary });
-  },
-
-  downloadGameAsset(gameId: string, input: AssetDownloadInput) {
-    return this.upsertGameAsset(gameId, { assetType: input.assetType, uri: input.url, source: 'download', isPrimary: input.isPrimary });
-  },
-
-  cleanupAssetCache(): Promise<AssetCacheCleanupResult> {
-    const assets = readAssets();
-    return Promise.resolve(mockAssetCacheCleanupResult(assets));
-  },
-
-  previewAssetCacheCleanup(): Promise<AssetCacheCleanupResult> {
-    return Promise.resolve(mockAssetCacheCleanupResult(readAssets()));
   },
 
   getDashboard(): Promise<DashboardData> {
