@@ -47,6 +47,10 @@ export function formatLibraryCount(value: number) {
   return new Intl.NumberFormat('zh-CN').format(value);
 }
 
+export function formatLibraryLoadMoreLabel(visibleCount: number, totalCount: number) {
+  return `加载更多 ${formatLibraryCount(visibleCount)} / ${formatLibraryCount(totalCount)}`;
+}
+
 export function changedLibraryMetadataFields(game: Game, input: AddGameInput) {
   const fields: string[] = [];
   const normalize = (value?: string | null) => value?.trim() || '';

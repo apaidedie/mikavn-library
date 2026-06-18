@@ -120,3 +120,9 @@ test('formatLibraryCount uses the Chinese locale grouping used by the library si
 
   assert.equal(formatLibraryCount(12345), '12,345');
 });
+
+test('formatLibraryLoadMoreLabel summarizes the current render window', () => {
+  const { formatLibraryLoadMoreLabel } = loadLibraryPageModel();
+
+  assert.equal(formatLibraryLoadMoreLabel(160, 1000), '加载更多 160 / 1,000');
+});
