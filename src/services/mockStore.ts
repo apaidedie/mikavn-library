@@ -1,5 +1,4 @@
 import type { AddGameInput, AssetCacheCleanupResult, AssetDownloadInput, AssetImportInput, AssetInput, CollectionGameLink, CollectionInput, DashboardData, Game, GameAsset, GameCollection, GameFilter, GamePathHealth, PathCheckItem, PlaySession, PlayStatus, TagRecord, UpdateGameInput } from '@/types/game';
-import type { LaunchProfile, LaunchProfileInput, LaunchProfileUpdate } from '@/types/launch';
 import type { AdvancedSearchInput, AdvancedSearchResult, AiConnectionTestResult, AiRecognitionResult, ApplyMetadataFields, ArtworkRepairDiagnosis, ArtworkRepairOptions, ArtworkRepairPreview, BatchMatchJob, BatchMatchStatus, DescriptionImageRepairOptions, DescriptionImageRepairPreview, DuplicateExternalIdAuditOptions, DuplicateExternalIdPreview, DuplicateGameMergeOptions, DuplicateGameMergePreview, DuplicateGameMergeResult, ExternalIdRecord, FieldLock, MatchSuggestion, MetadataProvider, MetadataSearchResponse, MetadataSearchResult, MetadataSourceRecord, NormalizedMetadata, SavedSearch, SavedSearchInput, SearchQueryValidation } from '@/types/metadata';
 import type { TaskDetail, TaskLogEntry, TaskRecord } from '@/types/task';
 import { mockArtworkRepairDiagnosis, mockArtworkRepairPreview, mockDescriptionImageCandidates } from './mockStoreArtworkRepair';
@@ -11,10 +10,11 @@ import { mockDuplicateExternalIdPreview, mockDuplicateGameMergePreview } from '.
 import { cleanList, ensureGameDefaults, makeGame } from './mockStoreGames';
 import { mockAssetCacheCleanupResult } from './mockStoreImages';
 import { createMockStoreDiagnostics } from './mockStoreDiagnostics';
+import { createMockStoreLaunchProfiles } from './mockStoreLaunchProfiles';
 import { cleanTitle, metadataStatusMatches, mockMatchesClause, parseMockSearch, score } from './mockStoreMetadata';
 import { createMockStoreScanner } from './mockStoreScanner';
 import { createMockStoreSaves } from './mockStoreSaves';
-import { BATCH_KEY, FIELD_LOCKS_KEY, LAUNCH_PROFILES_KEY, PLAY_SESSIONS_KEY, SAVED_SEARCHES_KEY, SETTINGS_KEY, STORAGE_KEY, readJson, readSettings, writeJson } from './mockStoreStorage';
+import { BATCH_KEY, FIELD_LOCKS_KEY, PLAY_SESSIONS_KEY, SAVED_SEARCHES_KEY, SETTINGS_KEY, STORAGE_KEY, readJson, readSettings, writeJson } from './mockStoreStorage';
 import { syncGameTags } from './mockStoreTags';
 import { addTaskLog, makeTask, readTaskLogs, readTasks, reportGapExamplesLog, reportGapSummaryLog, writeTasks } from './mockStoreTasks';
 
@@ -149,6 +149,7 @@ export const mockStore = {
   ...createMockStoreDiagnostics(readGames),
   ...createMockStoreArchives({ readGames, writeGames }),
   ...createMockStoreSaves(readGames),
+  ...createMockStoreLaunchProfiles(readGames),
   ...createMockStoreScanner({ readGames, addGame: addMockGame, updateGame: updateMockGame }),
 
   listGames(filter: GameFilter = {}) {
@@ -506,96 +507,6 @@ export const mockStore = {
       }]);
     }
     return Promise.resolve(sessions.slice(0, Math.max(1, Math.min(limit, 200))));
-  },
-
-  async listLaunchProfiles(gameId: string): Promise<LaunchProfile[]> {
-    const profiles = readJson<LaunchProfile[]>(LAUNCH_PROFILES_KEY, []).filter((item) => item.gameId === gameId);
-    if (profiles.length) return profiles.sort((a, b) => Number(b.isDefault) - Number(a.isDefault) || a.createdAt.localeCompare(b.createdAt));
-
-    const game = await this.getGame(gameId);
-    if (!game.executablePath) return [];
-    return [{
-      id: `legacy-${game.id}`,
-      gameId: game.id,
-      name: '默认启动',
-      executablePath: game.executablePath,
-      workingDirectory: game.workingDirectory ?? game.installPath,
-      arguments: game.launchArgs ?? null,
-      environmentVariables: null,
-      runnerType: 'direct',
-      localeEmulatorPath: null,
-      preLaunchCommand: null,
-      postLaunchCommand: null,
-      runAsAdmin: false,
-      isDefault: true,
-      compatibilityNotes: '来自旧版游戏启动字段',
-      createdAt: game.createdAt,
-      updatedAt: game.updatedAt,
-    }];
-  },
-
-  createLaunchProfile(input: LaunchProfileInput): Promise<LaunchProfile> {
-    const now = new Date().toISOString();
-    const profiles = readJson<LaunchProfile[]>(LAUNCH_PROFILES_KEY, []);
-    const firstForGame = !profiles.some((item) => item.gameId === input.gameId);
-    const profile: LaunchProfile = {
-      id: crypto.randomUUID(),
-      gameId: input.gameId,
-      name: input.name.trim() || '启动配置',
-      executablePath: input.executablePath.trim(),
-      workingDirectory: input.workingDirectory?.trim() || null,
-      arguments: input.arguments?.trim() || null,
-      environmentVariables: input.environmentVariables?.trim() || null,
-      runnerType: input.runnerType || 'direct',
-      localeEmulatorPath: input.localeEmulatorPath?.trim() || null,
-      preLaunchCommand: input.preLaunchCommand?.trim() || null,
-      postLaunchCommand: input.postLaunchCommand?.trim() || null,
-      runAsAdmin: Boolean(input.runAsAdmin),
-      isDefault: Boolean(input.isDefault) || firstForGame,
-      compatibilityNotes: input.compatibilityNotes?.trim() || null,
-      createdAt: now,
-      updatedAt: now,
-    };
-    const next = profile.isDefault ? profiles.map((item) => item.gameId === profile.gameId ? { ...item, isDefault: false } : item) : profiles;
-    writeJson(LAUNCH_PROFILES_KEY, [profile, ...next]);
-    return Promise.resolve(profile);
-  },
-
-  updateLaunchProfile(id: string, input: LaunchProfileUpdate): Promise<LaunchProfile> {
-    const profiles = readJson<LaunchProfile[]>(LAUNCH_PROFILES_KEY, []);
-    let updated: LaunchProfile | undefined;
-    let next = profiles.map((profile) => {
-      if (profile.id !== id) return profile;
-      updated = {
-        ...profile,
-        ...input,
-        runnerType: input.runnerType ?? profile.runnerType,
-        runAsAdmin: input.runAsAdmin ?? profile.runAsAdmin,
-        isDefault: input.isDefault ?? profile.isDefault,
-        updatedAt: new Date().toISOString(),
-      };
-      return updated;
-    });
-    if (!updated) return Promise.reject(new Error('Launch profile not found'));
-    if (updated.isDefault) {
-      next = next.map((profile) => profile.gameId === updated!.gameId && profile.id !== updated!.id ? { ...profile, isDefault: false } : profile);
-    }
-    writeJson(LAUNCH_PROFILES_KEY, next);
-    return Promise.resolve(updated);
-  },
-
-  deleteLaunchProfile(id: string) {
-    writeJson(LAUNCH_PROFILES_KEY, readJson<LaunchProfile[]>(LAUNCH_PROFILES_KEY, []).filter((profile) => profile.id !== id));
-    return Promise.resolve();
-  },
-
-  setDefaultLaunchProfile(id: string): Promise<LaunchProfile> {
-    const profiles = readJson<LaunchProfile[]>(LAUNCH_PROFILES_KEY, []);
-    const target = profiles.find((profile) => profile.id === id);
-    if (!target) return Promise.reject(new Error('Launch profile not found'));
-    const next = profiles.map((profile) => profile.gameId === target.gameId ? { ...profile, isDefault: profile.id === id, updatedAt: new Date().toISOString() } : profile);
-    writeJson(LAUNCH_PROFILES_KEY, next);
-    return Promise.resolve(next.find((profile) => profile.id === id)!);
   },
 
   getDashboard(): Promise<DashboardData> {
