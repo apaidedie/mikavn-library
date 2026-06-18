@@ -1,4 +1,4 @@
-import type { AddGameInput, AssetCacheCleanupResult, AssetDownloadInput, AssetImportInput, AssetInput, CollectionGameLink, CollectionInput, DashboardData, Game, GameAsset, GameCollection, GameFilter, GamePathHealth, ImportCandidate, ImportScanReport, ImportScanReportItem, PathCheckItem, PlaySession, PlayStatus, ScanConflict, TagRecord, UpdateGameInput } from '@/types/game';
+import type { AddGameInput, AssetCacheCleanupResult, AssetDownloadInput, AssetImportInput, AssetInput, CollectionGameLink, CollectionInput, DashboardData, Game, GameAsset, GameCollection, GameFilter, GamePathHealth, PathCheckItem, PlaySession, PlayStatus, TagRecord, UpdateGameInput } from '@/types/game';
 import type { LaunchProfile, LaunchProfileInput, LaunchProfileUpdate } from '@/types/launch';
 import type { AdvancedSearchInput, AdvancedSearchResult, AiConnectionTestResult, AiRecognitionResult, ApplyMetadataFields, ArtworkRepairDiagnosis, ArtworkRepairOptions, ArtworkRepairPreview, BatchMatchJob, BatchMatchStatus, DescriptionImageRepairOptions, DescriptionImageRepairPreview, DuplicateExternalIdAuditOptions, DuplicateExternalIdPreview, DuplicateGameMergeOptions, DuplicateGameMergePreview, DuplicateGameMergeResult, ExternalIdRecord, FieldLock, MatchSuggestion, MetadataProvider, MetadataSearchResponse, MetadataSearchResult, MetadataSourceRecord, NormalizedMetadata, SavedSearch, SavedSearchInput, SearchQueryValidation } from '@/types/metadata';
 import type { TaskDetail, TaskLogEntry, TaskRecord } from '@/types/task';
@@ -12,7 +12,7 @@ import { cleanList, ensureGameDefaults, makeGame } from './mockStoreGames';
 import { mockAssetCacheCleanupResult } from './mockStoreImages';
 import { createMockStoreDiagnostics } from './mockStoreDiagnostics';
 import { cleanTitle, metadataStatusMatches, mockMatchesClause, parseMockSearch, score } from './mockStoreMetadata';
-import { createMockStoreScanner, findScanConflict } from './mockStoreScanner';
+import { createMockStoreScanner } from './mockStoreScanner';
 import { createMockStoreSaves } from './mockStoreSaves';
 import { BATCH_KEY, FIELD_LOCKS_KEY, LAUNCH_PROFILES_KEY, PLAY_SESSIONS_KEY, SAVED_SEARCHES_KEY, SETTINGS_KEY, STORAGE_KEY, readJson, readSettings, writeJson } from './mockStoreStorage';
 import { syncGameTags } from './mockStoreTags';
@@ -106,11 +106,50 @@ function mockMergeDuplicateGames(options: DuplicateGameMergeOptions): DuplicateG
   return { mergedGame: merged, deletedSourceGameIds: [...sourceIds], movedCounts: preview.movedCounts, warnings: preview.warnings };
 }
 
+function addMockGame(input: AddGameInput): Promise<Game> {
+  const games = readGames();
+  const game = makeGame(input);
+  writeGames([game, ...games]);
+  syncGameCompatibilityAssets(game);
+  return Promise.resolve(game);
+}
+
+function updateMockGame(id: string, input: UpdateGameInput): Promise<Game> {
+  const games = readGames();
+  let updated: Game | undefined;
+  const next = games.map((game) => {
+    if (game.id !== id) {
+      return game;
+    }
+
+    updated = {
+      ...game,
+      ...input,
+      aliases: input.aliases ? cleanList(input.aliases) : game.aliases,
+      tags: input.tags ? cleanList(input.tags) : game.tags,
+      genres: input.genres ? cleanList(input.genres) : game.genres,
+      favorite: input.favorite ?? game.favorite,
+      hidden: input.hidden ?? game.hidden,
+      playStatus: (input.playStatus ?? game.playStatus) as PlayStatus,
+      updatedAt: new Date().toISOString(),
+    };
+    return updated;
+  });
+
+  if (!updated) {
+    return Promise.reject(new Error('Game not found'));
+  }
+
+  writeGames(next);
+  syncGameCompatibilityAssets(updated);
+  return Promise.resolve(updated);
+}
+
 export const mockStore = {
   ...createMockStoreDiagnostics(readGames),
   ...createMockStoreArchives({ readGames, writeGames }),
   ...createMockStoreSaves(readGames),
-  ...createMockStoreScanner(readGames),
+  ...createMockStoreScanner({ readGames, addGame: addMockGame, updateGame: updateMockGame }),
 
   listGames(filter: GameFilter = {}) {
     const query = filter.query?.trim().toLocaleLowerCase() ?? '';
@@ -235,44 +274,9 @@ export const mockStore = {
     return Promise.resolve();
   },
 
-  addGame(input: AddGameInput) {
-    const games = readGames();
-    const game = makeGame(input);
-    writeGames([game, ...games]);
-    syncGameCompatibilityAssets(game);
-    return Promise.resolve(game);
-  },
+  addGame: addMockGame,
 
-  updateGame(id: string, input: UpdateGameInput) {
-    const games = readGames();
-    let updated: Game | undefined;
-    const next = games.map((game) => {
-      if (game.id !== id) {
-        return game;
-      }
-
-      updated = {
-        ...game,
-        ...input,
-        aliases: input.aliases ? cleanList(input.aliases) : game.aliases,
-        tags: input.tags ? cleanList(input.tags) : game.tags,
-        genres: input.genres ? cleanList(input.genres) : game.genres,
-        favorite: input.favorite ?? game.favorite,
-        hidden: input.hidden ?? game.hidden,
-        playStatus: (input.playStatus ?? game.playStatus) as PlayStatus,
-        updatedAt: new Date().toISOString(),
-      };
-      return updated;
-    });
-
-    if (!updated) {
-      return Promise.reject(new Error('Game not found'));
-    }
-
-    writeGames(next);
-    syncGameCompatibilityAssets(updated);
-    return Promise.resolve(updated);
-  },
+  updateGame: updateMockGame,
 
   deleteGameRecord(id: string) {
     writeGames(readGames().filter((game) => game.id !== id));
@@ -987,100 +991,6 @@ export const mockStore = {
       model: settings.ai_model || 'gpt-4o-mini',
       message: 'Browser preview mock AI connection is available',
     });
-  },
-
-  async importScanCandidates(candidates: ImportCandidate[]): Promise<ImportScanReport> {
-    const imported: Game[] = [];
-    const items: ImportScanReportItem[] = [];
-    let added = 0;
-    let merged = 0;
-    let replaced = 0;
-    let duplicated = 0;
-    let skipped = 0;
-
-    const reportItem = (candidate: ImportCandidate, action: ImportScanReportItem['action'], game: Game | null, conflict: ScanConflict | null, message: string): ImportScanReportItem => ({
-      candidateTitle: candidate.title,
-      installPath: candidate.installPath,
-      action,
-      gameId: game?.id ?? null,
-      targetTitle: game?.title ?? conflict?.title ?? null,
-      conflictReason: conflict?.reason ?? null,
-      message,
-    });
-
-    for (const candidate of candidates) {
-      const games = readGames().map(ensureGameDefaults);
-      const conflict = findScanConflict(games, candidate.installPath, candidate.title);
-      const action = candidate.conflictAction ?? (conflict ? 'skip' : 'duplicate');
-      if (conflict && action === 'skip') {
-        skipped += 1;
-        items.push(reportItem(candidate, 'skip', null, conflict, '已跳过与现有记录冲突的候选'));
-        continue;
-      }
-      if (conflict && action === 'merge') {
-        if (candidate.conflictGameId && candidate.conflictGameId !== conflict.gameId) {
-          return Promise.reject(new Error('Conflict target changed; rescan before merging'));
-        }
-        const existing = games.find((game) => game.id === conflict.gameId);
-        if (!existing) return Promise.reject(new Error('Conflict game not found'));
-        const aliases = [...new Set([...(existing.aliases ?? []), ...(candidate.aliases ?? []), existing.title, candidate.title].map((item) => item.trim()).filter(Boolean))];
-        const updated = await this.updateGame(existing.id, {
-          aliases,
-          installPath: candidate.installPath,
-          executablePath: candidate.executablePath ?? undefined,
-          workingDirectory: candidate.installPath,
-          pathStatus: 'unknown',
-          lastPathCheckedAt: null,
-        });
-        merged += 1;
-        items.push(reportItem(candidate, 'merge', updated, conflict, '已合并到现有记录'));
-        imported.push(updated);
-        continue;
-      }
-      if (conflict && action === 'replace') {
-        if (candidate.conflictGameId && candidate.conflictGameId !== conflict.gameId) {
-          return Promise.reject(new Error('Conflict target changed; rescan before replacing'));
-        }
-        const updated = await this.updateGame(conflict.gameId, {
-          title: candidate.title,
-          aliases: candidate.aliases ?? [],
-          installPath: candidate.installPath,
-          executablePath: candidate.executablePath ?? undefined,
-          workingDirectory: candidate.installPath,
-          pathStatus: 'unknown',
-          lastPathCheckedAt: null,
-        });
-        replaced += 1;
-        items.push(reportItem(candidate, 'replace', updated, conflict, '已替换现有数据库记录'));
-        imported.push(updated);
-        continue;
-      }
-      if (conflict && action === 'duplicate' && !candidate.allowDuplicate) {
-        return Promise.reject(new Error(`Candidate conflicts with existing game: ${conflict.title}`));
-      }
-      if (!conflict && action === 'skip') {
-        skipped += 1;
-        items.push(reportItem(candidate, 'skip', null, null, '候选未冲突，仍被跳过'));
-        continue;
-      }
-      const game = await this.addGame({
-        title: candidate.title,
-        installPath: candidate.installPath,
-        executablePath: candidate.executablePath ?? undefined,
-        workingDirectory: candidate.installPath,
-        aliases: candidate.aliases,
-        genres: ['Visual Novel'],
-      });
-      if (conflict && action === 'duplicate') {
-        duplicated += 1;
-        items.push(reportItem(candidate, 'duplicate', game, conflict, '已作为副本导入'));
-      } else {
-        added += 1;
-        items.push(reportItem(candidate, 'add', game, null, '已新增游戏记录'));
-      }
-      imported.push(game);
-    }
-    return { requested: candidates.length, importedCount: imported.length, added, merged, replaced, duplicated, skipped, imported, items };
   },
 
   getAppSettings(): Promise<Record<string, string>> {

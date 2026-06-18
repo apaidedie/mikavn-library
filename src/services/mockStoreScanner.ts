@@ -1,4 +1,4 @@
-import type { Game, LibraryRoot, ScanCandidate, ScanConflict } from '@/types/game';
+import type { AddGameInput, Game, ImportCandidate, ImportScanReport, ImportScanReportItem, LibraryRoot, ScanCandidate, ScanConflict, UpdateGameInput } from '@/types/game';
 import type { ScanTaskStatus, TaskRecord } from '@/types/task';
 import { ensureGameDefaults } from './mockStoreGames';
 import { LIBRARY_ROOTS_KEY, SCAN_TASKS_KEY, readJson, writeJson } from './mockStoreStorage';
@@ -46,7 +46,13 @@ export function mockScanPathPreview(games: Game[], path: string, recursive: bool
   ];
 }
 
-export function createMockStoreScanner(readGames: () => Game[]) {
+type MockStoreScannerDependencies = {
+  readGames: () => Game[];
+  addGame: (input: AddGameInput) => Promise<Game>;
+  updateGame: (id: string, input: UpdateGameInput) => Promise<Game>;
+};
+
+export function createMockStoreScanner({ readGames, addGame, updateGame }: MockStoreScannerDependencies) {
   const scanPathPreview = (path: string, recursive: boolean): Promise<ScanCandidate[]> => (
     Promise.resolve(mockScanPathPreview(readGames().map(ensureGameDefaults), path, recursive))
   );
@@ -112,6 +118,100 @@ export function createMockStoreScanner(readGames: () => Game[]) {
         return Promise.reject(new Error('Scan task not found'));
       }
       return Promise.resolve(status);
+    },
+
+    async importScanCandidates(candidates: ImportCandidate[]): Promise<ImportScanReport> {
+      const imported: Game[] = [];
+      const items: ImportScanReportItem[] = [];
+      let added = 0;
+      let merged = 0;
+      let replaced = 0;
+      let duplicated = 0;
+      let skipped = 0;
+
+      const reportItem = (candidate: ImportCandidate, action: ImportScanReportItem['action'], game: Game | null, conflict: ScanConflict | null, message: string): ImportScanReportItem => ({
+        candidateTitle: candidate.title,
+        installPath: candidate.installPath,
+        action,
+        gameId: game?.id ?? null,
+        targetTitle: game?.title ?? conflict?.title ?? null,
+        conflictReason: conflict?.reason ?? null,
+        message,
+      });
+
+      for (const candidate of candidates) {
+        const games = readGames().map(ensureGameDefaults);
+        const conflict = findScanConflict(games, candidate.installPath, candidate.title);
+        const action = candidate.conflictAction ?? (conflict ? 'skip' : 'duplicate');
+        if (conflict && action === 'skip') {
+          skipped += 1;
+          items.push(reportItem(candidate, 'skip', null, conflict, '已跳过与现有记录冲突的候选'));
+          continue;
+        }
+        if (conflict && action === 'merge') {
+          if (candidate.conflictGameId && candidate.conflictGameId !== conflict.gameId) {
+            return Promise.reject(new Error('Conflict target changed; rescan before merging'));
+          }
+          const existing = games.find((game) => game.id === conflict.gameId);
+          if (!existing) return Promise.reject(new Error('Conflict game not found'));
+          const aliases = [...new Set([...(existing.aliases ?? []), ...(candidate.aliases ?? []), existing.title, candidate.title].map((item) => item.trim()).filter(Boolean))];
+          const updated = await updateGame(existing.id, {
+            aliases,
+            installPath: candidate.installPath,
+            executablePath: candidate.executablePath ?? undefined,
+            workingDirectory: candidate.installPath,
+            pathStatus: 'unknown',
+            lastPathCheckedAt: null,
+          });
+          merged += 1;
+          items.push(reportItem(candidate, 'merge', updated, conflict, '已合并到现有记录'));
+          imported.push(updated);
+          continue;
+        }
+        if (conflict && action === 'replace') {
+          if (candidate.conflictGameId && candidate.conflictGameId !== conflict.gameId) {
+            return Promise.reject(new Error('Conflict target changed; rescan before replacing'));
+          }
+          const updated = await updateGame(conflict.gameId, {
+            title: candidate.title,
+            aliases: candidate.aliases ?? [],
+            installPath: candidate.installPath,
+            executablePath: candidate.executablePath ?? undefined,
+            workingDirectory: candidate.installPath,
+            pathStatus: 'unknown',
+            lastPathCheckedAt: null,
+          });
+          replaced += 1;
+          items.push(reportItem(candidate, 'replace', updated, conflict, '已替换现有数据库记录'));
+          imported.push(updated);
+          continue;
+        }
+        if (conflict && action === 'duplicate' && !candidate.allowDuplicate) {
+          return Promise.reject(new Error(`Candidate conflicts with existing game: ${conflict.title}`));
+        }
+        if (!conflict && action === 'skip') {
+          skipped += 1;
+          items.push(reportItem(candidate, 'skip', null, null, '候选未冲突，仍被跳过'));
+          continue;
+        }
+        const game = await addGame({
+          title: candidate.title,
+          installPath: candidate.installPath,
+          executablePath: candidate.executablePath ?? undefined,
+          workingDirectory: candidate.installPath,
+          aliases: candidate.aliases,
+          genres: ['Visual Novel'],
+        });
+        if (conflict && action === 'duplicate') {
+          duplicated += 1;
+          items.push(reportItem(candidate, 'duplicate', game, conflict, '已作为副本导入'));
+        } else {
+          added += 1;
+          items.push(reportItem(candidate, 'add', game, null, '已新增游戏记录'));
+        }
+        imported.push(game);
+      }
+      return { requested: candidates.length, importedCount: imported.length, added, merged, replaced, duplicated, skipped, imported, items };
     },
   };
 }
