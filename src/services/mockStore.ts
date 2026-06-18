@@ -3,7 +3,7 @@ import type { AdvancedSearchInput, AdvancedSearchResult, AiConnectionTestResult,
 import type { TaskDetail, TaskLogEntry, TaskRecord } from '@/types/task';
 import { mockArtworkRepairDiagnosis, mockArtworkRepairPreview, mockDescriptionImageCandidates } from './mockStoreArtworkRepair';
 import { createMockStoreArchives } from './mockStoreArchives';
-import { defaultSettings, mockMetadata, sampleGames, sampleHeroUrl } from './mockStoreFixtures';
+import { mockMetadata, sampleGames, sampleHeroUrl } from './mockStoreFixtures';
 import { createMockStoreAssets, readAssets, syncGameCompatibilityAssets, writeAssets } from './mockStoreAssets';
 import { createMockStoreCollections, readCollectionLinks, writeCollectionLinks } from './mockStoreCollections';
 import { mockDuplicateExternalIdPreview, mockDuplicateGameMergePreview } from './mockStoreDuplicates';
@@ -14,7 +14,8 @@ import { cleanTitle, metadataStatusMatches, mockMatchesClause, parseMockSearch, 
 import { createMockStorePlaySessions } from './mockStorePlaySessions';
 import { createMockStoreScanner } from './mockStoreScanner';
 import { createMockStoreSaves } from './mockStoreSaves';
-import { BATCH_KEY, FIELD_LOCKS_KEY, SAVED_SEARCHES_KEY, SETTINGS_KEY, STORAGE_KEY, readJson, readSettings, writeJson } from './mockStoreStorage';
+import { createMockStoreSettings } from './mockStoreSettings';
+import { BATCH_KEY, FIELD_LOCKS_KEY, SAVED_SEARCHES_KEY, STORAGE_KEY, readJson, readSettings, writeJson } from './mockStoreStorage';
 import { createMockStoreTags } from './mockStoreTags';
 import { addTaskLog, makeTask, readTaskLogs, readTasks, reportGapExamplesLog, reportGapSummaryLog, writeTasks } from './mockStoreTasks';
 
@@ -159,6 +160,7 @@ export const mockStore = {
   ...createMockStoreCollections(readGames),
   ...createMockStoreTags(readGames, writeGames),
   ...createMockStoreAssets({ readGames, getGame: getMockGame, updateGame: updateMockGame }),
+  ...createMockStoreSettings(),
   ...mockLaunchProfiles,
   ...createMockStorePlaySessions({ readGames, writeGames, listLaunchProfiles: mockLaunchProfiles.listLaunchProfiles }),
   ...createMockStoreScanner({ readGames, addGame: addMockGame, updateGame: updateMockGame }),
@@ -686,15 +688,6 @@ export const mockStore = {
       model: settings.ai_model || 'gpt-4o-mini',
       message: 'Browser preview mock AI connection is available',
     });
-  },
-
-  getAppSettings(): Promise<Record<string, string>> {
-    return Promise.resolve(readSettings());
-  },
-
-  setAppSettings(settings: Record<string, string>) {
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify({ ...defaultSettings, ...settings }));
-    return Promise.resolve();
   },
 
   listTasks(limit = 50): Promise<TaskRecord[]> {
