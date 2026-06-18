@@ -1,5 +1,5 @@
 import type { AddGameInput, Game, GameFilter, GamePathHealth, PathCheckItem, PlayStatus, UpdateGameInput } from '@/types/game';
-import type { DuplicateExternalIdAuditOptions, DuplicateExternalIdPreview, DuplicateGameMergeOptions, DuplicateGameMergePreview, DuplicateGameMergeResult, FieldLock } from '@/types/metadata';
+import type { FieldLock } from '@/types/metadata';
 import type { TaskRecord } from '@/types/task';
 import { createMockStoreArtworkRepair } from './mockStoreArtworkRepair';
 import { createMockStoreAi } from './mockStoreAi';
@@ -7,7 +7,7 @@ import { createMockStoreArchives } from './mockStoreArchives';
 import { sampleGames } from './mockStoreFixtures';
 import { createMockStoreAssets, readAssets, syncGameCompatibilityAssets, writeAssets } from './mockStoreAssets';
 import { createMockStoreCollections, readCollectionLinks, writeCollectionLinks } from './mockStoreCollections';
-import { mockDuplicateExternalIdPreview, mockDuplicateGameMergePreview } from './mockStoreDuplicates';
+import { createMockStoreDuplicates } from './mockStoreDuplicates';
 import { cleanList, ensureGameDefaults, makeGame } from './mockStoreGames';
 import { createMockStoreDiagnostics } from './mockStoreDiagnostics';
 import { createMockStoreLaunchProfiles } from './mockStoreLaunchProfiles';
@@ -21,7 +21,7 @@ import { createMockStoreSaves } from './mockStoreSaves';
 import { createMockStoreSettings } from './mockStoreSettings';
 import { FIELD_LOCKS_KEY, STORAGE_KEY, readJson } from './mockStoreStorage';
 import { createMockStoreTags } from './mockStoreTags';
-import { addTaskLog, createMockStoreTaskQueries, makeTask } from './mockStoreTasks';
+import { createMockStoreTaskQueries, makeTask } from './mockStoreTasks';
 
 function readGames() {
   const raw = localStorage.getItem(STORAGE_KEY);
@@ -45,56 +45,6 @@ function writeGames(games: Game[]) {
 function getMockGame(id: string) {
   const game = readGames().map(ensureGameDefaults).find((item) => item.id === id);
   return game ? Promise.resolve(game) : Promise.reject(new Error('Game not found'));
-}
-
-function mockMergeDuplicateGames(options: DuplicateGameMergeOptions): DuplicateGameMergeResult {
-  const games = readGames().map(ensureGameDefaults);
-  const preview = mockDuplicateGameMergePreview(games, {
-    collectionLinks: readCollectionLinks(),
-    assets: readAssets(),
-    fieldLocks: readJson<Record<string, FieldLock[]>>(FIELD_LOCKS_KEY, {}),
-  }, options);
-  const target = games.find((game) => game.id === options.targetGameId);
-  const sources = options.sourceGameIds.map((id) => games.find((game) => game.id === id)).filter(Boolean) as Game[];
-  if (!target) throw new Error('target game not found');
-  const merged = sources.reduce((current, source) => ({
-    ...current,
-    aliases: cleanList([...current.aliases, source.title, source.originalTitle ?? '', ...source.aliases]),
-    tags: cleanList([...current.tags, ...source.tags]),
-    genres: cleanList([...current.genres, ...source.genres]),
-    originalTitle: current.originalTitle || source.originalTitle,
-    developer: current.developer || source.developer,
-    publisher: current.publisher || source.publisher,
-    brand: current.brand || source.brand,
-    releaseDate: current.releaseDate || source.releaseDate,
-    description: current.description || source.description,
-    notes: current.notes || source.notes,
-    rating: current.rating ?? source.rating,
-    ageRating: current.ageRating || source.ageRating,
-    favorite: current.favorite || source.favorite,
-    executablePath: current.executablePath || source.executablePath,
-    workingDirectory: current.workingDirectory || source.workingDirectory,
-    launchArgs: current.launchArgs || source.launchArgs,
-    coverImage: current.coverImage || source.coverImage,
-    bannerImage: current.bannerImage || source.bannerImage,
-    backgroundImage: current.backgroundImage || source.backgroundImage,
-    vndbId: current.vndbId || source.vndbId,
-    bangumiId: current.bangumiId || source.bangumiId,
-    dlsiteId: current.dlsiteId || source.dlsiteId,
-    fanzaId: current.fanzaId || source.fanzaId,
-    ymgalId: current.ymgalId || source.ymgalId,
-    totalPlaySeconds: current.totalPlaySeconds + source.totalPlaySeconds,
-    lastPlayedAt: [current.lastPlayedAt, source.lastPlayedAt].filter(Boolean).sort().at(-1) ?? null,
-    updatedAt: new Date().toISOString(),
-  }), target);
-  const sourceIds = new Set(options.sourceGameIds);
-  writeGames(games.filter((game) => !sourceIds.has(game.id)).map((game) => game.id === merged.id ? merged : game));
-  writeCollectionLinks(readCollectionLinks().map((link) => sourceIds.has(link.gameId) ? { ...link, gameId: merged.id } : link)
-    .filter((link, index, links) => links.findIndex((item) => item.collectionId === link.collectionId && item.gameId === link.gameId) === index));
-  writeAssets(readAssets().map((asset) => sourceIds.has(asset.gameId) ? { ...asset, gameId: merged.id, updatedAt: new Date().toISOString() } : asset)
-    .filter((asset, index, assets) => assets.findIndex((item) => item.gameId === asset.gameId && item.assetType === asset.assetType && item.uri === asset.uri) === index));
-  syncGameCompatibilityAssets(merged);
-  return { mergedGame: merged, deletedSourceGameIds: [...sourceIds], movedCounts: preview.movedCounts, warnings: preview.warnings };
 }
 
 function addMockGame(input: AddGameInput): Promise<Game> {
@@ -152,6 +102,16 @@ export const mockStore = {
   ...createMockStoreSavedSearches(),
   ...createMockStoreAi(),
   ...createMockStoreArtworkRepair({ readGames, writeGames }),
+  ...createMockStoreDuplicates({
+    readGames,
+    writeGames,
+    readCollectionLinks,
+    writeCollectionLinks,
+    readAssets,
+    writeAssets,
+    syncGameCompatibilityAssets,
+    readFieldLocks: () => readJson<Record<string, FieldLock[]>>(FIELD_LOCKS_KEY, {}),
+  }),
   ...mockMetadataRecords,
   ...createMockStoreMetadata({
     readGames,
@@ -291,47 +251,6 @@ export const mockStore = {
     writeGames(readGames().filter((game) => game.id !== id));
     writeCollectionLinks(readCollectionLinks().filter((link) => link.gameId !== id));
     return Promise.resolve();
-  },
-
-  previewDuplicateExternalIds(options: DuplicateExternalIdAuditOptions = {}): Promise<DuplicateExternalIdPreview> {
-    return Promise.resolve(mockDuplicateExternalIdPreview(readGames().map(ensureGameDefaults), options));
-  },
-
-  auditDuplicateExternalIds(options: DuplicateExternalIdAuditOptions = {}): Promise<TaskRecord> {
-    const preview = mockDuplicateExternalIdPreview(readGames().map(ensureGameDefaults), options);
-    if (preview.totalGroups === 0) return Promise.reject(new Error('no duplicate external ids'));
-    const task = makeTask({
-      taskType: 'metadata.duplicate_id_audit',
-      status: 'completed',
-      progress: 1,
-      message: `重复外部 ID 审查完成：发现 ${preview.totalGroups} 组，涉及 ${preview.totalGames} 个游戏记录`,
-      retryPayload: JSON.stringify({ providers: options.providers ?? null, limit: options.limit ?? 50, retryAttempted: Boolean(options.retryAttempted) }),
-      retryable: true,
-    });
-    for (const group of preview.groups) {
-      addTaskLog(task.id, 'warn', `重复组：${group.provider} ${group.externalId}，${group.gameCount} 个游戏：${group.games.map((game) => `${game.title} [${game.gameId}]`).join(' | ')}`);
-    }
-    return Promise.resolve(task);
-  },
-
-  previewDuplicateGameMerge(options: DuplicateGameMergeOptions): Promise<DuplicateGameMergePreview> {
-    try {
-      return Promise.resolve(mockDuplicateGameMergePreview(readGames().map(ensureGameDefaults), {
-        collectionLinks: readCollectionLinks(),
-        assets: readAssets(),
-        fieldLocks: readJson<Record<string, FieldLock[]>>(FIELD_LOCKS_KEY, {}),
-      }, options));
-    } catch (reason) {
-      return Promise.reject(reason);
-    }
-  },
-
-  mergeDuplicateGames(options: DuplicateGameMergeOptions): Promise<DuplicateGameMergeResult> {
-    try {
-      return Promise.resolve(mockMergeDuplicateGames(options));
-    } catch (reason) {
-      return Promise.reject(reason);
-    }
   },
 
   async retryTask(id: string): Promise<TaskRecord> {

@@ -1,6 +1,8 @@
 import type { CollectionGameLink, Game, GameAsset } from '@/types/game';
-import type { DuplicateExternalIdAuditOptions, DuplicateExternalIdGroup, DuplicateExternalIdPreview, DuplicateGameMergeExternalId, DuplicateGameMergeOptions, DuplicateGameMergePreview, FieldLock } from '@/types/metadata';
-import { cleanList } from './mockStoreGames';
+import type { DuplicateExternalIdAuditOptions, DuplicateExternalIdGroup, DuplicateExternalIdPreview, DuplicateGameMergeExternalId, DuplicateGameMergeOptions, DuplicateGameMergePreview, DuplicateGameMergeResult, FieldLock } from '@/types/metadata';
+import type { TaskRecord } from '@/types/task';
+import { cleanList, ensureGameDefaults } from './mockStoreGames';
+import { addTaskLog, makeTask } from './mockStoreTasks';
 
 function mockExternalIdEntries(games: Game[], options: DuplicateExternalIdAuditOptions = {}) {
   const providers = (options.providers ?? []).map((provider) => String(provider).trim().toLowerCase()).filter(Boolean);
@@ -100,4 +102,119 @@ export function mockDuplicateGameMergePreview(
     lastPlayedAt: game.lastPlayedAt ?? null,
   });
   return { target: summary(target), sources: sources.map(summary), sharedExternalIds: [...shared.values()], movedCounts, warnings };
+}
+
+type MockStoreDuplicateDependencies = {
+  readGames: () => Game[];
+  writeGames: (games: Game[]) => void;
+  readCollectionLinks: () => CollectionGameLink[];
+  writeCollectionLinks: (links: CollectionGameLink[]) => void;
+  readAssets: () => GameAsset[];
+  writeAssets: (assets: GameAsset[]) => void;
+  syncGameCompatibilityAssets: (game: Game) => void;
+  readFieldLocks: () => Record<string, FieldLock[]>;
+};
+
+export function createMockStoreDuplicates({
+  readGames,
+  writeGames,
+  readCollectionLinks,
+  writeCollectionLinks,
+  readAssets,
+  writeAssets,
+  syncGameCompatibilityAssets,
+  readFieldLocks,
+}: MockStoreDuplicateDependencies) {
+  const mergeDuplicateGames = (options: DuplicateGameMergeOptions): DuplicateGameMergeResult => {
+    const games = readGames().map(ensureGameDefaults);
+    const preview = mockDuplicateGameMergePreview(games, {
+      collectionLinks: readCollectionLinks(),
+      assets: readAssets(),
+      fieldLocks: readFieldLocks(),
+    }, options);
+    const target = games.find((game) => game.id === options.targetGameId);
+    const sources = options.sourceGameIds.map((id) => games.find((game) => game.id === id)).filter(Boolean) as Game[];
+    if (!target) throw new Error('target game not found');
+    const merged = sources.reduce((current, source) => ({
+      ...current,
+      aliases: cleanList([...current.aliases, source.title, source.originalTitle ?? '', ...source.aliases]),
+      tags: cleanList([...current.tags, ...source.tags]),
+      genres: cleanList([...current.genres, ...source.genres]),
+      originalTitle: current.originalTitle || source.originalTitle,
+      developer: current.developer || source.developer,
+      publisher: current.publisher || source.publisher,
+      brand: current.brand || source.brand,
+      releaseDate: current.releaseDate || source.releaseDate,
+      description: current.description || source.description,
+      notes: current.notes || source.notes,
+      rating: current.rating ?? source.rating,
+      ageRating: current.ageRating || source.ageRating,
+      favorite: current.favorite || source.favorite,
+      executablePath: current.executablePath || source.executablePath,
+      workingDirectory: current.workingDirectory || source.workingDirectory,
+      launchArgs: current.launchArgs || source.launchArgs,
+      coverImage: current.coverImage || source.coverImage,
+      bannerImage: current.bannerImage || source.bannerImage,
+      backgroundImage: current.backgroundImage || source.backgroundImage,
+      vndbId: current.vndbId || source.vndbId,
+      bangumiId: current.bangumiId || source.bangumiId,
+      dlsiteId: current.dlsiteId || source.dlsiteId,
+      fanzaId: current.fanzaId || source.fanzaId,
+      ymgalId: current.ymgalId || source.ymgalId,
+      totalPlaySeconds: current.totalPlaySeconds + source.totalPlaySeconds,
+      lastPlayedAt: [current.lastPlayedAt, source.lastPlayedAt].filter(Boolean).sort().at(-1) ?? null,
+      updatedAt: new Date().toISOString(),
+    }), target);
+    const sourceIds = new Set(options.sourceGameIds);
+    writeGames(games.filter((game) => !sourceIds.has(game.id)).map((game) => game.id === merged.id ? merged : game));
+    writeCollectionLinks(readCollectionLinks().map((link) => sourceIds.has(link.gameId) ? { ...link, gameId: merged.id } : link)
+      .filter((link, index, links) => links.findIndex((item) => item.collectionId === link.collectionId && item.gameId === link.gameId) === index));
+    writeAssets(readAssets().map((asset) => sourceIds.has(asset.gameId) ? { ...asset, gameId: merged.id, updatedAt: new Date().toISOString() } : asset)
+      .filter((asset, index, assets) => assets.findIndex((item) => item.gameId === asset.gameId && item.assetType === asset.assetType && item.uri === asset.uri) === index));
+    syncGameCompatibilityAssets(merged);
+    return { mergedGame: merged, deletedSourceGameIds: [...sourceIds], movedCounts: preview.movedCounts, warnings: preview.warnings };
+  };
+
+  return {
+    previewDuplicateExternalIds(options: DuplicateExternalIdAuditOptions = {}): Promise<DuplicateExternalIdPreview> {
+      return Promise.resolve(mockDuplicateExternalIdPreview(readGames().map(ensureGameDefaults), options));
+    },
+
+    auditDuplicateExternalIds(options: DuplicateExternalIdAuditOptions = {}): Promise<TaskRecord> {
+      const preview = mockDuplicateExternalIdPreview(readGames().map(ensureGameDefaults), options);
+      if (preview.totalGroups === 0) return Promise.reject(new Error('no duplicate external ids'));
+      const task = makeTask({
+        taskType: 'metadata.duplicate_id_audit',
+        status: 'completed',
+        progress: 1,
+        message: `重复外部 ID 审查完成：发现 ${preview.totalGroups} 组，涉及 ${preview.totalGames} 个游戏记录`,
+        retryPayload: JSON.stringify({ providers: options.providers ?? null, limit: options.limit ?? 50, retryAttempted: Boolean(options.retryAttempted) }),
+        retryable: true,
+      });
+      for (const group of preview.groups) {
+        addTaskLog(task.id, 'warn', `重复组：${group.provider} ${group.externalId}，${group.gameCount} 个游戏：${group.games.map((game) => `${game.title} [${game.gameId}]`).join(' | ')}`);
+      }
+      return Promise.resolve(task);
+    },
+
+    previewDuplicateGameMerge(options: DuplicateGameMergeOptions): Promise<DuplicateGameMergePreview> {
+      try {
+        return Promise.resolve(mockDuplicateGameMergePreview(readGames().map(ensureGameDefaults), {
+          collectionLinks: readCollectionLinks(),
+          assets: readAssets(),
+          fieldLocks: readFieldLocks(),
+        }, options));
+      } catch (reason) {
+        return Promise.reject(reason);
+      }
+    },
+
+    mergeDuplicateGames(options: DuplicateGameMergeOptions): Promise<DuplicateGameMergeResult> {
+      try {
+        return Promise.resolve(mergeDuplicateGames(options));
+      } catch (reason) {
+        return Promise.reject(reason);
+      }
+    },
+  };
 }
