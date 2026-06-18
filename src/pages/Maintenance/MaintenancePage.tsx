@@ -10,7 +10,6 @@ import type { AssetCacheCleanupResult, LibraryFilterPreset } from '@/types/game'
 import type { ArtworkRepairDiagnosis, DuplicateExternalIdGroup, DuplicateGameMergePreview } from '@/types/metadata';
 import type { TaskRecord } from '@/types/task';
 import { errorMessage } from '@/utils/errorMessage';
-import { taskLabel } from '@/utils/taskLabels';
 import { summarizeArtworkRepairTask, type ArtworkRepairTaskSummary } from './ArtworkRepairResultPanel';
 import type { BatchMatchHistorySummary } from './BatchMatchResultPanel';
 import { summarizeDescriptionImageRepairTask, type DescriptionImageRepairTaskSummary } from './DescriptionImageRepairResultPanel';
@@ -26,7 +25,8 @@ import { MaintenanceImageAuditPanel } from './MaintenanceImageAuditPanel';
 import { MaintenanceOverviewPanels } from './MaintenanceOverviewPanels';
 import { MaintenanceQueuePanel } from './MaintenanceQueuePanel';
 import { MaintenanceTasksPanel } from './MaintenanceTasksPanel';
-import { duplicateGroupKey, formatBytes, formatCount, isActiveTask, isMaintenanceTask, matchesMaintenanceTaskFilter, percent, providerLabel, recommendDuplicateMergeTarget, summarizeMaintenanceTasks, type MaintenanceTaskFilter } from './MaintenancePageParts';
+import { duplicateGroupKey, formatBytes, formatCount, percent, providerLabel, recommendDuplicateMergeTarget } from './MaintenancePageParts';
+import { useMaintenanceTasks } from './useMaintenanceTasks';
 
 type TaskMessage = { text: string; taskId?: string | null };
 
@@ -81,21 +81,28 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
   const [mergeLoading, setMergeLoading] = useState(false);
   const [message, setMessage] = useState<TaskMessage | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [maintenanceTasks, setMaintenanceTasks] = useState<TaskRecord[]>([]);
-  const [maintenanceTasksLoading, setMaintenanceTasksLoading] = useState(false);
-  const [maintenanceTaskActionId, setMaintenanceTaskActionId] = useState<string | null>(null);
-  const [maintenanceTaskFilter, setMaintenanceTaskFilter] = useState<MaintenanceTaskFilter>('all');
+  const {
+    cancelMaintenanceTask,
+    filteredMaintenanceTasks,
+    loadMaintenanceTasks,
+    maintenanceTaskActionId,
+    maintenanceTaskFilter,
+    maintenanceTaskShortcuts,
+    maintenanceTaskSummary,
+    maintenanceTasks,
+    maintenanceTasksLoading,
+    retryMaintenanceTask,
+    setMaintenanceTaskFilter,
+  } = useMaintenanceTasks({
+    onTaskRetried: refreshRetriedMaintenanceTaskHistory,
+    setError,
+    setMessage,
+  });
 
   useEffect(() => {
     void loadDiagnostics();
     void loadMaintenanceTasks();
-  }, [refreshKey]);
-
-  useEffect(() => {
-    if (!maintenanceTasks.some(isActiveTask)) return;
-    const timer = window.setInterval(() => void loadMaintenanceTasks({ quiet: true }), 2000);
-    return () => window.clearInterval(timer);
-  }, [maintenanceTasks]);
+  }, [loadMaintenanceTasks, refreshKey]);
 
   useEffect(() => {
     if (focusSection !== 'image-audit' || handledFocusKeyRef.current === focusRequestKey) return;
@@ -139,14 +146,6 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
   const recommendedMergeTargetId = useMemo(() => recommendDuplicateMergeTarget(selectedDuplicateGroup), [selectedDuplicateGroup]);
   const mergeSourceIds = useMemo(() => selectedDuplicateGroup?.games.map((game) => game.gameId).filter((id) => id !== mergeTargetId) ?? [], [mergeTargetId, selectedDuplicateGroup]);
   const duplicateGroupFiltersActive = duplicateGroupQuery.trim().length > 0 || duplicateGroupProvider !== 'all';
-  const maintenanceTaskSummary = useMemo(() => summarizeMaintenanceTasks(maintenanceTasks), [maintenanceTasks]);
-  const maintenanceTaskShortcuts = useMemo(() => [
-    { id: 'all', label: '全部', count: maintenanceTasks.length },
-    { id: 'active', label: '进行中', count: maintenanceTaskSummary.activeCount },
-    { id: 'attention', label: '需处理', count: maintenanceTaskSummary.attentionCount },
-    { id: 'completed', label: '已完成', count: maintenanceTaskSummary.completedCount },
-  ] as const, [maintenanceTaskSummary, maintenanceTasks.length]);
-  const filteredMaintenanceTasks = useMemo(() => maintenanceTasks.filter((task) => matchesMaintenanceTaskFilter(task, maintenanceTaskFilter)), [maintenanceTaskFilter, maintenanceTasks]);
   const resetDuplicateGroupFilters = () => {
     setDuplicateGroupQuery('');
     setDuplicateGroupProvider('all');
@@ -413,48 +412,11 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
     }
   }
 
-  async function loadMaintenanceTasks(options?: { quiet?: boolean }) {
-    if (!options?.quiet) setMaintenanceTasksLoading(true);
-    try {
-      const tasks = (await api.listTasks(100)).filter(isMaintenanceTask).slice(0, 8);
-      setMaintenanceTasks(tasks);
-    } catch (reason) {
-      if (!options?.quiet) setError(errorMessage(reason));
-    } finally {
-      if (!options?.quiet) setMaintenanceTasksLoading(false);
-    }
-  }
-
-  async function retryMaintenanceTask(id: string) {
-    setMaintenanceTaskActionId(id);
-    setError(null);
-    try {
-      const task = await api.retryTask(id);
-      setMessage({ text: `已重新创建维护任务：${taskLabel(task.taskType)}。`, taskId: task.id });
-      await loadMaintenanceTasks({ quiet: true });
-      if (task.taskType === 'metadata.batch_match') await loadBatchMatchHistory({ quiet: true });
-      if (task.taskType === 'metadata.description_image_repair') await loadDescriptionRepairHistory({ quiet: true });
-      if (task.taskType === 'metadata.artwork_repair') await loadArtworkHistory({ quiet: true });
-      if (task.taskType === 'metadata.duplicate_id_audit') await loadDuplicateAuditHistory({ quiet: true });
-    } catch (reason) {
-      setError(errorMessage(reason));
-    } finally {
-      setMaintenanceTaskActionId(null);
-    }
-  }
-
-  async function cancelMaintenanceTask(id: string) {
-    setMaintenanceTaskActionId(id);
-    setError(null);
-    try {
-      const task = await api.cancelTask(id);
-      setMessage({ text: `已取消维护任务：${taskLabel(task.taskType)}。`, taskId: task.id });
-      await loadMaintenanceTasks({ quiet: true });
-    } catch (reason) {
-      setError(errorMessage(reason));
-    } finally {
-      setMaintenanceTaskActionId(null);
-    }
+  async function refreshRetriedMaintenanceTaskHistory(task: TaskRecord) {
+    if (task.taskType === 'metadata.batch_match') await loadBatchMatchHistory({ quiet: true });
+    if (task.taskType === 'metadata.description_image_repair') await loadDescriptionRepairHistory({ quiet: true });
+    if (task.taskType === 'metadata.artwork_repair') await loadArtworkHistory({ quiet: true });
+    if (task.taskType === 'metadata.duplicate_id_audit') await loadDuplicateAuditHistory({ quiet: true });
   }
 
   async function loadImageAudit() {

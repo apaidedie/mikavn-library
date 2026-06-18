@@ -54,3 +54,10 @@ test('default source budgets cover frontend, Rust service, and smoke runner hot 
     assert.match(watchedPaths, new RegExp(expectedPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   }
 });
+
+test('maintenance page budget keeps page-level orchestration small', () => {
+  const budget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('src/pages/Maintenance/MaintenancePage.tsx'));
+
+  assert.ok(budget);
+  assert.ok(budget.maxLines <= 760);
+});
