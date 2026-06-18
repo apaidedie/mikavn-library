@@ -14,10 +14,24 @@ import { api } from '@/services/api';
 import { chooseDirectory, chooseExecutable, chooseImage } from '@/services/dialog';
 import type { Game, GameFormInput, PlayStatus } from '@/types/game';
 import { PLAY_STATUS_LABEL } from '@/types/game';
-import { PROVIDER_LABEL, type MetadataSearchResult, type NormalizedMetadata } from '@/types/metadata';
+import type { MetadataSearchResult } from '@/types/metadata';
 import { cn } from '@/utils/cn';
 import { errorMessage } from '@/utils/errorMessage';
 import { friendlyMetadataErrors, metadataErrorMessage } from '@/utils/metadataErrors';
+import {
+  candidateKey,
+  guessTitleFromPath,
+  guessTitleSourceFromExecutable,
+  initialGameFormState,
+  mergeListText,
+  mergeMetadataIntoForm,
+  parentPath,
+  providerLabel,
+  resultToMetadata,
+  toGameFormInput,
+  type GameFormState,
+  type MetadataMergeMode,
+} from './gameFormMapping';
 
 type GameFormProps = {
   game?: Game | null;
@@ -25,41 +39,10 @@ type GameFormProps = {
   onCancel: () => void;
 };
 
-type MetadataMergeMode = 'fill-empty' | 'replace';
-
 const statusOptions: PlayStatus[] = ['planned', 'playing', 'completed', 'paused', 'archived'];
 
 export function GameForm({ game, onSubmit, onCancel }: GameFormProps) {
-  const initial = useMemo(() => ({
-    title: game?.title ?? '',
-    originalTitle: game?.originalTitle ?? '',
-    aliases: game?.aliases.join(', ') ?? '',
-    developer: game?.developer ?? '',
-    publisher: game?.publisher ?? '',
-    brand: game?.brand ?? '',
-    releaseDate: game?.releaseDate ?? '',
-    description: game?.description ?? '',
-    notes: game?.notes ?? '',
-    tags: game?.tags.join(', ') ?? '',
-    genres: game?.genres.join(', ') ?? '',
-    rating: game?.rating?.toString() ?? '',
-    ageRating: game?.ageRating ?? '',
-    playStatus: game?.playStatus ?? 'planned',
-    installPath: game?.installPath ?? '',
-    executablePath: game?.executablePath ?? '',
-    workingDirectory: game?.workingDirectory ?? '',
-    launchArgs: game?.launchArgs ?? '',
-    coverImage: game?.coverImage ?? '',
-    bannerImage: game?.bannerImage ?? '',
-    backgroundImage: game?.backgroundImage ?? '',
-    vndbId: game?.vndbId ?? '',
-    dlsiteId: game?.dlsiteId ?? '',
-    fanzaId: game?.fanzaId ?? '',
-    bangumiId: game?.bangumiId ?? '',
-    ymgalId: game?.ymgalId ?? '',
-    favorite: game?.favorite ?? false,
-    hidden: game?.hidden ?? false,
-  }), [game]);
+  const initial = useMemo(() => initialGameFormState(game), [game]);
 
   const [form, setForm] = useState(initial);
   const [saving, setSaving] = useState(false);
@@ -82,7 +65,7 @@ export function GameForm({ game, onSubmit, onCancel }: GameFormProps) {
     setAdvancedOpen(Boolean(game));
   }, [game, initial]);
 
-  const update = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value }));
+  const update = (key: keyof GameFormState, value: string) => setForm((current) => ({ ...current, [key]: value }));
   const updateBool = (key: 'favorite' | 'hidden', value: boolean) => setForm((current) => ({ ...current, [key]: value }));
 
   const copyPath = async (label: string, value: string) => {
@@ -153,38 +136,7 @@ export function GameForm({ game, onSubmit, onCancel }: GameFormProps) {
     setSaving(true);
     setError(null);
     try {
-      await onSubmit({
-        title: form.title,
-        originalTitle: form.originalTitle,
-        aliases: splitList(form.aliases),
-        developer: form.developer,
-        publisher: form.publisher,
-        brand: form.brand,
-        releaseDate: form.releaseDate,
-        description: form.description,
-        notes: form.notes,
-        tags: splitList(form.tags),
-        genres: splitList(form.genres),
-        rating: form.rating ? Number(form.rating) : null,
-        ageRating: form.ageRating,
-        playStatus: form.playStatus as PlayStatus,
-        installPath: form.installPath,
-        executablePath: form.executablePath,
-        workingDirectory: form.workingDirectory,
-        launchArgs: form.launchArgs,
-        pathStatus: game?.pathStatus ?? 'unknown',
-        lastPathCheckedAt: game?.lastPathCheckedAt ?? null,
-        coverImage: form.coverImage,
-        bannerImage: form.bannerImage,
-        backgroundImage: form.backgroundImage,
-        vndbId: form.vndbId,
-        dlsiteId: form.dlsiteId,
-        fanzaId: form.fanzaId,
-        bangumiId: form.bangumiId,
-        ymgalId: form.ymgalId,
-        favorite: form.favorite,
-        hidden: form.hidden,
-      });
+      await onSubmit(toGameFormInput(form, game));
     } catch (reason) {
       setError(errorMessage(reason));
     } finally {
@@ -442,97 +394,6 @@ function CopyableTextInput({ copyLabel, value, onChange, onCopy }: { copyLabel: 
   );
 }
 
-function splitList(value: string) {
-  return value.split(/[,，]/).map((item) => item.trim()).filter(Boolean);
-}
-
-function guessTitleFromPath(value: string) {
-  const clean = value.trim();
-  if (!clean) return '';
-  const normalized = clean.replace(/\\/g, '/');
-  const last = normalized.split('/').filter(Boolean).pop() ?? clean;
-  const withoutExt = last.replace(/\.(exe|bat|cmd|lnk)$/i, '');
-  const withoutDateCircle = withoutExt.replace(/^\[?\d{6}\]?\s*/g, '');
-  return withoutDateCircle
-    .replace(/\[[^\]]*\]/g, ' ')
-    .replace(/[【「『（《〈][^】」』）》〉]*[】」』）》〉]/g, ' ')
-    .replace(/(?:汉化硬盘版|汉化版|硬盘版|绿色版|中文版|DL版|パッケージ版|Windows|Android|iOS|PC)/gi, ' ')
-    .replace(/v(?:er)?\.?\s*[\d.]+[a-z]?/gi, ' ')
-    .replace(/[_＿]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim() || withoutExt.trim();
-}
-
-function parentPath(value: string) {
-  const index = Math.max(value.lastIndexOf('\\'), value.lastIndexOf('/'));
-  return index > 0 ? value.slice(0, index) : '';
-}
-
-function guessTitleSourceFromExecutable(executablePath: string, installPath: string) {
-  const executableTitle = guessTitleFromPath(executablePath).toLowerCase();
-  if (!executableTitle || ['game', 'start', 'launcher', 'launch', 'setup', 'config', 'update', 'uninstall'].includes(executableTitle)) {
-    return installPath || executablePath;
-  }
-  return executablePath;
-}
-
-function mergeListText(current: string, ...items: Array<string | null | undefined>) {
-  const values = [...splitList(current), ...items.map((item) => item?.trim()).filter(Boolean) as string[]];
-  return [...new Set(values)].join(', ');
-}
-
-function mergeMetadataIntoForm(current: typeof initialFormShape, metadata: NormalizedMetadata, guessedTitle: string, mode: MetadataMergeMode = 'fill-empty') {
-  const shouldUse = (value: string) => mode === 'replace' || !value.trim();
-  return {
-    title: shouldUse(current.title) ? metadata.title || guessedTitle : current.title,
-    originalTitle: shouldUse(current.originalTitle) ? metadata.originalTitle || metadata.title || '' : current.originalTitle,
-    aliases: mergeListText(current.aliases, guessedTitle, ...(metadata.aliases ?? [])),
-    developer: shouldUse(current.developer) ? metadata.developers[0] || '' : current.developer,
-    publisher: shouldUse(current.publisher) ? metadata.publishers[0] || '' : current.publisher,
-    releaseDate: shouldUse(current.releaseDate) ? metadata.releaseDate || '' : current.releaseDate,
-    description: shouldUse(current.description) ? metadata.description || '' : current.description,
-    tags: mode === 'replace' ? mergeListText('', ...(metadata.tags ?? [])) : mergeListText(current.tags, ...(metadata.tags ?? [])),
-    genres: mode === 'replace' ? mergeListText('', ...(metadata.genres?.length ? metadata.genres : ['Visual Novel'])) : mergeListText(current.genres, ...(metadata.genres?.length ? metadata.genres : ['Visual Novel'])),
-    coverImage: shouldUse(current.coverImage) ? metadata.images[0] || '' : current.coverImage,
-    vndbId: shouldUse(current.vndbId) ? metadata.externalIds.vndb || '' : current.vndbId,
-    bangumiId: shouldUse(current.bangumiId) ? metadata.externalIds.bangumi || '' : current.bangumiId,
-    dlsiteId: shouldUse(current.dlsiteId) ? metadata.externalIds.dlsite || '' : current.dlsiteId,
-    fanzaId: shouldUse(current.fanzaId) ? metadata.externalIds.fanza || '' : current.fanzaId,
-    ymgalId: shouldUse(current.ymgalId) ? metadata.externalIds.ymgal || '' : current.ymgalId,
-  };
-}
-
-function candidateKey(candidate: MetadataSearchResult) {
-  return `${candidate.provider}:${candidate.id}`;
-}
-
 async function loadMetadataDetail(candidate: MetadataSearchResult) {
   return api.getMetadataDetail(candidate.provider, candidate.id).catch(() => resultToMetadata(candidate));
-}
-
-const initialFormShape = {
-  title: '', originalTitle: '', aliases: '', developer: '', publisher: '', brand: '', releaseDate: '', description: '', notes: '', tags: '', genres: '', rating: '', ageRating: '', playStatus: 'planned' as PlayStatus, installPath: '', executablePath: '', workingDirectory: '', launchArgs: '', coverImage: '', bannerImage: '', backgroundImage: '', vndbId: '', dlsiteId: '', fanzaId: '', bangumiId: '', ymgalId: '', favorite: false, hidden: false,
-};
-
-function resultToMetadata(result: MetadataSearchResult): NormalizedMetadata {
-  return {
-    provider: result.provider,
-    id: result.id,
-    title: result.title,
-    originalTitle: result.provider === 'vndb' ? result.title : null,
-    aliases: [],
-    description: result.description,
-    releaseDate: result.releaseDate,
-    developers: result.developers,
-    publishers: [],
-    tags: result.tags,
-    genres: ['Visual Novel'],
-    images: result.imageUrl ? [result.imageUrl] : [],
-    externalIds: result.externalIds,
-    ageRating: null,
-  };
-}
-
-function providerLabel(value: string) {
-  return value === 'vndb' || value === 'dlsite' || value === 'fanza' ? PROVIDER_LABEL[value] : value;
 }
