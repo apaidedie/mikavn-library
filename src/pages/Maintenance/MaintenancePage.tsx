@@ -23,6 +23,7 @@ import { MaintenanceTasksPanel } from './MaintenanceTasksPanel';
 import { duplicateGroupKey, formatCount, percent, providerLabel, recommendDuplicateMergeTarget } from './MaintenancePageParts';
 import { useMaintenanceDataActions } from './useMaintenanceDataActions';
 import { useMaintenanceHistoryActions } from './useMaintenanceHistoryActions';
+import { useMaintenanceQueueActions } from './useMaintenanceQueueActions';
 import { useMaintenanceTasks } from './useMaintenanceTasks';
 
 type TaskMessage = { text: string; taskId?: string | null };
@@ -38,10 +39,6 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
   const [artworkDiagnosisLoading, setArtworkDiagnosisLoading] = useState(false);
   const [artworkDiagnosisQuery, setArtworkDiagnosisQuery] = useState('');
   const [artworkDiagnosisStatusFilter, setArtworkDiagnosisStatusFilter] = useState('all');
-  const [metadataRepairLoading, setMetadataRepairLoading] = useState(false);
-  const [descriptionRepairLoading, setDescriptionRepairLoading] = useState(false);
-  const [artworkRepairLoading, setArtworkRepairLoading] = useState(false);
-  const [duplicateAuditLoading, setDuplicateAuditLoading] = useState(false);
   const [duplicateGroups, setDuplicateGroups] = useState<DuplicateExternalIdGroup[]>([]);
   const [duplicateGroupsLoading, setDuplicateGroupsLoading] = useState(false);
   const [duplicateGroupQuery, setDuplicateGroupQuery] = useState('');
@@ -124,6 +121,23 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
     onTaskRetried: async (task) => {
       await refreshHistoryForTaskType(task.taskType);
     },
+    setError,
+    setMessage,
+  });
+  const {
+    artworkRepairLoading,
+    descriptionRepairLoading,
+    duplicateAuditLoading,
+    metadataRepairLoading,
+    startArtworkRepair,
+    startDescriptionImageRepair,
+    startDuplicateExternalIdAudit,
+    startMetadataRepair,
+  } = useMaintenanceQueueActions({
+    loadDiagnostics,
+    loadMaintenanceTasks,
+    onOpenTasks,
+    refreshHistoryForTaskType,
     setError,
     setMessage,
   });
@@ -433,101 +447,6 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
       setError(errorMessage(reason));
     } finally {
       setArtworkDiagnosisLoading(false);
-    }
-  }
-
-  async function startMetadataRepair() {
-    setMetadataRepairLoading(true);
-    setError(null);
-    setMessage(null);
-    try {
-      const candidates = await api.listGames({ metadataStatus: 'needs_metadata', sortBy: 'updated_at', sortDirection: 'desc' });
-      const gameIds = candidates.map((game) => game.id);
-      if (gameIds.length === 0) {
-        setMessage({ text: '没有需要批量匹配元数据的条目。' });
-        await loadDiagnostics();
-        return;
-      }
-      const job = await api.batchMatchMetadata(gameIds);
-      const text = `已创建批量元数据匹配任务：${formatCount(gameIds.length)} 个条目。`;
-      setMessage({ text, taskId: job.taskId ?? null });
-      await loadMaintenanceTasks({ quiet: true });
-      if (!await refreshHistoryForTaskType('metadata.batch_match', { onlyIfLoaded: true }) && job.taskId) onOpenTasks?.(job.taskId);
-      await loadDiagnostics();
-    } catch (reason) {
-      setError(errorMessage(reason));
-    } finally {
-      setMetadataRepairLoading(false);
-    }
-  }
-
-  async function startDescriptionImageRepair() {
-    setDescriptionRepairLoading(true);
-    setError(null);
-    setMessage(null);
-    try {
-      const preview = await api.previewDescriptionImageRepair({ provider: 'all', limit: 20, maxImages: 3 });
-      if (preview.totalCandidates === 0) {
-        setMessage({ text: '没有需要修复简介图片的条目。' });
-        await loadDiagnostics();
-        return;
-      }
-      const task = await api.repairDescriptionImages({ provider: 'all', limit: 20, maxImages: 3 });
-      setMessage({ text: `已创建简介图片修复任务：本轮 ${formatCount(preview.candidates.length)} 个条目。`, taskId: task.id });
-      await loadMaintenanceTasks({ quiet: true });
-      if (!await refreshHistoryForTaskType('metadata.description_image_repair', { onlyIfLoaded: true })) onOpenTasks?.(task.id);
-      await loadDiagnostics();
-    } catch (reason) {
-      setError(errorMessage(reason));
-    } finally {
-      setDescriptionRepairLoading(false);
-    }
-  }
-
-  async function startArtworkRepair() {
-    setArtworkRepairLoading(true);
-    setError(null);
-    setMessage(null);
-    try {
-      const options = { providers: ['all'], fields: ['cover', 'banner', 'background'], limit: 20 };
-      const preview = await api.previewArtworkRepair(options);
-      if (preview.totalCandidates === 0) {
-        setMessage({ text: '没有可补全媒体图片的条目。' });
-        await loadDiagnostics();
-        return;
-      }
-      const task = await api.repairArtwork(options);
-      setMessage({ text: `已创建媒体图片补全任务：本轮 ${formatCount(preview.candidates.length)} 个条目，${formatCount(preview.totalMissingFields)} 个字段。`, taskId: task.id });
-      await loadMaintenanceTasks({ quiet: true });
-      if (!await refreshHistoryForTaskType('metadata.artwork_repair', { onlyIfLoaded: true })) onOpenTasks?.(task.id);
-      await loadDiagnostics();
-    } catch (reason) {
-      setError(errorMessage(reason));
-    } finally {
-      setArtworkRepairLoading(false);
-    }
-  }
-
-  async function startDuplicateExternalIdAudit() {
-    setDuplicateAuditLoading(true);
-    setError(null);
-    setMessage(null);
-    try {
-      const preview = await api.previewDuplicateExternalIds({ providers: ['all'], limit: 50 });
-      if (preview.totalGroups === 0) {
-        setMessage({ text: '没有发现重复外部 ID。' });
-        await loadDiagnostics();
-        return;
-      }
-      const task = await api.auditDuplicateExternalIds({ providers: ['all'], limit: 50 });
-      setMessage({ text: `已创建重复 ID 审查任务：${formatCount(preview.totalGroups)} 组，涉及 ${formatCount(preview.totalGames)} 个游戏。`, taskId: task.id });
-      await loadMaintenanceTasks({ quiet: true });
-      if (!await refreshHistoryForTaskType('metadata.duplicate_id_audit', { onlyIfLoaded: true })) onOpenTasks?.(task.id);
-      await loadDiagnostics();
-    } catch (reason) {
-      setError(errorMessage(reason));
-    } finally {
-      setDuplicateAuditLoading(false);
     }
   }
 
