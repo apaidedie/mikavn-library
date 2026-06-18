@@ -1,6 +1,13 @@
 import type { ImportCandidate, ImportScanReport, ImportScanReportItem, ScanCandidate } from '@/types/game';
+import type { ScanTaskStatus } from '@/types/task';
 
 export type ConflictAction = 'skip' | 'merge' | 'replace' | 'duplicate';
+
+export type ScannerCandidateSummary = {
+  candidateCount: number;
+  selectedCount: number;
+  conflictCount: number;
+};
 
 export function buildImportCandidates(candidates: ScanCandidate[], selectedIds: string[], conflictActions: Record<string, ConflictAction>): ImportCandidate[] {
   return candidates
@@ -14,6 +21,31 @@ export function buildImportCandidates(candidates: ScanCandidate[], selectedIds: 
       conflictGameId: candidate.conflict?.gameId ?? null,
       allowDuplicate: candidate.conflict ? conflictActions[candidate.id] === 'duplicate' : false,
     }));
+}
+
+export function deriveScannerCandidateSummary(candidates: ScanCandidate[], selectedIds: string[]): ScannerCandidateSummary {
+  return {
+    candidateCount: candidates.length,
+    selectedCount: selectedIds.length,
+    conflictCount: candidates.filter((candidate) => candidate.conflict).length,
+  };
+}
+
+export function isScanningTaskStatus(scanStatus: Pick<ScanTaskStatus, 'task'> | null | undefined) {
+  return scanStatus?.task.status === 'pending' || scanStatus?.task.status === 'running';
+}
+
+export function selectIdsForConflictAction(selectedIds: string[], id: string, action: ConflictAction) {
+  if (action === 'skip' || selectedIds.includes(id)) return selectedIds;
+  return [...selectedIds, id];
+}
+
+export function filterImportReportItems(report: Pick<ImportScanReport, 'items'>, filters: { actionFilter: string; query: string }) {
+  return report.items.filter((item) => (filters.actionFilter === 'all' || item.action === filters.actionFilter) && matchesImportReportQuery(item, filters.query));
+}
+
+export function shouldResetImportReportFilters(actionFilter: string, query: string) {
+  return actionFilter !== 'all' || Boolean(query.trim());
 }
 
 export function matchesImportReportQuery(item: ImportScanReportItem, query: string) {
