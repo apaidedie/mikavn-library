@@ -74,6 +74,14 @@ test('deriveTaskPageSummary counts states and clamps queue progress', () => {
   ]);
 });
 
+test('formatTaskProgressPercent clamps and rounds task progress', () => {
+  const { formatTaskProgressPercent } = loadTaskPageModel();
+
+  assert.equal(formatTaskProgressPercent(-0.2), '0%');
+  assert.equal(formatTaskProgressPercent(0.456), '46%');
+  assert.equal(formatTaskProgressPercent(1.25), '100%');
+});
+
 test('deriveTaskTypeShortcuts sorts task types by localized label and counts each type', () => {
   const { deriveTaskTypeShortcuts } = loadTaskPageModel();
   const shortcuts = deriveTaskTypeShortcuts([

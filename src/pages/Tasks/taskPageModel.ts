@@ -135,6 +135,10 @@ export function boundedProgress(value: number) {
   return Math.max(0, Math.min(1, value));
 }
 
+export function formatTaskProgressPercent(value: number) {
+  return `${Math.round(boundedProgress(value) * 100)}%`;
+}
+
 export function dateMillis(value: string) {
   const millis = new Date(value).getTime();
   return Number.isFinite(millis) ? millis : 0;
