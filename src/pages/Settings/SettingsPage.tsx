@@ -6,9 +6,9 @@ import { PageFrame, PageHeader, PageShell } from '@/components/ui/page';
 import { TaskNotice } from '@/components/ui/task-notice';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { api } from '@/services/api';
-import { chooseArchiveDirectory, chooseArchivePath, chooseDatabaseBackupPath, chooseDatabaseRestorePath, chooseDirectory } from '@/services/dialog';
+import { chooseArchiveDirectory, chooseArchivePath, chooseDatabaseBackupPath, chooseDatabaseRestorePath } from '@/services/dialog';
 import type { AppDataDiagnostics, LibraryArchivePreview, LogRecord, TrayStatus } from '@/types/archive';
-import type { LibraryRoot, TagRecord } from '@/types/game';
+import type { TagRecord } from '@/types/game';
 import type { MetadataSourceRecord } from '@/types/metadata';
 import { errorMessage } from '@/utils/errorMessage';
 import { AppearanceSettings } from './AppearanceSettings';
@@ -22,6 +22,7 @@ import { SettingsTraySection } from './SettingsTraySection';
 import { DEFAULT_SETTINGS_FORM, settingsFormToAiConnectionRecord, settingsFormToRecord, settingsRecordToForm } from './settingsFormMapping';
 import { formatBytes, getDirectoryLocations, type DirectoryLocationItem } from './SettingsPageParts';
 import type { SettingsForm } from './settingsTypes';
+import { useSettingsLibraryRoots } from './useSettingsLibraryRoots';
 
 type TaskMessage = { text: string; taskId?: string | null };
 export type SettingsTab = 'appearance' | 'sources' | 'local';
@@ -41,15 +42,24 @@ export function SettingsPage({ tabRequest, onAccentPreview, onThemePreview, onSa
   const [savedTrayEnabled, setSavedTrayEnabled] = useState(DEFAULT_SETTINGS_FORM.tray_enabled);
   const [diagnosticsLoading, setDiagnosticsLoading] = useState(false);
   const [cleanupLoading, setCleanupLoading] = useState(false);
-  const [libraryRoots, setLibraryRoots] = useState<LibraryRoot[]>([]);
   const [logs, setLogs] = useState<LogRecord[]>([]);
   const [tags, setTags] = useState<TagRecord[]>([]);
   const [selectedTagId, setSelectedTagId] = useState('');
   const [renameTagName, setRenameTagName] = useState('');
   const [mergeSourceIds, setMergeSourceIds] = useState<string[]>([]);
-  const [libraryRootPath, setLibraryRootPath] = useState('');
-  const [rootActionId, setRootActionId] = useState<string | null>(null);
   const [testingAi, setTestingAi] = useState(false);
+  const {
+    addLibraryRoot,
+    libraryRootPath,
+    libraryRoots,
+    loadLibraryRoots,
+    pickLibraryRoot,
+    removeLibraryRoot,
+    rootActionId,
+    scanLibraryRoot,
+    setLibraryRootPath,
+    updateLibraryRoot,
+  } = useSettingsLibraryRoots({ onSaved, setError, setMessage });
 
   useEffect(() => { if (tabRequest) setActiveTab(tabRequest.tab); }, [tabRequest]);
 
@@ -419,77 +429,6 @@ export function SettingsPage({ tabRequest, onAccentPreview, onThemePreview, onSa
   async function pickArchivePath() {
     const selected = await chooseArchivePath(archiveDir);
     if (selected) setArchiveDir(selected);
-  }
-
-  async function loadLibraryRoots() {
-    try {
-      setLibraryRoots(await api.listLibraryRoots());
-    } catch (reason) {
-      setError(errorMessage(reason));
-    }
-  }
-
-  async function pickLibraryRoot() {
-    const selected = await chooseDirectory(libraryRootPath);
-    if (selected) setLibraryRootPath(selected);
-  }
-
-  async function addLibraryRoot() {
-    setError(null);
-    setMessage(null);
-    try {
-      const path = libraryRootPath.trim() || await chooseDirectory(libraryRootPath);
-      if (!path) return;
-      await api.addLibraryRoot(path);
-      setLibraryRootPath('');
-      setMessage({ text: '库目录已添加。扫描会先生成候选，由你确认后才写入数据库。' });
-      await loadLibraryRoots();
-    } catch (reason) {
-      setError(errorMessage(reason));
-    }
-  }
-
-  async function updateLibraryRoot(root: LibraryRoot, input: { recursive?: boolean; enabled?: boolean }) {
-    setRootActionId(root.id);
-    setError(null);
-    try {
-      await api.updateLibraryRoot(root.id, input);
-      await loadLibraryRoots();
-    } catch (reason) {
-      setError(errorMessage(reason));
-    } finally {
-      setRootActionId(null);
-    }
-  }
-
-  async function removeLibraryRoot(root: LibraryRoot) {
-    if (!window.confirm('移除这个库目录记录？不会删除真实文件，也不会删除已入库游戏。')) return;
-    setRootActionId(root.id);
-    setError(null);
-    try {
-      await api.removeLibraryRoot(root.id);
-      setMessage({ text: '库目录记录已移除，不影响真实文件和已入库游戏。' });
-      await loadLibraryRoots();
-    } catch (reason) {
-      setError(errorMessage(reason));
-    } finally {
-      setRootActionId(null);
-    }
-  }
-
-  async function scanLibraryRoot(root: LibraryRoot) {
-    setRootActionId(root.id);
-    setError(null);
-    setMessage(null);
-    try {
-      const task = await api.startScanTask(root.path, root.recursive);
-      setMessage({ text: `已创建库目录扫描任务：${task.id}。请到扫描入库或任务页查看候选与进度。`, taskId: task.id });
-      onSaved?.();
-    } catch (reason) {
-      setError(errorMessage(reason));
-    } finally {
-      setRootActionId(null);
-    }
   }
 
   async function exportArchive() {
