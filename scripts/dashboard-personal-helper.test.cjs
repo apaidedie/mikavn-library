@@ -112,6 +112,14 @@ test('canRetryDashboardTask only allows retryable failed or cancelled tasks', ()
   assert.equal(canRetryDashboardTask(task({ id: 'not-retryable', status: 'failed', retryable: false })), false);
 });
 
+test('formatDashboardTaskProgress clamps and rounds task progress for the dashboard', () => {
+  const { formatDashboardTaskProgress } = loadDashboardPersonal();
+
+  assert.equal(formatDashboardTaskProgress(-0.1), '0%');
+  assert.equal(formatDashboardTaskProgress(0.456), '46%');
+  assert.equal(formatDashboardTaskProgress(1.2), '100%');
+});
+
 test('deriveDashboardAttentionItems creates deterministic local action items', () => {
   const { deriveDashboardAttentionItems } = loadDashboardPersonal();
   const items = deriveDashboardAttentionItems({

@@ -87,6 +87,10 @@ export function canRetryDashboardTask(task: TaskRecord) {
   return Boolean(task.retryable) && isAttentionTask(task);
 }
 
+export function formatDashboardTaskProgress(progress: number) {
+  return `${Math.round(clamp(progress, 0, 1) * 100)}%`;
+}
+
 export function deriveDashboardAttentionItems(input: AttentionInput): DashboardAttentionItem[] {
   const failedTasks = input.tasks.filter(isAttentionTask).length;
   const runningTasks = input.tasks.filter(isActiveTask).length;
@@ -240,4 +244,9 @@ function dateMillis(value?: string | Date | null) {
   if (value instanceof Date) return value.getTime();
   const millis = new Date(value).getTime();
   return Number.isFinite(millis) ? millis : 0;
+}
+
+function clamp(value: number, min: number, max: number) {
+  if (!Number.isFinite(value)) return min;
+  return Math.min(max, Math.max(min, value));
 }
