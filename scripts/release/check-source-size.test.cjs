@@ -51,6 +51,7 @@ test('default source budgets cover frontend, Rust service, and smoke runner hot 
     'src/pages/Tasks/TasksPage.tsx',
     'src/pages/Scanner/ScannerPage.tsx',
     'src/pages/Metadata/BatchMetadataPage.tsx',
+    'src/pages/Saves/SavesPage.tsx',
     'src-tauri/src/services/archives.rs',
     'src-tauri/src/services/diagnostics.rs',
     'src-tauri/src/db/game_merge_ext.rs',
@@ -108,4 +109,11 @@ test('batch metadata page budget keeps matching derivation outside page componen
 
   assert.ok(budget);
   assert.ok(budget.maxLines <= 425);
+});
+
+test('saves page budget keeps restore preview outside page component', () => {
+  const budget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('src/pages/Saves/SavesPage.tsx'));
+
+  assert.ok(budget);
+  assert.ok(budget.maxLines <= 375);
 });
