@@ -1,4 +1,4 @@
-import type { AddGameInput, DashboardData, Game, GameFilter, GamePathHealth, PathCheckItem, PlayStatus, UpdateGameInput } from '@/types/game';
+import type { AddGameInput, Game, GameFilter, GamePathHealth, PathCheckItem, PlayStatus, UpdateGameInput } from '@/types/game';
 import type { AdvancedSearchInput, AdvancedSearchResult, AiConnectionTestResult, AiRecognitionResult, ApplyMetadataFields, ArtworkRepairDiagnosis, ArtworkRepairOptions, ArtworkRepairPreview, BatchMatchJob, BatchMatchStatus, DescriptionImageRepairOptions, DescriptionImageRepairPreview, DuplicateExternalIdAuditOptions, DuplicateExternalIdPreview, DuplicateGameMergeOptions, DuplicateGameMergePreview, DuplicateGameMergeResult, ExternalIdRecord, FieldLock, MatchSuggestion, MetadataProvider, MetadataSearchResponse, MetadataSearchResult, MetadataSourceRecord, NormalizedMetadata, SavedSearch, SavedSearchInput, SearchQueryValidation } from '@/types/metadata';
 import type { TaskRecord } from '@/types/task';
 import { mockArtworkRepairDiagnosis, mockArtworkRepairPreview, mockDescriptionImageCandidates } from './mockStoreArtworkRepair';
@@ -12,12 +12,13 @@ import { createMockStoreDiagnostics } from './mockStoreDiagnostics';
 import { createMockStoreLaunchProfiles } from './mockStoreLaunchProfiles';
 import { cleanTitle, metadataStatusMatches, mockMatchesClause, parseMockSearch, score } from './mockStoreMetadata';
 import { createMockStorePlaySessions } from './mockStorePlaySessions';
+import { createMockStoreReports } from './mockStoreReports';
 import { createMockStoreScanner } from './mockStoreScanner';
 import { createMockStoreSaves } from './mockStoreSaves';
 import { createMockStoreSettings } from './mockStoreSettings';
 import { BATCH_KEY, FIELD_LOCKS_KEY, SAVED_SEARCHES_KEY, STORAGE_KEY, readJson, readSettings, writeJson } from './mockStoreStorage';
 import { createMockStoreTags } from './mockStoreTags';
-import { addTaskLog, createMockStoreTaskQueries, makeTask, reportGapExamplesLog, reportGapSummaryLog } from './mockStoreTasks';
+import { addTaskLog, createMockStoreTaskQueries, makeTask } from './mockStoreTasks';
 
 function readGames() {
   const raw = localStorage.getItem(STORAGE_KEY);
@@ -162,6 +163,7 @@ export const mockStore = {
   ...createMockStoreAssets({ readGames, getGame: getMockGame, updateGame: updateMockGame }),
   ...createMockStoreSettings(),
   ...createMockStoreTaskQueries(),
+  ...createMockStoreReports(readGames),
   ...mockLaunchProfiles,
   ...createMockStorePlaySessions({ readGames, writeGames, listLaunchProfiles: mockLaunchProfiles.listLaunchProfiles }),
   ...createMockStoreScanner({ readGames, addGame: addMockGame, updateGame: updateMockGame }),
@@ -294,80 +296,6 @@ export const mockStore = {
     writeGames(readGames().filter((game) => game.id !== id));
     writeCollectionLinks(readCollectionLinks().filter((link) => link.gameId !== id));
     return Promise.resolve();
-  },
-
-  getDashboard(): Promise<DashboardData> {
-    const games = readGames();
-    const totalPlaySeconds = games.reduce((sum, game) => sum + game.totalPlaySeconds, 0);
-    return Promise.resolve({
-      totalGames: games.length,
-      plannedGames: games.filter((game) => game.playStatus === 'planned').length,
-      playingGames: games.filter((game) => game.playStatus === 'playing').length,
-      completedGames: games.filter((game) => game.playStatus === 'completed').length,
-      totalPlaySeconds,
-      weekPlaySeconds: totalPlaySeconds,
-      monthPlaySeconds: totalPlaySeconds,
-      recentGames: games.filter((game) => game.lastPlayedAt).slice(0, 5),
-      recentlyAdded: [...games].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 5),
-    });
-  },
-
-  exportReportMarkdown(path: string, content: string) {
-    const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = path || 'mikavn-report.md';
-    link.click();
-    URL.revokeObjectURL(url);
-    return Promise.resolve();
-  },
-
-  async exportReportMarkdownTask(path: string, content: string): Promise<TaskRecord> {
-    await this.exportReportMarkdown(path, content);
-    const task = makeTask({
-      taskType: 'report.export_markdown',
-      status: 'completed',
-      progress: 1,
-      message: `浏览器预览已导出 ${path || 'mikavn-report.md'}`,
-      error: null,
-      retryable: false,
-    });
-    addTaskLog(task.id, 'info', reportGapSummaryLog(content));
-    addTaskLog(task.id, 'info', reportGapExamplesLog(content));
-    return task;
-  },
-
-  backupDatabase(path: string): Promise<TaskRecord> {
-    const target = path || 'mikavn-backup.db';
-    const task = makeTask({
-      taskType: 'database.backup',
-      status: 'completed',
-      progress: 1,
-      message: `浏览器预览已模拟备份到 ${target}`,
-      error: null,
-      retryPayload: JSON.stringify({ path }),
-      retryable: true,
-    });
-    addTaskLog(task.id, 'info', `数据库备份报告：目标 ${target}，大小 131072 bytes。`);
-    return Promise.resolve(task);
-  },
-
-  restoreDatabaseBackup(path: string): Promise<TaskRecord> {
-    const source = path || 'D:\\MikaVN-Backups\\mikavn.db';
-    const pending = 'mock://pending-restore/mikavn.db';
-    const task = makeTask({
-      taskType: 'database.restore',
-      status: 'completed',
-      progress: 1,
-      message: `浏览器预览已模拟安排下次启动恢复 ${pending}（131072 bytes）`,
-      error: null,
-      retryPayload: JSON.stringify({ path }),
-      retryable: false,
-    });
-    addTaskLog(task.id, 'info', `数据库恢复来源：${source}（131072 bytes）`);
-    addTaskLog(task.id, 'info', `数据库恢复待应用：${pending}（131072 bytes）`);
-    return Promise.resolve(task);
   },
 
   searchMetadata(query: string, providers: MetadataProvider[]): Promise<MetadataSearchResponse> {
