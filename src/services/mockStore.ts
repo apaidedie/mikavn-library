@@ -1,7 +1,6 @@
 import type { AddGameInput, AssetCacheCleanupResult, AssetDownloadInput, AssetImportInput, AssetInput, CollectionGameLink, CollectionInput, DashboardData, Game, GameAsset, GameCollection, GameFilter, GamePathHealth, ImportCandidate, ImportScanReport, ImportScanReportItem, LibraryRoot, PathCheckItem, PlaySession, PlayStatus, ScanCandidate, ScanConflict, TagRecord, UpdateGameInput } from '@/types/game';
 import type { LaunchProfile, LaunchProfileInput, LaunchProfileUpdate } from '@/types/launch';
 import type { AdvancedSearchInput, AdvancedSearchResult, AiConnectionTestResult, AiRecognitionResult, ApplyMetadataFields, ArtworkRepairDiagnosis, ArtworkRepairOptions, ArtworkRepairPreview, BatchMatchJob, BatchMatchStatus, DescriptionImageRepairOptions, DescriptionImageRepairPreview, DuplicateExternalIdAuditOptions, DuplicateExternalIdPreview, DuplicateGameMergeOptions, DuplicateGameMergePreview, DuplicateGameMergeResult, ExternalIdRecord, FieldLock, MatchSuggestion, MetadataProvider, MetadataSearchResponse, MetadataSearchResult, MetadataSourceRecord, NormalizedMetadata, SavedSearch, SavedSearchInput, SearchQueryValidation } from '@/types/metadata';
-import type { SaveBackup, SavePath, SavePathCandidate, SaveRestoreMode, SaveRestorePreview } from '@/types/saves';
 import type { ScanTaskStatus, TaskDetail, TaskLogEntry, TaskRecord } from '@/types/task';
 import { mockArtworkRepairDiagnosis, mockArtworkRepairPreview, mockDescriptionImageCandidates } from './mockStoreArtworkRepair';
 import { createMockStoreArchives } from './mockStoreArchives';
@@ -14,8 +13,8 @@ import { mockAssetCacheCleanupResult } from './mockStoreImages';
 import { createMockStoreDiagnostics } from './mockStoreDiagnostics';
 import { cleanTitle, metadataStatusMatches, mockMatchesClause, parseMockSearch, score } from './mockStoreMetadata';
 import { findScanConflict, mockScanPathPreview, normalizeMockPath } from './mockStoreScanner';
-import { mockSavePathCandidates, mockSaveRestorePreview } from './mockStoreSaves';
-import { BATCH_KEY, FIELD_LOCKS_KEY, LAUNCH_PROFILES_KEY, LIBRARY_ROOTS_KEY, PLAY_SESSIONS_KEY, SAVED_SEARCHES_KEY, SAVE_BACKUPS_KEY, SAVE_PATHS_KEY, SCAN_TASKS_KEY, SETTINGS_KEY, STORAGE_KEY, readJson, readSettings, writeJson } from './mockStoreStorage';
+import { createMockStoreSaves } from './mockStoreSaves';
+import { BATCH_KEY, FIELD_LOCKS_KEY, LAUNCH_PROFILES_KEY, LIBRARY_ROOTS_KEY, PLAY_SESSIONS_KEY, SAVED_SEARCHES_KEY, SCAN_TASKS_KEY, SETTINGS_KEY, STORAGE_KEY, readJson, readSettings, writeJson } from './mockStoreStorage';
 import { syncGameTags } from './mockStoreTags';
 import { addTaskLog, makeTask, readTaskLogs, readTasks, reportGapExamplesLog, reportGapSummaryLog, writeTasks } from './mockStoreTasks';
 
@@ -110,6 +109,7 @@ function mockMergeDuplicateGames(options: DuplicateGameMergeOptions): DuplicateG
 export const mockStore = {
   ...createMockStoreDiagnostics(readGames),
   ...createMockStoreArchives({ readGames, writeGames }),
+  ...createMockStoreSaves(readGames),
 
   listGames(filter: GameFilter = {}) {
     const query = filter.query?.trim().toLocaleLowerCase() ?? '';
@@ -1234,95 +1234,4 @@ export const mockStore = {
     return Promise.reject(new Error('This task type does not support retry'));
   },
 
-  listSavePaths(gameId: string): Promise<SavePath[]> {
-    return Promise.resolve(readJson<SavePath[]>(SAVE_PATHS_KEY, []).filter((item) => item.gameId === gameId));
-  },
-
-  addSavePath(gameId: string, label: string, path: string): Promise<SavePath> {
-    const item: SavePath = { id: crypto.randomUUID(), gameId, label: label.trim() || '存档', path: path.trim(), createdAt: new Date().toISOString() };
-    writeJson(SAVE_PATHS_KEY, [item, ...readJson<SavePath[]>(SAVE_PATHS_KEY, [])]);
-    return Promise.resolve(item);
-  },
-
-  removeSavePath(id: string) {
-    writeJson(SAVE_PATHS_KEY, readJson<SavePath[]>(SAVE_PATHS_KEY, []).filter((item) => item.id !== id));
-    return Promise.resolve();
-  },
-
-  async suggestSavePaths(gameId: string): Promise<SavePathCandidate[]> {
-    const game = await this.getGame(gameId);
-    const existing = new Set(readJson<SavePath[]>(SAVE_PATHS_KEY, []).filter((item) => item.gameId === gameId).map((item) => item.path.toLowerCase()));
-    return mockSavePathCandidates(game, existing);
-  },
-
-  createSaveBackup(savePathId: string, label: string): Promise<SaveBackup> {
-    const savePath = readJson<SavePath[]>(SAVE_PATHS_KEY, []).find((item) => item.id === savePathId);
-    if (!savePath) return Promise.reject(new Error('Save path not found'));
-    const item: SaveBackup = {
-      id: crypto.randomUUID(),
-      gameId: savePath.gameId,
-      savePathId,
-      label: label.trim() || savePath.label,
-      sourcePath: savePath.path,
-      backupPath: `mock://save-backups/${savePath.gameId}/${Date.now()}`,
-      protection: false,
-      createdAt: new Date().toISOString(),
-    };
-    writeJson(SAVE_BACKUPS_KEY, [item, ...readJson<SaveBackup[]>(SAVE_BACKUPS_KEY, [])]);
-    return Promise.resolve(item);
-  },
-
-  async createSaveBackupTask(savePathId: string, label: string): Promise<TaskRecord> {
-    const backup = await this.createSaveBackup(savePathId, label);
-    return makeTask({
-      taskType: 'save.backup',
-      status: 'completed',
-      progress: 1,
-      message: `浏览器预览已创建备份：${backup.label}`,
-      error: null,
-      retryPayload: JSON.stringify({ savePathId, label }),
-      retryable: true,
-    });
-  },
-
-  listSaveBackups(gameId: string): Promise<SaveBackup[]> {
-    return Promise.resolve(readJson<SaveBackup[]>(SAVE_BACKUPS_KEY, []).filter((item) => item.gameId === gameId));
-  },
-
-  restoreSaveBackup(backupId: string): Promise<SaveBackup> {
-    const backup = readJson<SaveBackup[]>(SAVE_BACKUPS_KEY, []).find((item) => item.id === backupId);
-    if (!backup) return Promise.reject(new Error('Save backup not found'));
-    const protection: SaveBackup = { ...backup, id: crypto.randomUUID(), label: '恢复前保护备份', protection: true, createdAt: new Date().toISOString() };
-    writeJson(SAVE_BACKUPS_KEY, [protection, ...readJson<SaveBackup[]>(SAVE_BACKUPS_KEY, [])]);
-    return Promise.resolve(protection);
-  },
-
-  async restoreSaveBackupTask(backupId: string, mode: 'merge' | 'mirror' = 'merge'): Promise<TaskRecord> {
-    const protection = await this.restoreSaveBackup(backupId);
-    const copiedFiles = 2;
-    const removedFiles = mode === 'mirror' ? 2 : 0;
-    const task = makeTask({
-      taskType: 'save.restore',
-      status: 'completed',
-      progress: 1,
-      message: `浏览器预览已模拟${mode === 'mirror' ? '镜像' : '合并'}恢复存档：复制 ${copiedFiles} 个文件，清理 ${removedFiles} 个文件`,
-      error: null,
-      retryPayload: JSON.stringify({ backupId, mode }),
-      retryable: true,
-    });
-    addTaskLog(task.id, 'info', `存档恢复保护备份：${protection.backupPath}`);
-    addTaskLog(task.id, 'info', `存档恢复报告：模式 ${mode === 'mirror' ? '镜像' : '合并'}，复制 ${copiedFiles} 个文件，清理 ${removedFiles} 个文件。`);
-    return task;
-  },
-
-  previewSaveRestore(backupId: string, mode: SaveRestoreMode = 'merge'): Promise<SaveRestorePreview> {
-    const backup = readJson<SaveBackup[]>(SAVE_BACKUPS_KEY, []).find((item) => item.id === backupId);
-    if (!backup) return Promise.reject(new Error('Save backup not found'));
-    return Promise.resolve(mockSaveRestorePreview(backup, mode));
-  },
-
-  deleteSaveBackupRecord(id: string) {
-    writeJson(SAVE_BACKUPS_KEY, readJson<SaveBackup[]>(SAVE_BACKUPS_KEY, []).filter((item) => item.id !== id));
-    return Promise.resolve();
-  },
 };
