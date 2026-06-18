@@ -75,6 +75,43 @@ test('rankContinueGames prefers playing, recent, and played games while hiding h
   assert.deepEqual(ranked.map((item) => item.id), ['playing-recent', 'paused-played', 'completed-old']);
 });
 
+test('uniqueDashboardGames keeps the first copy of each game for continue ranking', () => {
+  const { uniqueDashboardGames } = loadDashboardPersonal();
+  const games = [
+    game({ id: 'same-game', title: 'First copy', playStatus: 'playing' }),
+    game({ id: 'other-game', title: 'Other game', playStatus: 'paused' }),
+    game({ id: 'same-game', title: 'Duplicate copy', playStatus: 'completed' }),
+  ];
+
+  assert.deepEqual(uniqueDashboardGames(games).map((item) => item.title), ['First copy', 'Other game']);
+});
+
+test('deriveDashboardTaskSummary counts task states and returns latest finished results', () => {
+  const { deriveDashboardTaskSummary } = loadDashboardPersonal();
+  const summary = deriveDashboardTaskSummary([
+    task({ id: 'old-completed', status: 'completed', updatedAt: '2026-06-01T00:00:00.000Z' }),
+    task({ id: 'running-task', status: 'running', updatedAt: '2026-06-05T00:00:00.000Z' }),
+    task({ id: 'pending-task', status: 'pending', updatedAt: '2026-06-04T00:00:00.000Z' }),
+    task({ id: 'failed-newest', status: 'failed', updatedAt: '2026-06-07T00:00:00.000Z' }),
+    task({ id: 'cancelled-middle', status: 'cancelled', updatedAt: '2026-06-06T00:00:00.000Z' }),
+  ]);
+
+  assert.equal(summary.runningCount, 2);
+  assert.equal(summary.attentionCount, 2);
+  assert.equal(summary.completedCount, 1);
+  assert.equal(summary.activeCount, 4);
+  assert.deepEqual(summary.recentResults.map((item) => item.id), ['failed-newest', 'cancelled-middle']);
+});
+
+test('canRetryDashboardTask only allows retryable failed or cancelled tasks', () => {
+  const { canRetryDashboardTask } = loadDashboardPersonal();
+
+  assert.equal(canRetryDashboardTask(task({ id: 'retry-failed', status: 'failed', retryable: true })), true);
+  assert.equal(canRetryDashboardTask(task({ id: 'retry-cancelled', status: 'cancelled', retryable: true })), true);
+  assert.equal(canRetryDashboardTask(task({ id: 'completed', status: 'completed', retryable: true })), false);
+  assert.equal(canRetryDashboardTask(task({ id: 'not-retryable', status: 'failed', retryable: false })), false);
+});
+
 test('deriveDashboardAttentionItems creates deterministic local action items', () => {
   const { deriveDashboardAttentionItems } = loadDashboardPersonal();
   const items = deriveDashboardAttentionItems({

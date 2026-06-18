@@ -27,6 +27,14 @@ export type DatabaseBackupStatus = {
   latestBackupAt: string | null;
 };
 
+export type DashboardTaskSummary = {
+  runningCount: number;
+  attentionCount: number;
+  completedCount: number;
+  activeCount: number;
+  recentResults: TaskRecord[];
+};
+
 type RankOptions = {
   hideHidden?: boolean;
   limit?: number;
@@ -46,9 +54,42 @@ export function rankContinueGames(games: Game[], options: RankOptions = {}) {
     .slice(0, limit);
 }
 
+export function uniqueDashboardGames(games: Game[]) {
+  const seen = new Set<string>();
+  const result: Game[] = [];
+  for (const game of games) {
+    if (seen.has(game.id)) continue;
+    seen.add(game.id);
+    result.push(game);
+  }
+  return result;
+}
+
+export function deriveDashboardTaskSummary(tasks: TaskRecord[], resultLimit = 2): DashboardTaskSummary {
+  const runningCount = tasks.filter((task) => isActiveTask(task)).length;
+  const attentionCount = tasks.filter((task) => isAttentionTask(task)).length;
+  const completedCount = tasks.filter((task) => task.status === 'completed').length;
+  const recentResults = [...tasks]
+    .filter(isResultTask)
+    .sort((a, b) => dateMillis(b.updatedAt) - dateMillis(a.updatedAt))
+    .slice(0, resultLimit);
+
+  return {
+    runningCount,
+    attentionCount,
+    completedCount,
+    activeCount: runningCount + attentionCount,
+    recentResults,
+  };
+}
+
+export function canRetryDashboardTask(task: TaskRecord) {
+  return Boolean(task.retryable) && isAttentionTask(task);
+}
+
 export function deriveDashboardAttentionItems(input: AttentionInput): DashboardAttentionItem[] {
-  const failedTasks = input.tasks.filter((task) => task.status === 'failed' || task.status === 'cancelled').length;
-  const runningTasks = input.tasks.filter((task) => task.status === 'pending' || task.status === 'running').length;
+  const failedTasks = input.tasks.filter(isAttentionTask).length;
+  const runningTasks = input.tasks.filter(isActiveTask).length;
   const pathStatus = input.diagnostics?.database.pathStatus;
   const metadata = input.diagnostics?.database.metadataCoverage;
   const backupCount = input.diagnostics?.databaseBackups.fileCount ?? 0;
@@ -180,6 +221,18 @@ function latestModifiedAt(files: Array<{ modifiedAt?: string | null }>) {
     .map((file) => file.modifiedAt)
     .filter((value): value is string => Boolean(value))
     .sort((a, b) => dateMillis(b) - dateMillis(a))[0] ?? null;
+}
+
+function isActiveTask(task: TaskRecord) {
+  return task.status === 'pending' || task.status === 'running';
+}
+
+function isAttentionTask(task: TaskRecord) {
+  return task.status === 'failed' || task.status === 'cancelled';
+}
+
+function isResultTask(task: TaskRecord) {
+  return task.status === 'completed' || isAttentionTask(task);
 }
 
 function dateMillis(value?: string | Date | null) {
