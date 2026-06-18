@@ -74,7 +74,7 @@ test('library page budget keeps library orchestration small', () => {
   const budget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('src/pages/Library/LibraryPage.tsx'));
 
   assert.ok(budget);
-  assert.ok(budget.maxLines <= 330);
+  assert.ok(budget.maxLines <= 270);
 });
 
 test('dashboard page budget keeps personal dashboard orchestration small', () => {
