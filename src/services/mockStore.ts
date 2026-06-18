@@ -1,10 +1,10 @@
 import type { AddGameInput, Game, GameFilter, GamePathHealth, PathCheckItem, PlayStatus, UpdateGameInput } from '@/types/game';
-import type { ArtworkRepairDiagnosis, ArtworkRepairOptions, ArtworkRepairPreview, DescriptionImageRepairOptions, DescriptionImageRepairPreview, DuplicateExternalIdAuditOptions, DuplicateExternalIdPreview, DuplicateGameMergeOptions, DuplicateGameMergePreview, DuplicateGameMergeResult, FieldLock } from '@/types/metadata';
+import type { DuplicateExternalIdAuditOptions, DuplicateExternalIdPreview, DuplicateGameMergeOptions, DuplicateGameMergePreview, DuplicateGameMergeResult, FieldLock } from '@/types/metadata';
 import type { TaskRecord } from '@/types/task';
-import { mockArtworkRepairDiagnosis, mockArtworkRepairPreview, mockDescriptionImageCandidates } from './mockStoreArtworkRepair';
+import { createMockStoreArtworkRepair } from './mockStoreArtworkRepair';
 import { createMockStoreAi } from './mockStoreAi';
 import { createMockStoreArchives } from './mockStoreArchives';
-import { sampleGames, sampleHeroUrl } from './mockStoreFixtures';
+import { sampleGames } from './mockStoreFixtures';
 import { createMockStoreAssets, readAssets, syncGameCompatibilityAssets, writeAssets } from './mockStoreAssets';
 import { createMockStoreCollections, readCollectionLinks, writeCollectionLinks } from './mockStoreCollections';
 import { mockDuplicateExternalIdPreview, mockDuplicateGameMergePreview } from './mockStoreDuplicates';
@@ -151,6 +151,7 @@ export const mockStore = {
   ...createMockStoreReports(readGames),
   ...createMockStoreSavedSearches(),
   ...createMockStoreAi(),
+  ...createMockStoreArtworkRepair({ readGames, writeGames }),
   ...mockMetadataRecords,
   ...createMockStoreMetadata({
     readGames,
@@ -290,71 +291,6 @@ export const mockStore = {
     writeGames(readGames().filter((game) => game.id !== id));
     writeCollectionLinks(readCollectionLinks().filter((link) => link.gameId !== id));
     return Promise.resolve();
-  },
-
-  previewDescriptionImageRepair(options: DescriptionImageRepairOptions = {}): Promise<DescriptionImageRepairPreview> {
-    const candidates = mockDescriptionImageCandidates(readGames().map(ensureGameDefaults), options);
-    return Promise.resolve({ candidates, totalCandidates: candidates.length });
-  },
-
-  async repairDescriptionImages(options: DescriptionImageRepairOptions = {}): Promise<TaskRecord> {
-    const games = readGames().map(ensureGameDefaults);
-    const candidates = mockDescriptionImageCandidates(games, options);
-    if (candidates.length === 0) return Promise.reject(new Error('no description image repair candidates'));
-    const updatedIds = new Set(candidates.map((candidate) => candidate.gameId));
-    writeGames(games.map((game) => updatedIds.has(game.id) ? {
-      ...game,
-      description: `${game.description?.trim() ?? ''}\n\n![简介图片](${sampleHeroUrl})`,
-      updatedAt: new Date().toISOString(),
-    } : game));
-    const task = makeTask({
-      taskType: 'metadata.description_image_repair',
-      status: 'completed',
-      progress: 1,
-      message: `浏览器预览已修复 ${candidates.length} 个条目的简介图片`,
-      retryPayload: JSON.stringify({ provider: options.provider ?? 'all', limit: options.limit ?? 20, maxImages: options.maxImages ?? 3, retryAttempted: Boolean(options.retryAttempted) }),
-      retryable: true,
-    });
-    addTaskLog(task.id, 'info', `简介图片修复候选：${candidates.map((candidate) => `${candidate.provider}:${candidate.providerId}`).join(', ')}`);
-    return task;
-  },
-
-  previewArtworkRepair(options: ArtworkRepairOptions = {}): Promise<ArtworkRepairPreview> {
-    return Promise.resolve(mockArtworkRepairPreview(readGames().map(ensureGameDefaults), options));
-  },
-
-  diagnoseArtworkRepair(options: ArtworkRepairOptions = {}): Promise<ArtworkRepairDiagnosis> {
-    return Promise.resolve(mockArtworkRepairDiagnosis(readGames().map(ensureGameDefaults), options));
-  },
-
-  repairArtwork(options: ArtworkRepairOptions = {}): Promise<TaskRecord> {
-    const games = readGames().map(ensureGameDefaults);
-    const preview = mockArtworkRepairPreview(games, options);
-    if (preview.totalCandidates === 0) return Promise.reject(new Error('no artwork repair candidates'));
-    const updatedIds = new Map(preview.candidates.map((candidate) => [candidate.gameId, candidate.missingFields]));
-    writeGames(games.map((game) => {
-      const fields = updatedIds.get(game.id);
-      if (!fields) return game;
-      return {
-        ...game,
-        coverImage: fields.includes('cover') ? sampleHeroUrl : game.coverImage,
-        bannerImage: fields.includes('banner') ? sampleHeroUrl : game.bannerImage,
-        backgroundImage: fields.includes('background') ? sampleHeroUrl : game.backgroundImage,
-        updatedAt: new Date().toISOString(),
-      };
-    }));
-    const task = makeTask({
-      taskType: 'metadata.artwork_repair',
-      status: 'completed',
-      progress: 1,
-      message: `浏览器预览已补全 ${preview.totalCandidates} 个条目的媒体图片`,
-      retryPayload: JSON.stringify({ providers: options.providers ?? ['all'], fields: options.fields ?? ['cover', 'banner', 'background'], limit: options.limit ?? 20, retryAttempted: Boolean(options.retryAttempted) }),
-      retryable: true,
-    });
-    for (const candidate of preview.candidates) {
-      addTaskLog(task.id, 'info', `已补全：${candidate.title} [${candidate.gameId}]，字段 ${candidate.missingFields.join('/')}`);
-    }
-    return Promise.resolve(task);
   },
 
   previewDuplicateExternalIds(options: DuplicateExternalIdAuditOptions = {}): Promise<DuplicateExternalIdPreview> {

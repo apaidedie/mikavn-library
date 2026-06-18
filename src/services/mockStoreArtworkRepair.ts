@@ -1,6 +1,10 @@
 import type { Game } from '@/types/game';
-import type { ArtworkRepairDiagnosis, ArtworkRepairOptions, ArtworkRepairPreview, DescriptionImageRepairOptions } from '@/types/metadata';
+import type { ArtworkRepairDiagnosis, ArtworkRepairOptions, ArtworkRepairPreview, DescriptionImageRepairOptions, DescriptionImageRepairPreview } from '@/types/metadata';
+import type { TaskRecord } from '@/types/task';
+import { sampleHeroUrl } from './mockStoreFixtures';
+import { ensureGameDefaults } from './mockStoreGames';
 import { hasMockDescriptionImage } from './mockStoreMetadata';
+import { addTaskLog, makeTask } from './mockStoreTasks';
 
 export function mockDescriptionImageCandidates(games: Game[], options: DescriptionImageRepairOptions = {}) {
   const provider = String(options.provider ?? 'all').toLowerCase();
@@ -93,5 +97,79 @@ export function mockArtworkRepairDiagnosis(games: Game[], options: ArtworkRepair
     noRemoteImageCount: items.filter((item) => item.status === 'no_remote_image').length,
     providerErrorCount: items.filter((item) => item.status === 'provider_error').length,
     truncated: missingGames.length > items.length,
+  };
+}
+
+type MockStoreArtworkRepairDependencies = {
+  readGames: () => Game[];
+  writeGames: (games: Game[]) => void;
+};
+
+export function createMockStoreArtworkRepair({ readGames, writeGames }: MockStoreArtworkRepairDependencies) {
+  return {
+    previewDescriptionImageRepair(options: DescriptionImageRepairOptions = {}): Promise<DescriptionImageRepairPreview> {
+      const candidates = mockDescriptionImageCandidates(readGames().map(ensureGameDefaults), options);
+      return Promise.resolve({ candidates, totalCandidates: candidates.length });
+    },
+
+    async repairDescriptionImages(options: DescriptionImageRepairOptions = {}): Promise<TaskRecord> {
+      const games = readGames().map(ensureGameDefaults);
+      const candidates = mockDescriptionImageCandidates(games, options);
+      if (candidates.length === 0) return Promise.reject(new Error('no description image repair candidates'));
+      const updatedIds = new Set(candidates.map((candidate) => candidate.gameId));
+      writeGames(games.map((game) => updatedIds.has(game.id) ? {
+        ...game,
+        description: `${game.description?.trim() ?? ''}\n\n![简介图片](${sampleHeroUrl})`,
+        updatedAt: new Date().toISOString(),
+      } : game));
+      const task = makeTask({
+        taskType: 'metadata.description_image_repair',
+        status: 'completed',
+        progress: 1,
+        message: `浏览器预览已修复 ${candidates.length} 个条目的简介图片`,
+        retryPayload: JSON.stringify({ provider: options.provider ?? 'all', limit: options.limit ?? 20, maxImages: options.maxImages ?? 3, retryAttempted: Boolean(options.retryAttempted) }),
+        retryable: true,
+      });
+      addTaskLog(task.id, 'info', `简介图片修复候选：${candidates.map((candidate) => `${candidate.provider}:${candidate.providerId}`).join(', ')}`);
+      return task;
+    },
+
+    previewArtworkRepair(options: ArtworkRepairOptions = {}): Promise<ArtworkRepairPreview> {
+      return Promise.resolve(mockArtworkRepairPreview(readGames().map(ensureGameDefaults), options));
+    },
+
+    diagnoseArtworkRepair(options: ArtworkRepairOptions = {}): Promise<ArtworkRepairDiagnosis> {
+      return Promise.resolve(mockArtworkRepairDiagnosis(readGames().map(ensureGameDefaults), options));
+    },
+
+    repairArtwork(options: ArtworkRepairOptions = {}): Promise<TaskRecord> {
+      const games = readGames().map(ensureGameDefaults);
+      const preview = mockArtworkRepairPreview(games, options);
+      if (preview.totalCandidates === 0) return Promise.reject(new Error('no artwork repair candidates'));
+      const updatedIds = new Map(preview.candidates.map((candidate) => [candidate.gameId, candidate.missingFields]));
+      writeGames(games.map((game) => {
+        const fields = updatedIds.get(game.id);
+        if (!fields) return game;
+        return {
+          ...game,
+          coverImage: fields.includes('cover') ? sampleHeroUrl : game.coverImage,
+          bannerImage: fields.includes('banner') ? sampleHeroUrl : game.bannerImage,
+          backgroundImage: fields.includes('background') ? sampleHeroUrl : game.backgroundImage,
+          updatedAt: new Date().toISOString(),
+        };
+      }));
+      const task = makeTask({
+        taskType: 'metadata.artwork_repair',
+        status: 'completed',
+        progress: 1,
+        message: `浏览器预览已补全 ${preview.totalCandidates} 个条目的媒体图片`,
+        retryPayload: JSON.stringify({ providers: options.providers ?? ['all'], fields: options.fields ?? ['cover', 'banner', 'background'], limit: options.limit ?? 20, retryAttempted: Boolean(options.retryAttempted) }),
+        retryable: true,
+      });
+      for (const candidate of preview.candidates) {
+        addTaskLog(task.id, 'info', `已补全：${candidate.title} [${candidate.gameId}]，字段 ${candidate.missingFields.join('/')}`);
+      }
+      return Promise.resolve(task);
+    },
   };
 }
