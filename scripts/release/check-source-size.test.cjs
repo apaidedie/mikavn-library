@@ -123,5 +123,5 @@ test('saves page budget keeps restore preview outside page component', () => {
   const budget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('src/pages/Saves/SavesPage.tsx'));
 
   assert.ok(budget);
-  assert.ok(budget.maxLines <= 375);
+  assert.ok(budget.maxLines <= 320);
 });
