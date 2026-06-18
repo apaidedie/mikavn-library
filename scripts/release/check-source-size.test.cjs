@@ -67,7 +67,7 @@ test('maintenance page budget keeps page-level orchestration small', () => {
   const budget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('src/pages/Maintenance/MaintenancePage.tsx'));
 
   assert.ok(budget);
-  assert.ok(budget.maxLines <= 430);
+  assert.ok(budget.maxLines <= 280);
 });
 
 test('library page budget keeps library orchestration small', () => {
