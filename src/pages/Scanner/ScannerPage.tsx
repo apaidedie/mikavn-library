@@ -11,12 +11,24 @@ import { Select } from '@/components/ui/select';
 import { TaskNotice } from '@/components/ui/task-notice';
 import { api } from '@/services/api';
 import { chooseDirectory } from '@/services/dialog';
-import type { ImportCandidate, ImportScanReport, ImportScanReportItem, ScanCandidate } from '@/types/game';
+import type { ImportScanReport, ImportScanReportItem, ScanCandidate } from '@/types/game';
 import type { BatchMatchStatus } from '@/types/metadata';
 import type { ScanTaskStatus } from '@/types/task';
 import { errorMessage } from '@/utils/errorMessage';
+import {
+  buildImportCandidates,
+  defaultConflictActions,
+  defaultSelectedIds,
+  formatCount,
+  importActionClass,
+  importActionHint,
+  importActionLabel,
+  importReportMessage,
+  matchesImportReportQuery,
+  scanMessage,
+  type ConflictAction,
+} from './scannerPageModel';
 
-type ConflictAction = 'skip' | 'merge' | 'replace' | 'duplicate';
 type TaskMessage = { text: string; taskId?: string | null };
 
 export function ScannerPage({ onOpenTask }: { onOpenTask?: (taskId: string) => void }) {
@@ -120,17 +132,7 @@ export function ScannerPage({ onOpenTask }: { onOpenTask?: (taskId: string) => v
     setLoading(true);
     setError(null);
     try {
-      const payload: ImportCandidate[] = candidates
-        .filter((candidate) => selectedIds.includes(candidate.id))
-        .map((candidate) => ({
-          title: candidate.suggestedTitle,
-          installPath: candidate.installPath,
-          executablePath: candidate.selectedExecutable ?? candidate.executables[0]?.path,
-          aliases: candidate.aliases,
-          conflictAction: candidate.conflict ? conflictActions[candidate.id] ?? 'skip' : 'duplicate',
-          conflictGameId: candidate.conflict?.gameId ?? null,
-          allowDuplicate: candidate.conflict ? conflictActions[candidate.id] === 'duplicate' : false,
-        }));
+      const payload = buildImportCandidates(candidates, selectedIds, conflictActions);
       const report = await api.importScanCandidates(payload);
       setImportReport(report);
       setReportActionFilter('all');
@@ -175,53 +177,22 @@ export function ScannerPage({ onOpenTask }: { onOpenTask?: (taskId: string) => v
     }
   };
 
-  const copyScanPath = async () => {
-    const clean = path.trim();
+  const copyText = async (value: string, text: string) => {
+    const clean = value.trim();
     if (!clean) return;
     setError(null);
     try {
       await navigator.clipboard.writeText(clean);
-      setMessage({ text: '已复制扫描目录路径。' });
+      setMessage({ text });
     } catch (reason) {
       setError(errorMessage(reason));
     }
   };
 
-  const copyCandidateInstallPath = async (installPath: string) => {
-    const clean = installPath.trim();
-    if (!clean) return;
-    setError(null);
-    try {
-      await navigator.clipboard.writeText(clean);
-      setMessage({ text: '已复制候选安装目录路径。' });
-    } catch (reason) {
-      setError(errorMessage(reason));
-    }
-  };
-
-  const copyCandidateExecutablePath = async (executablePath: string) => {
-    const clean = executablePath.trim();
-    if (!clean) return;
-    setError(null);
-    try {
-      await navigator.clipboard.writeText(clean);
-      setMessage({ text: '已复制候选启动程序路径。' });
-    } catch (reason) {
-      setError(errorMessage(reason));
-    }
-  };
-
-  const copyAuditInstallPath = async (installPath: string) => {
-    const clean = installPath.trim();
-    if (!clean) return;
-    setError(null);
-    try {
-      await navigator.clipboard.writeText(clean);
-      setMessage({ text: '已复制审计安装目录路径。' });
-    } catch (reason) {
-      setError(errorMessage(reason));
-    }
-  };
+  const copyScanPath = () => copyText(path, '已复制扫描目录路径。');
+  const copyCandidateInstallPath = (installPath: string) => copyText(installPath, '已复制候选安装目录路径。');
+  const copyCandidateExecutablePath = (executablePath: string) => copyText(executablePath, '已复制候选启动程序路径。');
+  const copyAuditInstallPath = (installPath: string) => copyText(installPath, '已复制审计安装目录路径。');
 
   return (
     <PageShell>
@@ -457,70 +428,4 @@ function ImportReportRow({ item, onCopyInstallPath }: { item: ImportScanReportIt
       {item.gameId && <div className="mt-1 break-all font-mono text-[11px] text-slate-600">记录 ID：{item.gameId}</div>}
     </div>
   );
-}
-
-function matchesImportReportQuery(item: ImportScanReportItem, query: string) {
-  const value = query.trim().toLocaleLowerCase();
-  if (!value) return true;
-  return [
-    item.action,
-    importActionLabel(item.action),
-    item.candidateTitle,
-    item.installPath,
-    item.message,
-    item.targetTitle,
-    item.conflictReason,
-    item.gameId,
-  ].some((field) => (field ?? '').toLocaleLowerCase().includes(value));
-}
-
-function defaultSelectedIds(candidates: ScanCandidate[]) {
-  return candidates.filter((candidate) => !candidate.conflict).map((candidate) => candidate.id);
-}
-
-function defaultConflictActions(candidates: ScanCandidate[]) {
-  return Object.fromEntries(candidates.filter((candidate) => candidate.conflict).map((candidate) => [candidate.id, 'skip' as ConflictAction]));
-}
-
-function scanMessage(candidates: ScanCandidate[]) {
-  const conflicts = candidates.filter((candidate) => candidate.conflict).length;
-  return conflicts > 0 ? `发现 ${candidates.length} 个候选游戏，其中 ${conflicts} 个可能已存在，冲突项已默认设为跳过。` : `发现 ${candidates.length} 个候选游戏。`;
-}
-
-function importReportMessage(report: ImportScanReport) {
-  return `导入处理完成：新增 ${report.added}、合并 ${report.merged}、替换 ${report.replaced}、副本 ${report.duplicated}、跳过 ${report.skipped}。可以立即批量匹配元数据。`;
-}
-
-function importActionLabel(action: ImportScanReportItem['action']) {
-  switch (action) {
-    case 'add': return '新增';
-    case 'merge': return '合并';
-    case 'replace': return '替换';
-    case 'duplicate': return '副本';
-    case 'skip': return '跳过';
-    default: return action;
-  }
-}
-
-function importActionHint(action: ImportScanReportItem['action']) {
-  switch (action) {
-    case 'add': return '下一步：建议继续批量匹配元数据，并检查封面与外部 ID。';
-    case 'merge': return '下一步：已更新现有记录路径、启动程序与别名，建议打开详情页检查路径健康。';
-    case 'replace': return '下一步：已覆盖数据库记录字段，建议核对标题、启动程序和别名是否符合预期。';
-    case 'duplicate': return '下一步：已保留为独立记录，建议之后在维护页检查是否需要合并重复项。';
-    case 'skip': return '下一步：未写入数据库；如需导入，请重新扫描后选择合并、替换或副本导入。';
-    default: return '下一步：查看处理消息和冲突原因，确认是否需要手动修正。';
-  }
-}
-
-function importActionClass(action: ImportScanReportItem['action']) {
-  if (action === 'add' || action === 'duplicate') return 'border-emerald-300/25 bg-emerald-300/10 text-emerald-100';
-  if (action === 'merge') return 'border-sky-300/25 bg-sky-300/10 text-sky-100';
-  if (action === 'replace') return 'border-amber-300/25 bg-amber-300/10 text-amber-100';
-  if (action === 'skip') return 'border-white/10 bg-white/[0.045] text-slate-300';
-  return 'border-white/10 bg-white/[0.045] text-slate-300';
-}
-
-function formatCount(value: number) {
-  return new Intl.NumberFormat('zh-CN').format(value);
 }
