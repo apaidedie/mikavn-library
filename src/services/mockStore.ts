@@ -1,10 +1,10 @@
 import type { AddGameInput, Game, GameFilter, GamePathHealth, PathCheckItem, PlayStatus, UpdateGameInput } from '@/types/game';
-import type { AdvancedSearchInput, AdvancedSearchResult, ApplyMetadataFields, ArtworkRepairDiagnosis, ArtworkRepairOptions, ArtworkRepairPreview, BatchMatchJob, BatchMatchStatus, DescriptionImageRepairOptions, DescriptionImageRepairPreview, DuplicateExternalIdAuditOptions, DuplicateExternalIdPreview, DuplicateGameMergeOptions, DuplicateGameMergePreview, DuplicateGameMergeResult, FieldLock, MatchSuggestion, MetadataProvider, MetadataSearchResponse, NormalizedMetadata, SearchQueryValidation } from '@/types/metadata';
+import type { ArtworkRepairDiagnosis, ArtworkRepairOptions, ArtworkRepairPreview, DescriptionImageRepairOptions, DescriptionImageRepairPreview, DuplicateExternalIdAuditOptions, DuplicateExternalIdPreview, DuplicateGameMergeOptions, DuplicateGameMergePreview, DuplicateGameMergeResult, FieldLock } from '@/types/metadata';
 import type { TaskRecord } from '@/types/task';
 import { mockArtworkRepairDiagnosis, mockArtworkRepairPreview, mockDescriptionImageCandidates } from './mockStoreArtworkRepair';
 import { createMockStoreAi } from './mockStoreAi';
 import { createMockStoreArchives } from './mockStoreArchives';
-import { mockMetadata, sampleGames, sampleHeroUrl } from './mockStoreFixtures';
+import { sampleGames, sampleHeroUrl } from './mockStoreFixtures';
 import { createMockStoreAssets, readAssets, syncGameCompatibilityAssets, writeAssets } from './mockStoreAssets';
 import { createMockStoreCollections, readCollectionLinks, writeCollectionLinks } from './mockStoreCollections';
 import { mockDuplicateExternalIdPreview, mockDuplicateGameMergePreview } from './mockStoreDuplicates';
@@ -12,14 +12,14 @@ import { cleanList, ensureGameDefaults, makeGame } from './mockStoreGames';
 import { createMockStoreDiagnostics } from './mockStoreDiagnostics';
 import { createMockStoreLaunchProfiles } from './mockStoreLaunchProfiles';
 import { createMockStoreMetadataRecords } from './mockStoreMetadataRecords';
-import { cleanTitle, metadataStatusMatches, mockMatchesClause, parseMockSearch, score } from './mockStoreMetadata';
+import { createMockStoreMetadata, metadataStatusMatches } from './mockStoreMetadata';
 import { createMockStorePlaySessions } from './mockStorePlaySessions';
 import { createMockStoreReports } from './mockStoreReports';
 import { createMockStoreSavedSearches } from './mockStoreSavedSearches';
 import { createMockStoreScanner } from './mockStoreScanner';
 import { createMockStoreSaves } from './mockStoreSaves';
 import { createMockStoreSettings } from './mockStoreSettings';
-import { BATCH_KEY, FIELD_LOCKS_KEY, STORAGE_KEY, readJson, readSettings } from './mockStoreStorage';
+import { FIELD_LOCKS_KEY, STORAGE_KEY, readJson } from './mockStoreStorage';
 import { createMockStoreTags } from './mockStoreTags';
 import { addTaskLog, createMockStoreTaskQueries, makeTask } from './mockStoreTasks';
 
@@ -137,6 +137,7 @@ function updateMockGame(id: string, input: UpdateGameInput): Promise<Game> {
 }
 
 const mockLaunchProfiles = createMockStoreLaunchProfiles(readGames);
+const mockMetadataRecords = createMockStoreMetadataRecords(getMockGame);
 
 export const mockStore = {
   ...createMockStoreDiagnostics(readGames),
@@ -150,7 +151,13 @@ export const mockStore = {
   ...createMockStoreReports(readGames),
   ...createMockStoreSavedSearches(),
   ...createMockStoreAi(),
-  ...createMockStoreMetadataRecords(getMockGame),
+  ...mockMetadataRecords,
+  ...createMockStoreMetadata({
+    readGames,
+    getGame: getMockGame,
+    updateGame: updateMockGame,
+    listFieldLocks: mockMetadataRecords.listFieldLocks,
+  }),
   ...mockLaunchProfiles,
   ...createMockStorePlaySessions({ readGames, writeGames, listLaunchProfiles: mockLaunchProfiles.listLaunchProfiles }),
   ...createMockStoreScanner({ readGames, addGame: addMockGame, updateGame: updateMockGame }),
@@ -285,111 +292,6 @@ export const mockStore = {
     return Promise.resolve();
   },
 
-  searchMetadata(query: string, providers: MetadataProvider[]): Promise<MetadataSearchResponse> {
-    const cleanedQuery = cleanTitle(query);
-    const variants = [...new Set([query, cleanedQuery].filter(Boolean))];
-    const settings = readSettings();
-    const activeProviders = providers.filter((provider) => settings[`provider_${provider}_enabled`] !== 'false');
-    const results = mockMetadata
-      .filter((item) => activeProviders.includes(item.provider))
-      .map((item) => ({ ...item, relevanceScore: Math.max(item.relevanceScore, score(cleanedQuery || query, item.title) + (item.fromVndbSniff ? 0.1 : 0)) }))
-      .sort((a, b) => Number(b.fromVndbSniff) - Number(a.fromVndbSniff) || b.relevanceScore - a.relevanceScore);
-    return Promise.resolve({ query, cleanedQuery, variants, results, errors: [] });
-  },
-
-  validateSearchQuery(query: string): Promise<SearchQueryValidation> {
-    const clauses = parseMockSearch(query);
-    const errors = clauses.filter((clause) => clause.field === 'unsupported').map((clause) => `unsupported search field: ${clause.value}`);
-    return Promise.resolve({ valid: errors.length === 0, errors, clauses: clauses.filter((clause) => clause.field !== 'unsupported') });
-  },
-
-  searchGamesAdvanced(input: AdvancedSearchInput): Promise<AdvancedSearchResult> {
-    const clauses = parseMockSearch(input.query);
-    const errors = clauses.filter((clause) => clause.field === 'unsupported').map((clause) => `unsupported search field: ${clause.value}`);
-    let games = readGames().map(ensureGameDefaults);
-    if (errors.length === 0 && clauses.length > 0) {
-      games = games.filter((game) => clauses.every((clause) => {
-        const matched = mockMatchesClause(game, clause);
-        return clause.negated ? !matched : matched;
-      }));
-    }
-    const total = games.length;
-    const limit = Math.max(1, Math.min(input.limit ?? 100, 500));
-    return Promise.resolve({ query: input.query, cleanedQuery: input.query.trim(), total, games: games.slice(0, limit), clauses: clauses.filter((clause) => clause.field !== 'unsupported'), errors });
-  },
-
-  async matchMetadataForGame(gameId: string): Promise<MatchSuggestion> {
-    const game = await this.getGame(gameId);
-    const response = await this.searchMetadata(cleanTitle(game.title), ['vndb', 'dlsite', 'fanza']);
-    const selected = response.results.find((item) => item.fromVndbSniff) ?? response.results.find((item) => item.relevanceScore >= 0.3) ?? null;
-    return {
-      gameId,
-      originalTitle: game.title,
-      cleanedTitle: response.cleanedQuery,
-      selected,
-      candidates: response.results,
-      status: selected ? 'success' : response.results.length ? 'review' : 'no_result',
-      reason: selected ? null : '候选分数低于自动匹配阈值',
-    };
-  },
-
-  async applyMetadataToGame(gameId: string, metadata: NormalizedMetadata, fields: ApplyMetadataFields, forceLocked = false): Promise<Game> {
-    const locks = forceLocked ? [] : await this.listFieldLocks(gameId);
-    const locked = new Set(locks.filter((lock) => lock.lockedByUser).map((lock) => lock.fieldName));
-    const input: UpdateGameInput = {};
-    const has = (field: ApplyMetadataFields[number]) => fields.includes(field) && !locked.has(field);
-    if (has('title')) input.title = metadata.title;
-    if (has('originalTitle')) input.originalTitle = metadata.originalTitle ?? metadata.title;
-    if (has('description')) input.description = metadata.description ?? undefined;
-    if (has('releaseDate')) input.releaseDate = metadata.releaseDate ?? undefined;
-    if (has('developer')) input.developer = metadata.developers[0];
-    if (has('publisher')) input.publisher = metadata.publishers[0];
-    if (has('tags')) input.tags = metadata.tags;
-    if (has('genres')) input.genres = metadata.genres;
-    if (has('coverImage')) input.coverImage = metadata.images[0];
-    if (has('externalIds')) {
-      input.vndbId = metadata.externalIds.vndb ?? undefined;
-      input.bangumiId = metadata.externalIds.bangumi ?? undefined;
-      input.dlsiteId = metadata.externalIds.dlsite ?? undefined;
-      input.fanzaId = metadata.externalIds.fanza ?? undefined;
-      input.ymgalId = metadata.externalIds.ymgal ?? undefined;
-    }
-    if (has('ageRating')) input.ageRating = metadata.ageRating ?? undefined;
-    return this.updateGame(gameId, input);
-  },
-
-  async batchMatchMetadata(gameIds: string[]): Promise<BatchMatchJob> {
-    const now = new Date().toISOString();
-    const task = makeTask({
-      taskType: 'metadata.batch_match',
-      status: 'completed',
-      progress: 1,
-      message: `批量匹配完成：${gameIds.length} 个条目`,
-      retryPayload: JSON.stringify({ gameIds }),
-      retryable: true,
-    });
-    const job: BatchMatchJob = { id: crypto.randomUUID(), taskId: task.id, status: 'completed', total: gameIds.length, completed: gameIds.length, createdAt: now, updatedAt: now };
-    const results = await Promise.all(gameIds.map(async (gameId) => {
-      const suggestion = await this.matchMetadataForGame(gameId);
-      return {
-        id: crypto.randomUUID(),
-        jobId: job.id,
-        gameId,
-        originalTitle: suggestion.originalTitle,
-        cleanedTitle: suggestion.cleanedTitle,
-        selectedProvider: suggestion.selected?.provider ?? null,
-        selectedId: suggestion.selected?.id ?? null,
-        selectedScore: suggestion.selected?.relevanceScore ?? null,
-        status: suggestion.status,
-        reason: suggestion.reason,
-        candidates: suggestion.candidates,
-        createdAt: new Date().toISOString(),
-      };
-    }));
-    localStorage.setItem(BATCH_KEY, JSON.stringify({ job, results }));
-    return job;
-  },
-
   previewDescriptionImageRepair(options: DescriptionImageRepairOptions = {}): Promise<DescriptionImageRepairPreview> {
     const candidates = mockDescriptionImageCandidates(readGames().map(ensureGameDefaults), options);
     return Promise.resolve({ candidates, totalCandidates: candidates.length });
@@ -494,25 +396,6 @@ export const mockStore = {
     } catch (reason) {
       return Promise.reject(reason);
     }
-  },
-
-  getBatchMatchStatus(jobId: string): Promise<BatchMatchStatus> {
-    const raw = localStorage.getItem(BATCH_KEY);
-    if (!raw) {
-      const now = new Date().toISOString();
-      return Promise.resolve({ job: { id: jobId, status: 'missing', total: 0, completed: 0, createdAt: now, updatedAt: now }, results: [] });
-    }
-    return Promise.resolve(JSON.parse(raw) as BatchMatchStatus);
-  },
-
-  cancelBatchMatch(jobId: string) {
-    const raw = localStorage.getItem(BATCH_KEY);
-    if (raw) {
-      const status = JSON.parse(raw) as BatchMatchStatus;
-      status.job = { ...status.job, id: jobId, status: 'cancelled', updatedAt: new Date().toISOString() };
-      localStorage.setItem(BATCH_KEY, JSON.stringify(status));
-    }
-    return Promise.resolve();
   },
 
   async retryTask(id: string): Promise<TaskRecord> {
