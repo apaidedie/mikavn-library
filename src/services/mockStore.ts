@@ -1,5 +1,5 @@
 import type { AddGameInput, Game, GameFilter, GamePathHealth, PathCheckItem, PlayStatus, UpdateGameInput } from '@/types/game';
-import type { AdvancedSearchInput, AdvancedSearchResult, AiConnectionTestResult, AiRecognitionResult, ApplyMetadataFields, ArtworkRepairDiagnosis, ArtworkRepairOptions, ArtworkRepairPreview, BatchMatchJob, BatchMatchStatus, DescriptionImageRepairOptions, DescriptionImageRepairPreview, DuplicateExternalIdAuditOptions, DuplicateExternalIdPreview, DuplicateGameMergeOptions, DuplicateGameMergePreview, DuplicateGameMergeResult, ExternalIdRecord, FieldLock, MatchSuggestion, MetadataProvider, MetadataSearchResponse, MetadataSearchResult, MetadataSourceRecord, NormalizedMetadata, SavedSearch, SavedSearchInput, SearchQueryValidation } from '@/types/metadata';
+import type { AdvancedSearchInput, AdvancedSearchResult, AiConnectionTestResult, AiRecognitionResult, ApplyMetadataFields, ArtworkRepairDiagnosis, ArtworkRepairOptions, ArtworkRepairPreview, BatchMatchJob, BatchMatchStatus, DescriptionImageRepairOptions, DescriptionImageRepairPreview, DuplicateExternalIdAuditOptions, DuplicateExternalIdPreview, DuplicateGameMergeOptions, DuplicateGameMergePreview, DuplicateGameMergeResult, ExternalIdRecord, FieldLock, MatchSuggestion, MetadataProvider, MetadataSearchResponse, MetadataSearchResult, MetadataSourceRecord, NormalizedMetadata, SearchQueryValidation } from '@/types/metadata';
 import type { TaskRecord } from '@/types/task';
 import { mockArtworkRepairDiagnosis, mockArtworkRepairPreview, mockDescriptionImageCandidates } from './mockStoreArtworkRepair';
 import { createMockStoreArchives } from './mockStoreArchives';
@@ -13,10 +13,11 @@ import { createMockStoreLaunchProfiles } from './mockStoreLaunchProfiles';
 import { cleanTitle, metadataStatusMatches, mockMatchesClause, parseMockSearch, score } from './mockStoreMetadata';
 import { createMockStorePlaySessions } from './mockStorePlaySessions';
 import { createMockStoreReports } from './mockStoreReports';
+import { createMockStoreSavedSearches } from './mockStoreSavedSearches';
 import { createMockStoreScanner } from './mockStoreScanner';
 import { createMockStoreSaves } from './mockStoreSaves';
 import { createMockStoreSettings } from './mockStoreSettings';
-import { BATCH_KEY, FIELD_LOCKS_KEY, SAVED_SEARCHES_KEY, STORAGE_KEY, readJson, readSettings, writeJson } from './mockStoreStorage';
+import { BATCH_KEY, FIELD_LOCKS_KEY, STORAGE_KEY, readJson, readSettings, writeJson } from './mockStoreStorage';
 import { createMockStoreTags } from './mockStoreTags';
 import { addTaskLog, createMockStoreTaskQueries, makeTask } from './mockStoreTasks';
 
@@ -164,6 +165,7 @@ export const mockStore = {
   ...createMockStoreSettings(),
   ...createMockStoreTaskQueries(),
   ...createMockStoreReports(readGames),
+  ...createMockStoreSavedSearches(),
   ...mockLaunchProfiles,
   ...createMockStorePlaySessions({ readGames, writeGames, listLaunchProfiles: mockLaunchProfiles.listLaunchProfiles }),
   ...createMockStoreScanner({ readGames, addGame: addMockGame, updateGame: updateMockGame }),
@@ -329,32 +331,6 @@ export const mockStore = {
     const total = games.length;
     const limit = Math.max(1, Math.min(input.limit ?? 100, 500));
     return Promise.resolve({ query: input.query, cleanedQuery: input.query.trim(), total, games: games.slice(0, limit), clauses: clauses.filter((clause) => clause.field !== 'unsupported'), errors });
-  },
-
-  listSavedSearches(): Promise<SavedSearch[]> {
-    return Promise.resolve(readJson<SavedSearch[]>(SAVED_SEARCHES_KEY, []));
-  },
-
-  createSavedSearch(input: SavedSearchInput): Promise<SavedSearch> {
-    const now = new Date().toISOString();
-    const item: SavedSearch = { id: crypto.randomUUID(), name: input.name.trim(), query: input.query.trim(), description: input.description?.trim() || null, createdAt: now, updatedAt: now };
-    if (!item.name || !item.query) return Promise.reject(new Error('Saved search name and query are required'));
-    writeJson(SAVED_SEARCHES_KEY, [item, ...readJson<SavedSearch[]>(SAVED_SEARCHES_KEY, []).filter((saved) => saved.name !== item.name)]);
-    return Promise.resolve(item);
-  },
-
-  updateSavedSearch(id: string, input: SavedSearchInput): Promise<SavedSearch> {
-    const searches = readJson<SavedSearch[]>(SAVED_SEARCHES_KEY, []);
-    const existing = searches.find((item) => item.id === id);
-    if (!existing) return Promise.reject(new Error('Saved search not found'));
-    const updated: SavedSearch = { ...existing, name: input.name.trim(), query: input.query.trim(), description: input.description?.trim() || null, updatedAt: new Date().toISOString() };
-    writeJson(SAVED_SEARCHES_KEY, searches.map((item) => item.id === id ? updated : item));
-    return Promise.resolve(updated);
-  },
-
-  deleteSavedSearch(id: string) {
-    writeJson(SAVED_SEARCHES_KEY, readJson<SavedSearch[]>(SAVED_SEARCHES_KEY, []).filter((item) => item.id !== id));
-    return Promise.resolve();
   },
 
   getMetadataDetail(provider: string, id: string): Promise<NormalizedMetadata> {
