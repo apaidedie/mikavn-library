@@ -47,6 +47,7 @@ test('default source budgets cover frontend, Rust service, and smoke runner hot 
     'src/services/mockStore.ts',
     'src/pages/Library/LibraryPage.tsx',
     'src/pages/Library/GameForm.tsx',
+    'src/pages/Tasks/TasksPage.tsx',
     'src-tauri/src/services/archives.rs',
     'src-tauri/src/services/diagnostics.rs',
     'src-tauri/src/db/game_merge_ext.rs',
@@ -76,4 +77,11 @@ test('game form budget keeps form mapping outside page component', () => {
 
   assert.ok(budget);
   assert.ok(budget.maxLines <= 430);
+});
+
+test('tasks page budget keeps task queue derivation outside page component', () => {
+  const budget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('src/pages/Tasks/TasksPage.tsx'));
+
+  assert.ok(budget);
+  assert.ok(budget.maxLines <= 460);
 });
