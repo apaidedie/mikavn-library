@@ -1,0 +1,69 @@
+import type { AddGameInput, Game, PlayStatus } from '@/types/game';
+
+export const libraryStatuses: Array<PlayStatus | 'all'> = ['all', 'planned', 'playing', 'completed', 'paused', 'archived'];
+export const libraryListInitialRenderCount = 500;
+export const libraryListRenderBatchSize = 500;
+export const libraryGridInitialRenderCount = 160;
+export const libraryGridRenderBatchSize = 160;
+
+export type LibraryGameGroup = {
+  id: PlayStatus | 'recent' | 'all';
+  label: string;
+  games: Game[];
+};
+
+export function groupLibraryGames(games: Game[], statusLabels: Record<PlayStatus, string>): LibraryGameGroup[] {
+  const recent: Game[] = [];
+  const buckets = new Map<PlayStatus, Game[]>();
+
+  for (const game of games) {
+    if (game.lastPlayedAt && recent.length < 7) {
+      recent.push(game);
+      continue;
+    }
+
+    const items = buckets.get(game.playStatus) ?? [];
+    items.push(game);
+    buckets.set(game.playStatus, items);
+  }
+
+  const groups: LibraryGameGroup[] = recent.length > 0 ? [{ id: 'recent', label: 'Recent Games', games: recent }] : [];
+  for (const status of libraryStatuses) {
+    if (status === 'all') continue;
+    const items = buckets.get(status);
+    if (items?.length) {
+      groups.push({ id: status, label: statusLabels[status], games: items });
+    }
+  }
+
+  return groups.length > 0 ? groups : [{ id: 'all', label: 'All Games', games }];
+}
+
+export function getLibraryVisibleCount(totalCount: number, renderCount: number, selectedIndex: number) {
+  return Math.min(totalCount, Math.max(renderCount, selectedIndex + 1));
+}
+
+export function formatLibraryCount(value: number) {
+  return new Intl.NumberFormat('zh-CN').format(value);
+}
+
+export function changedLibraryMetadataFields(game: Game, input: AddGameInput) {
+  const fields: string[] = [];
+  const normalize = (value?: string | null) => value?.trim() || '';
+  const normalizeList = (values?: string[] | null) => (values ?? []).map((item) => item.trim()).filter(Boolean).join('\n');
+
+  if (normalize(game.title) !== normalize(input.title)) fields.push('title');
+  if (normalize(game.originalTitle) !== normalize(input.originalTitle)) fields.push('originalTitle');
+  if (normalize(game.description) !== normalize(input.description)) fields.push('description');
+  if (normalize(game.notes) !== normalize(input.notes)) fields.push('notes');
+  if (normalize(game.releaseDate) !== normalize(input.releaseDate)) fields.push('releaseDate');
+  if (normalize(game.developer) !== normalize(input.developer)) fields.push('developer');
+  if (normalize(game.publisher) !== normalize(input.publisher)) fields.push('publisher');
+  if (normalize(game.coverImage) !== normalize(input.coverImage)) fields.push('coverImage');
+  if (normalize(game.ageRating) !== normalize(input.ageRating)) fields.push('ageRating');
+  if (normalizeList(game.tags) !== normalizeList(input.tags)) fields.push('tags');
+  if (normalizeList(game.genres) !== normalizeList(input.genres)) fields.push('genres');
+  if (normalize(game.vndbId) !== normalize(input.vndbId) || normalize(game.dlsiteId) !== normalize(input.dlsiteId) || normalize(game.fanzaId) !== normalize(input.fanzaId) || normalize(game.bangumiId) !== normalize(input.bangumiId) || normalize(game.ymgalId) !== normalize(input.ymgalId)) fields.push('externalIds');
+
+  return fields;
+}

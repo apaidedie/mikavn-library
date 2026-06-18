@@ -14,6 +14,7 @@ import { cn } from '@/utils/cn';
 import { errorMessage } from '@/utils/errorMessage';
 import { GameDetail } from './GameDetail';
 import { GameForm } from './GameForm';
+import { changedLibraryMetadataFields, formatLibraryCount, getLibraryVisibleCount, groupLibraryGames, libraryGridInitialRenderCount, libraryGridRenderBatchSize, libraryListInitialRenderCount, libraryListRenderBatchSize, libraryStatuses } from './libraryPageModel';
 import { useLibraryBulkActions } from './useLibraryBulkActions';
 import { useLibraryFilters } from './useLibraryFilters';
 import { useLibraryPanelResize } from './useLibraryPanelResize';
@@ -31,12 +32,6 @@ type LibraryPageProps = {
   filterPreset?: (LibraryFilterPreset & { key: number }) | null;
   toolbarQuery?: string;
 };
-
-const statuses: Array<PlayStatus | 'all'> = ['all', 'planned', 'playing', 'completed', 'paused', 'archived'];
-const listInitialRenderCount = 500;
-const listRenderBatchSize = 500;
-const gridInitialRenderCount = 160;
-const gridRenderBatchSize = 160;
 
 export function LibraryPage({ refreshKey, selectedGameId, onSelectedGameChange, onChanged, onOpenTasks, onOpenMaintenance, addRequestKey, onAddRequestConsumed, filterPreset, filterToggleKey = 0, toolbarQuery }: LibraryPageProps) {
   const [games, setGames] = useState<Game[]>([]);
@@ -151,7 +146,7 @@ export function LibraryPage({ refreshKey, selectedGameId, onSelectedGameChange, 
   const saveGame = async (input: Parameters<typeof api.addGame>[0]) => {
     const saved = editingGame ? await api.updateGame(editingGame.id, input) : await api.addGame(input);
     if (editingGame) {
-      const changedFields = changedMetadataFields(editingGame, input);
+      const changedFields = changedLibraryMetadataFields(editingGame, input);
       if (changedFields.length > 0) {
         await api.setFieldLocks(saved.id, changedFields, true);
       }
@@ -193,7 +188,7 @@ export function LibraryPage({ refreshKey, selectedGameId, onSelectedGameChange, 
           {bulkMode && (
             <div className="animate-view-in space-y-2 rounded-md border border-white/10 bg-black/10 p-2">
               <div className="flex items-center justify-between gap-2 text-xs text-slate-400">
-                <span>已选 {formatCount(bulkSelectedVisibleCount)}</span>
+                <span>已选 {formatLibraryCount(bulkSelectedVisibleCount)}</span>
                 <div className="flex shrink-0 gap-1">
                   <Button className="h-7 px-2" disabled={bulkBusy || visibleGames.length === 0} size="sm" variant="ghost" onClick={selectVisibleGames}>选中当前</Button>
                   <Button className="h-7 px-2" disabled={bulkBusy || visibleGames.length === 0} size="sm" variant="ghost" onClick={invertVisibleBulkSelection}>反选当前</Button>
@@ -202,7 +197,7 @@ export function LibraryPage({ refreshKey, selectedGameId, onSelectedGameChange, 
               </div>
               <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-1.5">
                 <Select aria-label="批量游玩状态" className="w-full" disabled={bulkBusy} value={bulkPlayStatus} onChange={(event) => setBulkPlayStatus(event.target.value as PlayStatus)}>
-                  {statuses.filter((item): item is PlayStatus => item !== 'all').map((item) => <option key={item} value={item}>{PLAY_STATUS_LABEL[item]}</option>)}
+                  {libraryStatuses.filter((item): item is PlayStatus => item !== 'all').map((item) => <option key={item} value={item}>{PLAY_STATUS_LABEL[item]}</option>)}
                 </Select>
                 <Button className="h-8 px-2" disabled={bulkBusy || bulkSelectedVisibleCount === 0} size="sm" variant="secondary" onClick={() => void applyBulkUpdate({ playStatus: bulkPlayStatus }, `游玩状态：${PLAY_STATUS_LABEL[bulkPlayStatus]}`)}>应用状态</Button>
               </div>
@@ -232,7 +227,7 @@ export function LibraryPage({ refreshKey, selectedGameId, onSelectedGameChange, 
             <div className="animate-view-in rounded-md border border-white/10 bg-black/10 p-2">
               <div className="grid grid-cols-2 gap-2">
             <Select className="w-full" value={status} onChange={(event) => setStatus(event.target.value as PlayStatus | 'all')}>
-              {statuses.map((item) => <option key={item} value={item}>{item === 'all' ? '全部状态' : PLAY_STATUS_LABEL[item]}</option>)}
+              {libraryStatuses.map((item) => <option key={item} value={item}>{item === 'all' ? '全部状态' : PLAY_STATUS_LABEL[item]}</option>)}
             </Select>
             <Select className="w-full" value={sortBy} onChange={(event) => setSortBy(event.target.value as GameFilter['sortBy'])}>
               <option value="updated_at">最近更新</option>
@@ -321,10 +316,10 @@ export function LibraryPage({ refreshKey, selectedGameId, onSelectedGameChange, 
 }
 
 function GameList({ games, selectedId, onSelect, blurCovers, bulkMode, selectedIds, onToggleSelection }: { games: Game[]; selectedId: string | null; onSelect: (id: string) => void; blurCovers: boolean; bulkMode: boolean; selectedIds: Set<string>; onToggleSelection: (id: string, checked: boolean) => void }) {
-  const [renderCount, setRenderCount] = useState(listInitialRenderCount);
+  const [renderCount, setRenderCount] = useState(libraryListInitialRenderCount);
 
   useEffect(() => {
-    setRenderCount(listInitialRenderCount);
+    setRenderCount(libraryListInitialRenderCount);
   }, [games]);
 
   if (games.length === 0) {
@@ -332,8 +327,8 @@ function GameList({ games, selectedId, onSelect, blurCovers, bulkMode, selectedI
   }
 
   const selectedIndex = selectedId ? games.findIndex((game) => game.id === selectedId) : -1;
-  const visibleCount = Math.min(games.length, Math.max(renderCount, selectedIndex + 1));
-  const groups = groupedGames(games.slice(0, visibleCount));
+  const visibleCount = getLibraryVisibleCount(games.length, renderCount, selectedIndex);
+  const groups = groupLibraryGames(games.slice(0, visibleCount), PLAY_STATUS_LABEL);
   const hasMore = visibleCount < games.length;
 
   return (
@@ -369,8 +364,8 @@ function GameList({ games, selectedId, onSelect, blurCovers, bulkMode, selectedI
       ))}
       {hasMore && (
         <div className="px-2 pb-2 pt-1">
-          <Button className="h-8 w-full text-xs" size="sm" variant="outline" onClick={() => setRenderCount((count) => Math.min(games.length, count + listRenderBatchSize))}>
-            加载更多 {formatCount(visibleCount)} / {formatCount(games.length)}
+          <Button className="h-8 w-full text-xs" size="sm" variant="outline" onClick={() => setRenderCount((count) => Math.min(games.length, count + libraryListRenderBatchSize))}>
+            加载更多 {formatLibraryCount(visibleCount)} / {formatLibraryCount(games.length)}
           </Button>
         </div>
       )}
@@ -378,38 +373,11 @@ function GameList({ games, selectedId, onSelect, blurCovers, bulkMode, selectedI
   );
 }
 
-function groupedGames(games: Game[]) {
-  const recent: Game[] = [];
-  const buckets = new Map<PlayStatus, Game[]>();
-
-  for (const game of games) {
-    if (game.lastPlayedAt && recent.length < 7) {
-      recent.push(game);
-      continue;
-    }
-
-    const items = buckets.get(game.playStatus) ?? [];
-    items.push(game);
-    buckets.set(game.playStatus, items);
-  }
-
-  const groups = recent.length > 0 ? [{ id: 'recent', label: 'Recent Games', games: recent }] : [];
-  for (const status of statuses) {
-    if (status === 'all') continue;
-    const items = buckets.get(status);
-    if (items?.length) {
-      groups.push({ id: status, label: PLAY_STATUS_LABEL[status], games: items });
-    }
-  }
-
-  return groups.length > 0 ? groups : [{ id: 'all', label: 'All Games', games }];
-}
-
 function GameGrid({ games, selectedId, onSelect, blurCovers, bulkMode, selectedIds, onToggleSelection }: { games: Game[]; selectedId: string | null; onSelect: (id: string) => void; blurCovers: boolean; bulkMode: boolean; selectedIds: Set<string>; onToggleSelection: (id: string, checked: boolean) => void }) {
-  const [renderCount, setRenderCount] = useState(gridInitialRenderCount);
+  const [renderCount, setRenderCount] = useState(libraryGridInitialRenderCount);
 
   useEffect(() => {
-    setRenderCount(gridInitialRenderCount);
+    setRenderCount(libraryGridInitialRenderCount);
   }, [games]);
 
   if (games.length === 0) {
@@ -417,7 +385,7 @@ function GameGrid({ games, selectedId, onSelect, blurCovers, bulkMode, selectedI
   }
 
   const selectedIndex = selectedId ? games.findIndex((game) => game.id === selectedId) : -1;
-  const visibleCount = Math.min(games.length, Math.max(renderCount, selectedIndex + 1));
+  const visibleCount = getLibraryVisibleCount(games.length, renderCount, selectedIndex);
   const visibleGames = games.slice(0, visibleCount);
   const hasMore = visibleCount < games.length;
 
@@ -443,8 +411,8 @@ function GameGrid({ games, selectedId, onSelect, blurCovers, bulkMode, selectedI
       </div>
       {hasMore && (
         <div className="px-2 pb-3">
-          <Button className="h-8 w-full text-xs" size="sm" variant="outline" onClick={() => setRenderCount((count) => Math.min(games.length, count + gridRenderBatchSize))}>
-            加载更多 {formatCount(visibleCount)} / {formatCount(games.length)}
+          <Button className="h-8 w-full text-xs" size="sm" variant="outline" onClick={() => setRenderCount((count) => Math.min(games.length, count + libraryGridRenderBatchSize))}>
+            加载更多 {formatLibraryCount(visibleCount)} / {formatLibraryCount(games.length)}
           </Button>
         </div>
       )}
@@ -454,29 +422,4 @@ function GameGrid({ games, selectedId, onSelect, blurCovers, bulkMode, selectedI
 
 function EmptyLibrary() {
   return <EmptyState>还没有匹配的游戏。可以手动添加，或到扫描入库页面导入。</EmptyState>;
-}
-
-function formatCount(value: number) {
-  return new Intl.NumberFormat('zh-CN').format(value);
-}
-
-function changedMetadataFields(game: Game, input: Parameters<typeof api.addGame>[0]) {
-  const fields: string[] = [];
-  const normalize = (value?: string | null) => value?.trim() || '';
-  const normalizeList = (values?: string[] | null) => (values ?? []).map((item) => item.trim()).filter(Boolean).join('\n');
-
-  if (normalize(game.title) !== normalize(input.title)) fields.push('title');
-  if (normalize(game.originalTitle) !== normalize(input.originalTitle)) fields.push('originalTitle');
-  if (normalize(game.description) !== normalize(input.description)) fields.push('description');
-  if (normalize(game.notes) !== normalize(input.notes)) fields.push('notes');
-  if (normalize(game.releaseDate) !== normalize(input.releaseDate)) fields.push('releaseDate');
-  if (normalize(game.developer) !== normalize(input.developer)) fields.push('developer');
-  if (normalize(game.publisher) !== normalize(input.publisher)) fields.push('publisher');
-  if (normalize(game.coverImage) !== normalize(input.coverImage)) fields.push('coverImage');
-  if (normalize(game.ageRating) !== normalize(input.ageRating)) fields.push('ageRating');
-  if (normalizeList(game.tags) !== normalizeList(input.tags)) fields.push('tags');
-  if (normalizeList(game.genres) !== normalizeList(input.genres)) fields.push('genres');
-  if (normalize(game.vndbId) !== normalize(input.vndbId) || normalize(game.dlsiteId) !== normalize(input.dlsiteId) || normalize(game.fanzaId) !== normalize(input.fanzaId) || normalize(game.bangumiId) !== normalize(input.bangumiId) || normalize(game.ymgalId) !== normalize(input.ymgalId)) fields.push('externalIds');
-
-  return fields;
 }
