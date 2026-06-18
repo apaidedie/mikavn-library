@@ -19,34 +19,16 @@ import { SettingsLocalDataSection } from './SettingsLocalDataSection';
 import { SettingsLocalPreferencesSection } from './SettingsLocalPreferencesSection';
 import { SettingsTagMaintenanceSection } from './SettingsTagMaintenanceSection';
 import { SettingsTraySection } from './SettingsTraySection';
+import { DEFAULT_SETTINGS_FORM, settingsFormToAiConnectionRecord, settingsFormToRecord, settingsRecordToForm } from './settingsFormMapping';
 import { formatBytes, getDirectoryLocations, type DirectoryLocationItem } from './SettingsPageParts';
 import type { SettingsForm } from './settingsTypes';
 
 type TaskMessage = { text: string; taskId?: string | null };
 export type SettingsTab = 'appearance' | 'sources' | 'local';
 
-const defaults: SettingsForm = {
-  provider_vndb_enabled: true,
-  provider_bangumi_enabled: true,
-  provider_dlsite_enabled: true,
-  provider_fanza_enabled: true,
-  provider_ymgal_enabled: true,
-  ai_base_url: '',
-  ai_model: 'gpt-4o-mini',
-  ai_api_key: '',
-  ui_accent_color: 'vnite',
-  ui_theme_mode: 'dark',
-  privacy_hide_hidden: false,
-  privacy_blur_covers: false,
-  privacy_filter_reports: true,
-  save_auto_backup_before_launch: false,
-  save_auto_backup_after_exit: false,
-  tray_enabled: true,
-};
-
 export function SettingsPage({ tabRequest, onAccentPreview, onThemePreview, onSaved, onOpenTask }: { tabRequest?: { tab: SettingsTab; key: number } | null; onAccentPreview?: (uiAccentColor: string) => void; onThemePreview?: (uiThemeMode: string) => void; onSaved?: () => void; onOpenTask?: (taskId: string) => void }) {
   const [activeTab, setActiveTab] = useState<SettingsTab>(tabRequest?.tab ?? 'appearance');
-  const [form, setForm] = useState<SettingsForm>(defaults);
+  const [form, setForm] = useState<SettingsForm>(DEFAULT_SETTINGS_FORM);
   const [message, setMessage] = useState<TaskMessage | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [archiveDir, setArchiveDir] = useState('');
@@ -56,7 +38,7 @@ export function SettingsPage({ tabRequest, onAccentPreview, onThemePreview, onSa
   const [metadataSources, setMetadataSources] = useState<MetadataSourceRecord[]>([]);
   const [diagnostics, setDiagnostics] = useState<AppDataDiagnostics | null>(null);
   const [trayStatus, setTrayStatus] = useState<TrayStatus | null>(null);
-  const [savedTrayEnabled, setSavedTrayEnabled] = useState(defaults.tray_enabled);
+  const [savedTrayEnabled, setSavedTrayEnabled] = useState(DEFAULT_SETTINGS_FORM.tray_enabled);
   const [diagnosticsLoading, setDiagnosticsLoading] = useState(false);
   const [cleanupLoading, setCleanupLoading] = useState(false);
   const [libraryRoots, setLibraryRoots] = useState<LibraryRoot[]>([]);
@@ -73,28 +55,11 @@ export function SettingsPage({ tabRequest, onAccentPreview, onThemePreview, onSa
 
   useEffect(() => {
     api.getAppSettings().then((settings) => {
-      const trayEnabled = settings.tray_enabled !== 'false';
-      setForm({
-        provider_vndb_enabled: settings.provider_vndb_enabled !== 'false',
-        provider_bangumi_enabled: settings.provider_bangumi_enabled !== 'false',
-        provider_dlsite_enabled: settings.provider_dlsite_enabled !== 'false',
-        provider_fanza_enabled: settings.provider_fanza_enabled !== 'false',
-        provider_ymgal_enabled: settings.provider_ymgal_enabled !== 'false',
-        ai_base_url: settings.ai_base_url ?? '',
-        ai_model: settings.ai_model ?? 'gpt-4o-mini',
-        ai_api_key: settings.ai_api_key ?? '',
-        ui_accent_color: settings.ui_accent_color ?? 'vnite',
-        ui_theme_mode: settings.ui_theme_mode ?? 'dark',
-        privacy_hide_hidden: settings.privacy_hide_hidden === 'true',
-        privacy_blur_covers: settings.privacy_blur_covers === 'true',
-        privacy_filter_reports: settings.privacy_filter_reports !== 'false',
-        save_auto_backup_before_launch: settings.save_auto_backup_before_launch === 'true',
-        save_auto_backup_after_exit: settings.save_auto_backup_after_exit === 'true',
-        tray_enabled: trayEnabled,
-      });
-      setSavedTrayEnabled(trayEnabled);
-      onAccentPreview?.(settings.ui_accent_color ?? 'vnite');
-      onThemePreview?.(settings.ui_theme_mode ?? 'dark');
+      const nextForm = settingsRecordToForm(settings);
+      setForm(nextForm);
+      setSavedTrayEnabled(nextForm.tray_enabled);
+      onAccentPreview?.(nextForm.ui_accent_color);
+      onThemePreview?.(nextForm.ui_theme_mode);
     }).catch((reason: unknown) => setError(errorMessage(reason)));
   }, [onAccentPreview, onThemePreview]);
 
@@ -111,25 +76,7 @@ export function SettingsPage({ tabRequest, onAccentPreview, onThemePreview, onSa
     setError(null);
     setMessage(null);
     try {
-      await api.setAppSettings({
-        provider_vndb_enabled: String(form.provider_vndb_enabled),
-        provider_bangumi_enabled: String(form.provider_bangumi_enabled),
-        provider_dlsite_enabled: String(form.provider_dlsite_enabled),
-        provider_fanza_enabled: String(form.provider_fanza_enabled),
-        provider_ymgal_enabled: String(form.provider_ymgal_enabled),
-        ai_base_url: form.ai_base_url,
-        ai_model: form.ai_model,
-        ai_api_key: form.ai_api_key,
-        ui_accent_color: form.ui_accent_color,
-        ui_theme_mode: form.ui_theme_mode,
-        ui_vnite_theme_migrated: 'true',
-        privacy_hide_hidden: String(form.privacy_hide_hidden),
-        privacy_blur_covers: String(form.privacy_blur_covers),
-        privacy_filter_reports: String(form.privacy_filter_reports),
-        save_auto_backup_before_launch: String(form.save_auto_backup_before_launch),
-        save_auto_backup_after_exit: String(form.save_auto_backup_after_exit),
-        tray_enabled: String(form.tray_enabled),
-      });
+      await api.setAppSettings(settingsFormToRecord(form));
       await loadTrayStatus();
       setSavedTrayEnabled(form.tray_enabled);
       setMessage({ text: form.ai_api_key.trim() ? '设置已保存到本机。API Key 属于本机私有配置，请勿共享数据库或配置文件。' : '设置已保存到本机。' });
@@ -454,11 +401,7 @@ export function SettingsPage({ tabRequest, onAccentPreview, onThemePreview, onSa
     setError(null);
     setMessage(null);
     try {
-      await api.setAppSettings({
-        ai_base_url: form.ai_base_url,
-        ai_model: form.ai_model,
-        ai_api_key: form.ai_api_key,
-      });
+      await api.setAppSettings(settingsFormToAiConnectionRecord(form));
       const result = await api.testAiConnection();
       setMessage({ text: `AI 连接可用：${result.model} · ${result.baseUrl}` });
     } catch (reason) {
