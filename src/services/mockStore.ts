@@ -1,4 +1,4 @@
-import type { AddGameInput, AssetCacheCleanupResult, AssetDownloadInput, AssetImportInput, AssetInput, CollectionGameLink, CollectionInput, DashboardData, Game, GameAsset, GameCollection, GameFilter, GamePathHealth, PathCheckItem, PlaySession, PlayStatus, TagRecord, UpdateGameInput } from '@/types/game';
+import type { AddGameInput, AssetCacheCleanupResult, AssetDownloadInput, AssetImportInput, AssetInput, CollectionGameLink, CollectionInput, DashboardData, Game, GameAsset, GameCollection, GameFilter, GamePathHealth, PathCheckItem, PlayStatus, TagRecord, UpdateGameInput } from '@/types/game';
 import type { AdvancedSearchInput, AdvancedSearchResult, AiConnectionTestResult, AiRecognitionResult, ApplyMetadataFields, ArtworkRepairDiagnosis, ArtworkRepairOptions, ArtworkRepairPreview, BatchMatchJob, BatchMatchStatus, DescriptionImageRepairOptions, DescriptionImageRepairPreview, DuplicateExternalIdAuditOptions, DuplicateExternalIdPreview, DuplicateGameMergeOptions, DuplicateGameMergePreview, DuplicateGameMergeResult, ExternalIdRecord, FieldLock, MatchSuggestion, MetadataProvider, MetadataSearchResponse, MetadataSearchResult, MetadataSourceRecord, NormalizedMetadata, SavedSearch, SavedSearchInput, SearchQueryValidation } from '@/types/metadata';
 import type { TaskDetail, TaskLogEntry, TaskRecord } from '@/types/task';
 import { mockArtworkRepairDiagnosis, mockArtworkRepairPreview, mockDescriptionImageCandidates } from './mockStoreArtworkRepair';
@@ -12,9 +12,10 @@ import { mockAssetCacheCleanupResult } from './mockStoreImages';
 import { createMockStoreDiagnostics } from './mockStoreDiagnostics';
 import { createMockStoreLaunchProfiles } from './mockStoreLaunchProfiles';
 import { cleanTitle, metadataStatusMatches, mockMatchesClause, parseMockSearch, score } from './mockStoreMetadata';
+import { createMockStorePlaySessions } from './mockStorePlaySessions';
 import { createMockStoreScanner } from './mockStoreScanner';
 import { createMockStoreSaves } from './mockStoreSaves';
-import { BATCH_KEY, FIELD_LOCKS_KEY, PLAY_SESSIONS_KEY, SAVED_SEARCHES_KEY, SETTINGS_KEY, STORAGE_KEY, readJson, readSettings, writeJson } from './mockStoreStorage';
+import { BATCH_KEY, FIELD_LOCKS_KEY, SAVED_SEARCHES_KEY, SETTINGS_KEY, STORAGE_KEY, readJson, readSettings, writeJson } from './mockStoreStorage';
 import { syncGameTags } from './mockStoreTags';
 import { addTaskLog, makeTask, readTaskLogs, readTasks, reportGapExamplesLog, reportGapSummaryLog, writeTasks } from './mockStoreTasks';
 
@@ -145,11 +146,14 @@ function updateMockGame(id: string, input: UpdateGameInput): Promise<Game> {
   return Promise.resolve(updated);
 }
 
+const mockLaunchProfiles = createMockStoreLaunchProfiles(readGames);
+
 export const mockStore = {
   ...createMockStoreDiagnostics(readGames),
   ...createMockStoreArchives({ readGames, writeGames }),
   ...createMockStoreSaves(readGames),
-  ...createMockStoreLaunchProfiles(readGames),
+  ...mockLaunchProfiles,
+  ...createMockStorePlaySessions({ readGames, writeGames, listLaunchProfiles: mockLaunchProfiles.listLaunchProfiles }),
   ...createMockStoreScanner({ readGames, addGame: addMockGame, updateGame: updateMockGame }),
 
   listGames(filter: GameFilter = {}) {
@@ -459,54 +463,6 @@ export const mockStore = {
     writeCollectionLinks(readCollectionLinks().filter((item) => !(item.collectionId === collectionId && item.gameId === gameId)));
     writeCollections(readCollections().map((item) => item.id === collectionId ? { ...item, updatedAt: new Date().toISOString() } : item));
     return Promise.resolve();
-  },
-
-  launchGame(id: string): Promise<PlaySession> {
-    return this.launchGameWithProfile(id, null);
-  },
-
-  async launchGameWithProfile(id: string, profileId?: string | null): Promise<PlaySession> {
-    const game = await this.getGame(id);
-    const profiles = await this.listLaunchProfiles(id);
-    const profile = profiles.find((item) => item.id === profileId) ?? profiles.find((item) => item.isDefault) ?? profiles[0];
-    if (!profile?.executablePath) {
-      return Promise.reject(new Error('Launch executable does not exist'));
-    }
-    if (profile.runnerType === 'locale_emulator' && !profile.localeEmulatorPath) {
-      return Promise.reject(new Error('Locale Emulator path is required'));
-    }
-    const startedAt = new Date().toISOString();
-    const durationSeconds = 1800;
-    const endedAt = new Date(Date.now() + durationSeconds * 1000).toISOString();
-    const session: PlaySession = {
-      id: crypto.randomUUID(),
-      gameId: game.id,
-      launchProfileId: profile.id.startsWith('legacy-') ? null : profile.id,
-      startedAt,
-      endedAt,
-      durationSeconds,
-      exitStatus: profile.runAsAdmin ? 'mock_elevated' : 'mock',
-    };
-    writeJson(PLAY_SESSIONS_KEY, [session, ...readJson<PlaySession[]>(PLAY_SESSIONS_KEY, [])].slice(0, 200));
-    writeGames(readGames().map((item) => item.id === id ? { ...item, lastPlayedAt: startedAt, totalPlaySeconds: item.totalPlaySeconds + durationSeconds, updatedAt: startedAt } : item));
-    return session;
-  },
-
-  listPlaySessions(gameId: string, limit = 50): Promise<PlaySession[]> {
-    const sessions = readJson<PlaySession[]>(PLAY_SESSIONS_KEY, []).filter((session) => session.gameId === gameId);
-    if (sessions.length === 0 && gameId === 'sample-1') {
-      const startedAt = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
-      return Promise.resolve([{
-        id: 'mock-session-1',
-        gameId,
-        launchProfileId: null,
-        startedAt,
-        endedAt: new Date(Date.parse(startedAt) + 1800 * 1000).toISOString(),
-        durationSeconds: 1800,
-        exitStatus: '0',
-      }]);
-    }
-    return Promise.resolve(sessions.slice(0, Math.max(1, Math.min(limit, 200))));
   },
 
   getDashboard(): Promise<DashboardData> {
