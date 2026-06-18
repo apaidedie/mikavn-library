@@ -1,13 +1,8 @@
-import { ChevronDown, Copy } from 'lucide-react';
-import type { ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { CheckboxField } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Notice } from '@/components/ui/notice';
 import { Select } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 import { api } from '@/services/api';
 import { chooseDirectory, chooseExecutable, chooseImage } from '@/services/dialog';
 import type { Game, GameFormInput, PlayStatus } from '@/types/game';
@@ -30,6 +25,8 @@ import {
   type GameFormState,
   type MetadataMergeMode,
 } from './gameFormMapping';
+import { GameFormAdvancedSection } from './GameFormAdvancedSection';
+import { Field, InputWithButton } from './GameFormControls';
 import { QuickAddMetadataPanel } from './QuickAddMetadataPanel';
 
 type GameFormProps = {
@@ -237,90 +234,24 @@ export function GameForm({ game, onSubmit, onCancel }: GameFormProps) {
         <Field label="启动程序"><InputWithButton copyLabel="启动程序" value={form.executablePath} onChange={(value) => update('executablePath', value)} onCopy={() => void copyPath('启动程序', form.executablePath)} onPick={() => void pickExecutable()} /></Field>
       </div>
 
-      <section className="rounded-lg border border-white/10 bg-black/[0.12]">
-        <button className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left" type="button" onClick={() => setAdvancedOpen((value) => !value)}>
-          <span className="text-sm font-medium text-slate-100">{isEditing ? '详细信息' : '高级信息'}</span>
-          <ChevronDown className={cn('h-4 w-4 text-slate-400 transition-transform', advancedOpen && 'rotate-180')} />
-        </button>
-
-        {advancedOpen && (
-          <div className="space-y-3 border-t border-white/10 p-3">
-            {!isEditing && (
-              <div className="grid gap-3 md:grid-cols-2">
-                <Field label="原名"><Input value={form.originalTitle} onChange={(event) => update('originalTitle', event.target.value)} /></Field>
-                <Field label="游玩状态">
-                  <Select className="w-full" value={form.playStatus} onChange={(event) => update('playStatus', event.target.value)}>
-                    {statusOptions.map((status) => <option key={status} value={status}>{PLAY_STATUS_LABEL[status]}</option>)}
-                  </Select>
-                </Field>
-              </div>
-            )}
-
-            <div className="grid gap-3 md:grid-cols-2">
-              <Field label="会社 / 开发商"><Input value={form.developer} onChange={(event) => update('developer', event.target.value)} /></Field>
-              <Field label="品牌"><Input value={form.brand} onChange={(event) => update('brand', event.target.value)} /></Field>
-              <Field label="发行商"><Input value={form.publisher} onChange={(event) => update('publisher', event.target.value)} /></Field>
-              <Field label="发售日"><Input placeholder="YYYY-MM-DD" value={form.releaseDate} onChange={(event) => update('releaseDate', event.target.value)} /></Field>
-              <Field label="评分"><Input min={0} max={100} type="number" value={form.rating} onChange={(event) => update('rating', event.target.value)} /></Field>
-              <Field label="年龄分级"><Input value={form.ageRating} onChange={(event) => update('ageRating', event.target.value)} /></Field>
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-2">
-              <Field label="工作目录"><InputWithButton copyLabel="工作目录" value={form.workingDirectory} onChange={(value) => update('workingDirectory', value)} onCopy={() => void copyPath('工作目录', form.workingDirectory)} onPick={() => void pickDirectory('workingDirectory')} /></Field>
-              <Field label="启动参数"><Input value={form.launchArgs} onChange={(event) => update('launchArgs', event.target.value)} /></Field>
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-3">
-              <Field label="封面路径"><InputWithButton copyLabel="封面路径" value={form.coverImage} onChange={(value) => update('coverImage', value)} onCopy={() => void copyPath('封面', form.coverImage)} onPick={() => void pickImage('coverImage')} /></Field>
-              <Field label="横幅路径"><InputWithButton copyLabel="横幅路径" value={form.bannerImage} onChange={(value) => update('bannerImage', value)} onCopy={() => void copyPath('横幅', form.bannerImage)} onPick={() => void pickImage('bannerImage')} /></Field>
-              <Field label="背景路径"><InputWithButton copyLabel="背景路径" value={form.backgroundImage} onChange={(value) => update('backgroundImage', value)} onCopy={() => void copyPath('背景', form.backgroundImage)} onPick={() => void pickImage('backgroundImage')} /></Field>
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-2">
-              <CheckboxField checked={form.favorite} label="收藏" onChange={(event) => updateBool('favorite', event.target.checked)} />
-              <CheckboxField checked={form.hidden} label="隐藏条目" onChange={(event) => updateBool('hidden', event.target.checked)} />
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-2">
-              <Field label="标签"><Input placeholder="逗号分隔" value={form.tags} onChange={(event) => update('tags', event.target.value)} /></Field>
-              <Field label="类型"><Input placeholder="逗号分隔" value={form.genres} onChange={(event) => update('genres', event.target.value)} /></Field>
-              <Field label="别名"><Input placeholder="逗号分隔" value={form.aliases} onChange={(event) => update('aliases', event.target.value)} /></Field>
-              <Field label="VNDB ID"><InputWithButton copyLabel="VNDB ID" value={form.vndbId} onChange={(value) => update('vndbId', value)} onCopy={() => void copyText('VNDB ID', form.vndbId)} /></Field>
-              <Field label="DLsite ID"><InputWithButton copyLabel="DLsite ID" value={form.dlsiteId} onChange={(value) => update('dlsiteId', value)} onCopy={() => void copyText('DLsite ID', form.dlsiteId)} /></Field>
-              <Field label="FANZA ID"><InputWithButton copyLabel="FANZA ID" value={form.fanzaId} onChange={(value) => update('fanzaId', value)} onCopy={() => void copyText('FANZA ID', form.fanzaId)} /></Field>
-              <Field label="Bangumi ID"><InputWithButton copyLabel="Bangumi ID" value={form.bangumiId} onChange={(value) => update('bangumiId', value)} onCopy={() => void copyText('Bangumi ID', form.bangumiId)} /></Field>
-              <Field label="YMGal ID"><InputWithButton copyLabel="YMGal ID" value={form.ymgalId} onChange={(value) => update('ymgalId', value)} onCopy={() => void copyText('YMGal ID', form.ymgalId)} /></Field>
-            </div>
-
-            <Field label="简介"><Textarea value={form.description} onChange={(event) => update('description', event.target.value)} /></Field>
-            <Field label="个人备注"><Textarea placeholder="攻略进度、补丁说明、通关感想、注意事项..." value={form.notes} onChange={(event) => update('notes', event.target.value)} /></Field>
-          </div>
-        )}
-      </section>
+      <GameFormAdvancedSection
+        advancedOpen={advancedOpen}
+        form={form}
+        isEditing={isEditing}
+        statusOptions={statusOptions}
+        onCopyPath={(label, value) => void copyPath(label, value)}
+        onCopyText={(label, value) => void copyText(label, value)}
+        onPickDirectory={(key) => void pickDirectory(key)}
+        onPickImage={(key) => void pickImage(key)}
+        onToggle={() => setAdvancedOpen((value) => !value)}
+        onUpdate={update}
+        onUpdateBool={updateBool}
+      />
 
       <div className="sticky bottom-0 z-10 -mx-5 -mb-5 flex justify-end gap-2 border-t border-white/10 bg-[rgb(var(--modal-rgb)/0.98)] px-5 py-3 backdrop-blur-xl">
         <Button type="button" variant="ghost" onClick={onCancel}>取消</Button>
         <Button type="button" disabled={saving} onClick={submit}>{saving ? '保存中...' : '保存'}</Button>
       </div>
-    </div>
-  );
-}
-
-function Field({ label, required, children }: { label: string; required?: boolean; children: ReactNode }) {
-  return (
-    <label className="space-y-1.5">
-      <Label>{label}{required ? ' *' : ''}</Label>
-      {children}
-    </label>
-  );
-}
-
-function InputWithButton({ copyLabel, value, onChange, onCopy, onPick }: { copyLabel?: string; value: string; onChange: (value: string) => void; onCopy?: () => void; onPick?: () => void }) {
-  return (
-    <div className="flex gap-2">
-      <Input value={value} onChange={(event) => onChange(event.target.value)} />
-      {onCopy && copyLabel && <Button aria-label={copyLabel.endsWith('ID') ? `复制 ${copyLabel}` : `复制${copyLabel}`} className="shrink-0" disabled={!value.trim()} type="button" variant="outline" onClick={onCopy}><Copy className="h-4 w-4" />复制</Button>}
-      {onPick && <Button className="shrink-0" type="button" variant="outline" onClick={onPick}>选择</Button>}
     </div>
   );
 }
