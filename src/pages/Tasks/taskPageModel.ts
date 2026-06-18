@@ -1,6 +1,32 @@
 import type { TaskLogEntry, TaskRecord } from '@/types/task';
 import { taskLabel, taskStatusLabel } from '@/utils/taskLabels';
 
+export type TaskStatusShortcut = {
+  id: 'all' | 'active' | 'attention' | 'completed';
+  label: string;
+  count: number;
+};
+
+export type TaskTypeShortcut = {
+  id: string;
+  label: string;
+  count: number;
+};
+
+export type TaskPageSummary = {
+  activeCount: number;
+  attentionCount: number;
+  completedCount: number;
+  queueProgress: number;
+  statusShortcuts: TaskStatusShortcut[];
+};
+
+export type TaskFilterInput = {
+  statusFilter: string;
+  typeFilter: string;
+  query: string;
+};
+
 export function levelLabel(level: string) {
   const labels: Record<string, string> = {
     debug: '调试',
@@ -25,6 +51,57 @@ export function isResultTask(task: TaskRecord) {
 
 export function canRetryTask(task: TaskRecord) {
   return Boolean(task.retryable) && (task.status === 'failed' || task.status === 'cancelled');
+}
+
+export function deriveTaskPageSummary(tasks: TaskRecord[]): TaskPageSummary {
+  const activeCount = tasks.filter(isActiveTask).length;
+  const attentionCount = tasks.filter(needsAttentionTask).length;
+  const completedCount = tasks.filter((task) => task.status === 'completed').length;
+  const queueProgress = tasks.length === 0 ? 0 : Math.round((tasks.reduce((sum, task) => sum + boundedProgress(task.progress), 0) / tasks.length) * 100);
+
+  return {
+    activeCount,
+    attentionCount,
+    completedCount,
+    queueProgress,
+    statusShortcuts: [
+      { id: 'all', label: '全部', count: tasks.length },
+      { id: 'active', label: '进行中', count: activeCount },
+      { id: 'attention', label: '需处理', count: attentionCount },
+      { id: 'completed', label: '已完成', count: completedCount },
+    ],
+  };
+}
+
+export function deriveTaskTypeShortcuts(tasks: TaskRecord[]): TaskTypeShortcut[] {
+  const taskTypes = [...new Set(tasks.map((task) => task.taskType))].sort((a, b) => taskLabel(a).localeCompare(taskLabel(b), 'zh-CN'));
+  return [
+    { id: 'all', label: '全部类型', count: tasks.length },
+    ...taskTypes.map((taskType) => ({
+      id: taskType,
+      label: taskLabel(taskType),
+      count: tasks.filter((task) => task.taskType === taskType).length,
+    })),
+  ];
+}
+
+export function filterTasks(tasks: TaskRecord[], filters: TaskFilterInput) {
+  return tasks.filter((task) => {
+    const matchesStatus = filters.statusFilter === 'all'
+      || (filters.statusFilter === 'active' && isActiveTask(task))
+      || (filters.statusFilter === 'attention' && needsAttentionTask(task))
+      || task.status === filters.statusFilter;
+    const matchesType = filters.typeFilter === 'all' || task.taskType === filters.typeFilter;
+    const matchesQuery = matchesTaskQuery(task, filters.query);
+    return matchesStatus && matchesType && matchesQuery;
+  });
+}
+
+export function deriveRecentResultTasks(tasks: TaskRecord[], limit = 3) {
+  return [...tasks]
+    .filter(isResultTask)
+    .sort((a, b) => dateMillis(b.updatedAt) - dateMillis(a.updatedAt))
+    .slice(0, limit);
 }
 
 export function matchesTaskQuery(task: TaskRecord, query: string) {

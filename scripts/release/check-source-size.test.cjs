@@ -102,7 +102,7 @@ test('tasks page budget keeps task queue derivation outside page component', () 
   const budget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('src/pages/Tasks/TasksPage.tsx'));
 
   assert.ok(budget);
-  assert.ok(budget.maxLines <= 460);
+  assert.ok(budget.maxLines <= 430);
 });
 
 test('scanner page budget keeps import scan derivation outside page component', () => {

@@ -17,14 +17,13 @@ import { buildTaskDiagnosticMarkdown } from './taskDiagnostics';
 import {
   boundedProgress,
   canRetryTask,
-  dateMillis,
+  deriveRecentResultTasks,
+  deriveTaskPageSummary,
+  deriveTaskTypeShortcuts,
+  filterTasks,
   formatCount,
-  isActiveTask,
-  isResultTask,
   levelLabel,
   matchesLogQuery,
-  matchesTaskQuery,
-  needsAttentionTask,
   taskTiming,
 } from './taskPageModel';
 
@@ -43,38 +42,10 @@ export function TasksPage({ refreshKey, focusTaskId, focusRequestKey = 0, filter
   const handledFocusKeyRef = useRef<number | null>(null);
   const expandedIdRef = useRef<string | null>(null);
 
-  const taskTypes = useMemo(() => [...new Set(tasks.map((task) => task.taskType))].sort((a, b) => taskLabel(a).localeCompare(taskLabel(b), 'zh-CN')), [tasks]);
-  const activeCount = useMemo(() => tasks.filter(isActiveTask).length, [tasks]);
-  const attentionCount = useMemo(() => tasks.filter(needsAttentionTask).length, [tasks]);
-  const completedCount = useMemo(() => tasks.filter((task) => task.status === 'completed').length, [tasks]);
-  const queueProgress = useMemo(() => tasks.length === 0 ? 0 : Math.round((tasks.reduce((sum, task) => sum + boundedProgress(task.progress), 0) / tasks.length) * 100), [tasks]);
-  const statusShortcuts = useMemo(() => [
-    { id: 'all', label: '全部', count: tasks.length },
-    { id: 'active', label: '进行中', count: activeCount },
-    { id: 'attention', label: '需处理', count: attentionCount },
-    { id: 'completed', label: '已完成', count: completedCount },
-  ] as const, [activeCount, attentionCount, completedCount, tasks.length]);
-  const taskTypeShortcuts = useMemo(() => [
-    { id: 'all', label: '全部类型', count: tasks.length },
-    ...taskTypes.map((taskType) => ({
-      id: taskType,
-      label: taskLabel(taskType),
-      count: tasks.filter((task) => task.taskType === taskType).length,
-    })),
-  ], [taskTypes, tasks]);
-  const filteredTasks = useMemo(() => tasks.filter((task) => {
-    const matchesStatus = statusFilter === 'all'
-      || (statusFilter === 'active' && isActiveTask(task))
-      || (statusFilter === 'attention' && needsAttentionTask(task))
-      || task.status === statusFilter;
-    const matchesType = typeFilter === 'all' || task.taskType === typeFilter;
-    const matchesQuery = matchesTaskQuery(task, taskQuery);
-    return matchesStatus && matchesType && matchesQuery;
-  }), [statusFilter, taskQuery, tasks, typeFilter]);
-  const recentResultTasks = useMemo(() => filteredTasks
-    .filter(isResultTask)
-    .sort((a, b) => dateMillis(b.updatedAt) - dateMillis(a.updatedAt))
-    .slice(0, 3), [filteredTasks]);
+  const taskSummary = useMemo(() => deriveTaskPageSummary(tasks), [tasks]);
+  const taskTypeShortcuts = useMemo(() => deriveTaskTypeShortcuts(tasks), [tasks]);
+  const filteredTasks = useMemo(() => filterTasks(tasks, { statusFilter, typeFilter, query: taskQuery }), [statusFilter, taskQuery, tasks, typeFilter]);
+  const recentResultTasks = useMemo(() => deriveRecentResultTasks(filteredTasks), [filteredTasks]);
   const resetFilters = () => {
     setStatusFilter('all');
     setTypeFilter('all');
@@ -257,12 +228,12 @@ export function TasksPage({ refreshKey, focusTaskId, focusRequestKey = 0, filter
           <PanelContent className="space-y-3">
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <MetricTile icon={<ListFilter className="h-3.5 w-3.5" />} label="任务总数" value={formatCount(tasks.length)} detail={`当前显示 ${formatCount(filteredTasks.length)} 个`} />
-              <MetricTile icon={<Timer className="h-3.5 w-3.5" />} label="进行中" value={formatCount(activeCount)} detail="运行中 / 等待中" />
-              <MetricTile icon={<AlertTriangle className="h-3.5 w-3.5" />} label="需处理" value={formatCount(attentionCount)} detail="失败 / 已取消" />
-              <MetricTile icon={<CheckCircle2 className="h-3.5 w-3.5" />} label="已完成" value={formatCount(completedCount)} detail={`队列进度 ${queueProgress}%`} />
+              <MetricTile icon={<Timer className="h-3.5 w-3.5" />} label="进行中" value={formatCount(taskSummary.activeCount)} detail="运行中 / 等待中" />
+              <MetricTile icon={<AlertTriangle className="h-3.5 w-3.5" />} label="需处理" value={formatCount(taskSummary.attentionCount)} detail="失败 / 已取消" />
+              <MetricTile icon={<CheckCircle2 className="h-3.5 w-3.5" />} label="已完成" value={formatCount(taskSummary.completedCount)} detail={`队列进度 ${taskSummary.queueProgress}%`} />
             </div>
             <div className="grid gap-1.5 sm:grid-cols-4" aria-label="任务状态快捷筛选">
-              {statusShortcuts.map((shortcut) => {
+              {taskSummary.statusShortcuts.map((shortcut) => {
                 const active = statusFilter === shortcut.id;
                 return (
                   <Button
@@ -334,10 +305,10 @@ export function TasksPage({ refreshKey, focusTaskId, focusRequestKey = 0, filter
               <div className="min-w-0">
                 <div className="flex items-center justify-between gap-3 text-xs text-slate-400">
                   <span>队列总体进度</span>
-                  <span className="font-mono text-slate-200">{queueProgress}%</span>
+                  <span className="font-mono text-slate-200">{taskSummary.queueProgress}%</span>
                 </div>
                 <div className="mt-2 h-2 overflow-hidden rounded-full bg-black/25">
-                  <div className="h-full rounded-full bg-[rgb(var(--accent-rgb))]" style={{ width: `${queueProgress}%` }} />
+                  <div className="h-full rounded-full bg-[rgb(var(--accent-rgb))]" style={{ width: `${taskSummary.queueProgress}%` }} />
                 </div>
               </div>
               <label className="text-xs text-slate-500">
@@ -355,7 +326,7 @@ export function TasksPage({ refreshKey, focusTaskId, focusRequestKey = 0, filter
                 类型筛选
                 <Select aria-label="任务类型筛选" className="mt-1 w-full" value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
                   <option value="all">全部类型</option>
-                  {taskTypes.map((taskType) => <option key={taskType} value={taskType}>{taskLabel(taskType)}</option>)}
+                  {taskTypeShortcuts.filter((shortcut) => shortcut.id !== 'all').map((shortcut) => <option key={shortcut.id} value={shortcut.id}>{shortcut.label}</option>)}
                 </Select>
               </label>
               <label className="text-xs text-slate-500">
