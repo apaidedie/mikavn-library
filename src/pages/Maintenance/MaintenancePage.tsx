@@ -4,11 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Notice } from '@/components/ui/notice';
 import { PageFrame, PageHeader, PageShell } from '@/components/ui/page';
 import { TaskNotice } from '@/components/ui/task-notice';
-import { api } from '@/services/api';
-import type { ImageReferenceAudit } from '@/types/archive';
 import type { LibraryFilterPreset } from '@/types/game';
-import type { ArtworkRepairDiagnosis, DuplicateExternalIdGroup, DuplicateGameMergePreview } from '@/types/metadata';
-import { errorMessage } from '@/utils/errorMessage';
 import { MaintenanceArtworkDiagnosisPanel } from './MaintenanceArtworkDiagnosisPanel';
 import { MaintenanceArtworkHistoryPanel } from './MaintenanceArtworkHistoryPanel';
 import { MaintenanceBatchMatchHistoryPanel } from './MaintenanceBatchMatchHistoryPanel';
@@ -20,9 +16,11 @@ import { MaintenanceImageAuditPanel } from './MaintenanceImageAuditPanel';
 import { MaintenanceOverviewPanels } from './MaintenanceOverviewPanels';
 import { MaintenanceQueuePanel } from './MaintenanceQueuePanel';
 import { MaintenanceTasksPanel } from './MaintenanceTasksPanel';
-import { duplicateGroupKey, formatCount, percent, providerLabel, recommendDuplicateMergeTarget } from './MaintenancePageParts';
+import { percent, providerLabel } from './MaintenancePageParts';
 import { useMaintenanceDataActions } from './useMaintenanceDataActions';
+import { useMaintenanceDuplicateMergeActions } from './useMaintenanceDuplicateMergeActions';
 import { useMaintenanceHistoryActions } from './useMaintenanceHistoryActions';
+import { useMaintenanceInspectionActions } from './useMaintenanceInspectionActions';
 import { useMaintenanceQueueActions } from './useMaintenanceQueueActions';
 import { useMaintenanceTasks } from './useMaintenanceTasks';
 
@@ -31,22 +29,6 @@ type TaskMessage = { text: string; taskId?: string | null };
 export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0, onOpenGame, onOpenLibrary, onOpenMetadata, onOpenTasks }: { refreshKey: number; focusSection?: string | null; focusRequestKey?: number; onOpenGame?: (gameId: string) => void; onOpenLibrary?: (preset?: LibraryFilterPreset | null) => void; onOpenMetadata?: (preset?: { query?: string; missingProvider?: string } | null) => void; onOpenTasks?: (taskId?: string | null) => void }) {
   const imageAuditRef = useRef<HTMLElement | null>(null);
   const handledFocusKeyRef = useRef<number | null>(null);
-  const [imageAudit, setImageAudit] = useState<ImageReferenceAudit | null>(null);
-  const [imageAuditLoading, setImageAuditLoading] = useState(false);
-  const [imageAuditQuery, setImageAuditQuery] = useState('');
-  const [imageAuditIssueFilter, setImageAuditIssueFilter] = useState('all');
-  const [artworkDiagnosis, setArtworkDiagnosis] = useState<ArtworkRepairDiagnosis | null>(null);
-  const [artworkDiagnosisLoading, setArtworkDiagnosisLoading] = useState(false);
-  const [artworkDiagnosisQuery, setArtworkDiagnosisQuery] = useState('');
-  const [artworkDiagnosisStatusFilter, setArtworkDiagnosisStatusFilter] = useState('all');
-  const [duplicateGroups, setDuplicateGroups] = useState<DuplicateExternalIdGroup[]>([]);
-  const [duplicateGroupsLoading, setDuplicateGroupsLoading] = useState(false);
-  const [duplicateGroupQuery, setDuplicateGroupQuery] = useState('');
-  const [duplicateGroupProvider, setDuplicateGroupProvider] = useState('all');
-  const [selectedDuplicateKey, setSelectedDuplicateKey] = useState('');
-  const [mergeTargetId, setMergeTargetId] = useState('');
-  const [mergePreview, setMergePreview] = useState<DuplicateGameMergePreview | null>(null);
-  const [mergeLoading, setMergeLoading] = useState(false);
   const [message, setMessage] = useState<TaskMessage | null>(null);
   const [error, setError] = useState<string | null>(null);
   const {
@@ -62,6 +44,54 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
     previewAssetCacheCleanup,
     revealPath,
   } = useMaintenanceDataActions({
+    setError,
+    setMessage,
+  });
+  const {
+    artworkDiagnosis,
+    artworkDiagnosisLoading,
+    artworkDiagnosisQuery,
+    artworkDiagnosisStatusFilter,
+    imageAudit,
+    imageAuditIssueFilter,
+    imageAuditLoading,
+    imageAuditQuery,
+    loadArtworkDiagnosis,
+    loadImageAudit,
+    resetArtworkDiagnosisFilters,
+    resetImageAuditFilters,
+    setArtworkDiagnosisQuery,
+    setArtworkDiagnosisStatusFilter,
+    setImageAuditIssueFilter,
+    setImageAuditQuery,
+  } = useMaintenanceInspectionActions({
+    setError,
+    setMessage,
+  });
+  const {
+    duplicateGroupFiltersActive,
+    duplicateGroupProvider,
+    duplicateGroupQuery,
+    duplicateGroups,
+    duplicateGroupsLoading,
+    filteredDuplicateGroups,
+    loadDuplicateGroups,
+    mergeDuplicateGroup,
+    mergeLoading,
+    mergePreview,
+    mergeSourceIds,
+    mergeTargetId,
+    previewDuplicateMerge,
+    recommendedMergeTargetId,
+    resetDuplicateGroupFilters,
+    selectedDuplicateGroup,
+    selectedDuplicateKey,
+    updateDuplicateGroupProvider,
+    updateDuplicateGroupQuery,
+    updateMergeTarget,
+    updateSelectedDuplicateKey,
+  } = useMaintenanceDuplicateMergeActions({
+    loadDiagnostics,
     setError,
     setMessage,
   });
@@ -176,48 +206,6 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
       + database.cDriveImageRefsCount
       + database.playniteImageRefsCount;
   }, [database]);
-  const filteredDuplicateGroups = useMemo(() => duplicateGroups.filter((group) => {
-    const query = duplicateGroupQuery.trim().toLowerCase();
-    const matchesProvider = duplicateGroupProvider === 'all' || group.provider === duplicateGroupProvider;
-    const matchesQuery = !query
-      || group.externalId.toLowerCase().includes(query)
-      || group.provider.toLowerCase().includes(query)
-      || group.games.some((game) => [game.title, game.installPath].some((value) => value.toLowerCase().includes(query)));
-    return matchesProvider && matchesQuery;
-  }), [duplicateGroupProvider, duplicateGroupQuery, duplicateGroups]);
-  const selectedDuplicateGroup = useMemo(() => filteredDuplicateGroups.find((group) => duplicateGroupKey(group) === selectedDuplicateKey) ?? filteredDuplicateGroups[0] ?? null, [filteredDuplicateGroups, selectedDuplicateKey]);
-  const recommendedMergeTargetId = useMemo(() => recommendDuplicateMergeTarget(selectedDuplicateGroup), [selectedDuplicateGroup]);
-  const mergeSourceIds = useMemo(() => selectedDuplicateGroup?.games.map((game) => game.gameId).filter((id) => id !== mergeTargetId) ?? [], [mergeTargetId, selectedDuplicateGroup]);
-  const duplicateGroupFiltersActive = duplicateGroupQuery.trim().length > 0 || duplicateGroupProvider !== 'all';
-  const resetDuplicateGroupFilters = () => {
-    setDuplicateGroupQuery('');
-    setDuplicateGroupProvider('all');
-    setMergePreview(null);
-  };
-
-  const resetImageAuditFilters = () => {
-    setImageAuditQuery('');
-    setImageAuditIssueFilter('all');
-  };
-
-  const resetArtworkDiagnosisFilters = () => {
-    setArtworkDiagnosisQuery('');
-    setArtworkDiagnosisStatusFilter('all');
-  };
-
-  useEffect(() => {
-    if (!selectedDuplicateGroup) {
-      setMergeTargetId('');
-      setMergePreview(null);
-      return;
-    }
-    if (!selectedDuplicateKey || !filteredDuplicateGroups.some((group) => duplicateGroupKey(group) === selectedDuplicateKey)) setSelectedDuplicateKey(duplicateGroupKey(selectedDuplicateGroup));
-    if (!mergeTargetId || !selectedDuplicateGroup.games.some((game) => game.gameId === mergeTargetId)) {
-      setMergeTargetId(recommendedMergeTargetId ?? selectedDuplicateGroup.games[0]?.gameId ?? '');
-    }
-    setMergePreview(null);
-  }, [filteredDuplicateGroups, mergeTargetId, recommendedMergeTargetId, selectedDuplicateGroup, selectedDuplicateKey]);
-
   return (
     <PageShell>
       <PageFrame className="max-w-[88rem] gap-5">
@@ -380,12 +368,12 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
           onCopyPath={(label, path) => void copyPath(label, path)}
           onLoadGroups={() => loadDuplicateGroups()}
           onMergeGroup={mergeDuplicateGroup}
-          onMergeTargetChange={(gameId) => { setMergeTargetId(gameId); setMergePreview(null); }}
+          onMergeTargetChange={updateMergeTarget}
           onPreviewMerge={previewDuplicateMerge}
-          onProviderChange={(value) => { setDuplicateGroupProvider(value); setMergePreview(null); }}
-          onQueryChange={(value) => { setDuplicateGroupQuery(value); setMergePreview(null); }}
+          onProviderChange={updateDuplicateGroupProvider}
+          onQueryChange={updateDuplicateGroupQuery}
           onResetFilters={resetDuplicateGroupFilters}
-          onSelectedDuplicateKeyChange={(value) => { setSelectedDuplicateKey(value); setMergePreview(null); }}
+          onSelectedDuplicateKeyChange={updateSelectedDuplicateKey}
         />
 
         <MaintenanceTasksPanel
@@ -421,88 +409,5 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
       </PageFrame>
     </PageShell>
   );
-
-  async function loadImageAudit() {
-    setImageAuditLoading(true);
-    setError(null);
-    try {
-      const audit = await api.auditImageReferences({ limit: 80, includeOk: false });
-      setImageAudit(audit);
-      setMessage({ text: audit.issueCount > 0 ? `图片引用审计完成：发现 ${formatCount(audit.issueCount)} 条问题引用。` : '图片引用审计完成，没有发现问题引用。' });
-    } catch (reason) {
-      setError(errorMessage(reason));
-    } finally {
-      setImageAuditLoading(false);
-    }
-  }
-
-  async function loadArtworkDiagnosis() {
-    setArtworkDiagnosisLoading(true);
-    setError(null);
-    try {
-      const diagnosis = await api.diagnoseArtworkRepair({ providers: ['all'], fields: ['cover', 'banner', 'background'], limit: 50 });
-      setArtworkDiagnosis(diagnosis);
-      setMessage({ text: diagnosis.totalMissingGames > 0 ? `媒体补全诊断完成：${formatCount(diagnosis.repairableCount)} 个可补全，${formatCount(diagnosis.missingExternalIdCount)} 个缺外部 ID。` : '媒体补全诊断完成，没有发现缺图条目。' });
-    } catch (reason) {
-      setError(errorMessage(reason));
-    } finally {
-      setArtworkDiagnosisLoading(false);
-    }
-  }
-
-  async function loadDuplicateGroups(announceEmpty = true) {
-    setDuplicateGroupsLoading(true);
-    setError(null);
-    try {
-      const preview = await api.previewDuplicateExternalIds({ providers: ['all'], limit: 50 });
-      setDuplicateGroups(preview.groups);
-      const first = preview.groups[0] ?? null;
-      setSelectedDuplicateKey(first ? duplicateGroupKey(first) : '');
-      setMergeTargetId(first?.games[0]?.gameId ?? '');
-      setMergePreview(null);
-      if (announceEmpty && preview.totalGroups === 0) setMessage({ text: '没有发现可合并的重复外部 ID 组。' });
-    } catch (reason) {
-      setError(errorMessage(reason));
-    } finally {
-      setDuplicateGroupsLoading(false);
-    }
-  }
-
-  async function previewDuplicateMerge() {
-    if (!selectedDuplicateGroup || !mergeTargetId || mergeSourceIds.length === 0) return;
-    setMergeLoading(true);
-    setError(null);
-    setMessage(null);
-    try {
-      const preview = await api.previewDuplicateGameMerge({ targetGameId: mergeTargetId, sourceGameIds: mergeSourceIds });
-      setMergePreview(preview);
-    } catch (reason) {
-      setError(errorMessage(reason));
-    } finally {
-      setMergeLoading(false);
-    }
-  }
-
-  async function mergeDuplicateGroup() {
-    if (!mergePreview || !selectedDuplicateGroup || !mergeTargetId || mergeSourceIds.length === 0) return;
-    const target = selectedDuplicateGroup.games.find((game) => game.gameId === mergeTargetId);
-    if (!window.confirm(`把 ${mergeSourceIds.length} 条重复游戏并入「${target?.title ?? mergeTargetId}」？源游戏记录会删除，但关联数据会先迁移。`)) return;
-    setMergeLoading(true);
-    setError(null);
-    setMessage(null);
-    try {
-      const result = await api.mergeDuplicateGames({ targetGameId: mergeTargetId, sourceGameIds: mergeSourceIds });
-      const successText = `已合并重复游戏：删除 ${formatCount(result.deletedSourceGameIds.length)} 条源记录，保留「${result.mergedGame.title}」。`;
-      setMessage({ text: successText });
-      setMergePreview(null);
-      await loadDiagnostics();
-      await loadDuplicateGroups(false);
-      setMessage({ text: successText });
-    } catch (reason) {
-      setError(errorMessage(reason));
-    } finally {
-      setMergeLoading(false);
-    }
-  }
 
 }
