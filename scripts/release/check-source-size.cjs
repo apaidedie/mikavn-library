@@ -18,6 +18,11 @@ const DEFAULT_SOURCE_BUDGETS = [
     maxLines: 1000,
   },
   {
+    filePath: path.resolve(__dirname, '..', '..', 'src', 'pages', 'Library', 'LibraryPage.tsx'),
+    maxBytes: 44 * 1024,
+    maxLines: 620,
+  },
+  {
     filePath: path.resolve(__dirname, '..', '..', 'src', 'pages', 'Settings', 'SettingsPage.tsx'),
     maxBytes: 44 * 1024,
     maxLines: 820,

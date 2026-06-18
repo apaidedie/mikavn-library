@@ -45,6 +45,7 @@ test('default source budgets cover frontend, Rust service, and smoke runner hot 
 
   for (const expectedPath of [
     'src/services/mockStore.ts',
+    'src/pages/Library/LibraryPage.tsx',
     'src-tauri/src/services/archives.rs',
     'src-tauri/src/services/diagnostics.rs',
     'src-tauri/src/db/game_merge_ext.rs',
@@ -60,4 +61,11 @@ test('maintenance page budget keeps page-level orchestration small', () => {
 
   assert.ok(budget);
   assert.ok(budget.maxLines <= 430);
+});
+
+test('library page budget keeps library orchestration small', () => {
+  const budget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('src/pages/Library/LibraryPage.tsx'));
+
+  assert.ok(budget);
+  assert.ok(budget.maxLines <= 620);
 });

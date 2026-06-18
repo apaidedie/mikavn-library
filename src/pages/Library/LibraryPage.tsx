@@ -8,12 +8,13 @@ import { Input } from '@/components/ui/input';
 import { EmptyState, Notice } from '@/components/ui/notice';
 import { Select } from '@/components/ui/select';
 import { api } from '@/services/api';
-import type { Game, GameCollection, GameFilter, LibraryFilterPreset, PlayStatus, UpdateGameInput } from '@/types/game';
+import type { Game, GameFilter, LibraryFilterPreset, PlayStatus } from '@/types/game';
 import { PLAY_STATUS_LABEL } from '@/types/game';
 import { cn } from '@/utils/cn';
 import { errorMessage } from '@/utils/errorMessage';
 import { GameDetail } from './GameDetail';
 import { GameForm } from './GameForm';
+import { useLibraryBulkActions } from './useLibraryBulkActions';
 
 type LibraryPageProps = {
   refreshKey: number;
@@ -55,16 +56,8 @@ export function LibraryPage({ refreshKey, selectedGameId, onSelectedGameChange, 
   const [metadataStatus, setMetadataStatus] = useState('all');
   const [pathStatus, setPathStatus] = useState('all');
   const [collectionId, setCollectionId] = useState('');
-  const [collections, setCollections] = useState<GameCollection[]>([]);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
-  const [bulkMode, setBulkMode] = useState(false);
-  const [bulkSelectedIds, setBulkSelectedIds] = useState<Set<string>>(() => new Set());
-  const [bulkPlayStatus, setBulkPlayStatus] = useState<PlayStatus>('planned');
-  const [bulkCollectionId, setBulkCollectionId] = useState('');
-  const [bulkTagInput, setBulkTagInput] = useState('');
-  const [bulkBusy, setBulkBusy] = useState(false);
-  const [bulkMessage, setBulkMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -108,10 +101,6 @@ export function LibraryPage({ refreshKey, selectedGameId, onSelectedGameChange, 
   }, [refreshKey]);
 
   useEffect(() => {
-    api.listCollections().then(setCollections).catch(() => setCollections([]));
-  }, [refreshKey]);
-
-  useEffect(() => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem('mikavn.libraryPanelWidth', String(libraryPanelWidth));
     }
@@ -148,10 +137,37 @@ export function LibraryPage({ refreshKey, selectedGameId, onSelectedGameChange, 
   const selectedGame = visibleGames.find((game) => game.id === selectedGameId) ?? null;
   const blurCovers = settings.privacy_blur_covers === 'true';
   const activeAdvancedCount = [tag.trim(), developer.trim(), favoriteOnly, hiddenFilter !== 'all', metadataStatus !== 'all', pathStatus !== 'all', collectionId].filter(Boolean).length;
-  const selectedBulkGames = useMemo(() => visibleGames.filter((game) => bulkSelectedIds.has(game.id)), [bulkSelectedIds, visibleGames]);
-  const selectedBulkIds = useMemo(() => selectedBulkGames.map((game) => game.id), [selectedBulkGames]);
-  const bulkSelectedVisibleCount = selectedBulkGames.length;
-  const bulkParsedTags = useMemo(() => parseBulkTags(bulkTagInput), [bulkTagInput]);
+  const {
+    applyBulkCollection,
+    applyBulkTags,
+    applyBulkUpdate,
+    bulkBusy,
+    bulkCollectionId,
+    bulkMessage,
+    bulkMode,
+    bulkParsedTags,
+    bulkPlayStatus,
+    bulkSelectedIds,
+    bulkSelectedVisibleCount,
+    bulkTagInput,
+    clearBulkSelection,
+    collections,
+    invertVisibleBulkSelection,
+    resetBulkState,
+    selectedBulkCollection,
+    selectVisibleGames,
+    setBulkCollectionId,
+    setBulkPlayStatus,
+    setBulkTagInput,
+    toggleBulkMode,
+    toggleBulkSelection,
+  } = useLibraryBulkActions({
+    onChanged,
+    refreshKey,
+    setError,
+    setGames,
+    visibleGames,
+  });
 
   useEffect(() => {
     if (loading) return;
@@ -190,18 +206,9 @@ export function LibraryPage({ refreshKey, selectedGameId, onSelectedGameChange, 
     setPathStatus(filterPreset.pathStatus ?? 'all');
     setCollectionId(filterPreset.collectionId ?? '');
     setAdvancedOpen(true);
-    setBulkMode(false);
-    setBulkSelectedIds(new Set());
-    setBulkMessage(null);
+    resetBulkState();
 
-  }, [filterPreset]);
-  useEffect(() => {
-    const visibleIds = new Set(visibleGames.map((game) => game.id));
-    setBulkSelectedIds((current) => {
-      const next = new Set([...current].filter((id) => visibleIds.has(id)));
-      return next.size === current.size ? current : next;
-    });
-  }, [visibleGames]);
+  }, [filterPreset, resetBulkState]);
 
   const openAdd = () => {
     setEditingGame(null);
@@ -241,112 +248,6 @@ export function LibraryPage({ refreshKey, selectedGameId, onSelectedGameChange, 
     dragStartRef.current = { x: event.clientX, width: libraryPanelWidth };
     setDraggingPanel(true);
   }, [libraryPanelWidth]);
-
-  const toggleBulkMode = () => {
-    const next = !bulkMode;
-    setBulkMode(next);
-    if (!next) {
-      setBulkSelectedIds(new Set());
-      setBulkMessage(null);
-    }
-  };
-
-  const toggleBulkSelection = useCallback((id: string, checked: boolean) => {
-    setBulkSelectedIds((current) => {
-      const next = new Set(current);
-      if (checked) next.add(id);
-      else next.delete(id);
-      return next;
-    });
-  }, []);
-
-  const selectVisibleGames = () => {
-    setBulkSelectedIds(new Set(visibleGames.map((game) => game.id)));
-  };
-
-  const invertVisibleBulkSelection = () => {
-    setBulkSelectedIds((current) => {
-      const visibleIds = new Set(visibleGames.map((game) => game.id));
-      const next = new Set(current);
-      for (const id of visibleIds) {
-        if (next.has(id)) next.delete(id);
-        else next.add(id);
-      }
-      return next;
-    });
-    setBulkMessage(null);
-  };
-
-  const clearBulkSelection = () => {
-    setBulkSelectedIds(new Set());
-    setBulkMessage(null);
-  };
-
-  const selectedBulkCollection = collections.find((collection) => collection.id === bulkCollectionId) ?? null;
-
-  async function applyBulkUpdate(input: UpdateGameInput, label: string) {
-    const ids = selectedBulkIds;
-    if (ids.length === 0) return;
-    setBulkBusy(true);
-    setError(null);
-    setBulkMessage(null);
-    try {
-      const updated = await Promise.all(ids.map((id) => api.updateGame(id, input)));
-      const updatedById = new Map(updated.map((game) => [game.id, game]));
-      setGames((current) => current.map((game) => updatedById.get(game.id) ?? game));
-      setBulkMessage(`已更新 ${formatCount(updated.length)} 个游戏：${label}。`);
-      onChanged();
-    } catch (reason) {
-      setError(errorMessage(reason));
-    } finally {
-      setBulkBusy(false);
-    }
-  }
-
-  async function applyBulkCollection(action: 'add' | 'remove') {
-    if (!selectedBulkCollection) return;
-    const ids = selectedBulkIds;
-    if (ids.length === 0) return;
-    setBulkBusy(true);
-    setError(null);
-    setBulkMessage(null);
-    try {
-      if (action === 'add') {
-        await Promise.all(ids.map((id) => api.addGameToCollection(selectedBulkCollection.id, id)));
-      } else {
-        await Promise.all(ids.map((id) => api.removeGameFromCollection(selectedBulkCollection.id, id)));
-      }
-      setBulkMessage(`已将 ${formatCount(ids.length)} 个游戏${action === 'add' ? '加入' : '移出'}合集：${selectedBulkCollection.name}。`);
-      const nextCollections = await api.listCollections();
-      setCollections(nextCollections);
-      onChanged();
-    } catch (reason) {
-      setError(errorMessage(reason));
-    } finally {
-      setBulkBusy(false);
-    }
-  }
-
-  async function applyBulkTags(action: 'add' | 'remove') {
-    const tags = bulkParsedTags;
-    if (selectedBulkGames.length === 0 || tags.length === 0) return;
-    setBulkBusy(true);
-    setError(null);
-    setBulkMessage(null);
-    try {
-      const updated = await Promise.all(selectedBulkGames.map((game) => api.updateGame(game.id, {
-        tags: action === 'add' ? addTags(game.tags, tags) : removeTags(game.tags, tags),
-      })));
-      const updatedById = new Map(updated.map((game) => [game.id, game]));
-      setGames((current) => current.map((game) => updatedById.get(game.id) ?? game));
-      setBulkMessage(`已为 ${formatCount(updated.length)} 个游戏${action === 'add' ? '添加' : '移除'}标签：${tags.join('、')}。`);
-      onChanged();
-    } catch (reason) {
-      setError(errorMessage(reason));
-    } finally {
-      setBulkBusy(false);
-    }
-  }
 
   return (
     <div className="animate-view-in flex h-full min-h-0 overflow-hidden">
@@ -640,34 +541,6 @@ function EmptyLibrary() {
 
 function formatCount(value: number) {
   return new Intl.NumberFormat('zh-CN').format(value);
-}
-
-function parseBulkTags(value: string) {
-  const seen = new Set<string>();
-  const tags: string[] = [];
-  for (const item of value.split(/[,，、;；\n]+/)) {
-    const tag = item.trim();
-    const key = tag.toLocaleLowerCase();
-    if (!tag || seen.has(key)) continue;
-    seen.add(key);
-    tags.push(tag);
-  }
-  return tags;
-}
-
-function addTags(current: string[], tags: string[]) {
-  const seen = new Set(current.map((item) => item.toLocaleLowerCase()));
-  return [...current, ...tags.filter((tag) => {
-    const key = tag.toLocaleLowerCase();
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  })];
-}
-
-function removeTags(current: string[], tags: string[]) {
-  const removeKeys = new Set(tags.map((tag) => tag.toLocaleLowerCase()));
-  return current.filter((tag) => !removeKeys.has(tag.toLocaleLowerCase()));
 }
 
 function changedMetadataFields(game: Game, input: Parameters<typeof api.addGame>[0]) {
