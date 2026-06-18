@@ -1,7 +1,7 @@
-import type { AddGameInput, AssetCacheCleanupResult, AssetDownloadInput, AssetImportInput, AssetInput, CollectionGameLink, CollectionInput, DashboardData, Game, GameAsset, GameCollection, GameFilter, GamePathHealth, ImportCandidate, ImportScanReport, ImportScanReportItem, LibraryRoot, PathCheckItem, PlaySession, PlayStatus, ScanCandidate, ScanConflict, TagRecord, UpdateGameInput } from '@/types/game';
+import type { AddGameInput, AssetCacheCleanupResult, AssetDownloadInput, AssetImportInput, AssetInput, CollectionGameLink, CollectionInput, DashboardData, Game, GameAsset, GameCollection, GameFilter, GamePathHealth, ImportCandidate, ImportScanReport, ImportScanReportItem, PathCheckItem, PlaySession, PlayStatus, ScanConflict, TagRecord, UpdateGameInput } from '@/types/game';
 import type { LaunchProfile, LaunchProfileInput, LaunchProfileUpdate } from '@/types/launch';
 import type { AdvancedSearchInput, AdvancedSearchResult, AiConnectionTestResult, AiRecognitionResult, ApplyMetadataFields, ArtworkRepairDiagnosis, ArtworkRepairOptions, ArtworkRepairPreview, BatchMatchJob, BatchMatchStatus, DescriptionImageRepairOptions, DescriptionImageRepairPreview, DuplicateExternalIdAuditOptions, DuplicateExternalIdPreview, DuplicateGameMergeOptions, DuplicateGameMergePreview, DuplicateGameMergeResult, ExternalIdRecord, FieldLock, MatchSuggestion, MetadataProvider, MetadataSearchResponse, MetadataSearchResult, MetadataSourceRecord, NormalizedMetadata, SavedSearch, SavedSearchInput, SearchQueryValidation } from '@/types/metadata';
-import type { ScanTaskStatus, TaskDetail, TaskLogEntry, TaskRecord } from '@/types/task';
+import type { TaskDetail, TaskLogEntry, TaskRecord } from '@/types/task';
 import { mockArtworkRepairDiagnosis, mockArtworkRepairPreview, mockDescriptionImageCandidates } from './mockStoreArtworkRepair';
 import { createMockStoreArchives } from './mockStoreArchives';
 import { defaultSettings, mockMetadata, sampleGames, sampleHeroUrl } from './mockStoreFixtures';
@@ -12,9 +12,9 @@ import { cleanList, ensureGameDefaults, makeGame } from './mockStoreGames';
 import { mockAssetCacheCleanupResult } from './mockStoreImages';
 import { createMockStoreDiagnostics } from './mockStoreDiagnostics';
 import { cleanTitle, metadataStatusMatches, mockMatchesClause, parseMockSearch, score } from './mockStoreMetadata';
-import { findScanConflict, mockScanPathPreview, normalizeMockPath } from './mockStoreScanner';
+import { createMockStoreScanner, findScanConflict } from './mockStoreScanner';
 import { createMockStoreSaves } from './mockStoreSaves';
-import { BATCH_KEY, FIELD_LOCKS_KEY, LAUNCH_PROFILES_KEY, LIBRARY_ROOTS_KEY, PLAY_SESSIONS_KEY, SAVED_SEARCHES_KEY, SCAN_TASKS_KEY, SETTINGS_KEY, STORAGE_KEY, readJson, readSettings, writeJson } from './mockStoreStorage';
+import { BATCH_KEY, FIELD_LOCKS_KEY, LAUNCH_PROFILES_KEY, PLAY_SESSIONS_KEY, SAVED_SEARCHES_KEY, SETTINGS_KEY, STORAGE_KEY, readJson, readSettings, writeJson } from './mockStoreStorage';
 import { syncGameTags } from './mockStoreTags';
 import { addTaskLog, makeTask, readTaskLogs, readTasks, reportGapExamplesLog, reportGapSummaryLog, writeTasks } from './mockStoreTasks';
 
@@ -110,6 +110,7 @@ export const mockStore = {
   ...createMockStoreDiagnostics(readGames),
   ...createMockStoreArchives({ readGames, writeGames }),
   ...createMockStoreSaves(readGames),
+  ...createMockStoreScanner(readGames),
 
   listGames(filter: GameFilter = {}) {
     const query = filter.query?.trim().toLocaleLowerCase() ?? '';
@@ -986,70 +987,6 @@ export const mockStore = {
       model: settings.ai_model || 'gpt-4o-mini',
       message: 'Browser preview mock AI connection is available',
     });
-  },
-
-  addLibraryRoot(path: string): Promise<LibraryRoot> {
-    const cleanPath = path.trim();
-    if (!cleanPath) return Promise.reject(new Error('Library root path is required'));
-    const roots = readJson<LibraryRoot[]>(LIBRARY_ROOTS_KEY, []);
-    const existing = roots.find((root) => normalizeMockPath(root.path) === normalizeMockPath(cleanPath));
-    if (existing) return Promise.resolve(existing);
-    const root: LibraryRoot = { id: crypto.randomUUID(), path: cleanPath, recursive: true, enabled: true, createdAt: new Date().toISOString() };
-    writeJson(LIBRARY_ROOTS_KEY, [root, ...roots]);
-    return Promise.resolve(root);
-  },
-
-  listLibraryRoots(): Promise<LibraryRoot[]> {
-    return Promise.resolve(readJson<LibraryRoot[]>(LIBRARY_ROOTS_KEY, []));
-  },
-
-  updateLibraryRoot(id: string, input: { recursive?: boolean; enabled?: boolean }): Promise<LibraryRoot> {
-    const roots = readJson<LibraryRoot[]>(LIBRARY_ROOTS_KEY, []);
-    const root = roots.find((item) => item.id === id);
-    if (!root) return Promise.reject(new Error('Library root not found'));
-    const updated: LibraryRoot = { ...root, recursive: input.recursive ?? root.recursive, enabled: input.enabled ?? root.enabled };
-    writeJson(LIBRARY_ROOTS_KEY, [updated, ...roots.filter((item) => item.id !== id)]);
-    return Promise.resolve(updated);
-  },
-
-  removeLibraryRoot(id: string): Promise<void> {
-    writeJson(LIBRARY_ROOTS_KEY, readJson<LibraryRoot[]>(LIBRARY_ROOTS_KEY, []).filter((root) => root.id !== id));
-    return Promise.resolve();
-  },
-
-  scanLibraryRoot(id: string): Promise<ScanCandidate[]> {
-    const root = readJson<LibraryRoot[]>(LIBRARY_ROOTS_KEY, []).find((item) => item.id === id);
-    if (!root) return Promise.reject(new Error('Library root not found'));
-    if (!root.enabled) return Promise.reject(new Error('Library root is disabled'));
-    return this.scanPathPreview(root.path, root.recursive);
-  },
-
-  scanPathPreview(path: string, recursive: boolean): Promise<ScanCandidate[]> {
-    return Promise.resolve(mockScanPathPreview(readGames().map(ensureGameDefaults), path, recursive));
-  },
-
-  async startScanTask(path: string, recursive: boolean): Promise<TaskRecord> {
-    const task = makeTask({
-      taskType: 'library.scan',
-      status: 'completed',
-      progress: 1,
-      message: '浏览器预览扫描已完成',
-      error: null,
-      retryPayload: JSON.stringify({ path, recursive }),
-      retryable: true,
-    });
-    const candidates = await this.scanPathPreview(path, recursive);
-    const status: ScanTaskStatus = { task, path, recursive, candidates };
-    writeJson(SCAN_TASKS_KEY, { ...readJson<Record<string, ScanTaskStatus>>(SCAN_TASKS_KEY, {}), [task.id]: status });
-    return task;
-  },
-
-  getScanTaskStatus(taskId: string): Promise<ScanTaskStatus> {
-    const status = readJson<Record<string, ScanTaskStatus>>(SCAN_TASKS_KEY, {})[taskId];
-    if (!status) {
-      return Promise.reject(new Error('Scan task not found'));
-    }
-    return Promise.resolve(status);
   },
 
   async importScanCandidates(candidates: ImportCandidate[]): Promise<ImportScanReport> {
