@@ -1,6 +1,6 @@
 import type { AddGameInput, DashboardData, Game, GameFilter, GamePathHealth, PathCheckItem, PlayStatus, UpdateGameInput } from '@/types/game';
 import type { AdvancedSearchInput, AdvancedSearchResult, AiConnectionTestResult, AiRecognitionResult, ApplyMetadataFields, ArtworkRepairDiagnosis, ArtworkRepairOptions, ArtworkRepairPreview, BatchMatchJob, BatchMatchStatus, DescriptionImageRepairOptions, DescriptionImageRepairPreview, DuplicateExternalIdAuditOptions, DuplicateExternalIdPreview, DuplicateGameMergeOptions, DuplicateGameMergePreview, DuplicateGameMergeResult, ExternalIdRecord, FieldLock, MatchSuggestion, MetadataProvider, MetadataSearchResponse, MetadataSearchResult, MetadataSourceRecord, NormalizedMetadata, SavedSearch, SavedSearchInput, SearchQueryValidation } from '@/types/metadata';
-import type { TaskDetail, TaskLogEntry, TaskRecord } from '@/types/task';
+import type { TaskRecord } from '@/types/task';
 import { mockArtworkRepairDiagnosis, mockArtworkRepairPreview, mockDescriptionImageCandidates } from './mockStoreArtworkRepair';
 import { createMockStoreArchives } from './mockStoreArchives';
 import { mockMetadata, sampleGames, sampleHeroUrl } from './mockStoreFixtures';
@@ -17,7 +17,7 @@ import { createMockStoreSaves } from './mockStoreSaves';
 import { createMockStoreSettings } from './mockStoreSettings';
 import { BATCH_KEY, FIELD_LOCKS_KEY, SAVED_SEARCHES_KEY, STORAGE_KEY, readJson, readSettings, writeJson } from './mockStoreStorage';
 import { createMockStoreTags } from './mockStoreTags';
-import { addTaskLog, makeTask, readTaskLogs, readTasks, reportGapExamplesLog, reportGapSummaryLog, writeTasks } from './mockStoreTasks';
+import { addTaskLog, createMockStoreTaskQueries, makeTask, reportGapExamplesLog, reportGapSummaryLog } from './mockStoreTasks';
 
 function readGames() {
   const raw = localStorage.getItem(STORAGE_KEY);
@@ -161,6 +161,7 @@ export const mockStore = {
   ...createMockStoreTags(readGames, writeGames),
   ...createMockStoreAssets({ readGames, getGame: getMockGame, updateGame: updateMockGame }),
   ...createMockStoreSettings(),
+  ...createMockStoreTaskQueries(),
   ...mockLaunchProfiles,
   ...createMockStorePlaySessions({ readGames, writeGames, listLaunchProfiles: mockLaunchProfiles.listLaunchProfiles }),
   ...createMockStoreScanner({ readGames, addGame: addMockGame, updateGame: updateMockGame }),
@@ -688,34 +689,6 @@ export const mockStore = {
       model: settings.ai_model || 'gpt-4o-mini',
       message: 'Browser preview mock AI connection is available',
     });
-  },
-
-  listTasks(limit = 50): Promise<TaskRecord[]> {
-    return Promise.resolve(readTasks().slice(0, Math.max(1, Math.min(limit, 200))));
-  },
-
-  getTask(id: string): Promise<TaskRecord> {
-    const task = readTasks().find((item) => item.id === id);
-    if (!task) return Promise.reject(new Error('Task not found'));
-    return Promise.resolve(task);
-  },
-
-  listTaskLogs(taskId: string): Promise<TaskLogEntry[]> {
-    return Promise.resolve(readTaskLogs(taskId));
-  },
-
-  async getTaskDetail(id: string): Promise<TaskDetail> {
-    return { task: await this.getTask(id), logs: await this.listTaskLogs(id) };
-  },
-
-  cancelTask(id: string): Promise<TaskRecord> {
-    const tasks = readTasks();
-    const task = tasks.find((item) => item.id === id);
-    if (!task) return Promise.reject(new Error('Task not found'));
-    const next = { ...task, status: 'cancelled', progress: 1, message: '任务已取消', updatedAt: new Date().toISOString() };
-    writeTasks([next, ...tasks.filter((item) => item.id !== id)]);
-    addTaskLog(id, 'warn', '任务已取消');
-    return Promise.resolve(next);
   },
 
   async retryTask(id: string): Promise<TaskRecord> {

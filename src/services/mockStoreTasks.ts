@@ -1,4 +1,4 @@
-import type { TaskLogEntry, TaskRecord } from '@/types/task';
+import type { TaskDetail, TaskLogEntry, TaskRecord } from '@/types/task';
 import { TASKS_KEY, TASK_LOGS_KEY, readJson, writeJson } from './mockStoreStorage';
 
 export function readTasks() {
@@ -70,4 +70,38 @@ export function reportGapExamplesLog(content: string) {
     return match?.[1]?.trim() || '无';
   };
   return `报告缺口样例：缺封面 ${exampleFor('缺封面')}，缺简介图片 ${exampleFor('缺简介图片')}，缺外部 ID ${exampleFor('缺外部 ID')}，路径异常 ${exampleFor('路径异常')}`;
+}
+
+export function createMockStoreTaskQueries() {
+  const getTask = (id: string): Promise<TaskRecord> => {
+    const task = readTasks().find((item) => item.id === id);
+    if (!task) return Promise.reject(new Error('Task not found'));
+    return Promise.resolve(task);
+  };
+
+  const listTaskLogs = (taskId: string): Promise<TaskLogEntry[]> => Promise.resolve(readTaskLogs(taskId));
+
+  return {
+    listTasks(limit = 50): Promise<TaskRecord[]> {
+      return Promise.resolve(readTasks().slice(0, Math.max(1, Math.min(limit, 200))));
+    },
+
+    getTask,
+
+    listTaskLogs,
+
+    async getTaskDetail(id: string): Promise<TaskDetail> {
+      return { task: await getTask(id), logs: await listTaskLogs(id) };
+    },
+
+    cancelTask(id: string): Promise<TaskRecord> {
+      const tasks = readTasks();
+      const task = tasks.find((item) => item.id === id);
+      if (!task) return Promise.reject(new Error('Task not found'));
+      const next = { ...task, status: 'cancelled' as const, progress: 1, message: '任务已取消', updatedAt: new Date().toISOString() };
+      writeTasks([next, ...tasks.filter((item) => item.id !== id)]);
+      addTaskLog(id, 'warn', '任务已取消');
+      return Promise.resolve(next);
+    },
+  };
 }
