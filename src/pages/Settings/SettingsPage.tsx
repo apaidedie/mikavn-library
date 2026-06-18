@@ -1,7 +1,6 @@
 import { Database, Palette, Save, Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { ConfigItem, ConfigSection } from '@/components/ui/config-item';
 import { Notice } from '@/components/ui/notice';
 import { PageFrame, PageHeader, PageShell } from '@/components/ui/page';
 import { TaskNotice } from '@/components/ui/task-notice';
@@ -14,12 +13,13 @@ import type { MetadataSourceRecord } from '@/types/metadata';
 import { errorMessage } from '@/utils/errorMessage';
 import { AppearanceSettings } from './AppearanceSettings';
 import { MetadataAiSettings } from './MetadataAiSettings';
-import { SettingFlag } from './SettingFlag';
 import { SettingsDiagnosticLogsSection } from './SettingsDiagnosticLogsSection';
 import { SettingsLibraryRootsSection } from './SettingsLibraryRootsSection';
 import { SettingsLocalDataSection } from './SettingsLocalDataSection';
+import { SettingsLocalPreferencesSection } from './SettingsLocalPreferencesSection';
 import { SettingsTagMaintenanceSection } from './SettingsTagMaintenanceSection';
-import { TrayStatusPanel, formatBytes, getDirectoryLocations, type DirectoryLocationItem } from './SettingsPageParts';
+import { SettingsTraySection } from './SettingsTraySection';
+import { formatBytes, getDirectoryLocations, type DirectoryLocationItem } from './SettingsPageParts';
 import type { SettingsForm } from './settingsTypes';
 
 type TaskMessage = { text: string; taskId?: string | null };
@@ -215,15 +215,7 @@ export function SettingsPage({ tabRequest, onAccentPreview, onThemePreview, onSa
               onRevealPath={revealPath}
             />
 
-            <ConfigSection title="后台与托盘">
-              <ConfigItem title="托盘图标" description="关闭主窗口后应用仍可留在系统托盘，方便长时间任务继续运行。">
-                <div className="flex flex-col items-end gap-3">
-                  <SettingFlag checked={form.tray_enabled} label="启用" onChange={(value) => setForm((current) => ({ ...current, tray_enabled: value }))} />
-                  <div className="text-right text-xs text-slate-500">{form.tray_enabled === savedTrayEnabled ? '当前托盘状态与已保存设置一致。' : '托盘设置有未保存改动，保存后立即应用。'}</div>
-                  {trayStatus ? <TrayStatusPanel status={trayStatus} /> : <div className="text-xs text-slate-500">正在读取托盘状态。</div>}
-                </div>
-              </ConfigItem>
-            </ConfigSection>
+            <SettingsTraySection form={form} savedTrayEnabled={savedTrayEnabled} trayStatus={trayStatus} onFormChange={updateForm} />
 
             <SettingsDiagnosticLogsSection
               logs={logs}
@@ -247,26 +239,7 @@ export function SettingsPage({ tabRequest, onAccentPreview, onThemePreview, onSa
               onToggleMergeSource={toggleMergeSource}
             />
 
-            <ConfigSection title="存档自动备份">
-              <ConfigItem title="启动前自动备份" description="启动游戏前复制已登记的存档路径到应用数据目录，并写入任务日志。">
-                <SettingFlag checked={form.save_auto_backup_before_launch} label="启用" onChange={(value) => setForm((current) => ({ ...current, save_auto_backup_before_launch: value }))} />
-              </ConfigItem>
-              <ConfigItem title="退出后自动备份" description="游戏进程退出后再次复制存档路径。失败会进入任务日志，不删除真实存档。">
-                <SettingFlag checked={form.save_auto_backup_after_exit} label="启用" onChange={(value) => setForm((current) => ({ ...current, save_auto_backup_after_exit: value }))} />
-              </ConfigItem>
-            </ConfigSection>
-
-            <ConfigSection title="隐私设置">
-              <ConfigItem title="隐藏敏感条目" description="游戏库默认不显示 hidden 条目。">
-                <SettingFlag checked={form.privacy_hide_hidden} label="启用" onChange={(value) => setForm((current) => ({ ...current, privacy_hide_hidden: value }))} />
-              </ConfigItem>
-              <ConfigItem title="模糊封面" description="在列表、海报墙和详情页模糊封面。">
-                <SettingFlag checked={form.privacy_blur_covers} label="启用" onChange={(value) => setForm((current) => ({ ...current, privacy_blur_covers: value }))} />
-              </ConfigItem>
-              <ConfigItem title="报告导出过滤 R18" description="报告页按设置排除隐藏或 R18 条目。">
-                <SettingFlag checked={form.privacy_filter_reports} label="启用" onChange={(value) => setForm((current) => ({ ...current, privacy_filter_reports: value }))} />
-              </ConfigItem>
-            </ConfigSection>
+            <SettingsLocalPreferencesSection form={form} onFormChange={updateForm} />
           </TabsContent>
         </Tabs>
       </PageFrame>
