@@ -81,7 +81,7 @@ test('dashboard page budget keeps personal dashboard orchestration small', () =>
   const budget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('src/pages/Dashboard/DashboardPage.tsx'));
 
   assert.ok(budget);
-  assert.ok(budget.maxLines <= 300);
+  assert.ok(budget.maxLines <= 240);
 });
 
 test('game form budget keeps form mapping outside page component', () => {
