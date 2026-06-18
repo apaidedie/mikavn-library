@@ -1,7 +1,8 @@
 import type { AddGameInput, Game, GameFilter, GamePathHealth, PathCheckItem, PlayStatus, UpdateGameInput } from '@/types/game';
-import type { AdvancedSearchInput, AdvancedSearchResult, AiConnectionTestResult, AiRecognitionResult, ApplyMetadataFields, ArtworkRepairDiagnosis, ArtworkRepairOptions, ArtworkRepairPreview, BatchMatchJob, BatchMatchStatus, DescriptionImageRepairOptions, DescriptionImageRepairPreview, DuplicateExternalIdAuditOptions, DuplicateExternalIdPreview, DuplicateGameMergeOptions, DuplicateGameMergePreview, DuplicateGameMergeResult, ExternalIdRecord, FieldLock, MatchSuggestion, MetadataProvider, MetadataSearchResponse, MetadataSearchResult, MetadataSourceRecord, NormalizedMetadata, SearchQueryValidation } from '@/types/metadata';
+import type { AdvancedSearchInput, AdvancedSearchResult, ApplyMetadataFields, ArtworkRepairDiagnosis, ArtworkRepairOptions, ArtworkRepairPreview, BatchMatchJob, BatchMatchStatus, DescriptionImageRepairOptions, DescriptionImageRepairPreview, DuplicateExternalIdAuditOptions, DuplicateExternalIdPreview, DuplicateGameMergeOptions, DuplicateGameMergePreview, DuplicateGameMergeResult, ExternalIdRecord, FieldLock, MatchSuggestion, MetadataProvider, MetadataSearchResponse, MetadataSearchResult, MetadataSourceRecord, NormalizedMetadata, SearchQueryValidation } from '@/types/metadata';
 import type { TaskRecord } from '@/types/task';
 import { mockArtworkRepairDiagnosis, mockArtworkRepairPreview, mockDescriptionImageCandidates } from './mockStoreArtworkRepair';
+import { createMockStoreAi } from './mockStoreAi';
 import { createMockStoreArchives } from './mockStoreArchives';
 import { mockMetadata, sampleGames, sampleHeroUrl } from './mockStoreFixtures';
 import { createMockStoreAssets, readAssets, syncGameCompatibilityAssets, writeAssets } from './mockStoreAssets';
@@ -166,6 +167,7 @@ export const mockStore = {
   ...createMockStoreTaskQueries(),
   ...createMockStoreReports(readGames),
   ...createMockStoreSavedSearches(),
+  ...createMockStoreAi(),
   ...mockLaunchProfiles,
   ...createMockStorePlaySessions({ readGames, writeGames, listLaunchProfiles: mockLaunchProfiles.listLaunchProfiles }),
   ...createMockStoreScanner({ readGames, addGame: addMockGame, updateGame: updateMockGame }),
@@ -579,20 +581,6 @@ export const mockStore = {
       localStorage.setItem(BATCH_KEY, JSON.stringify(status));
     }
     return Promise.resolve();
-  },
-
-  recognizeGameFromImage(imagePath: string): Promise<AiRecognitionResult> {
-    return Promise.resolve({ title: '星之终途', rawText: `Mock recognition from ${imagePath}: 星之终途`, confidence: 0.6 });
-  },
-
-  testAiConnection(): Promise<AiConnectionTestResult> {
-    const settings = readSettings();
-    return Promise.resolve({
-      ok: true,
-      baseUrl: settings.ai_base_url || 'https://api.openai.com/v1',
-      model: settings.ai_model || 'gpt-4o-mini',
-      message: 'Browser preview mock AI connection is available',
-    });
   },
 
   async retryTask(id: string): Promise<TaskRecord> {
