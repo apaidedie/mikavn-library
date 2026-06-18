@@ -1,10 +1,8 @@
-import { ChevronDown, Copy, DatabaseZap, FolderSearch, Loader2 } from 'lucide-react';
+import { ChevronDown, Copy } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CheckboxField } from '@/components/ui/checkbox';
-import { CoverImage } from '@/components/ui/cover';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Notice } from '@/components/ui/notice';
@@ -32,6 +30,7 @@ import {
   type GameFormState,
   type MetadataMergeMode,
 } from './gameFormMapping';
+import { QuickAddMetadataPanel } from './QuickAddMetadataPanel';
 
 type GameFormProps = {
   game?: Game | null;
@@ -206,81 +205,22 @@ export function GameForm({ game, onSubmit, onCancel }: GameFormProps) {
 
   const scrapeSource = form.executablePath ? guessTitleSourceFromExecutable(form.executablePath, form.installPath) : form.installPath || form.title;
   const canScrape = !scraping && Boolean(guessTitleFromPath(scrapeSource));
-  const hasMetadataPreview = Boolean(form.coverImage || form.developer || form.publisher || form.releaseDate || form.vndbId || form.dlsiteId || form.fanzaId || form.tags);
-  const metadataBadges = [
-    form.developer.trim(),
-    form.releaseDate.trim(),
-    form.vndbId.trim() ? `VNDB ${form.vndbId.trim()}` : '',
-    form.dlsiteId.trim() ? `DLsite ${form.dlsiteId.trim()}` : '',
-    form.fanzaId.trim() ? `FANZA ${form.fanzaId.trim()}` : '',
-  ].filter(Boolean);
 
   return (
     <div className="space-y-3 text-slate-200">
       {error && <Notice tone="error">{error}</Notice>}
       {message && <Notice>{message}</Notice>}
       {!isEditing && (
-        <section className="rounded-lg border border-[rgb(var(--accent-rgb)/0.20)] bg-black/[0.18] p-3 shadow-sm shadow-black/20">
-          <div className="flex gap-3">
-            <CoverImage alt={form.title || '封面'} className="hidden h-24 w-16 shrink-0 rounded-md sm:block" src={form.coverImage} />
-            <div className="min-w-0 flex-1 space-y-3">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-slate-100">
-                    {scraping ? <Loader2 className="h-4 w-4 animate-spin text-[rgb(var(--accent-rgb))]" /> : <DatabaseZap className="h-4 w-4 text-[rgb(var(--accent-rgb))]" />}
-                    快速添加
-                  </div>
-                  <div className="mt-1 truncate text-xs text-slate-400">
-                    {scrapeMessage || '选择目录或程序后自动预填。'}
-                  </div>
-                </div>
-                <div className="flex shrink-0 flex-wrap gap-2">
-                  <Button disabled={!canScrape} size="sm" type="button" variant="secondary" onClick={() => void autoScrapeFromPath(scrapeSource, form, 'replace')}>
-                    <FolderSearch className="h-4 w-4" />重新识别
-                  </Button>
-                </div>
-              </div>
-
-              {hasMetadataPreview && (
-                <div className="flex flex-wrap gap-1.5">
-                  {metadataBadges.map((item) => <Badge className="min-h-5 px-2 text-[11px]" key={item}>{item}</Badge>)}
-                </div>
-              )}
-
-              {scrapeCandidates.length > 0 && (
-                <div className="space-y-1.5">
-                  <div className="text-[11px] font-medium text-slate-400">候选结果</div>
-                  <div className="grid gap-1.5">
-                    {scrapeCandidates.slice(0, 4).map((candidate) => {
-                      const active = selectedCandidateKey === candidateKey(candidate);
-                      return (
-                        <button
-                          className={cn(
-                            'group flex min-h-10 w-full items-center justify-between gap-3 rounded-md border px-2.5 py-2 text-left text-xs transition-colors',
-                            active ? 'border-[rgb(var(--accent-rgb)/0.48)] bg-[rgb(var(--accent-rgb)/0.18)] text-slate-100' : 'border-white/10 bg-black/10 text-slate-300 hover:border-[rgb(var(--accent-rgb)/0.28)] hover:bg-white/[0.07]',
-                          )}
-                          disabled={scraping}
-                          key={candidateKey(candidate)}
-                          type="button"
-                          onClick={() => void selectCandidate(candidate)}
-                        >
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate font-medium">{candidate.title}</span>
-                            <span className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500">
-                              <span>{providerLabel(candidate.provider)} {candidate.id}</span>
-                              {candidate.fromVndbSniff && <span className="text-[rgb(var(--accent-rgb))]">VNDB 嗅探</span>}
-                            </span>
-                          </span>
-                          <span className="shrink-0 rounded-full border border-white/10 bg-white/[0.07] px-2 py-0.5 text-[11px] text-slate-300">{Math.round(candidate.relevanceScore * 100)}%</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </section>
+        <QuickAddMetadataPanel
+          canScrape={canScrape}
+          form={form}
+          scraping={scraping}
+          scrapeCandidates={scrapeCandidates}
+          scrapeMessage={scrapeMessage}
+          selectedCandidateKey={selectedCandidateKey}
+          onRescrape={() => void autoScrapeFromPath(scrapeSource, form, 'replace')}
+          onSelectCandidate={(candidate) => void selectCandidate(candidate)}
+        />
       )}
 
       <div className={cn('grid gap-3', isEditing ? 'md:grid-cols-2' : 'grid-cols-1')}>
@@ -345,11 +285,11 @@ export function GameForm({ game, onSubmit, onCancel }: GameFormProps) {
               <Field label="标签"><Input placeholder="逗号分隔" value={form.tags} onChange={(event) => update('tags', event.target.value)} /></Field>
               <Field label="类型"><Input placeholder="逗号分隔" value={form.genres} onChange={(event) => update('genres', event.target.value)} /></Field>
               <Field label="别名"><Input placeholder="逗号分隔" value={form.aliases} onChange={(event) => update('aliases', event.target.value)} /></Field>
-              <Field label="VNDB ID"><CopyableTextInput copyLabel="VNDB ID" value={form.vndbId} onChange={(value) => update('vndbId', value)} onCopy={() => void copyText('VNDB ID', form.vndbId)} /></Field>
-              <Field label="DLsite ID"><CopyableTextInput copyLabel="DLsite ID" value={form.dlsiteId} onChange={(value) => update('dlsiteId', value)} onCopy={() => void copyText('DLsite ID', form.dlsiteId)} /></Field>
-              <Field label="FANZA ID"><CopyableTextInput copyLabel="FANZA ID" value={form.fanzaId} onChange={(value) => update('fanzaId', value)} onCopy={() => void copyText('FANZA ID', form.fanzaId)} /></Field>
-              <Field label="Bangumi ID"><CopyableTextInput copyLabel="Bangumi ID" value={form.bangumiId} onChange={(value) => update('bangumiId', value)} onCopy={() => void copyText('Bangumi ID', form.bangumiId)} /></Field>
-              <Field label="YMGal ID"><CopyableTextInput copyLabel="YMGal ID" value={form.ymgalId} onChange={(value) => update('ymgalId', value)} onCopy={() => void copyText('YMGal ID', form.ymgalId)} /></Field>
+              <Field label="VNDB ID"><InputWithButton copyLabel="VNDB ID" value={form.vndbId} onChange={(value) => update('vndbId', value)} onCopy={() => void copyText('VNDB ID', form.vndbId)} /></Field>
+              <Field label="DLsite ID"><InputWithButton copyLabel="DLsite ID" value={form.dlsiteId} onChange={(value) => update('dlsiteId', value)} onCopy={() => void copyText('DLsite ID', form.dlsiteId)} /></Field>
+              <Field label="FANZA ID"><InputWithButton copyLabel="FANZA ID" value={form.fanzaId} onChange={(value) => update('fanzaId', value)} onCopy={() => void copyText('FANZA ID', form.fanzaId)} /></Field>
+              <Field label="Bangumi ID"><InputWithButton copyLabel="Bangumi ID" value={form.bangumiId} onChange={(value) => update('bangumiId', value)} onCopy={() => void copyText('Bangumi ID', form.bangumiId)} /></Field>
+              <Field label="YMGal ID"><InputWithButton copyLabel="YMGal ID" value={form.ymgalId} onChange={(value) => update('ymgalId', value)} onCopy={() => void copyText('YMGal ID', form.ymgalId)} /></Field>
             </div>
 
             <Field label="简介"><Textarea value={form.description} onChange={(event) => update('description', event.target.value)} /></Field>
@@ -375,21 +315,12 @@ function Field({ label, required, children }: { label: string; required?: boolea
   );
 }
 
-function InputWithButton({ copyLabel, value, onChange, onCopy, onPick }: { copyLabel?: string; value: string; onChange: (value: string) => void; onCopy?: () => void; onPick: () => void }) {
+function InputWithButton({ copyLabel, value, onChange, onCopy, onPick }: { copyLabel?: string; value: string; onChange: (value: string) => void; onCopy?: () => void; onPick?: () => void }) {
   return (
     <div className="flex gap-2">
       <Input value={value} onChange={(event) => onChange(event.target.value)} />
-      {onCopy && copyLabel && <Button aria-label={`复制${copyLabel}`} className="shrink-0" disabled={!value.trim()} type="button" variant="outline" onClick={onCopy}><Copy className="h-4 w-4" />复制</Button>}
-      <Button className="shrink-0" type="button" variant="outline" onClick={onPick}>选择</Button>
-    </div>
-  );
-}
-
-function CopyableTextInput({ copyLabel, value, onChange, onCopy }: { copyLabel: string; value: string; onChange: (value: string) => void; onCopy: () => void }) {
-  return (
-    <div className="flex gap-2">
-      <Input value={value} onChange={(event) => onChange(event.target.value)} />
-      <Button aria-label={`复制 ${copyLabel}`} className="shrink-0" disabled={!value.trim()} type="button" variant="outline" onClick={onCopy}><Copy className="h-4 w-4" />复制</Button>
+      {onCopy && copyLabel && <Button aria-label={copyLabel.endsWith('ID') ? `复制 ${copyLabel}` : `复制${copyLabel}`} className="shrink-0" disabled={!value.trim()} type="button" variant="outline" onClick={onCopy}><Copy className="h-4 w-4" />复制</Button>}
+      {onPick && <Button className="shrink-0" type="button" variant="outline" onClick={onPick}>选择</Button>}
     </div>
   );
 }

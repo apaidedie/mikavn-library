@@ -165,6 +165,16 @@ export function mergeMetadataIntoForm(current: GameFormState, metadata: Normaliz
   };
 }
 
+export function deriveGameFormMetadataBadges(form: Pick<GameFormState, 'developer' | 'releaseDate' | 'vndbId' | 'dlsiteId' | 'fanzaId'>) {
+  return [
+    form.developer.trim(),
+    form.releaseDate.trim(),
+    form.vndbId.trim() ? `VNDB ${form.vndbId.trim()}` : '',
+    form.dlsiteId.trim() ? `DLsite ${form.dlsiteId.trim()}` : '',
+    form.fanzaId.trim() ? `FANZA ${form.fanzaId.trim()}` : '',
+  ].filter(Boolean);
+}
+
 export function candidateKey(candidate: MetadataSearchResult) {
   return `${candidate.provider}:${candidate.id}`;
 }

@@ -88,7 +88,7 @@ test('game form budget keeps form mapping outside page component', () => {
   const budget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('src/pages/Library/GameForm.tsx'));
 
   assert.ok(budget);
-  assert.ok(budget.maxLines <= 430);
+  assert.ok(budget.maxLines <= 330);
 });
 
 test('game detail media budget keeps media parsing outside page component', () => {
