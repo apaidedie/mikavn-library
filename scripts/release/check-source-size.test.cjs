@@ -116,7 +116,7 @@ test('batch metadata page budget keeps matching derivation outside page componen
   const budget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('src/pages/Metadata/BatchMetadataPage.tsx'));
 
   assert.ok(budget);
-  assert.ok(budget.maxLines <= 425);
+  assert.ok(budget.maxLines <= 400);
 });
 
 test('saves page budget keeps restore preview outside page component', () => {

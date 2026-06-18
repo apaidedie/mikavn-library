@@ -15,12 +15,10 @@ import { errorMessage } from '@/utils/errorMessage';
 import { friendlyMetadataError, metadataErrorMessage } from '@/utils/metadataErrors';
 import {
   defaultFields,
+  deriveBatchMetadataQueueState,
+  deriveBatchMetadataResultState,
   fieldOptions,
-  hasAnyExternalId,
-  hasExternalIdValue,
-  hasMissingExternalId,
-  matchesBatchResultQuery,
-  matchesMissingProviderFilter,
+  getBatchMetadataCandidate,
   mediaFields,
   missingProviderOptions,
   normalizeMissingProviderFilter,
@@ -72,41 +70,16 @@ export function BatchMetadataPage({ refreshKey, queuePresetRequest, onOpenTask }
     return () => window.clearInterval(timer);
   }, [status]);
 
-  const incompleteGames = useMemo(() => games.filter(hasMissingExternalId), [games]);
-  const queueGapCounts = useMemo(() => ({
-    all: incompleteGames.length,
-    external_id: games.filter((game) => !hasAnyExternalId(game)).length,
-    vndb: games.filter((game) => !hasExternalIdValue(game.vndbId)).length,
-    bangumi: games.filter((game) => !hasExternalIdValue(game.bangumiId)).length,
-    dlsite: games.filter((game) => !hasExternalIdValue(game.dlsiteId)).length,
-    fanza: games.filter((game) => !hasExternalIdValue(game.fanzaId)).length,
-    ymgal: games.filter((game) => !hasExternalIdValue(game.ymgalId)).length,
-  }), [games, incompleteGames]);
-  const filteredIncompleteGames = useMemo(() => incompleteGames.filter((game) => {
-    const queryText = queueQuery.trim().toLowerCase();
-    const matchesQuery = !queryText || [game.title, game.originalTitle, game.developer, game.brand, game.publisher, game.installPath]
-      .filter(Boolean)
-      .some((value) => String(value).toLowerCase().includes(queryText));
-    const matchesProvider = matchesMissingProviderFilter(game, missingProviderFilter);
-    return matchesQuery && matchesProvider;
-  }), [incompleteGames, missingProviderFilter, queueQuery]);
-  const filteredResults = useMemo(() => status?.results.filter((result) => {
-    const candidate = candidateForResult(result);
-    const matchesQuery = matchesBatchResultQuery(result, candidate, resultQuery);
-    const matchesStatus = resultStatusFilter === 'all' || result.status === resultStatusFilter;
-    const matchesWrite = writeFilter === 'all'
-      || (writeFilter === 'writable' && Boolean(candidate) && !appliedIds.includes(result.id))
-      || (writeFilter === 'applied' && appliedIds.includes(result.id))
-      || (writeFilter === 'needs_review' && !candidate);
-    return matchesQuery && matchesStatus && matchesWrite;
-  }) ?? [], [appliedIds, resultQuery, resultStatusFilter, selectedCandidates, status, writeFilter]);
-  const resultCounts = useMemo(() => ({
-    success: status?.results.filter((result) => result.status === 'success').length ?? 0,
-    review: status?.results.filter((result) => result.status === 'review').length ?? 0,
-    noResult: status?.results.filter((result) => result.status === 'no_result').length ?? 0,
-    error: status?.results.filter((result) => result.status === 'error').length ?? 0,
-  }), [status]);
-  const filteredApplicableResults = useMemo(() => filteredResults.filter((result) => Boolean(candidateForResult(result)) && !appliedIds.includes(result.id)), [appliedIds, filteredResults, selectedCandidates]);
+  const queueState = useMemo(() => deriveBatchMetadataQueueState(games, { query: queueQuery, missingProviderFilter }), [games, missingProviderFilter, queueQuery]);
+  const resultState = useMemo(() => deriveBatchMetadataResultState(status?.results ?? [], {
+    appliedIds,
+    query: resultQuery,
+    resultStatusFilter,
+    selectedCandidates,
+    writeFilter,
+  }), [appliedIds, resultQuery, resultStatusFilter, selectedCandidates, status?.results, writeFilter]);
+  const { filteredGames: filteredIncompleteGames, gapCounts: queueGapCounts, incompleteGames } = queueState;
+  const { applicableResults: filteredApplicableResults, filteredResults, resultCounts } = resultState;
 
   const loadGames = async () => {
     try {
@@ -175,9 +148,7 @@ export function BatchMetadataPage({ refreshKey, queuePresetRequest, onOpenTask }
     setAppliedIds((current) => current.filter((id) => id !== result.id));
   };
 
-  function candidateForResult(result: BatchMatchResult) {
-    return selectedCandidates[result.id] ?? result.candidates.find((item) => item.provider === result.selectedProvider && item.id === result.selectedId) ?? result.candidates[0] ?? null;
-  }
+  const candidateForResult = (result: BatchMatchResult) => getBatchMetadataCandidate(result, selectedCandidates);
 
   const applyAll = async () => {
     const pending = filteredApplicableResults;

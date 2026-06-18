@@ -4,6 +4,22 @@ import { PROVIDER_LABEL } from '@/types/metadata';
 
 export type QueuePresetRequest = { key: number; query?: string; missingProvider?: string };
 export type MissingProviderFilter = 'all' | 'external_id' | 'vndb' | 'bangumi' | 'dlsite' | 'fanza' | 'ymgal';
+export type BatchMetadataQueueState = {
+  incompleteGames: Game[];
+  filteredGames: Game[];
+  gapCounts: Record<MissingProviderFilter, number>;
+};
+export type BatchMetadataResultCounts = {
+  success: number;
+  review: number;
+  noResult: number;
+  error: number;
+};
+export type BatchMetadataResultState = {
+  filteredResults: BatchMatchResult[];
+  applicableResults: BatchMatchResult[];
+  resultCounts: BatchMetadataResultCounts;
+};
 
 export const defaultFields: ApplyMetadataFields = ['originalTitle', 'description', 'releaseDate', 'developer', 'tags', 'genres', 'coverImage', 'externalIds'];
 export const mediaFields: ApplyMetadataFields = ['coverImage', 'externalIds'];
@@ -74,6 +90,59 @@ export function matchesBatchResultQuery(result: BatchMatchResult, selectedCandid
     result.selectedId,
     ...candidateFields,
   ].some((value) => String(value ?? '').toLowerCase().includes(normalizedQuery));
+}
+
+export function deriveBatchMetadataQueueState(games: Game[], filters: { query: string; missingProviderFilter: MissingProviderFilter }): BatchMetadataQueueState {
+  const incompleteGames = games.filter(hasMissingExternalId);
+  const queryText = filters.query.trim().toLowerCase();
+  const filteredGames = incompleteGames.filter((game) => {
+    const matchesQuery = !queryText || [game.title, game.originalTitle, game.developer, game.brand, game.publisher, game.installPath]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(queryText));
+    return matchesQuery && matchesMissingProviderFilter(game, filters.missingProviderFilter);
+  });
+
+  return {
+    incompleteGames,
+    filteredGames,
+    gapCounts: {
+      all: incompleteGames.length,
+      external_id: games.filter((game) => !hasAnyExternalId(game)).length,
+      vndb: games.filter((game) => !hasExternalIdValue(game.vndbId)).length,
+      bangumi: games.filter((game) => !hasExternalIdValue(game.bangumiId)).length,
+      dlsite: games.filter((game) => !hasExternalIdValue(game.dlsiteId)).length,
+      fanza: games.filter((game) => !hasExternalIdValue(game.fanzaId)).length,
+      ymgal: games.filter((game) => !hasExternalIdValue(game.ymgalId)).length,
+    },
+  };
+}
+
+export function deriveBatchMetadataResultState(results: BatchMatchResult[], filters: { appliedIds: string[]; query: string; resultStatusFilter: string; selectedCandidates: Record<string, MetadataSearchResult>; writeFilter: string }): BatchMetadataResultState {
+  const filteredResults = results.filter((result) => {
+    const candidate = getBatchMetadataCandidate(result, filters.selectedCandidates);
+    const matchesQuery = matchesBatchResultQuery(result, candidate, filters.query);
+    const matchesStatus = filters.resultStatusFilter === 'all' || result.status === filters.resultStatusFilter;
+    const matchesWrite = filters.writeFilter === 'all'
+      || (filters.writeFilter === 'writable' && Boolean(candidate) && !filters.appliedIds.includes(result.id))
+      || (filters.writeFilter === 'applied' && filters.appliedIds.includes(result.id))
+      || (filters.writeFilter === 'needs_review' && !candidate);
+    return matchesQuery && matchesStatus && matchesWrite;
+  });
+
+  return {
+    filteredResults,
+    applicableResults: filteredResults.filter((result) => Boolean(getBatchMetadataCandidate(result, filters.selectedCandidates)) && !filters.appliedIds.includes(result.id)),
+    resultCounts: {
+      success: results.filter((result) => result.status === 'success').length,
+      review: results.filter((result) => result.status === 'review').length,
+      noResult: results.filter((result) => result.status === 'no_result').length,
+      error: results.filter((result) => result.status === 'error').length,
+    },
+  };
+}
+
+export function getBatchMetadataCandidate(result: BatchMatchResult, selectedCandidates: Record<string, MetadataSearchResult>) {
+  return selectedCandidates[result.id] ?? result.candidates.find((item) => item.provider === result.selectedProvider && item.id === result.selectedId) ?? result.candidates[0] ?? null;
 }
 
 export function providerLabel(value?: string | null) {

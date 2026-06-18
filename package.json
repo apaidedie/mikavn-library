@@ -16,6 +16,7 @@
     "test:library-page-model": "node --test scripts/library-page-model.test.cjs",
     "test:task-page-model": "node --test scripts/task-page-model.test.cjs",
     "test:scanner-page-model": "node --test scripts/scanner-page-model.test.cjs",
+    "test:batch-metadata-page-model": "node --test scripts/batch-metadata-page-model.test.cjs",
     "release:check": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/release/check-release-metadata.ps1",
     "release:check:strict": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/release/check-release-metadata.ps1 -StrictGitHubLinks",
     "release:signing:check": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/release/check-windows-signing.ps1",
