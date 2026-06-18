@@ -95,7 +95,7 @@ test('game detail media budget keeps media parsing outside page component', () =
   const budget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('src/pages/Library/GameDetailMedia.tsx'));
 
   assert.ok(budget);
-  assert.ok(budget.maxLines <= 310);
+  assert.ok(budget.maxLines <= 220);
 });
 
 test('tasks page budget keeps task queue derivation outside page component', () => {
