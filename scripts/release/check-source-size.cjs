@@ -3,24 +3,94 @@ const path = require('node:path');
 
 const DEFAULT_SOURCE_BUDGETS = [
   {
+    filePath: path.resolve(__dirname, '..', '..', 'src', 'app', 'App.tsx'),
+    maxBytes: 44 * 1024,
+    maxLines: 180,
+  },
+  {
+    filePath: path.resolve(__dirname, '..', '..', 'src', 'app', 'AppChrome.tsx'),
+    maxBytes: 32 * 1024,
+    maxLines: 160,
+  },
+  {
+    filePath: path.resolve(__dirname, '..', '..', 'src', 'app', 'AppRoutes.tsx'),
+    maxBytes: 32 * 1024,
+    maxLines: 120,
+  },
+  {
+    filePath: path.resolve(__dirname, '..', '..', 'src', 'app', 'appNavigation.ts'),
+    maxBytes: 16 * 1024,
+    maxLines: 80,
+  },
+  {
+    filePath: path.resolve(__dirname, '..', '..', 'src', 'app', 'useAppKeyboardShortcuts.ts'),
+    maxBytes: 16 * 1024,
+    maxLines: 80,
+  },
+  {
+    filePath: path.resolve(__dirname, '..', '..', 'src', 'app', 'useAppThemeSettings.ts'),
+    maxBytes: 24 * 1024,
+    maxLines: 120,
+  },
+  {
     filePath: path.resolve(__dirname, '..', '..', 'src', 'services', 'mockStore.ts'),
     maxBytes: 108 * 1024,
     maxLines: 2250,
   },
   {
+    filePath: path.resolve(__dirname, '..', '..', 'src', 'pages', 'Dashboard', 'DashboardPage.tsx'),
+    maxBytes: 32 * 1024,
+    maxLines: 160,
+  },
+  {
     filePath: path.resolve(__dirname, '..', '..', 'src', 'pages', 'Maintenance', 'MaintenancePage.tsx'),
     maxBytes: 85 * 1024,
-    maxLines: 1350,
+    maxLines: 280,
   },
   {
     filePath: path.resolve(__dirname, '..', '..', 'src', 'pages', 'Library', 'GameDetail.tsx'),
     maxBytes: 48 * 1024,
-    maxLines: 1000,
+    maxLines: 220,
+  },
+  {
+    filePath: path.resolve(__dirname, '..', '..', 'src', 'pages', 'Library', 'LibraryPage.tsx'),
+    maxBytes: 44 * 1024,
+    maxLines: 120,
+  },
+  {
+    filePath: path.resolve(__dirname, '..', '..', 'src', 'pages', 'Library', 'GameForm.tsx'),
+    maxBytes: 32 * 1024,
+    maxLines: 180,
+  },
+  {
+    filePath: path.resolve(__dirname, '..', '..', 'src', 'pages', 'Library', 'GameDetailMedia.tsx'),
+    maxBytes: 32 * 1024,
+    maxLines: 220,
+  },
+  {
+    filePath: path.resolve(__dirname, '..', '..', 'src', 'pages', 'Tasks', 'TasksPage.tsx'),
+    maxBytes: 32 * 1024,
+    maxLines: 180,
+  },
+  {
+    filePath: path.resolve(__dirname, '..', '..', 'src', 'pages', 'Scanner', 'ScannerPage.tsx'),
+    maxBytes: 32 * 1024,
+    maxLines: 180,
+  },
+  {
+    filePath: path.resolve(__dirname, '..', '..', 'src', 'pages', 'Metadata', 'BatchMetadataPage.tsx'),
+    maxBytes: 32 * 1024,
+    maxLines: 160,
+  },
+  {
+    filePath: path.resolve(__dirname, '..', '..', 'src', 'pages', 'Saves', 'SavesPage.tsx'),
+    maxBytes: 32 * 1024,
+    maxLines: 240,
   },
   {
     filePath: path.resolve(__dirname, '..', '..', 'src', 'pages', 'Settings', 'SettingsPage.tsx'),
     maxBytes: 44 * 1024,
-    maxLines: 820,
+    maxLines: 180,
   },
   {
     filePath: path.resolve(__dirname, '..', '..', 'src-tauri', 'src', 'services', 'archives.rs'),
@@ -51,6 +121,11 @@ const DEFAULT_SOURCE_BUDGETS = [
     filePath: path.resolve(__dirname, '..', '..', 'scripts', 'playwright', 'page-qa-runner.cjs'),
     maxBytes: 128 * 1024,
     maxLines: 1350,
+  },
+  {
+    filePath: path.resolve(__dirname, '..', '..', 'scripts', 'playwright', 'page-qa-fixtures.cjs'),
+    maxBytes: 32 * 1024,
+    maxLines: 260,
   },
 ];
 
