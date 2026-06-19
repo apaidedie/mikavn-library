@@ -87,7 +87,7 @@ export function DashboardPage({ refreshKey, onOpenGame, onAddGame, onOpenScanner
   return (
     <PageShell>
       <PageFrame className="max-w-[88rem] gap-6">
-        <TodayStrip data={data} attentionCount={attentionItems.length} runningCount={taskSummary.runningCount} onAddGame={onAddGame} onOpenScanner={onOpenScanner} onOpenTasks={onOpenTasks} />
+        <TodayStrip data={data} attentionCount={attentionItems.length} runningCount={taskSummary.runningCount} onAddGame={onAddGame} onOpenMaintenance={onOpenMaintenance} onOpenScanner={onOpenScanner} onOpenSettings={onOpenSettings} onOpenTasks={onOpenTasks} />
         {sectionErrors.length > 0 && (
           <div className="space-y-2">
             {sectionErrors.map((item) => <Notice key={item} tone="warning">{item}</Notice>)}

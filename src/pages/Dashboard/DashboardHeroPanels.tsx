@@ -1,15 +1,16 @@
-import { Activity, AlertTriangle, Clock3, FolderSearch, Gamepad2, ListChecks, Plus, Trophy } from 'lucide-react';
+import { Activity, AlertTriangle, Clock3, FolderSearch, Gamepad2, ListChecks, Plus, Settings, Trophy, Wrench } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CoverImage } from '@/components/ui/cover';
 import { EmptyState } from '@/components/ui/notice';
 import { MetricTile, Panel, PanelContent, PanelHeader } from '@/components/ui/page';
+import type { SettingsTab } from '@/pages/Settings/SettingsPage';
 import type { DashboardData, Game } from '@/types/game';
 import { PLAY_STATUS_LABEL } from '@/types/game';
 import type { TaskFilterPreset } from '@/types/task';
 import { formatDateTime, formatPlayTime } from '@/utils/time';
 
-export function TodayStrip({ data, attentionCount, runningCount, onAddGame, onOpenScanner, onOpenTasks }: { data: DashboardData; attentionCount: number; runningCount: number; onAddGame?: () => void; onOpenScanner?: () => void; onOpenTasks?: (taskId?: string | null, preset?: TaskFilterPreset | null) => void }) {
+export function TodayStrip({ data, attentionCount, runningCount, onAddGame, onOpenMaintenance, onOpenScanner, onOpenSettings, onOpenTasks }: { data: DashboardData; attentionCount: number; runningCount: number; onAddGame?: () => void; onOpenMaintenance?: (section?: string | null) => void; onOpenScanner?: () => void; onOpenSettings?: (tab?: SettingsTab) => void; onOpenTasks?: (taskId?: string | null, preset?: TaskFilterPreset | null) => void }) {
   return (
     <Panel>
       <PanelContent className="space-y-3">
@@ -21,7 +22,9 @@ export function TodayStrip({ data, attentionCount, runningCount, onAddGame, onOp
           <div className="flex flex-wrap justify-end gap-2">
             <Button onClick={onAddGame}><Plus className="h-4 w-4" />添加游戏</Button>
             <Button variant="outline" onClick={onOpenScanner}><FolderSearch className="h-4 w-4" />扫描入库</Button>
+            {onOpenMaintenance && <Button variant="ghost" onClick={() => onOpenMaintenance()}><Wrench className="h-4 w-4" />维护</Button>}
             {onOpenTasks && <Button variant="ghost" onClick={() => onOpenTasks(null, { statusFilter: 'attention' })}><Activity className="h-4 w-4" />任务</Button>}
+            {onOpenSettings && <Button variant="ghost" onClick={() => onOpenSettings('local')}><Settings className="h-4 w-4" />本地设置</Button>}
           </div>
         </div>
         <div className="grid gap-3 md:grid-cols-5">
