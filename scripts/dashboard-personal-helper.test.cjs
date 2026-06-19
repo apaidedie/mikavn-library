@@ -156,6 +156,14 @@ test('deriveDashboardAttentionItems creates deterministic local action items', (
     'missing_external_ids',
     'database_backup',
   ]);
+  assert.deepEqual(items.map((item) => item.action), [
+    'tasks_attention',
+    'tasks_active',
+    'library_paths',
+    'maintenance_artwork',
+    'metadata_missing_ids',
+    'settings_local',
+  ]);
   assert.equal(items.find((item) => item.kind === 'path_health').count, 6);
   assert.equal(items.find((item) => item.kind === 'missing_artwork').count, 3);
   assert.equal(items.find((item) => item.kind === 'missing_external_ids').count, 4);
