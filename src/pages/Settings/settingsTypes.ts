@@ -1,3 +1,5 @@
+export type SettingsTab = 'appearance' | 'sources' | 'local';
+
 export type SettingsForm = {
   provider_vndb_enabled: boolean;
   provider_bangumi_enabled: boolean;

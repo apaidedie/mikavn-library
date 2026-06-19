@@ -125,3 +125,10 @@ test('saves page budget keeps restore preview outside page component', () => {
   assert.ok(budget);
   assert.ok(budget.maxLines <= 240);
 });
+
+test('settings page budget keeps local data actions outside page component', () => {
+  const budget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('src/pages/Settings/SettingsPage.tsx'));
+
+  assert.ok(budget);
+  assert.ok(budget.maxLines <= 180);
+});

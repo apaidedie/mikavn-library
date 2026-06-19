@@ -60,7 +60,7 @@ const DEFAULT_SOURCE_BUDGETS = [
   {
     filePath: path.resolve(__dirname, '..', '..', 'src', 'pages', 'Settings', 'SettingsPage.tsx'),
     maxBytes: 44 * 1024,
-    maxLines: 820,
+    maxLines: 180,
   },
   {
     filePath: path.resolve(__dirname, '..', '..', 'src-tauri', 'src', 'services', 'archives.rs'),
