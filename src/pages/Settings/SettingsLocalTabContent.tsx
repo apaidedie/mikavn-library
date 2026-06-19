@@ -5,6 +5,7 @@ import { SettingsLocalDataSection } from './SettingsLocalDataSection';
 import { SettingsLocalPreferencesSection } from './SettingsLocalPreferencesSection';
 import { SettingsTagMaintenanceSection } from './SettingsTagMaintenanceSection';
 import { SettingsTraySection } from './SettingsTraySection';
+import { SettingsUpdateSection } from './SettingsUpdateSection';
 import type { useSettingsLibraryRoots } from './useSettingsLibraryRoots';
 import type { useSettingsLocalDataActions } from './useSettingsLocalDataActions';
 import type { useSettingsPageActions } from './useSettingsPageActions';
@@ -33,6 +34,8 @@ export function SettingsLocalTabContent({ form, libraryRoots, localData, setting
         onScanLibraryRoot={libraryRoots.scanLibraryRoot}
         onUpdateLibraryRoot={libraryRoots.updateLibraryRoot}
       />
+
+      <SettingsUpdateSection />
 
       <SettingsLocalDataSection
         archiveDir={localData.archiveDir}
