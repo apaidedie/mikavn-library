@@ -14,6 +14,7 @@
     "test:playwright-scripts": "node --test scripts/playwright/playwright-resolution.test.cjs",
     "test:dashboard-personal": "node --test scripts/dashboard-personal-helper.test.cjs",
     "test:app-navigation": "node --test scripts/app-navigation.test.cjs",
+    "test:app-chrome-local": "node --test scripts/app-chrome-local-first.test.cjs",
     "test:library-page-model": "node --test scripts/library-page-model.test.cjs",
     "test:game-form-mapping": "node --test scripts/game-form-mapping.test.cjs",
     "test:task-page-model": "node --test scripts/task-page-model.test.cjs",

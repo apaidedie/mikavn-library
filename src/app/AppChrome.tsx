@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, Cloud, Grid2X2, Home, Moon, Plus, RefreshCw, Search, Settings, SlidersHorizontal, Sun } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Grid2X2, Home, Moon, Plus, RefreshCw, Search, Settings, SlidersHorizontal, Sun } from 'lucide-react';
 import type { CSSProperties, ReactNode, RefObject } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/utils/cn';
@@ -93,7 +93,6 @@ export function AppChrome({ accent, children, librarySearchValue, onFocusLibrary
           <div className="flex shrink-0 items-center gap-2">
             <span className="mr-2 max-w-36 truncate text-xs text-slate-400">{title}</span>
             <ToolbarButton label={resolvedTheme === 'dark' ? '浅色模式' : '深色模式'} onClick={onToggleTheme}>{resolvedTheme === 'dark' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}</ToolbarButton>
-            <ToolbarButton label="同步状态"><Cloud className="h-4 w-4" /></ToolbarButton>
           </div>
         </header>
 
