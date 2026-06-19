@@ -25,6 +25,9 @@ impl AppState {
 
 pub fn run() {
     tauri::Builder::default()
+        .register_uri_scheme_protocol("mikavn-image", |ctx, request| {
+            services::images::handle_local_image_protocol_request(ctx.app_handle(), request)
+        })
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_process::init())

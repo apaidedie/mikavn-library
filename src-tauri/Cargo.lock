@@ -2305,11 +2305,12 @@ dependencies = [
 
 [[package]]
 name = "mikavn-library"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "base64 0.22.1",
  "chrono",
  "image",
+ "percent-encoding",
  "regex",
  "reqwest 0.12.28",
  "rusqlite",
