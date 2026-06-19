@@ -131,6 +131,8 @@ This repository includes GitHub-ready project metadata and automation:
 
 Use `RELEASE_CHECKLIST.md` before tagging or publishing a GitHub release.
 
+In-app Windows updates use the Tauri v2 updater plugin and public GitHub Releases. Tagged releases must publish the NSIS installer, its `.sig` updater signature, and `latest.json` at the release asset URL. The desktop app checks `https://github.com/apaidedie/mikavn-library/releases/latest/download/latest.json` and never embeds a GitHub token.
+
 ## Verification Snapshot
 
 Latest mature V1 acceptance pass. For the repeatable release checklist, see `RELEASE_CHECKLIST.md`.
