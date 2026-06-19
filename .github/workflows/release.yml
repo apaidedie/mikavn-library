@@ -88,6 +88,15 @@ jobs:
           if (-not $installer) { throw "No NSIS installer found in $bundleDir." }
           $signaturePath = "$($installer.FullName).sig"
           if (-not (Test-Path -LiteralPath $signaturePath)) { throw "Missing updater signature: $signaturePath." }
+          $releaseInstallerName = $installer.Name -replace '\s+', '.'
+          if ($releaseInstallerName -ne $installer.Name) {
+            $releaseInstallerPath = Join-Path $bundleDir $releaseInstallerName
+            $releaseSignaturePath = "$releaseInstallerPath.sig"
+            Move-Item -LiteralPath $installer.FullName -Destination $releaseInstallerPath
+            Move-Item -LiteralPath $signaturePath -Destination $releaseSignaturePath
+            $installer = Get-Item -LiteralPath $releaseInstallerPath
+            $signaturePath = $releaseSignaturePath
+          }
           $signature = (Get-Content -LiteralPath $signaturePath -Raw).Trim()
           $notes = Get-Content docs/RELEASE_NOTES_TEMPLATE.md -Raw
           $metadata = [ordered]@{
