@@ -60,6 +60,15 @@ test('release workflow requires signing secrets and publishes updater assets', (
   assert.match(workflow, /src-tauri\/target\/release\/bundle\/nsis\/latest\.json/);
 });
 
+test('release workflow normalizes updater asset names before writing latest metadata', () => {
+  const workflow = read('.github/workflows/release.yml');
+
+  assert.match(workflow, /\$releaseInstallerName = \$installer\.Name -replace '\\s\+', '\.'/);
+  assert.match(workflow, /Move-Item -LiteralPath \$installer\.FullName -Destination \$releaseInstallerPath/);
+  assert.match(workflow, /Move-Item -LiteralPath \$signaturePath -Destination \$releaseSignaturePath/);
+  assert.match(workflow, /url = "https:\/\/github\.com\/apaidedie\/mikavn-library\/releases\/download\/v\$version\/\$\(\$installer\.Name\)"/);
+});
+
 test('release metadata gate knows about updater release checks', () => {
   const gate = read('scripts/release/check-release-metadata.ps1');
 
