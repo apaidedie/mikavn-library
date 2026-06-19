@@ -36,7 +36,7 @@ test('imageSrc uses MikaVN image protocol for local Windows app-data images in T
 
   assert.equal(
     imageSrc('E:\\MikaVN Library\\app-data\\images\\VN Cover 01.jpg'),
-    'mikavn-image://localhost/E%3A%5CMikaVN%20Library%5Capp-data%5Cimages%5CVN%20Cover%2001.jpg',
+    'http://mikavn-image.localhost/E%3A%5CMikaVN%20Library%5Capp-data%5Cimages%5CVN%20Cover%2001.jpg',
   );
 });
 
