@@ -50,7 +50,7 @@ const DEFAULT_SOURCE_BUDGETS = [
   {
     filePath: path.resolve(__dirname, '..', '..', 'src', 'pages', 'Metadata', 'BatchMetadataPage.tsx'),
     maxBytes: 32 * 1024,
-    maxLines: 260,
+    maxLines: 160,
   },
   {
     filePath: path.resolve(__dirname, '..', '..', 'src', 'pages', 'Saves', 'SavesPage.tsx'),
