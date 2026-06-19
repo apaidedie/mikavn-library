@@ -39,7 +39,9 @@ test('rust updater plugin is registered and desktop capability allows update and
   const capability = readJson('src-tauri/capabilities/default.json');
 
   assert.match(cargo, /tauri-plugin-updater\s*=\s*"2"/);
+  assert.match(cargo, /tauri-plugin-process\s*=\s*"2"/);
   assert.match(lib, /\.plugin\(tauri_plugin_updater::Builder::new\(\)\.build\(\)\)/);
+  assert.match(lib, /\.plugin\(tauri_plugin_process::init\(\)\)/);
   assert.ok(capability.permissions.includes('updater:default'));
   assert.ok(capability.permissions.includes('process:allow-restart'));
 });

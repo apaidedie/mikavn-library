@@ -52,5 +52,15 @@
     "targets": ["nsis"],
     "useLocalToolsDir": true,
     "icon": ["icons/icon.ico"]
+  },
+  "plugins": {
+    "updater": {
+      "active": true,
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEY0MTU3QUZBMzZENEJFMzUKUldRMXZ0UTIrbm9WOU95VXJwbEp0VmYzakl6bjE5QlFKN1FGU0VnQTVrRnh5eHJVSE9qL0NhWEUK",
+      "endpoints": ["https://github.com/apaidedie/mikavn-library/releases/latest/download/latest.json"],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }

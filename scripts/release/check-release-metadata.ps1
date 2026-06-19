@@ -66,7 +66,7 @@ if ($package.private -ne $true) {
   throw "package.json should remain private=true; GitHub release publishes the desktop installer, not an npm package."
 }
 
-$requiredScripts = @("build", "typecheck", "test:release-scripts", "test:playwright-scripts", "release:check", "release:check:strict", "release:signing:check", "release:signing:require", "release:sign", "release:handoff:check", "release:validate", "release:validate:strict", "release:validate:core", "smoke:browser", "smoke:large", "smoke:install", "smoke:portable-data", "tauri:build", "smoke:desktop")
+$requiredScripts = @("build", "typecheck", "test:release-scripts", "test:playwright-scripts", "test:updater-release", "release:check", "release:check:strict", "release:signing:check", "release:signing:require", "release:sign", "release:handoff:check", "release:validate", "release:validate:strict", "release:validate:core", "smoke:browser", "smoke:large", "smoke:install", "smoke:portable-data", "tauri:build", "smoke:desktop")
 foreach ($scriptName in $requiredScripts) {
   if ($null -eq $package.scripts.$scriptName -or [string]::IsNullOrWhiteSpace([string]$package.scripts.$scriptName)) {
     throw "package.json is missing required script '$scriptName'."
@@ -102,10 +102,16 @@ foreach ($token in @("scripts/release/check-release-handoff.cjs")) {
     throw "package.json release:handoff:check must include token '$token'."
   }
 }
-foreach ($token in @("scripts/release/check-build-chunks.test.cjs", "scripts/release/check-source-size.test.cjs", "scripts/release/check-release-handoff.test.cjs")) {
+foreach ($token in @("scripts/release/check-build-chunks.test.cjs", "scripts/release/check-source-size.test.cjs", "scripts/release/check-release-handoff.test.cjs", "scripts/updater-release-config.test.cjs")) {
   $scriptText = [string]$package.scripts.'test:release-scripts'
   if (!$scriptText.Contains($token)) {
     throw "package.json test:release-scripts must include token '$token'."
+  }
+}
+foreach ($token in @("updater-release-config.test.cjs", "updater-service-model.test.cjs", "settings-updater-section.test.cjs", "startup-updater.test.cjs")) {
+  $scriptText = [string]$package.scripts.'test:updater-release'
+  if (!$scriptText.Contains($token)) {
+    throw "package.json test:updater-release must include token '$token'."
   }
 }
 foreach ($token in @("scripts/playwright/playwright-resolution.test.cjs")) {
@@ -261,6 +267,11 @@ foreach ($token in @("cargo fmt --check", "cargo clippy -- -D warnings", "cargo 
 foreach ($token in @("npm run release:check:strict", "npm run test:release-scripts", "npm run test:playwright-scripts", "cargo fmt --check", "cargo clippy -- -D warnings", "npm run tauri:build", "npm run smoke:install", "npm run smoke:portable-data", "npm run smoke:desktop", "desktop-smoke-report", "output/clean-install-smoke/**", "output/portable-app-data-smoke/**", "output/desktop-smoke/**")) {
   if (!$releaseWorkflow.Contains($token)) {
     throw "Release workflow must keep desktop smoke gate token '$token'."
+  }
+}
+foreach ($token in @("TAURI_SIGNING_PRIVATE_KEY", "Require updater signing secrets", "Create updater metadata", "latest.json", "*.sig")) {
+  if (!$releaseWorkflow.Contains($token)) {
+    throw "Release workflow must include updater token '$token'."
   }
 }
 if ($releaseWorkflow.IndexOf("npm run smoke:install") -lt $releaseWorkflow.IndexOf("npm run tauri:build")) {
