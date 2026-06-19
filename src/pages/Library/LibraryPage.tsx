@@ -1,19 +1,15 @@
-import * as Dialog from '@radix-ui/react-dialog';
-import { X } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Button } from '@/components/ui/button';
 import { EmptyState, Notice } from '@/components/ui/notice';
 import { api } from '@/services/api';
 import type { Game, LibraryFilterPreset } from '@/types/game';
 import { cn } from '@/utils/cn';
-import { errorMessage } from '@/utils/errorMessage';
 import { GameDetail } from './GameDetail';
-import { GameForm } from './GameForm';
+import { LibraryGameDialog } from './LibraryGameDialog';
 import { GameGrid, GameList } from './LibraryGameNav';
 import { LibrarySidebarControls, type LibraryViewMode } from './LibrarySidebarControls';
 import { changedLibraryMetadataFields } from './libraryPageModel';
 import { useLibraryBulkActions } from './useLibraryBulkActions';
-import { useLibraryFilters } from './useLibraryFilters';
+import { useLibraryPageData } from './useLibraryPageData';
 import { useLibraryPanelResize } from './useLibraryPanelResize';
 
 type LibraryPageProps = {
@@ -31,32 +27,12 @@ type LibraryPageProps = {
 };
 
 export function LibraryPage({ refreshKey, selectedGameId, onSelectedGameChange, onChanged, onOpenTasks, onOpenMaintenance, addRequestKey, onAddRequestConsumed, filterPreset, filterToggleKey = 0, toolbarQuery }: LibraryPageProps) {
-  const [games, setGames] = useState<Game[]>([]);
   const [viewMode, setViewMode] = useState<LibraryViewMode>('list');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingGame, setEditingGame] = useState<Game | null>(null);
-  const [settings, setSettings] = useState<Record<string, string>>({});
   const { draggingPanel, libraryPanelWidth, resetLibraryPanelWidth, startPanelResize } = useLibraryPanelResize();
-  const filters = useLibraryFilters({ filterPreset, filterToggleKey, games, settings, toolbarQuery });
-  const { filter, visibleGames } = filters;
-
-  useEffect(() => {
-    setLoading(true);
-    api
-      .listGames(filter)
-      .then((items) => {
-        setGames(items);
-        setError(null);
-      })
-      .catch((reason: unknown) => setError(errorMessage(reason)))
-      .finally(() => setLoading(false));
-  }, [filter, refreshKey]);
-
-  useEffect(() => {
-    api.getAppSettings().then(setSettings).catch(() => setSettings({}));
-  }, [refreshKey]);
+  const { error, filters, loading, setError, setGames, settings } = useLibraryPageData({ filterPreset, filterToggleKey, refreshKey, toolbarQuery });
+  const { visibleGames } = filters;
 
   const selectedGame = visibleGames.find((game) => game.id === selectedGameId) ?? null;
   const blurCovers = settings.privacy_blur_covers === 'true';
@@ -136,23 +112,7 @@ export function LibraryPage({ refreshKey, selectedGameId, onSelectedGameChange, 
         <GameDetail game={selectedGame} blurCover={blurCovers} onEdit={(game) => { setEditingGame(game); setDialogOpen(true); }} onDeleted={deleted} onChanged={() => onChanged()} onOpenMaintenance={onOpenMaintenance} onOpenTasks={onOpenTasks} />
       </section>
 
-      <Dialog.Root open={dialogOpen} onOpenChange={setDialogOpen}>
-        <Dialog.Portal>
-          <Dialog.Overlay className="motion-dialog-overlay fixed inset-0 z-40 bg-black/80 backdrop-blur-md" />
-          <Dialog.Content className={cn('motion-dialog-content fixed left-1/2 top-1/2 z-50 max-h-[90vh] overflow-auto rounded-lg border border-white/15 bg-[rgb(var(--modal-rgb)/0.98)] p-0 shadow-2xl shadow-black/65 ring-1 ring-white/[0.04] backdrop-blur-2xl', editingGame ? 'w-[min(58rem,calc(100vw-2rem))]' : 'w-[min(44rem,calc(100vw-2rem))]')}>
-            <div className="sticky top-0 z-10 flex min-h-12 items-center justify-between gap-4 border-b border-white/10 bg-black/[0.18] px-5 backdrop-blur-xl">
-              <Dialog.Title className="text-base font-semibold text-slate-100">{editingGame ? '编辑游戏' : '添加游戏'}</Dialog.Title>
-              <Dialog.Description className="sr-only">
-                {editingGame ? '编辑当前游戏的本地路径、启动配置、媒体和元数据。' : '选择游戏目录或启动程序，并自动识别标题后检索元数据。'}
-              </Dialog.Description>
-              <Dialog.Close asChild><Button aria-label="关闭" size="icon" variant="ghost"><X className="h-4 w-4" /></Button></Dialog.Close>
-            </div>
-            <div className="p-5">
-              <GameForm game={editingGame} onSubmit={saveGame} onCancel={() => setDialogOpen(false)} />
-            </div>
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
+      <LibraryGameDialog game={editingGame} onSubmit={saveGame} onCancel={() => setDialogOpen(false)} onOpenChange={setDialogOpen} open={dialogOpen} />
     </div>
   );
 }
