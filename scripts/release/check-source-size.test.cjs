@@ -109,7 +109,7 @@ test('scanner page budget keeps import scan derivation outside page component', 
   const budget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('src/pages/Scanner/ScannerPage.tsx'));
 
   assert.ok(budget);
-  assert.ok(budget.maxLines <= 260);
+  assert.ok(budget.maxLines <= 180);
 });
 
 test('batch metadata page budget keeps matching derivation outside page component', () => {
