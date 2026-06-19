@@ -19,12 +19,12 @@ export function TodayStrip({ data, attentionCount, runningCount, onAddGame, onOp
             <h2 className="text-base font-semibold text-slate-100">今日状态</h2>
             <p className="mt-1 text-xs text-slate-500">先继续游戏，再处理本地路径、素材和任务提醒。</p>
           </div>
-          <div className="flex flex-wrap justify-end gap-2">
-            <Button onClick={onAddGame}><Plus className="h-4 w-4" />添加游戏</Button>
-            <Button variant="outline" onClick={onOpenScanner}><FolderSearch className="h-4 w-4" />扫描入库</Button>
-            {onOpenMaintenance && <Button variant="ghost" onClick={() => onOpenMaintenance()}><Wrench className="h-4 w-4" />维护</Button>}
-            {onOpenTasks && <Button variant="ghost" onClick={() => onOpenTasks(null, { statusFilter: 'attention' })}><Activity className="h-4 w-4" />任务</Button>}
-            {onOpenSettings && <Button variant="ghost" onClick={() => onOpenSettings('local')}><Settings className="h-4 w-4" />本地设置</Button>}
+          <div className="grid w-full grid-cols-2 gap-2 sm:w-auto sm:grid-cols-3 lg:grid-cols-5">
+            <Button className="justify-center" onClick={onAddGame}><Plus className="h-4 w-4" />添加游戏</Button>
+            <Button className="justify-center" variant="outline" onClick={onOpenScanner}><FolderSearch className="h-4 w-4" />扫描入库</Button>
+            {onOpenMaintenance && <Button className="justify-center" variant="ghost" onClick={() => onOpenMaintenance()}><Wrench className="h-4 w-4" />维护</Button>}
+            {onOpenTasks && <Button className="justify-center" variant="ghost" onClick={() => onOpenTasks(null, { statusFilter: 'attention' })}><Activity className="h-4 w-4" />任务</Button>}
+            {onOpenSettings && <Button className="justify-center" variant="ghost" onClick={() => onOpenSettings('local')}><Settings className="h-4 w-4" />本地设置</Button>}
           </div>
         </div>
         <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">

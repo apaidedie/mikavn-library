@@ -63,11 +63,11 @@ async function waitForApp(page) {
   await page.waitForTimeout(650);
 }
 
-async function openSeeded(browser, view, overrides = {}) {
+async function openSeeded(browser, view, overrides = {}, options = {}) {
   const maxAttempts = 3;
   let lastError = null;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    const context = await browser.newContext({ viewport: { width: 1440, height: 1050 }, deviceScaleFactor: 1 });
+    const context = await browser.newContext({ viewport: options.viewport ?? { width: 1440, height: 1050 }, deviceScaleFactor: 1 });
     try {
       await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new URL(baseUrl).origin });
       const page = await context.newPage();
@@ -104,8 +104,8 @@ async function capture(page, name) {
   return file;
 }
 
-async function runCase(browser, name, view, overrides = {}, interact) {
-  const { context, page, consoleErrors } = await openSeeded(browser, view, overrides);
+async function runCase(browser, name, view, overrides = {}, interact, options = {}) {
+  const { context, page, consoleErrors } = await openSeeded(browser, view, overrides, options);
   try {
     if (interact) await interact(page);
     const file = await capture(page, name);
@@ -124,6 +124,26 @@ async function runCase(browser, name, view, overrides = {}, interact) {
 async function clickMaintenanceStart(page, label) {
   const row = page.locator('.items-center.justify-between').filter({ has: page.getByText(label, { exact: true }) }).filter({ has: page.getByRole('button', { name: /开始/ }) }).first();
   await row.getByRole('button', { name: /开始/ }).click();
+}
+
+async function expectNoHorizontalOverflow(page, label) {
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  if (overflow <= 2) return;
+
+  const wideElements = await page.evaluate(() => [...document.querySelectorAll('body *')]
+    .map((element) => {
+      const rect = element.getBoundingClientRect();
+      return {
+        className: typeof element.className === 'string' ? element.className : '',
+        tagName: element.tagName,
+        text: (element.textContent ?? '').trim().slice(0, 60),
+        width: Math.round(rect.width),
+      };
+    })
+    .filter((item) => item.width > document.documentElement.clientWidth)
+    .sort((a, b) => b.width - a.width)
+    .slice(0, 8));
+  throw new Error(`${label} has horizontal overflow: ${overflow}px ${JSON.stringify(wideElements)}`);
 }
 
 async function main() {
@@ -183,6 +203,17 @@ async function main() {
         await page.getByText('任务队列').first().waitFor({ timeout: 5000 });
         await page.getByText(/浏览器预览已修复 1 个条目的简介图片/).first().waitFor({ timeout: 5000 });
       }],
+      ['dashboard-mobile', 'dashboard', {}, async (page) => {
+        await page.getByText('今日状态').first().waitFor({ timeout: 5000 });
+        await page.locator('section').filter({ hasText: '今日状态' }).first().getByRole('button', { name: /添加游戏/ }).waitFor({ timeout: 5000 });
+        await expectNoHorizontalOverflow(page, 'dashboard mobile');
+        await page.locator('section').filter({ hasText: '今日状态' }).first().getByRole('button', { name: /本地设置/ }).click();
+        await page.waitForFunction(() => [...document.querySelectorAll('[role="tab"]')].some((tab) => tab.textContent?.includes('本地与隐私') && tab.getAttribute('data-state') === 'active'), null, { timeout: 5000 });
+        await expectNoHorizontalOverflow(page, 'dashboard mobile settings shortcut');
+        await page.getByLabel('首页').click();
+        await page.getByText('今日状态').first().waitFor({ timeout: 5000 });
+        await expectNoHorizontalOverflow(page, 'dashboard mobile after returning home');
+      }, { viewport: { width: 390, height: 844 } }],
       ['library-populated-detail-artwork', 'library', {}, async (page) => {
         await page.getByText('图片下方的正文也应该继续显示。').first().waitFor({ timeout: 5000 });
         await page.getByText('媒体健康').first().waitFor({ timeout: 5000 });
@@ -903,8 +934,8 @@ async function main() {
       }],
     ];
 
-    for (const [name, view, overrides, interact] of cases) {
-      await runCase(browser, name, view, overrides || {}, interact);
+    for (const [name, view, overrides, interact, options] of cases) {
+      await runCase(browser, name, view, overrides || {}, interact, options);
     }
 
     await runCase(browser, 'advanced-search-results', 'advanced-search', { games: [...games, secondaryExternalIdCompleteGame] }, async (page) => {

@@ -69,9 +69,9 @@ export function AppChrome({ accent, children, librarySearchValue, onFocusLibrary
       <main className="relative z-10 flex min-w-0 flex-1 flex-col">
         <header className="flex h-[50px] shrink-0 items-center justify-between border-b border-white/10 bg-[rgb(var(--topbar-rgb)/0.58)] px-3 backdrop-blur-xl">
           <div className="flex min-w-0 items-center gap-2">
-            <Button aria-label="后退" className="h-8 w-8" size="icon" variant="ghost" disabled><ArrowLeft className="h-4 w-4" /></Button>
-            <Button aria-label="前进" className="h-8 w-8" size="icon" variant="ghost" disabled><ArrowRight className="h-4 w-4" /></Button>
-            <div className="relative ml-2 w-[250px] shrink-0">
+            <Button aria-label="后退" className="hidden h-8 w-8 sm:flex" size="icon" variant="ghost" disabled><ArrowLeft className="h-4 w-4" /></Button>
+            <Button aria-label="前进" className="hidden h-8 w-8 sm:flex" size="icon" variant="ghost" disabled><ArrowRight className="h-4 w-4" /></Button>
+            <div className="hidden min-w-0 sm:relative sm:ml-2 sm:block sm:w-[250px]">
               <Search className="pointer-events-none absolute left-2.5 top-2 h-4 w-4 text-slate-500" />
               <input
                 ref={topSearchRef}
@@ -91,7 +91,7 @@ export function AppChrome({ accent, children, librarySearchValue, onFocusLibrary
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <span className="mr-2 max-w-36 truncate text-xs text-slate-400">{title}</span>
+            <span className="mr-2 hidden max-w-36 truncate text-xs text-slate-400 md:block">{title}</span>
             <ToolbarButton label={resolvedTheme === 'dark' ? '浅色模式' : '深色模式'} onClick={onToggleTheme}>{resolvedTheme === 'dark' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}</ToolbarButton>
           </div>
         </header>

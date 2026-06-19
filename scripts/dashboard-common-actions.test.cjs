@@ -17,3 +17,11 @@ test('TodayStrip includes the planned games metric from dashboard data', () => {
   assert.equal(heroPanelsSource.includes('label="想玩"'), true);
   assert.equal(heroPanelsSource.includes('data.plannedGames'), true);
 });
+
+test('TodayStrip action buttons use a stable responsive grid on narrow screens', () => {
+  assert.equal(heroPanelsSource.includes('grid w-full grid-cols-2'), true);
+  assert.equal(heroPanelsSource.includes('sm:w-auto sm:grid-cols-3'), true);
+  assert.equal(heroPanelsSource.includes('lg:grid-cols-5'), true);
+  assert.equal(heroPanelsSource.includes('justify-center'), true);
+  assert.equal(heroPanelsSource.includes('flex-1 justify-center sm:flex-none'), false);
+});
