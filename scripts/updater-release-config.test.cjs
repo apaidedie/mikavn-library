@@ -50,6 +50,7 @@ test('rust updater plugin is registered and desktop capability allows update and
 test('release workflow requires signing secrets and publishes updater assets', () => {
   const workflow = read('.github/workflows/release.yml');
 
+  assert.match(workflow, /npm run test:updater-release/);
   assert.match(workflow, /TAURI_SIGNING_PRIVATE_KEY/);
   assert.match(workflow, /Require updater signing secrets/);
   assert.match(workflow, /Create updater metadata/);
@@ -66,4 +67,12 @@ test('release metadata gate knows about updater release checks', () => {
   assert.match(gate, /updater-release-config\.test\.cjs/);
   assert.match(gate, /latest\.json/);
   assert.match(gate, /TAURI_SIGNING_PRIVATE_KEY/);
+});
+
+test('ci and local release validation run updater-specific tests', () => {
+  const ciWorkflow = read('.github/workflows/ci.yml');
+  const releaseValidation = read('scripts/release/run-release-validation.ps1');
+
+  assert.match(ciWorkflow, /npm run test:updater-release/);
+  assert.match(releaseValidation, /npm run test:updater-release/);
 });

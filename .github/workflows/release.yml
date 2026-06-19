@@ -44,6 +44,7 @@ jobs:
         run: |
           npm run test:release-scripts
           npm run test:playwright-scripts
+          npm run test:updater-release
 
       - name: Run frontend build
         run: npm run build

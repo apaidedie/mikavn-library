@@ -139,7 +139,7 @@ Latest mature V1 acceptance pass. For the repeatable release checklist, see `REL
 
 - `npm run release:check` verifies version alignment, release metadata, Tauri security hardening, browser/large smoke gates, and release desktop-smoke gating; `npm run release:check:strict` also verifies public GitHub release links. `npm run release:validate:strict` runs the local release validation chain end to end, and `npm run release:validate:core` reruns the strict non-smoke core checks.
 - `cargo fmt --check`, `cargo clippy -- -D warnings`, and `cargo test` under `src-tauri` pass with the current repository test count (126 Rust tests in the latest local run).
-- `npm run test:release-scripts` and `npm run test:playwright-scripts` cover release handoff, source-size, build-chunk, and Playwright module-resolution helpers.
+- `npm run test:release-scripts`, `npm run test:playwright-scripts`, and `npm run test:updater-release` cover release handoff, source-size, build-chunk, Playwright module-resolution helpers, updater config, updater UI wiring, and browser-preview fallback.
 - `npm run build` passes TypeScript and Vite production build checks.
 - `npm run smoke:browser` starts or reuses a local Vite server, then runs page-level Playwright QA plus core workflow smoke.
 - `npm run smoke:large` starts or reuses a local Vite server, seeds 1500 browser-preview records, and verifies library rendering/filtering plus advanced-search timings; latest local run loaded the library in 1472ms and advanced search in 675ms.

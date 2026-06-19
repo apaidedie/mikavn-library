@@ -26,6 +26,7 @@ Or, equivalently, the expanded validation chain:
 - `npm run release:check:strict`
 - `npm run test:release-scripts`
 - `npm run test:playwright-scripts`
+- `npm run test:updater-release`
 - `npm run build`
 - `cargo fmt --check`
 - `cargo clippy -- -D warnings`

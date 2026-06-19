@@ -27,6 +27,7 @@ try {
   Invoke-Step "Script unit tests" {
     npm run test:release-scripts
     npm run test:playwright-scripts
+    npm run test:updater-release
   }
   Invoke-Step "Frontend build" { npm run build }
 

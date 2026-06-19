@@ -254,7 +254,7 @@ foreach ($token in @("browser-smoke", "npm run smoke:browser", "npm run smoke:la
     throw "CI workflow must keep browser smoke gate token '$token'."
   }
 }
-foreach ($token in @("npm run test:release-scripts", "npm run test:playwright-scripts")) {
+foreach ($token in @("npm run test:release-scripts", "npm run test:playwright-scripts", "npm run test:updater-release")) {
   if (!$ciWorkflow.Contains($token)) {
     throw "CI workflow must keep script unit-test gate token '$token'."
   }
@@ -264,7 +264,7 @@ foreach ($token in @("cargo fmt --check", "cargo clippy -- -D warnings", "cargo 
     throw "CI workflow must keep Rust quality gate token '$token'."
   }
 }
-foreach ($token in @("npm run release:check:strict", "npm run test:release-scripts", "npm run test:playwright-scripts", "cargo fmt --check", "cargo clippy -- -D warnings", "npm run tauri:build", "npm run smoke:install", "npm run smoke:portable-data", "npm run smoke:desktop", "desktop-smoke-report", "output/clean-install-smoke/**", "output/portable-app-data-smoke/**", "output/desktop-smoke/**")) {
+foreach ($token in @("npm run release:check:strict", "npm run test:release-scripts", "npm run test:playwright-scripts", "npm run test:updater-release", "cargo fmt --check", "cargo clippy -- -D warnings", "npm run tauri:build", "npm run smoke:install", "npm run smoke:portable-data", "npm run smoke:desktop", "desktop-smoke-report", "output/clean-install-smoke/**", "output/portable-app-data-smoke/**", "output/desktop-smoke/**")) {
   if (!$releaseWorkflow.Contains($token)) {
     throw "Release workflow must keep desktop smoke gate token '$token'."
   }
@@ -287,7 +287,7 @@ if ($releaseWorkflow.IndexOf("src-tauri/target/release/bundle/nsis/*.exe") -lt $
   throw "Release workflow must run desktop smoke before uploading installer artifacts."
 }
 
-foreach ($token in @("npm run release:validate:strict", "npm run release:check:strict", "npm run test:release-scripts", "npm run test:playwright-scripts", "npm run build", "cargo fmt --check", "cargo clippy -- -D warnings", "cargo test", "npm run tauri:build", "npm run smoke:install", "npm run smoke:portable-data", "npm run smoke:desktop", "npm run smoke:browser", "npm run smoke:large")) {
+foreach ($token in @("npm run release:validate:strict", "npm run release:check:strict", "npm run test:release-scripts", "npm run test:playwright-scripts", "npm run test:updater-release", "npm run build", "cargo fmt --check", "cargo clippy -- -D warnings", "cargo test", "npm run tauri:build", "npm run smoke:install", "npm run smoke:portable-data", "npm run smoke:desktop", "npm run smoke:browser", "npm run smoke:large")) {
   if (!$releaseNotesTemplate.Contains($token)) {
     throw "Release notes template must document verification command '$token'."
   }
