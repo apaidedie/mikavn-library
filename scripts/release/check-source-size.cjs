@@ -5,7 +5,7 @@ const DEFAULT_SOURCE_BUDGETS = [
   {
     filePath: path.resolve(__dirname, '..', '..', 'src', 'app', 'App.tsx'),
     maxBytes: 44 * 1024,
-    maxLines: 220,
+    maxLines: 180,
   },
   {
     filePath: path.resolve(__dirname, '..', '..', 'src', 'services', 'mockStore.ts'),

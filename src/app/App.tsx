@@ -5,6 +5,7 @@ import type { TaskFilterPreset } from '@/types/task';
 import { AppChrome } from './AppChrome';
 import { AppRoutes } from './AppRoutes';
 import { navItems, readInitialView, type View } from './appNavigation';
+import { useAppKeyboardShortcuts } from './useAppKeyboardShortcuts';
 import { useAppThemeSettings } from './useAppThemeSettings';
 
 export function App() {
@@ -108,49 +109,7 @@ export function App() {
     setView('settings');
   }, []);
 
-  useEffect(() => {
-    const isEditingTarget = (target: EventTarget | null) => {
-      if (!(target instanceof HTMLElement)) return false;
-      const tag = target.tagName.toLowerCase();
-      return target.isContentEditable || tag === 'input' || tag === 'textarea' || tag === 'select';
-    };
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      const editing = isEditingTarget(event.target);
-      const navIndex = Number(event.key) - 1;
-      if ((event.altKey || event.ctrlKey) && navIndex >= 0 && navIndex < navItems.length) {
-        event.preventDefault();
-        setView(navItems[navIndex].id);
-        return;
-      }
-
-      if (!editing && event.key === '/') {
-        event.preventDefault();
-        focusLibrarySearch();
-        return;
-      }
-
-      if (event.ctrlKey && event.key.toLowerCase() === 'l') {
-        event.preventDefault();
-        focusLibrarySearch();
-        return;
-      }
-
-      if (!editing && event.ctrlKey && event.key.toLowerCase() === 'n') {
-        event.preventDefault();
-        requestAddGame();
-        return;
-      }
-
-      if (!editing && event.ctrlKey && event.key.toLowerCase() === 'r') {
-        event.preventDefault();
-        refresh();
-      }
-    };
-
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [focusLibrarySearch]);
+  useAppKeyboardShortcuts({ focusLibrarySearch, refresh, requestAddGame, setView });
 
   return (
     <AppChrome
