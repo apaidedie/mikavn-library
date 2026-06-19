@@ -25,6 +25,7 @@ test('package scripts and dependencies include updater gates and frontend plugin
 test('tauri updater config points to public GitHub latest metadata and contains a real public key', () => {
   const config = readJson('src-tauri/tauri.conf.json');
   const updater = config.plugins?.updater;
+  const assetScope = config.app?.security?.assetProtocol?.scope?.allow ?? [];
 
   assert.equal(config.bundle.createUpdaterArtifacts, true);
   assert.ok(updater, 'plugins.updater must exist');
@@ -32,6 +33,8 @@ test('tauri updater config points to public GitHub latest metadata and contains 
   assert.equal(updater.pubkey, 'dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IENCREFEODkwOTFEMjc0ODgKUldTSWROS1JrTmpheTJXZ0JSSDNrRWFwaVkxaGRGajZjL3orYTY4NjBoYk00MVJMTG9Ca09GYnMK');
   assert.deepEqual(updater.endpoints, ['https://github.com/apaidedie/mikavn-library/releases/latest/download/latest.json']);
   assert.equal(updater.windows.installMode, 'passive');
+  assert.ok(assetScope.includes('$EXE/../app-data/images/**'));
+  assert.ok(assetScope.includes('$EXE/app-data/images/**'));
 });
 
 test('rust updater plugin is registered and desktop capability allows update and restart', () => {
