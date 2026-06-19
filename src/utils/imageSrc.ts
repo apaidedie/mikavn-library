@@ -9,7 +9,7 @@ export function imageSrc(value?: string | null) {
     return value;
   }
   if (isTauri && LOCAL_FILE_PATH_RE.test(value)) {
-    return `mikavn-image://localhost/${encodeURIComponent(value)}`;
+    return `http://mikavn-image.localhost/${encodeURIComponent(value)}`;
   }
   return isTauri ? convertFileSrc(value) : value;
 }
