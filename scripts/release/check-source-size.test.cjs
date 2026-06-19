@@ -45,6 +45,11 @@ test('default source budgets cover frontend, Rust service, and smoke runner hot 
 
   for (const expectedPath of [
     'src/app/App.tsx',
+    'src/app/AppChrome.tsx',
+    'src/app/AppRoutes.tsx',
+    'src/app/appNavigation.ts',
+    'src/app/useAppKeyboardShortcuts.ts',
+    'src/app/useAppThemeSettings.ts',
     'src/services/mockStore.ts',
     'src/pages/Dashboard/DashboardPage.tsx',
     'src/pages/Library/LibraryPage.tsx',
@@ -76,6 +81,21 @@ test('app shell budget keeps entry routing outside the main shell', () => {
 
   assert.ok(budget);
   assert.ok(budget.maxLines <= 180);
+});
+
+test('app companion budgets keep entry chrome, routes, and hooks small', () => {
+  for (const [fileName, maxLines] of [
+    ['AppChrome.tsx', 160],
+    ['AppRoutes.tsx', 120],
+    ['appNavigation.ts', 80],
+    ['useAppKeyboardShortcuts.ts', 80],
+    ['useAppThemeSettings.ts', 120],
+  ]) {
+    const budget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith(`src/app/${fileName}`));
+
+    assert.ok(budget, fileName);
+    assert.ok(budget.maxLines <= maxLines, fileName);
+  }
 });
 
 test('library page budget keeps library orchestration small', () => {

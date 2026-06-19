@@ -8,6 +8,31 @@ const DEFAULT_SOURCE_BUDGETS = [
     maxLines: 180,
   },
   {
+    filePath: path.resolve(__dirname, '..', '..', 'src', 'app', 'AppChrome.tsx'),
+    maxBytes: 32 * 1024,
+    maxLines: 160,
+  },
+  {
+    filePath: path.resolve(__dirname, '..', '..', 'src', 'app', 'AppRoutes.tsx'),
+    maxBytes: 32 * 1024,
+    maxLines: 120,
+  },
+  {
+    filePath: path.resolve(__dirname, '..', '..', 'src', 'app', 'appNavigation.ts'),
+    maxBytes: 16 * 1024,
+    maxLines: 80,
+  },
+  {
+    filePath: path.resolve(__dirname, '..', '..', 'src', 'app', 'useAppKeyboardShortcuts.ts'),
+    maxBytes: 16 * 1024,
+    maxLines: 80,
+  },
+  {
+    filePath: path.resolve(__dirname, '..', '..', 'src', 'app', 'useAppThemeSettings.ts'),
+    maxBytes: 24 * 1024,
+    maxLines: 120,
+  },
+  {
     filePath: path.resolve(__dirname, '..', '..', 'src', 'services', 'mockStore.ts'),
     maxBytes: 108 * 1024,
     maxLines: 2250,
