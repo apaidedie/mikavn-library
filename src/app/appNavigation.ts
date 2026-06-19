@@ -21,7 +21,7 @@ export const primaryNavItems = navItems.filter((item) => item.id !== 'settings')
 const validViewIds = new Set<View>(navItems.map((item) => item.id));
 
 export function readInitialView(): View {
-  if (typeof window === 'undefined') return 'library';
+  if (typeof window === 'undefined') return 'dashboard';
   const saved = window.localStorage.getItem('mikavn.currentView');
-  return saved && validViewIds.has(saved as View) ? saved as View : 'library';
+  return saved && validViewIds.has(saved as View) ? saved as View : 'dashboard';
 }
