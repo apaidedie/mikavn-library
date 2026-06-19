@@ -1,4 +1,4 @@
-import { Activity, AlertTriangle, Clock3, FolderSearch, Gamepad2, ListChecks, Plus, Settings, Trophy, Wrench } from 'lucide-react';
+import { Activity, AlertTriangle, CalendarDays, Clock3, FolderSearch, Gamepad2, ListChecks, Plus, Settings, Trophy, Wrench } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CoverImage } from '@/components/ui/cover';
@@ -27,10 +27,11 @@ export function TodayStrip({ data, attentionCount, runningCount, onAddGame, onOp
             {onOpenSettings && <Button variant="ghost" onClick={() => onOpenSettings('local')}><Settings className="h-4 w-4" />本地设置</Button>}
           </div>
         </div>
-        <div className="grid gap-3 md:grid-cols-5">
+        <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
           <MetricTile icon={<Gamepad2 className="h-4 w-4" />} label="游戏总数" value={`${data.totalGames}`} />
           <MetricTile icon={<Clock3 className="h-4 w-4" />} label="总游玩时间" value={formatPlayTime(data.totalPlaySeconds)} />
           <MetricTile icon={<ListChecks className="h-4 w-4" />} label="进行中" value={`${data.playingGames}`} />
+          <MetricTile icon={<CalendarDays className="h-4 w-4" />} label="想玩" value={`${data.plannedGames}`} />
           <MetricTile icon={<Trophy className="h-4 w-4" />} label="已通关" value={`${data.completedGames}`} />
           <MetricTile icon={<AlertTriangle className="h-4 w-4" />} label="待处理" value={`${attentionCount}`} detail={runningCount > 0 ? `${runningCount} 个任务进行中` : '本地提醒'} />
         </div>

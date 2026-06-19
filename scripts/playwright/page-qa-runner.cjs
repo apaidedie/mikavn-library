@@ -131,9 +131,21 @@ async function main() {
   try {
     const cases = [
       ['dashboard-populated', 'dashboard', {}, async (page) => {
-        for (const text of ['今日状态', '继续游玩', '需要关注', '本地安全', '添加游戏', '扫描入库']) {
+        for (const text of ['今日状态', '继续游玩', '需要关注', '本地安全', '添加游戏', '扫描入库', '想玩', '维护', '本地设置']) {
           await page.getByText(text, { exact: false }).first().waitFor({ timeout: 5000 });
         }
+        await page.locator('section').filter({ hasText: '继续游玩' }).first().locator('button').filter({ hasText: '星之终途' }).first().click();
+        await page.getByText('末世旅途题材的短篇视觉小说。这里用于成熟 V1 页面 QA。').first().waitFor({ timeout: 5000 });
+        await page.getByLabel('首页').click();
+        await page.getByText('今日状态').first().waitFor({ timeout: 5000 });
+        await page.locator('section').filter({ hasText: '今日状态' }).first().getByRole('button', { name: /维护/ }).click();
+        await page.getByText('维护中心').first().waitFor({ timeout: 5000 });
+        await page.getByLabel('首页').click();
+        await page.getByText('今日状态').first().waitFor({ timeout: 5000 });
+        await page.locator('section').filter({ hasText: '今日状态' }).first().getByRole('button', { name: /本地设置/ }).click();
+        await page.waitForFunction(() => [...document.querySelectorAll('[role="tab"]')].some((tab) => tab.textContent?.includes('本地与隐私') && tab.getAttribute('data-state') === 'active'), null, { timeout: 5000 });
+        await page.getByLabel('首页').click();
+        await page.getByText('本地安全').first().waitFor({ timeout: 5000 });
         await page.locator('section').filter({ hasText: '本地安全' }).first().getByRole('button', { name: /打开设置/ }).click();
         await page.waitForFunction(() => [...document.querySelectorAll('[role="tab"]')].some((tab) => tab.textContent?.includes('本地与隐私') && tab.getAttribute('data-state') === 'active'), null, { timeout: 5000 });
         await page.getByText('数据目录自检').first().waitFor({ timeout: 5000 });

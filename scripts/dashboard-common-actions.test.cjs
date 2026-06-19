@@ -12,3 +12,8 @@ test('TodayStrip exposes common local maintenance and settings actions', () => {
   assert.equal(dashboardPageSource.includes('onOpenMaintenance={onOpenMaintenance}'), true);
   assert.equal(dashboardPageSource.includes('onOpenSettings={onOpenSettings}'), true);
 });
+
+test('TodayStrip includes the planned games metric from dashboard data', () => {
+  assert.equal(heroPanelsSource.includes('label="想玩"'), true);
+  assert.equal(heroPanelsSource.includes('data.plannedGames'), true);
+});
