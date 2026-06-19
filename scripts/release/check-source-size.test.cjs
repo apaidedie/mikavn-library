@@ -44,6 +44,7 @@ test('default source budgets cover frontend, Rust service, and smoke runner hot 
     .join('\n');
 
   for (const expectedPath of [
+    'src/app/App.tsx',
     'src/services/mockStore.ts',
     'src/pages/Dashboard/DashboardPage.tsx',
     'src/pages/Library/LibraryPage.tsx',
@@ -65,6 +66,13 @@ test('default source budgets cover frontend, Rust service, and smoke runner hot 
 
 test('maintenance page budget keeps page-level orchestration small', () => {
   const budget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('src/pages/Maintenance/MaintenancePage.tsx'));
+
+  assert.ok(budget);
+  assert.ok(budget.maxLines <= 280);
+});
+
+test('app shell budget keeps entry routing outside the main shell', () => {
+  const budget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('src/app/App.tsx'));
 
   assert.ok(budget);
   assert.ok(budget.maxLines <= 280);
