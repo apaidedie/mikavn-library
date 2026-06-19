@@ -91,6 +91,13 @@ test('game form budget keeps form mapping outside page component', () => {
   assert.ok(budget.maxLines <= 180);
 });
 
+test('game detail budget keeps detail actions and panels outside page component', () => {
+  const budget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('src/pages/Library/GameDetail.tsx'));
+
+  assert.ok(budget);
+  assert.ok(budget.maxLines <= 220);
+});
+
 test('game detail media budget keeps media parsing outside page component', () => {
   const budget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('src/pages/Library/GameDetailMedia.tsx'));
 
