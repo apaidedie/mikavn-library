@@ -4,9 +4,11 @@ import type { LibraryFilterPreset } from '@/types/game';
 import type { TaskFilterPreset } from '@/types/task';
 import { AppChrome } from './AppChrome';
 import { AppRoutes } from './AppRoutes';
+import { AppUpdateNotice } from './AppUpdateNotice';
 import { navItems, readInitialView, type View } from './appNavigation';
 import { useAppKeyboardShortcuts } from './useAppKeyboardShortcuts';
 import { useAppThemeSettings } from './useAppThemeSettings';
+import { useStartupUpdater } from './useStartupUpdater';
 
 export function App() {
   const [view, setView] = useState<View>(() => readInitialView());
@@ -26,6 +28,8 @@ export function App() {
 
   const title = useMemo(() => navItems.find((item) => item.id === view)?.label ?? 'MikaVN Library', [view]);
   const { accent, previewAccent, previewTheme, resolvedTheme, toggleTheme } = useAppThemeSettings(refreshKey);
+  const startupUpdater = useStartupUpdater();
+  const startupUpdateNotice = startupUpdater.notice?.kind === 'available' ? startupUpdater.notice : null;
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -127,6 +131,18 @@ export function App() {
       topSearchRef={topSearchRef}
       view={view}
     >
+      {startupUpdateNotice && (
+        <AppUpdateNotice
+          error={startupUpdater.error}
+          installed={startupUpdater.installed}
+          installing={startupUpdater.installing}
+          notice={startupUpdateNotice}
+          onDismiss={startupUpdater.dismissStartupUpdate}
+          onInstall={startupUpdater.installStartupUpdate}
+          onRestart={startupUpdater.restartStartupUpdate}
+        />
+      )}
+
       <AppRoutes
         addRequestKey={addRequestKey}
         filterToggleKey={libraryFilterToggleKey}

@@ -863,6 +863,9 @@ async function main() {
         const copiedRegisteredLibraryRoot = await page.evaluate(() => navigator.clipboard.readText());
         if (copiedRegisteredLibraryRoot !== 'D:\\Games\\VN') throw new Error('registered library root copy did not write the expected path');
         await page.getByText('已复制已登记库目录路径。').first().waitFor({ timeout: 5000 });
+        await page.getByText('应用更新').first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: /检查更新/ }).first().click();
+        await page.getByText(/浏览器预览不会下载或安装更新/).first().waitFor({ timeout: 5000 });
         await page.getByText('目录位置速览').first().waitFor({ timeout: 5000 });
         const dataDirLocation = page.locator('section').filter({ hasText: '目录位置速览' }).first().locator('text=数据根目录').first().locator('..');
         await page.getByText('E:\\MikaVN Library\\app-data\\images').first().waitFor({ timeout: 5000 });
