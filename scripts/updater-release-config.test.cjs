@@ -26,9 +26,10 @@ test('tauri updater config points to public GitHub latest metadata and contains 
   const config = readJson('src-tauri/tauri.conf.json');
   const updater = config.plugins?.updater;
 
+  assert.equal(config.bundle.createUpdaterArtifacts, true);
   assert.ok(updater, 'plugins.updater must exist');
   assert.equal(updater.active, true);
-  assert.equal(updater.pubkey, 'dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEY0MTU3QUZBMzZENEJFMzUKUldRMXZ0UTIrbm9WOU95VXJwbEp0VmYzakl6bjE5QlFKN1FGU0VnQTVrRnh5eHJVSE9qL0NhWEUK');
+  assert.equal(updater.pubkey, 'dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IENCREFEODkwOTFEMjc0ODgKUldTSWROS1JrTmpheTJXZ0JSSDNrRWFwaVkxaGRGajZjL3orYTY4NjBoYk00MVJMTG9Ca09GYnMK');
   assert.deepEqual(updater.endpoints, ['https://github.com/apaidedie/mikavn-library/releases/latest/download/latest.json']);
   assert.equal(updater.windows.installMode, 'passive');
 });

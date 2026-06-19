@@ -62,7 +62,7 @@ Keep these out of scope: custom update server, private GitHub token, cloud sync,
 Use this committed updater public key in `src-tauri/tauri.conf.json`:
 
 ```text
-dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEY0MTU3QUZBMzZENEJFMzUKUldRMXZ0UTIrbm9WOU95VXJwbEp0VmYzakl6bjE5QlFKN1FGU0VnQTVrRnh5eHJVSE9qL0NhWEUK
+dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IENCREFEODkwOTFEMjc0ODgKUldTSWROS1JrTmpheTJXZ0JSSDNrRWFwaVkxaGRGajZjL3orYTY4NjBoYk00MVJMTG9Ca09GYnMK
 ```
 
 The matching private key was generated outside the repository at:
@@ -71,7 +71,13 @@ The matching private key was generated outside the repository at:
 C:\Users\Asus\AppData\Local\MikaVN\updater-signing\mikavn-updater.key
 ```
 
-Before the first public updater release, add the private key content as GitHub secret `TAURI_SIGNING_PRIVATE_KEY`. The generated key has no password, so `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` may stay empty for this first iteration. Never commit the private key file or print its content in PRs, logs, docs, or issue comments.
+The matching local password is stored outside the repository at:
+
+```text
+C:\Users\Asus\AppData\Local\MikaVN\updater-signing\mikavn-updater.password.txt
+```
+
+Before the first public updater release, add the private key content as GitHub secret `TAURI_SIGNING_PRIVATE_KEY`, and add the password as `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`. Never commit the private key file, password file, or their content in PRs, logs, docs, or issue comments.
 
 ---
 
@@ -116,7 +122,7 @@ test('tauri updater config points to public GitHub latest metadata and contains 
 
   assert.ok(updater, 'plugins.updater must exist');
   assert.equal(updater.active, true);
-  assert.equal(updater.pubkey, 'dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEY0MTU3QUZBMzZENEJFMzUKUldRMXZ0UTIrbm9WOU95VXJwbEp0VmYzakl6bjE5QlFKN1FGU0VnQTVrRnh5eHJVSE9qL0NhWEUK');
+  assert.equal(updater.pubkey, 'dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IENCREFEODkwOTFEMjc0ODgKUldTSWROS1JrTmpheTJXZ0JSSDNrRWFwaVkxaGRGajZjL3orYTY4NjBoYk00MVJMTG9Ca09GYnMK');
   assert.deepEqual(updater.endpoints, ['https://github.com/apaidedie/mikavn-library/releases/latest/download/latest.json']);
   assert.equal(updater.windows.installMode, 'passive');
 });
@@ -276,7 +282,7 @@ In `src-tauri/tauri.conf.json`, add this root-level `plugins` block after `bundl
 "plugins": {
   "updater": {
     "active": true,
-    "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEY0MTU3QUZBMzZENEJFMzUKUldRMXZ0UTIrbm9WOU95VXJwbEp0VmYzakl6bjE5QlFKN1FGU0VnQTVrRnh5eHJVSE9qL0NhWEUK",
+    "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IENCREFEODkwOTFEMjc0ODgKUldTSWROS1JrTmpheTJXZ0JSSDNrRWFwaVkxaGRGajZjL3orYTY4NjBoYk00MVJMTG9Ca09GYnMK",
     "endpoints": ["https://github.com/apaidedie/mikavn-library/releases/latest/download/latest.json"],
     "windows": {
       "installMode": "passive"
@@ -1098,9 +1104,11 @@ Expected: PASS.
 Run:
 
 ```powershell
-$env:TAURI_SIGNING_PRIVATE_KEY_PATH = "$env:LOCALAPPDATA\MikaVN\updater-signing\mikavn-updater.key"
+$env:TAURI_SIGNING_PRIVATE_KEY = Get-Content -LiteralPath "$env:LOCALAPPDATA\MikaVN\updater-signing\mikavn-updater.key" -Raw
+$env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = Get-Content -LiteralPath "$env:LOCALAPPDATA\MikaVN\updater-signing\mikavn-updater.password.txt" -Raw
 npm run tauri:build
-Remove-Item Env:\TAURI_SIGNING_PRIVATE_KEY_PATH
+Remove-Item Env:\TAURI_SIGNING_PRIVATE_KEY
+Remove-Item Env:\TAURI_SIGNING_PRIVATE_KEY_PASSWORD
 ```
 
 Expected: PASS and `src-tauri/target/release/bundle/nsis` contains the installer and a `.sig` file.
