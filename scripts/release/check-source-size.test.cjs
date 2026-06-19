@@ -75,7 +75,7 @@ test('app shell budget keeps entry routing outside the main shell', () => {
   const budget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('src/app/App.tsx'));
 
   assert.ok(budget);
-  assert.ok(budget.maxLines <= 280);
+  assert.ok(budget.maxLines <= 220);
 });
 
 test('library page budget keeps library orchestration small', () => {
