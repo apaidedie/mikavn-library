@@ -28,6 +28,7 @@ try {
     npm run test:release-scripts
     npm run test:playwright-scripts
     npm run test:updater-release
+    npm run test:image-src
   }
   Invoke-Step "Frontend build" { npm run build }
 
