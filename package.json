@@ -1,7 +1,7 @@
 {
   "name": "mikavn-library",
   "private": true,
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Windows-first local Galgame and Visual Novel library manager built with Tauri, React, Rust, and SQLite.",
   "license": "MIT",
   "type": "module",
