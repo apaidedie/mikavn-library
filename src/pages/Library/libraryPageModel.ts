@@ -8,9 +8,18 @@ export const libraryGridRenderBatchSize = 160;
 export const librarySelectedRenderExpansionCap = 960;
 
 export type LibraryGameGroup = {
-  id: PlayStatus | 'recent' | 'all';
+  id: PlayStatus | 'recent' | 'selected' | 'all';
   label: string;
   games: Game[];
+};
+
+export type LibraryRenderWindow = {
+  primaryGames: Game[];
+  selectedGame: Game | null;
+  selectedIndex: number;
+  selectedPinned: boolean;
+  renderedCount: number;
+  hasMore: boolean;
 };
 
 export function groupLibraryGames(games: Game[], statusLabels: Record<PlayStatus, string>): LibraryGameGroup[] {
@@ -45,6 +54,22 @@ export function getLibraryVisibleCount(totalCount: number, renderCount: number, 
   if (selectedIndex < current) return current;
   const selectedTarget = selectedIndex + 1;
   return Math.min(totalCount, Math.max(current, Math.min(selectedTarget, librarySelectedRenderExpansionCap)));
+}
+
+export function getLibraryRenderWindow(games: Game[], renderCount: number, selectedId: string | null): LibraryRenderWindow {
+  const primaryCount = Math.max(0, Math.min(games.length, renderCount));
+  const selectedIndex = selectedId ? games.findIndex((game) => game.id === selectedId) : -1;
+  const selectedPinned = selectedIndex >= primaryCount;
+  const selectedGame = selectedPinned ? games[selectedIndex] ?? null : null;
+
+  return {
+    primaryGames: games.slice(0, primaryCount),
+    selectedGame,
+    selectedIndex,
+    selectedPinned,
+    renderedCount: primaryCount + (selectedGame ? 1 : 0),
+    hasMore: primaryCount < games.length,
+  };
 }
 
 export function formatLibraryCount(value: number) {

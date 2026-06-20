@@ -150,3 +150,24 @@ test('getLibraryVisibleCount caps far selected items instead of rendering thousa
   assert.equal(getLibraryVisibleCount(5000, 240, 4000), 960);
   assert.equal(getLibraryVisibleCount(5000, 1200, 4000), 1200);
 });
+
+test('getLibraryRenderWindow keeps large lists bounded and pins far selected games', () => {
+  const { getLibraryRenderWindow } = loadLibraryPageModel();
+  const games = Array.from({ length: 5000 }, (_, index) => game({ id: `game-${index}` }));
+
+  const window = getLibraryRenderWindow(games, 240, 'game-4000');
+
+  assert.equal(window.primaryGames.length, 240);
+  assert.equal(window.selectedGame?.id, 'game-4000');
+  assert.equal(window.selectedIndex, 4000);
+  assert.equal(window.renderedCount, 241);
+  assert.equal(window.hasMore, true);
+  assert.equal(window.selectedPinned, true);
+});
+
+test('library nav renders through the bounded render window helper', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Library', 'LibraryGameNav.tsx'), 'utf8');
+
+  assert.match(source, /getLibraryRenderWindow/);
+  assert.doesNotMatch(source, /games\.slice\(0, visibleCount\)/);
+});
