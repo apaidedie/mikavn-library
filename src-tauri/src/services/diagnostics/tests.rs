@@ -41,6 +41,259 @@ fn diagnostics_counts_missing_and_legacy_image_refs() {
     let _ = fs::remove_dir_all(root);
 }
 
+use std::io::Read;
+use zip::ZipArchive;
+
+use crate::services::diagnostic_export::export_diagnostic_package_with_paths;
+
+fn zip_entry_names(path: &std::path::Path) -> Vec<String> {
+    let file = std::fs::File::open(path).unwrap();
+    let mut archive = ZipArchive::new(file).unwrap();
+    let mut names = Vec::new();
+    for index in 0..archive.len() {
+        names.push(archive.by_index(index).unwrap().name().to_string());
+    }
+    names.sort();
+    names
+}
+
+fn read_zip_entry(path: &std::path::Path, name: &str) -> String {
+    let file = std::fs::File::open(path).unwrap();
+    let mut archive = ZipArchive::new(file).unwrap();
+    let mut entry = archive.by_name(name).unwrap();
+    let mut content = String::new();
+    entry.read_to_string(&mut content).unwrap();
+    content
+}
+
+#[test]
+fn diagnostic_export_includes_generated_files_only() {
+    let root = std::env::temp_dir().join(format!("mikavn-diagnostic-export-{}", Uuid::new_v4()));
+    let paths = AppPaths::from_root(root.join("app-data")).unwrap();
+    fs::create_dir_all(paths.images()).unwrap();
+    fs::create_dir_all(paths.save_backups().join("game-1")).unwrap();
+    fs::write(paths.images().join("cover.jpg"), b"image").unwrap();
+    fs::write(
+        paths.save_backups().join("game-1").join("slot.dat"),
+        b"save",
+    )
+    .unwrap();
+    fs::write(paths.logs().join("mikavn.log"), "startup ok").unwrap();
+    let conn = Connection::open(paths.database()).unwrap();
+    conn.execute_batch(
+        r#"
+        PRAGMA user_version = 13;
+        CREATE TABLE games (
+          id TEXT PRIMARY KEY,
+          title TEXT NOT NULL,
+          original_title TEXT,
+          developer TEXT,
+          publisher TEXT,
+          release_date TEXT,
+          description TEXT,
+          tags TEXT,
+          cover_image TEXT,
+          banner_image TEXT,
+          background_image TEXT,
+          install_path TEXT,
+          executable_path TEXT,
+          play_status TEXT NOT NULL DEFAULT 'unplayed',
+          rating INTEGER,
+          notes TEXT,
+          source TEXT,
+          source_id TEXT,
+          vndb_id TEXT,
+          dlsite_id TEXT,
+          fanza_id TEXT,
+          favorite INTEGER NOT NULL DEFAULT 0,
+          hidden INTEGER NOT NULL DEFAULT 0,
+          path_status TEXT NOT NULL DEFAULT 'unknown',
+          last_path_check_at TEXT,
+          play_time_minutes INTEGER NOT NULL DEFAULT 0,
+          last_played_at TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE TABLE game_assets (
+          id TEXT PRIMARY KEY,
+          game_id TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          path TEXT NOT NULL,
+          title TEXT,
+          source_url TEXT,
+          is_primary INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE TABLE metadata_sources (
+          id TEXT PRIMARY KEY,
+          game_id TEXT NOT NULL,
+          provider TEXT NOT NULL,
+          provider_id TEXT NOT NULL,
+          url TEXT,
+          fetched_at TEXT NOT NULL,
+          raw_json TEXT NOT NULL
+        );
+        CREATE TABLE external_ids (
+          id TEXT PRIMARY KEY,
+          game_id TEXT NOT NULL,
+          provider TEXT NOT NULL,
+          provider_id TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        INSERT INTO games (id, title, cover_image, play_status, created_at, updated_at)
+        VALUES ('game-1', 'Diagnostic VN', 'images/cover.jpg', 'unplayed', '2026-06-21T00:00:00Z', '2026-06-21T00:00:00Z');
+        "#,
+    )
+    .unwrap();
+
+    let report = export_diagnostic_package_with_paths(&paths, "test".to_string()).unwrap();
+    let names = zip_entry_names(std::path::Path::new(&report.path));
+
+    assert_eq!(
+        names,
+        vec![
+            "diagnostics.json".to_string(),
+            "environment.json".to_string(),
+            "logs-preview.json".to_string(),
+            "manifest.json".to_string(),
+            "summary.md".to_string(),
+        ]
+    );
+    assert!(!names.iter().any(|name| name.ends_with(".db")));
+    assert!(!names.iter().any(|name| name.contains("cover.jpg")));
+    assert!(!names.iter().any(|name| name.contains("slot.dat")));
+    assert!(report.size_bytes > 0);
+    assert!(report.path.contains("diagnostic-exports"));
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn diagnostic_export_redacts_log_preview() {
+    let root = std::env::temp_dir().join(format!("mikavn-diagnostic-redact-{}", Uuid::new_v4()));
+    let paths = AppPaths::from_root(root.join("app-data")).unwrap();
+    let conn = Connection::open(paths.database()).unwrap();
+    conn.execute_batch(
+        r#"
+        PRAGMA user_version = 13;
+        CREATE TABLE games (
+          id TEXT PRIMARY KEY,
+          title TEXT NOT NULL,
+          play_status TEXT NOT NULL DEFAULT 'unplayed',
+          favorite INTEGER NOT NULL DEFAULT 0,
+          hidden INTEGER NOT NULL DEFAULT 0,
+          path_status TEXT NOT NULL DEFAULT 'unknown',
+          play_time_minutes INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE TABLE game_assets (
+          id TEXT PRIMARY KEY,
+          game_id TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          path TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE TABLE metadata_sources (
+          id TEXT PRIMARY KEY,
+          game_id TEXT NOT NULL,
+          provider TEXT NOT NULL,
+          provider_id TEXT NOT NULL,
+          fetched_at TEXT NOT NULL,
+          raw_json TEXT NOT NULL
+        );
+        CREATE TABLE external_ids (
+          id TEXT PRIMARY KEY,
+          game_id TEXT NOT NULL,
+          provider TEXT NOT NULL,
+          provider_id TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        "#,
+    )
+    .unwrap();
+    fs::write(
+        paths.logs().join("mikavn.log"),
+        r"API_KEY=secret password=hunter2 token:abc C:\Users\alice\AppData\Roaming\MikaVN\mikavn.db",
+    )
+    .unwrap();
+
+    let report = export_diagnostic_package_with_paths(&paths, "test".to_string()).unwrap();
+    let logs = read_zip_entry(std::path::Path::new(&report.path), "logs-preview.json");
+    let diagnostics = read_zip_entry(std::path::Path::new(&report.path), "diagnostics.json");
+
+    assert!(logs.contains("[redacted]"));
+    assert!(!logs.contains("secret"));
+    assert!(!logs.contains("hunter2"));
+    assert!(!logs.contains("token:abc"));
+    assert!(!logs.contains("alice"));
+    assert!(!diagnostics.contains("alice"));
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn diagnostic_export_summary_reports_core_counts() {
+    let root = std::env::temp_dir().join(format!("mikavn-diagnostic-summary-{}", Uuid::new_v4()));
+    let paths = AppPaths::from_root(root.join("app-data")).unwrap();
+    let conn = Connection::open(paths.database()).unwrap();
+    conn.execute_batch(
+        r#"
+        PRAGMA user_version = 13;
+        CREATE TABLE games (
+          id TEXT PRIMARY KEY,
+          title TEXT NOT NULL,
+          play_status TEXT NOT NULL DEFAULT 'unplayed',
+          favorite INTEGER NOT NULL DEFAULT 0,
+          hidden INTEGER NOT NULL DEFAULT 0,
+          path_status TEXT NOT NULL DEFAULT 'unknown',
+          play_time_minutes INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE TABLE game_assets (
+          id TEXT PRIMARY KEY,
+          game_id TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          path TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE TABLE metadata_sources (
+          id TEXT PRIMARY KEY,
+          game_id TEXT NOT NULL,
+          provider TEXT NOT NULL,
+          provider_id TEXT NOT NULL,
+          fetched_at TEXT NOT NULL,
+          raw_json TEXT NOT NULL
+        );
+        CREATE TABLE external_ids (
+          id TEXT PRIMARY KEY,
+          game_id TEXT NOT NULL,
+          provider TEXT NOT NULL,
+          provider_id TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        INSERT INTO games (id, title, created_at, updated_at)
+        VALUES ('game-1', 'Diagnostic VN', '2026-06-21T00:00:00Z', '2026-06-21T00:00:00Z');
+        "#,
+    )
+    .unwrap();
+
+    let report = export_diagnostic_package_with_paths(&paths, "test".to_string()).unwrap();
+    let summary = read_zip_entry(std::path::Path::new(&report.path), "summary.md");
+
+    assert!(summary.contains("quick_check"));
+    assert!(summary.contains("ok"));
+    assert!(summary.contains("游戏数量：1"));
+    assert!(summary.contains("图片文件"));
+    assert!(summary.contains("警告数量"));
+    let _ = fs::remove_dir_all(root);
+}
+
 #[test]
 fn diagnostics_counts_maintenance_metrics() {
     let root = std::env::temp_dir().join(format!("mikavn-diagnostics-{}", Uuid::new_v4()));

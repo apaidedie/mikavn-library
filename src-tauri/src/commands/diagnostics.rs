@@ -3,6 +3,7 @@ use tauri::AppHandle;
 use crate::db::DbResult;
 use crate::services::backups as backup_service;
 use crate::services::backups::{DatabaseBackupCleanupPolicy, DatabaseBackupCleanupReport};
+use crate::services::diagnostic_export::{self, DiagnosticExportReport};
 use crate::services::diagnostics::{
     self, AppDataDiagnostics, ImageReferenceAudit, ImageReferenceAuditOptions,
 };
@@ -13,6 +14,11 @@ use crate::services::image_health::{
 #[tauri::command]
 pub fn get_app_data_diagnostics(app: AppHandle) -> DbResult<AppDataDiagnostics> {
     diagnostics::get_app_data_diagnostics(&app)
+}
+
+#[tauri::command]
+pub fn export_diagnostic_package(app: AppHandle) -> DbResult<DiagnosticExportReport> {
+    diagnostic_export::export_diagnostic_package(&app)
 }
 
 #[tauri::command]

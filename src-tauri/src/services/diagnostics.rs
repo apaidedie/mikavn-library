@@ -187,7 +187,7 @@ pub fn audit_image_references(
     audit_image_references_with_paths(&paths, options)
 }
 
-fn get_app_data_diagnostics_with_paths(
+pub(crate) fn get_app_data_diagnostics_with_paths(
     paths: &AppPaths,
     data_dir_source: String,
 ) -> DbResult<AppDataDiagnostics> {

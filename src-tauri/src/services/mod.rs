@@ -3,6 +3,7 @@ pub mod assets;
 pub mod backups;
 pub mod collections;
 pub mod dashboard;
+pub mod diagnostic_export;
 pub mod diagnostics;
 pub mod filesystem;
 pub mod games;

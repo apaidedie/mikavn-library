@@ -42,7 +42,7 @@ pub fn prune_diagnostic_logs(app: &AppHandle, policy: LogRetentionPolicy) -> DbR
     prune_diagnostic_logs_from_paths(&paths, policy)
 }
 
-fn list_diagnostic_logs_from_paths(
+pub(crate) fn list_diagnostic_logs_from_paths(
     paths: &AppPaths,
     limit: Option<i64>,
 ) -> DbResult<Vec<LogRecord>> {
