@@ -148,12 +148,16 @@ export function MaintenancePageContent({ dataActions, duplicateMergeActions, his
         ref={imageAuditRef}
         audit={inspectionActions.imageAudit}
         canLoad={Boolean(dataActions.diagnostics)}
+        imageHealth={inspectionActions.imageHealth}
+        imageHealthLoading={inspectionActions.imageHealthLoading}
         issueFilter={inspectionActions.imageAuditIssueFilter}
         loading={inspectionActions.imageAuditLoading}
         query={inspectionActions.imageAuditQuery}
         onIssueFilterChange={inspectionActions.setImageAuditIssueFilter}
         onLoadAudit={inspectionActions.loadImageAudit}
+        onLoadImageHealth={inspectionActions.loadImageHealth}
         onOpenGame={onOpenGame}
+        onQuarantineOrphans={inspectionActions.quarantineOrphanImages}
         onQueryChange={inspectionActions.setImageAuditQuery}
         onResetFilters={inspectionActions.resetImageAuditFilters}
         onRevealPath={(path) => void dataActions.revealPath(path)}

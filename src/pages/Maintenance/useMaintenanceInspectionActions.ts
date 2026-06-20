@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { api } from '@/services/api';
-import type { ImageReferenceAudit } from '@/types/archive';
+import type { ImageHealthReport, ImageReferenceAudit } from '@/types/archive';
 import type { ArtworkRepairDiagnosis } from '@/types/metadata';
 import { errorMessage } from '@/utils/errorMessage';
 import { formatCount } from './MaintenancePageParts';
@@ -17,6 +17,8 @@ export function useMaintenanceInspectionActions({ setError, setMessage }: UseMai
   const [imageAuditLoading, setImageAuditLoading] = useState(false);
   const [imageAuditQuery, setImageAuditQuery] = useState('');
   const [imageAuditIssueFilter, setImageAuditIssueFilter] = useState('all');
+  const [imageHealth, setImageHealth] = useState<ImageHealthReport | null>(null);
+  const [imageHealthLoading, setImageHealthLoading] = useState(false);
   const [artworkDiagnosis, setArtworkDiagnosis] = useState<ArtworkRepairDiagnosis | null>(null);
   const [artworkDiagnosisLoading, setArtworkDiagnosisLoading] = useState(false);
   const [artworkDiagnosisQuery, setArtworkDiagnosisQuery] = useState('');
@@ -50,6 +52,35 @@ export function useMaintenanceInspectionActions({ setError, setMessage }: UseMai
     }
   }, [setError, setMessage]);
 
+  const loadImageHealth = useCallback(async () => {
+    setImageHealthLoading(true);
+    setError(null);
+    try {
+      const report = await api.getImageHealthReport({ sampleLimit: 100 });
+      setImageHealth(report);
+      setMessage({ text: `图片健康检查完成：${formatCount(report.summary.imageFiles)} 个缓存文件，${formatCount(report.summary.orphanFiles)} 个孤儿图片。` });
+    } catch (reason) {
+      setError(errorMessage(reason));
+    } finally {
+      setImageHealthLoading(false);
+    }
+  }, [setError, setMessage]);
+
+  const quarantineOrphanImages = useCallback(async () => {
+    setImageHealthLoading(true);
+    setError(null);
+    try {
+      const result = await api.quarantineOrphanImages({ sampleLimit: 100 });
+      const report = await api.getImageHealthReport({ sampleLimit: 100 });
+      setImageHealth(report);
+      setMessage({ text: `已移动 ${formatCount(result.movedFiles)} 个孤儿图片到隔离区。` });
+    } catch (reason) {
+      setError(errorMessage(reason));
+    } finally {
+      setImageHealthLoading(false);
+    }
+  }, [setError, setMessage]);
+
   const resetImageAuditFilters = useCallback(() => {
     setImageAuditQuery('');
     setImageAuditIssueFilter('all');
@@ -69,8 +100,12 @@ export function useMaintenanceInspectionActions({ setError, setMessage }: UseMai
     imageAuditIssueFilter,
     imageAuditLoading,
     imageAuditQuery,
+    imageHealth,
+    imageHealthLoading,
     loadArtworkDiagnosis,
     loadImageAudit,
+    loadImageHealth,
+    quarantineOrphanImages,
     resetArtworkDiagnosisFilters,
     resetImageAuditFilters,
     setArtworkDiagnosisQuery,

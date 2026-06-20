@@ -17,3 +17,18 @@ test('image health commands are registered and exposed through api', () => {
   assert.match(types, /export type ImageHealthReport/);
   assert.match(types, /export type ImageQuarantineReport/);
 });
+
+test('maintenance image health ui explains safe quarantine workflow', () => {
+  const panel = fs.readFileSync('src/pages/Maintenance/MaintenanceImageAuditPanel.tsx', 'utf8');
+  const actions = fs.readFileSync('src/pages/Maintenance/useMaintenanceInspectionActions.ts', 'utf8');
+
+  assert.match(actions, /imageHealth/);
+  assert.match(actions, /getImageHealthReport/);
+  assert.match(panel, /图片健康/);
+  assert.match(panel, /孤儿图片/);
+  assert.match(panel, /重复文件名/);
+  assert.match(panel, /过大图片/);
+  assert.match(panel, /隔离区/);
+  assert.match(panel, /不会永久删除/);
+  assert.doesNotMatch(panel, /永久删除孤儿图片/);
+});

@@ -25,6 +25,7 @@
     "test:scanner-page-model": "node --test scripts/scanner-page-model.test.cjs",
     "test:batch-metadata-page-model": "node --test scripts/batch-metadata-page-model.test.cjs",
     "test:saves-page-model": "node --test scripts/saves-page-model.test.cjs",
+    "test:maintenance-image-health": "node --test scripts/maintenance-image-health.test.cjs",
     "release:check": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/release/check-release-metadata.ps1",
     "release:check:strict": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/release/check-release-metadata.ps1 -StrictGitHubLinks",
     "release:signing:check": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/release/check-windows-signing.ps1",
