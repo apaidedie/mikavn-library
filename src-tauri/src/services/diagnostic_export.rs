@@ -55,6 +55,7 @@ pub fn export_diagnostic_package(app: &AppHandle) -> DbResult<DiagnosticExportRe
     )
 }
 
+#[cfg(test)]
 pub(crate) fn export_diagnostic_package_with_paths(
     paths: &AppPaths,
     data_dir_source: String,
