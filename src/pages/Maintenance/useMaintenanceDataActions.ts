@@ -17,6 +17,7 @@ export function useMaintenanceDataActions({ setError, setMessage }: UseMaintenan
   const [loading, setLoading] = useState(false);
   const [cleanupLoading, setCleanupLoading] = useState(false);
   const [assetCleanupLoading, setAssetCleanupLoading] = useState(false);
+  const [diagnosticExportLoading, setDiagnosticExportLoading] = useState(false);
   const [assetCleanupPreview, setAssetCleanupPreview] = useState<AssetCacheCleanupResult | null>(null);
 
   const loadDiagnostics = useCallback(async () => {
@@ -98,6 +99,20 @@ export function useMaintenanceDataActions({ setError, setMessage }: UseMaintenan
     }
   }, [assetCleanupPreview, loadDiagnostics, setError, setMessage]);
 
+  const exportDiagnosticPackage = useCallback(async () => {
+    setDiagnosticExportLoading(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const report = await api.exportDiagnosticPackage();
+      setMessage({ text: `诊断包已导出：${report.fileName}（${formatBytes(report.sizeBytes)}）。包含自检摘要和脱敏日志预览，不包含完整数据库、图片缓存或存档文件。` });
+    } catch (reason) {
+      setError(errorMessage(reason));
+    } finally {
+      setDiagnosticExportLoading(false);
+    }
+  }, [setError, setMessage]);
+
   const revealPath = useCallback(async (path: string) => {
     setError(null);
     try {
@@ -125,6 +140,8 @@ export function useMaintenanceDataActions({ setError, setMessage }: UseMaintenan
     cleanupLoading,
     copyPath,
     diagnostics,
+    diagnosticExportLoading,
+    exportDiagnosticPackage,
     loadDiagnostics,
     loading,
     previewAssetCacheCleanup,

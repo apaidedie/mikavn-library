@@ -1,4 +1,4 @@
-import { HardDrive, ShieldCheck, Trash2 } from 'lucide-react';
+import { FileArchive, HardDrive, ShieldCheck, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Panel, PanelContent, PanelHeader, SoftRow } from '@/components/ui/page';
@@ -11,9 +11,11 @@ export function MaintenanceDataLocationPanel({
   assetCleanupPreview,
   cleanupLoading,
   diagnostics,
+  diagnosticExportLoading,
   onCleanupAssetCache,
   onCleanupDatabaseBackups,
   onCopyPath,
+  onExportDiagnosticPackage,
   onPreviewAssetCacheCleanup,
   onRevealPath,
 }: {
@@ -21,9 +23,11 @@ export function MaintenanceDataLocationPanel({
   assetCleanupPreview: AssetCacheCleanupResult | null;
   cleanupLoading: boolean;
   diagnostics: AppDataDiagnostics | null;
+  diagnosticExportLoading: boolean;
   onCleanupAssetCache: () => void;
   onCleanupDatabaseBackups: () => void;
   onCopyPath: (label: string, path: string) => void;
+  onExportDiagnosticPackage: () => void;
   onPreviewAssetCacheCleanup: () => void;
   onRevealPath: (path: string) => void;
 }) {
@@ -35,7 +39,12 @@ export function MaintenanceDataLocationPanel({
         title="数据位置"
         description={diagnostics ? `来源：${dataDirSourceLabel(diagnostics.dataDirSource)}` : '当前 app-data 路径'}
         icon={<HardDrive className="h-4 w-4" />}
-        actions={<Button disabled={cleanupLoading || !diagnostics?.databaseBackups.fileCount} size="sm" variant="ghost" onClick={onCleanupDatabaseBackups}><Trash2 className="h-4 w-4" />{cleanupLoading ? '清理中' : '清理旧备份'}</Button>}
+        actions={(
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button disabled={diagnosticExportLoading || !diagnostics} size="sm" variant="outline" onClick={onExportDiagnosticPackage}><FileArchive className="h-4 w-4" />{diagnosticExportLoading ? '导出中' : '导出诊断包'}</Button>
+            <Button disabled={cleanupLoading || !diagnostics?.databaseBackups.fileCount} size="sm" variant="ghost" onClick={onCleanupDatabaseBackups}><Trash2 className="h-4 w-4" />{cleanupLoading ? '清理中' : '清理旧备份'}</Button>
+          </div>
+        )}
       />
       <PanelContent className="space-y-2">
         <PathRow label="数据目录" value={diagnostics?.appDataDir ?? '等待自检'} onCopy={diagnostics ? () => onCopyPath('数据目录', diagnostics.appDataDir) : undefined} onReveal={diagnostics ? () => onRevealPath(diagnostics.appDataDir) : undefined} />

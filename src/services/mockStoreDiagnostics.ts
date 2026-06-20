@@ -1,4 +1,4 @@
-import type { AppDataDiagnostics, DatabaseBackupCleanupPolicy, DatabaseBackupCleanupReport, ImageHealthReport, ImageHealthReportOptions, ImageQuarantineReport, ImageReferenceAudit, ImageReferenceAuditOptions, LogRecord, LogRetentionPolicy, TrayStatus } from '@/types/archive';
+import type { AppDataDiagnostics, DatabaseBackupCleanupPolicy, DatabaseBackupCleanupReport, DiagnosticExportReport, ImageHealthReport, ImageHealthReportOptions, ImageQuarantineReport, ImageReferenceAudit, ImageReferenceAuditOptions, LogRecord, LogRetentionPolicy, TrayStatus } from '@/types/archive';
 import type { Game } from '@/types/game';
 import type { SaveBackup } from '@/types/saves';
 import { sampleHeroUrl } from './mockStoreFixtures';
@@ -176,6 +176,17 @@ export function createMockStoreDiagnostics(readGames: () => Game[]) {
         retainCount,
         retainDays,
         removed: [],
+      });
+    },
+
+    exportDiagnosticPackage(): Promise<DiagnosticExportReport> {
+      return Promise.resolve({
+        path: mockAppDataPath('diagnostic-exports', 'mikavn-diagnostics-mock.zip'),
+        fileName: 'mikavn-diagnostics-mock.zip',
+        sizeBytes: 32 * 1024,
+        createdAt: new Date().toISOString(),
+        includedFiles: ['manifest.json', 'diagnostics.json', 'summary.md', 'logs-preview.json', 'environment.json'],
+        warnings: [],
       });
     },
 

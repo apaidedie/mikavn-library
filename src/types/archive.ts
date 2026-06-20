@@ -88,6 +88,15 @@ export type DatabaseUpdateProtectionBackupReport = {
   quickCheck: string;
 };
 
+export type DiagnosticExportReport = {
+  path: string;
+  fileName: string;
+  sizeBytes: number;
+  createdAt: string;
+  includedFiles: string[];
+  warnings: string[];
+};
+
 export type DatabaseBackupSummary = {
   rootPath: string;
   fileCount: number;

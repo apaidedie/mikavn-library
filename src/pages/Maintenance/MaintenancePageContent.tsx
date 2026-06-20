@@ -78,9 +78,11 @@ export function MaintenancePageContent({ dataActions, duplicateMergeActions, his
         assetCleanupPreview={dataActions.assetCleanupPreview}
         cleanupLoading={dataActions.cleanupLoading}
         diagnostics={dataActions.diagnostics}
+        diagnosticExportLoading={dataActions.diagnosticExportLoading}
         onCleanupAssetCache={dataActions.cleanupAssetCache}
         onCleanupDatabaseBackups={dataActions.cleanupDatabaseBackups}
         onCopyPath={(label, path) => void dataActions.copyPath(label, path)}
+        onExportDiagnosticPackage={dataActions.exportDiagnosticPackage}
         onPreviewAssetCacheCleanup={dataActions.previewAssetCacheCleanup}
         onRevealPath={(path) => void dataActions.revealPath(path)}
       />
