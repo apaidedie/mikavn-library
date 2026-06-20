@@ -22,6 +22,14 @@ export type LibraryRenderWindow = {
   hasMore: boolean;
 };
 
+export function buildLibraryGameLookup(games: Game[]) {
+  const lookup = new Map<string, Game>();
+  for (const game of games) {
+    lookup.set(game.id, game);
+  }
+  return lookup;
+}
+
 export function groupLibraryGames(games: Game[], statusLabels: Record<PlayStatus, string>): LibraryGameGroup[] {
   const recent: Game[] = [];
   const buckets = new Map<PlayStatus, Game[]>();

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { EmptyState, Notice } from '@/components/ui/notice';
 import { api } from '@/services/api';
 import type { Game, LibraryFilterPreset } from '@/types/game';
@@ -7,7 +7,7 @@ import { GameDetail } from './GameDetail';
 import { LibraryGameDialog } from './LibraryGameDialog';
 import { GameGrid, GameList } from './LibraryGameNav';
 import { LibrarySidebarControls, type LibraryViewMode } from './LibrarySidebarControls';
-import { changedLibraryMetadataFields } from './libraryPageModel';
+import { buildLibraryGameLookup, changedLibraryMetadataFields } from './libraryPageModel';
 import { useLibraryBulkActions } from './useLibraryBulkActions';
 import { useLibraryPageData } from './useLibraryPageData';
 import { useLibraryPanelResize } from './useLibraryPanelResize';
@@ -34,7 +34,8 @@ export function LibraryPage({ refreshKey, selectedGameId, onSelectedGameChange, 
   const { error, filters, loading, setError, setGames, settings } = useLibraryPageData({ filterPreset, filterToggleKey, refreshKey, toolbarQuery });
   const { visibleGames } = filters;
 
-  const selectedGame = visibleGames.find((game) => game.id === selectedGameId) ?? null;
+  const gameLookup = useMemo(() => buildLibraryGameLookup(visibleGames), [visibleGames]);
+  const selectedGame = selectedGameId ? gameLookup.get(selectedGameId) ?? null : null;
   const blurCovers = settings.privacy_blur_covers === 'true';
   const bulkActions = useLibraryBulkActions({
     onChanged,
@@ -46,11 +47,11 @@ export function LibraryPage({ refreshKey, selectedGameId, onSelectedGameChange, 
 
   useEffect(() => {
     if (loading) return;
-    const nextSelectedId = visibleGames.some((game) => game.id === selectedGameId) ? selectedGameId : visibleGames[0]?.id ?? null;
+    const nextSelectedId = selectedGameId && gameLookup.has(selectedGameId) ? selectedGameId : visibleGames[0]?.id ?? null;
     if (nextSelectedId !== selectedGameId) {
       onSelectedGameChange(nextSelectedId);
     }
-  }, [loading, onSelectedGameChange, selectedGameId, visibleGames]);
+  }, [gameLookup, loading, onSelectedGameChange, selectedGameId, visibleGames]);
 
   useEffect(() => {
     if (addRequestKey == null) return;

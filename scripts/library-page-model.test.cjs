@@ -165,6 +165,25 @@ test('getLibraryRenderWindow keeps large lists bounded and pins far selected gam
   assert.equal(window.selectedPinned, true);
 });
 
+test('buildLibraryGameLookup supports constant-time selected game lookups for large libraries', () => {
+  const { buildLibraryGameLookup } = loadLibraryPageModel();
+  const games = Array.from({ length: 5000 }, (_, index) => game({ id: `game-${index}` }));
+
+  const lookup = buildLibraryGameLookup(games);
+
+  assert.equal(lookup.size, 5000);
+  assert.equal(lookup.get('game-4000')?.title, 'game-4000');
+  assert.equal(lookup.has('missing-game'), false);
+});
+
+test('LibraryPage uses a memoized game lookup for selected state', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Library', 'LibraryPage.tsx'), 'utf8');
+
+  assert.match(source, /useMemo\(\(\) => buildLibraryGameLookup\(visibleGames\), \[visibleGames\]\)/);
+  assert.doesNotMatch(source, /visibleGames\.find\(\(game\) => game\.id === selectedGameId\)/);
+  assert.doesNotMatch(source, /visibleGames\.some\(\(game\) => game\.id === selectedGameId\)/);
+});
+
 test('library nav renders through the bounded render window helper', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Library', 'LibraryGameNav.tsx'), 'utf8');
 
