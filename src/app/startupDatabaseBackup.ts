@@ -13,6 +13,13 @@ type StartupDatabaseBackupInput = {
 
 const DEFAULT_INTERVAL_HOURS = 24;
 
+export function startupDatabaseBackupCleanupPolicy() {
+  return {
+    retainCount: 30,
+    retainDays: 90,
+  };
+}
+
 export function deriveStartupDatabaseBackupPlan({
   settings,
   diagnostics,

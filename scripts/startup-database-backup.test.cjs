@@ -82,3 +82,20 @@ test('startup database backup runs when latest backup is older than interval', (
   assert.equal(plan.kind, 'backup');
   assert.equal(plan.reason, 'stale');
 });
+
+test('startup database backup cleanup keeps a conservative local retention window', () => {
+  const { startupDatabaseBackupCleanupPolicy } = loadStartupDatabaseBackup();
+
+  assert.deepEqual(startupDatabaseBackupCleanupPolicy(), {
+    retainCount: 30,
+    retainDays: 90,
+  });
+});
+
+test('startup database backup hook cleans old backups after a successful auto backup', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'app', 'useStartupDatabaseBackup.ts'), 'utf8');
+
+  assert.match(source, /cleanupOldDatabaseBackups/);
+  assert.match(source, /startupDatabaseBackupCleanupPolicy/);
+  assert.match(source, /api\.backupDatabase\(plan\.path\)\.then\(\(\) => api\.cleanupOldDatabaseBackups\(startupDatabaseBackupCleanupPolicy\(\)\)\)/);
+});
