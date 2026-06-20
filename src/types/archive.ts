@@ -202,6 +202,75 @@ export type ImageReferenceAudit = {
   truncated: boolean;
 };
 
+export type ImageHealthReportOptions = {
+  oversizedBytes?: number | null;
+  sampleLimit?: number | null;
+};
+
+export type ImageCacheFileIssue = {
+  path: string;
+  relativePath: string;
+  sizeBytes: number;
+};
+
+export type ImageDuplicateNameGroup = {
+  fileName: string;
+  count: number;
+  samples: string[];
+};
+
+export type ImageCacheHealth = {
+  rootPath: string;
+  fileCount: number;
+  totalBytes: number;
+  referencedFileCount: number;
+  orphanFileCount: number;
+  orphanBytes: number;
+  duplicateFileNameGroups: number;
+  oversizedFileCount: number;
+  oversizedBytes: number;
+  orphanSamples: ImageCacheFileIssue[];
+  duplicateNameSamples: ImageDuplicateNameGroup[];
+  oversizedSamples: ImageCacheFileIssue[];
+};
+
+export type ImageHealthSummary = {
+  totalImageRefs: number;
+  issueImageRefs: number;
+  missingLocalRefs: number;
+  cDriveRefs: number;
+  playniteRefs: number;
+  legacyAppDataImportRefs: number;
+  externalLegacyRefs: number;
+  imageFiles: number;
+  orphanFiles: number;
+  duplicateFileNameGroups: number;
+  oversizedFiles: number;
+  missingCoverGames: number;
+  missingArtworkGames: number;
+};
+
+export type ImageHealthReport = {
+  generatedAt: string;
+  summary: ImageHealthSummary;
+  cache: ImageCacheHealth;
+  recommendations: string[];
+};
+
+export type ImageQuarantineSkippedFile = {
+  path: string;
+  reason: string;
+};
+
+export type ImageQuarantineReport = {
+  quarantineDir: string;
+  manifestPath: string;
+  movedFiles: number;
+  movedBytes: number;
+  skippedFiles: number;
+  skipped: ImageQuarantineSkippedFile[];
+};
+
 export type DatabaseBackupCleanupPolicy = {
   retainCount?: number | null;
   retainDays?: number | null;

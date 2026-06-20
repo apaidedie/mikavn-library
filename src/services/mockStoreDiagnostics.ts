@@ -1,4 +1,4 @@
-import type { AppDataDiagnostics, DatabaseBackupCleanupPolicy, DatabaseBackupCleanupReport, ImageReferenceAudit, ImageReferenceAuditOptions, LogRecord, LogRetentionPolicy, TrayStatus } from '@/types/archive';
+import type { AppDataDiagnostics, DatabaseBackupCleanupPolicy, DatabaseBackupCleanupReport, ImageHealthReport, ImageHealthReportOptions, ImageQuarantineReport, ImageReferenceAudit, ImageReferenceAuditOptions, LogRecord, LogRetentionPolicy, TrayStatus } from '@/types/archive';
 import type { Game } from '@/types/game';
 import type { SaveBackup } from '@/types/saves';
 import { sampleHeroUrl } from './mockStoreFixtures';
@@ -110,6 +110,58 @@ export function createMockStoreDiagnostics(readGames: () => Game[]) {
         imageDir: MOCK_IMAGE_DIR,
         sampleHeroUrl,
       }));
+    },
+
+    getImageHealthReport(_options: ImageHealthReportOptions = {}): Promise<ImageHealthReport> {
+      const games = readGames().map(ensureGameDefaults);
+      const assets = readAssets();
+      const missingCoverGames = games.filter((game) => !game.coverImage?.trim()).length;
+      const missingArtworkGames = games.filter((game) => !game.coverImage?.trim() || !game.bannerImage?.trim() || !game.backgroundImage?.trim()).length;
+      const imageRefs = games.flatMap((game) => [game.coverImage, game.bannerImage, game.backgroundImage]).filter(Boolean).length + assets.length;
+      return Promise.resolve({
+        generatedAt: new Date().toISOString(),
+        summary: {
+          totalImageRefs: imageRefs,
+          issueImageRefs: 2,
+          missingLocalRefs: 1,
+          cDriveRefs: 0,
+          playniteRefs: 1,
+          legacyAppDataImportRefs: 1,
+          externalLegacyRefs: 0,
+          imageFiles: Math.max(assets.length, 3),
+          orphanFiles: 1,
+          duplicateFileNameGroups: 1,
+          oversizedFiles: 1,
+          missingCoverGames,
+          missingArtworkGames,
+        },
+        cache: {
+          rootPath: MOCK_IMAGE_DIR,
+          fileCount: Math.max(assets.length, 3),
+          totalBytes: 8 * 1024 * 1024,
+          referencedFileCount: Math.max(assets.length, 2),
+          orphanFileCount: 1,
+          orphanBytes: 128 * 1024,
+          duplicateFileNameGroups: 1,
+          oversizedFileCount: 1,
+          oversizedBytes: 7 * 1024 * 1024,
+          orphanSamples: [{ path: `${MOCK_IMAGE_DIR}\\old.jpg`, relativePath: 'old.jpg', sizeBytes: 128 * 1024 }],
+          duplicateNameSamples: [{ fileName: 'cover.jpg', count: 2, samples: ['a\\cover.jpg', 'b\\cover.jpg'] }],
+          oversizedSamples: [{ path: `${MOCK_IMAGE_DIR}\\large.jpg`, relativePath: 'large.jpg', sizeBytes: 7 * 1024 * 1024 }],
+        },
+        recommendations: ['先预览孤儿图片隔离；隔离不会永久删除文件。'],
+      });
+    },
+
+    quarantineOrphanImages(_options: ImageHealthReportOptions = {}): Promise<ImageQuarantineReport> {
+      return Promise.resolve({
+        quarantineDir: mockAppDataPath('image-quarantine', 'preview'),
+        manifestPath: mockAppDataPath('image-quarantine', 'preview', 'manifest.json'),
+        movedFiles: 1,
+        movedBytes: 128 * 1024,
+        skippedFiles: 0,
+        skipped: [],
+      });
     },
 
     cleanupOldDatabaseBackups(policy: DatabaseBackupCleanupPolicy = {}): Promise<DatabaseBackupCleanupReport> {

@@ -80,6 +80,8 @@ pub fn run() {
             commands::backups::restore_database_backup,
             commands::diagnostics::get_app_data_diagnostics,
             commands::diagnostics::audit_image_references,
+            commands::diagnostics::get_image_health_report,
+            commands::diagnostics::quarantine_orphan_images,
             commands::diagnostics::cleanup_old_database_backups,
             commands::collections::list_collections,
             commands::collections::create_collection,

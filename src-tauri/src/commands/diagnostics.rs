@@ -6,6 +6,9 @@ use crate::services::backups::{DatabaseBackupCleanupPolicy, DatabaseBackupCleanu
 use crate::services::diagnostics::{
     self, AppDataDiagnostics, ImageReferenceAudit, ImageReferenceAuditOptions,
 };
+use crate::services::image_health::{
+    self, ImageHealthReport, ImageHealthReportOptions, ImageQuarantineReport,
+};
 
 #[tauri::command]
 pub fn get_app_data_diagnostics(app: AppHandle) -> DbResult<AppDataDiagnostics> {
@@ -18,6 +21,22 @@ pub fn audit_image_references(
     options: ImageReferenceAuditOptions,
 ) -> DbResult<ImageReferenceAudit> {
     diagnostics::audit_image_references(&app, options)
+}
+
+#[tauri::command]
+pub fn get_image_health_report(
+    app: AppHandle,
+    options: ImageHealthReportOptions,
+) -> DbResult<ImageHealthReport> {
+    image_health::get_image_health_report(&app, options)
+}
+
+#[tauri::command]
+pub fn quarantine_orphan_images(
+    app: AppHandle,
+    options: ImageHealthReportOptions,
+) -> DbResult<ImageQuarantineReport> {
+    image_health::quarantine_orphan_images(&app, options)
 }
 
 #[tauri::command]
