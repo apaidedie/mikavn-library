@@ -13,7 +13,7 @@
     "test:release-scripts": "node --test scripts/release/check-build-chunks.test.cjs scripts/release/check-source-size.test.cjs scripts/release/check-release-handoff.test.cjs scripts/updater-release-config.test.cjs",
     "test:image-src": "node --test scripts/image-src.test.cjs",
     "test:playwright-scripts": "node --test scripts/playwright/playwright-resolution.test.cjs",
-    "test:updater-release": "node --test scripts/updater-release-config.test.cjs scripts/updater-service-model.test.cjs scripts/settings-updater-section.test.cjs scripts/startup-updater.test.cjs",
+    "test:updater-release": "node --test scripts/updater-release-config.test.cjs scripts/updater-service-model.test.cjs scripts/settings-updater-section.test.cjs scripts/startup-updater.test.cjs scripts/updater-install-flow.test.cjs",
     "test:dashboard-personal": "node --test scripts/dashboard-personal-helper.test.cjs",
     "test:app-navigation": "node --test scripts/app-navigation.test.cjs",
     "test:app-chrome-local": "node --test scripts/app-chrome-local-first.test.cjs",

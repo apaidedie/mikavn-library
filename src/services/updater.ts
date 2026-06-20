@@ -1,5 +1,6 @@
 import { relaunch } from '@tauri-apps/plugin-process';
 import { check, type Update } from '@tauri-apps/plugin-updater';
+import { api } from './api';
 import {
   createBrowserUpdaterUnavailableResult,
   formatUpdaterError,
@@ -25,9 +26,24 @@ export async function installAppUpdate(update: AppUpdateHandle | null): Promise<
     return { kind: 'failed', message: '更新失败：没有可安装的更新。' };
   }
 
+  let backupReport;
+  try {
+    backupReport = await api.backupDatabaseBeforeUpdate();
+  } catch (error) {
+    return { kind: 'failed', message: `更新前数据库备份失败，已取消安装。${formatUpdaterError(error)}` };
+  }
+
   try {
     await update.downloadAndInstall();
-    return { kind: 'installed', message: '更新已安装，重启后生效。' };
+    return {
+      kind: 'installed',
+      message: `更新已安装，重启后生效。更新前数据库备份：${backupReport.fileName}`,
+      backup: {
+        fileName: backupReport.fileName,
+        path: backupReport.path,
+        sizeBytes: backupReport.sizeBytes,
+      },
+    };
   } catch (error) {
     return { kind: 'failed', message: formatUpdaterError(error) };
   }

@@ -80,6 +80,14 @@ export type DatabaseBackupFile = {
   modifiedAt?: string | null;
 };
 
+export type DatabaseUpdateProtectionBackupReport = {
+  path: string;
+  fileName: string;
+  sizeBytes: number;
+  createdAt: string;
+  quickCheck: string;
+};
+
 export type DatabaseBackupSummary = {
   rootPath: string;
   fileCount: number;

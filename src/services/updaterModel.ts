@@ -3,8 +3,14 @@ export type UpdaterCheckResult =
   | { kind: 'up_to_date'; message: string }
   | { kind: 'available'; version: string; currentVersion?: string; notes: string; message: string };
 
+export type UpdateProtectionBackupInfo = {
+  fileName: string;
+  path: string;
+  sizeBytes: number;
+};
+
 export type UpdaterInstallResult =
-  | { kind: 'installed'; message: string }
+  | { kind: 'installed'; message: string; backup?: UpdateProtectionBackupInfo }
   | { kind: 'failed'; message: string };
 
 type RawTauriUpdate = {
