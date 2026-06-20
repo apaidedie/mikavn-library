@@ -8,6 +8,7 @@ import { AppUpdateNotice } from './AppUpdateNotice';
 import { navItems, readInitialView, type View } from './appNavigation';
 import { useAppKeyboardShortcuts } from './useAppKeyboardShortcuts';
 import { useAppThemeSettings } from './useAppThemeSettings';
+import { useStartupDatabaseBackup } from './useStartupDatabaseBackup';
 import { useStartupUpdater } from './useStartupUpdater';
 
 export function App() {
@@ -28,6 +29,7 @@ export function App() {
 
   const title = useMemo(() => navItems.find((item) => item.id === view)?.label ?? 'MikaVN Library', [view]);
   const { accent, previewAccent, previewTheme, resolvedTheme, toggleTheme } = useAppThemeSettings(refreshKey);
+  useStartupDatabaseBackup();
   const startupUpdater = useStartupUpdater();
   const startupUpdateNotice = startupUpdater.notice?.kind === 'available' ? startupUpdater.notice : null;
 

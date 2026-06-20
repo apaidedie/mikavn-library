@@ -10,6 +10,12 @@ type SettingsLocalPreferencesSectionProps = {
 export function SettingsLocalPreferencesSection({ form, onFormChange }: SettingsLocalPreferencesSectionProps) {
   return (
     <>
+      <ConfigSection title="数据库自动备份">
+        <ConfigItem title="启动时自动备份" description="应用启动后检查最近数据库备份；超过 24 小时或还没有备份时，会自动创建一次本地数据库备份任务。">
+          <SettingFlag checked={form.database_auto_backup_on_startup} label="启用" onChange={(value) => onFormChange({ database_auto_backup_on_startup: value })} />
+        </ConfigItem>
+      </ConfigSection>
+
       <ConfigSection title="存档自动备份">
         <ConfigItem title="启动前自动备份" description="启动游戏前复制已登记的存档路径到应用数据目录，并写入任务日志。">
           <SettingFlag checked={form.save_auto_backup_before_launch} label="启用" onChange={(value) => onFormChange({ save_auto_backup_before_launch: value })} />

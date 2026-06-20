@@ -14,6 +14,7 @@ export type SettingsForm = {
   privacy_hide_hidden: boolean;
   privacy_blur_covers: boolean;
   privacy_filter_reports: boolean;
+  database_auto_backup_on_startup: boolean;
   save_auto_backup_before_launch: boolean;
   save_auto_backup_after_exit: boolean;
   tray_enabled: boolean;

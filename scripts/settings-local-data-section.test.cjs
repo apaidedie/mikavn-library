@@ -19,6 +19,21 @@ test('local data settings exposes clear backup and restore entry', () => {
   assert.match(source, /保护备份/);
 });
 
+test('local preferences expose startup database auto backup setting', () => {
+  const preferences = read('src/pages/Settings/SettingsLocalPreferencesSection.tsx');
+  const mapping = read('src/pages/Settings/settingsFormMapping.ts');
+  const types = read('src/pages/Settings/settingsTypes.ts');
+
+  assert.match(preferences, /数据库自动备份/);
+  assert.match(preferences, /启动时自动备份/);
+  assert.match(preferences, /超过 24 小时/);
+  assert.match(preferences, /database_auto_backup_on_startup/);
+  assert.match(types, /database_auto_backup_on_startup: boolean/);
+  assert.match(mapping, /database_auto_backup_on_startup: true/);
+  assert.match(mapping, /settings\.database_auto_backup_on_startup !== 'false'/);
+  assert.match(mapping, /database_auto_backup_on_startup: String\(form\.database_auto_backup_on_startup\)/);
+});
+
 test('dashboard local safety links to backup and restore settings', () => {
   const source = read('src/pages/Dashboard/DashboardLocalPanels.tsx');
 
