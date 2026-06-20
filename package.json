@@ -21,6 +21,7 @@
     "test:app-layout": "node --test scripts/app-layout-responsive.test.cjs",
     "test:dashboard-actions": "node --test scripts/dashboard-common-actions.test.cjs",
     "test:library-page-model": "node --test scripts/library-page-model.test.cjs",
+    "test:game-detail-actions": "node --test scripts/game-detail-actions.test.cjs",
     "test:game-form-mapping": "node --test scripts/game-form-mapping.test.cjs",
     "test:task-page-model": "node --test scripts/task-page-model.test.cjs",
     "test:scanner-page-model": "node --test scripts/scanner-page-model.test.cjs",

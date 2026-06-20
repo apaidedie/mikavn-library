@@ -28,18 +28,38 @@ export function useGameDetailActions({ game, onChanged, onDeleted }: UseGameDeta
   const selectedProfile = useMemo(() => profiles.find((profile) => profile.id === selectedProfileId) ?? profiles.find((profile) => profile.isDefault) ?? profiles[0], [profiles, selectedProfileId]);
 
   useEffect(() => {
-    if (!game) return;
+    let cancelled = false;
     setMessage(null);
+    setProfiles([]);
+    setSessions([]);
+    setSelectedProfileId('');
+    setPathHealth(null);
     setImageAudit(null);
     setImageAuditLoading(false);
+    if (!game) return;
     setNotesDraft(game.notes ?? '');
     api.listLaunchProfiles(game.id)
       .then((items) => {
+        if (cancelled) return;
         setProfiles(items);
         setSelectedProfileId(items.find((item) => item.isDefault)?.id ?? items[0]?.id ?? '');
       })
-      .catch((reason) => setMessage({ text: errorMessage(reason) }));
-    api.listPlaySessions(game.id).then(setSessions).catch(() => setSessions([]));
+      .catch((reason) => {
+        if (cancelled) return;
+        setMessage({ text: errorMessage(reason) });
+      });
+    api.listPlaySessions(game.id)
+      .then((items) => {
+        if (cancelled) return;
+        setSessions(items);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setSessions([]);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [game?.id]);
 
   const launch = async () => {
