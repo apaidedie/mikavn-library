@@ -57,6 +57,16 @@ test('maintenance image health ui exposes cache issue samples and reveal actions
   assert.match(panel, /onRevealPath/);
 });
 
+test('maintenance image health ui can reveal duplicate cache samples', () => {
+  const panel = fs.readFileSync('src/pages/Maintenance/MaintenanceImageAuditPanel.tsx', 'utf8');
+
+  assert.match(panel, /joinImageCachePath/);
+  assert.match(panel, /rootPath=\{cache\.rootPath\}/);
+  assert.match(panel, /onRevealPath=\{onRevealPath\}/);
+  assert.match(panel, /定位重复/);
+  assert.match(panel, /重复文件名需要人工确认内容是否相同/);
+});
+
 test('maintenance image health ui links missing artwork findings to repair actions', () => {
   const panel = fs.readFileSync('src/pages/Maintenance/MaintenanceImageAuditPanel.tsx', 'utf8');
   const content = fs.readFileSync('src/pages/Maintenance/MaintenancePageContent.tsx', 'utf8');

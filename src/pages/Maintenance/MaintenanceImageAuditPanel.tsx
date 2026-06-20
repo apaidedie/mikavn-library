@@ -168,7 +168,7 @@ function ImageHealthSummaryPanel({
             <ImageHealthFileSamples title="无效图片" samples={cache.invalidImageSamples} onOpenGame={onOpenGame} onRevealPath={onRevealPath} />
             <ImageHealthFileSamples title="孤儿图片" samples={cache.orphanSamples} onOpenGame={onOpenGame} onRevealPath={onRevealPath} />
             <ImageHealthFileSamples title="过大图片" samples={cache.oversizedSamples} onOpenGame={onOpenGame} onRevealPath={onRevealPath} />
-            <ImageHealthDuplicateSamples samples={cache.duplicateNameSamples} />
+            <ImageHealthDuplicateSamples rootPath={cache.rootPath} samples={cache.duplicateNameSamples} onRevealPath={onRevealPath} />
           </div>
         </div>
       ) : null}
@@ -221,17 +221,25 @@ function ImageHealthReferenceLine({ sample }: { sample: ImageCacheFileIssue }) {
   return <div className="truncate text-[11px] text-slate-500">引用：{source || reference.sourceKind}</div>;
 }
 
-function ImageHealthDuplicateSamples({ samples }: { samples: ImageDuplicateNameGroup[] }) {
+function ImageHealthDuplicateSamples({ rootPath, samples, onRevealPath }: { rootPath: string; samples: ImageDuplicateNameGroup[]; onRevealPath: (path: string) => void }) {
   const visible = samples.slice(0, 3);
   return (
     <div className="rounded-md border border-white/10 bg-black/[0.10] p-2">
       <div className="text-[11px] font-medium text-slate-400">重复文件名</div>
+      <div className="mt-1 text-[11px] text-slate-600">重复文件名需要人工确认内容是否相同。</div>
       {visible.length ? (
         <div className="mt-2 space-y-1.5">
           {visible.map((sample) => (
             <div key={sample.fileName} className="min-w-0">
               <div className="truncate text-xs text-slate-200">{sample.fileName}</div>
-              <div className="truncate text-[11px] text-slate-500">{sample.count} 个：{sample.samples.join(' / ')}</div>
+              <div className="mt-1 space-y-1">
+                {sample.samples.slice(0, 5).map((relativePath) => (
+                  <div key={`${sample.fileName}-${relativePath}`} className="flex items-center justify-between gap-2">
+                    <div className="min-w-0 truncate text-[11px] text-slate-500">{relativePath}</div>
+                    <Button size="sm" variant="ghost" onClick={() => onRevealPath(joinImageCachePath(rootPath, relativePath))}>定位重复</Button>
+                  </div>
+                ))}
+              </div>
             </div>
           ))}
         </div>
@@ -240,6 +248,12 @@ function ImageHealthDuplicateSamples({ samples }: { samples: ImageDuplicateNameG
       )}
     </div>
   );
+}
+
+function joinImageCachePath(rootPath: string, relativePath: string) {
+  const cleanRoot = rootPath.replace(/[\\/]+$/, '');
+  const cleanRelative = relativePath.replace(/^[\\/]+/, '');
+  return cleanRoot ? `${cleanRoot}\\${cleanRelative}` : cleanRelative;
 }
 
 function formatBytes(value: number) {
