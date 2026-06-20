@@ -6,6 +6,7 @@ pub mod dashboard;
 pub mod diagnostics;
 pub mod filesystem;
 pub mod games;
+pub mod image_health;
 pub mod images;
 pub mod launcher;
 pub mod library_paths;
