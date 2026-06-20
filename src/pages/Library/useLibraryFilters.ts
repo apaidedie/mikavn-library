@@ -9,6 +9,17 @@ type UseLibraryFiltersOptions = {
   toolbarQuery?: string;
 };
 
+function useDebouncedValue<T>(value: T, delayMs = 180) {
+  const [debounced, setDebounced] = useState(value);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebounced(value), delayMs);
+    return () => window.clearTimeout(timer);
+  }, [delayMs, value]);
+
+  return debounced;
+}
+
 export function useLibraryFilters({ filterPreset, filterToggleKey, games, settings, toolbarQuery }: UseLibraryFiltersOptions) {
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState<PlayStatus | 'all'>('all');
@@ -21,12 +32,15 @@ export function useLibraryFilters({ filterPreset, filterToggleKey, games, settin
   const [pathStatus, setPathStatus] = useState('all');
   const [collectionId, setCollectionId] = useState('');
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const debouncedQuery = useDebouncedValue(query);
+  const debouncedTag = useDebouncedValue(tag);
+  const debouncedDeveloper = useDebouncedValue(developer);
 
   const filter = useMemo<GameFilter>(() => ({
-    query,
+    query: debouncedQuery,
     status,
-    tag: tag.trim() || undefined,
-    developer: developer.trim() || undefined,
+    tag: debouncedTag.trim() || undefined,
+    developer: debouncedDeveloper.trim() || undefined,
     favorite: favoriteOnly ? true : undefined,
     hidden: hiddenFilter === 'all' ? undefined : hiddenFilter === 'hidden',
     metadataStatus: metadataStatus === 'all' ? undefined : metadataStatus,
@@ -34,7 +48,7 @@ export function useLibraryFilters({ filterPreset, filterToggleKey, games, settin
     collectionId: collectionId || undefined,
     sortBy,
     sortDirection: sortBy === 'title' ? 'asc' : 'desc',
-  }), [collectionId, developer, favoriteOnly, hiddenFilter, metadataStatus, pathStatus, query, sortBy, status, tag]);
+  }), [collectionId, debouncedDeveloper, debouncedQuery, debouncedTag, favoriteOnly, hiddenFilter, metadataStatus, pathStatus, sortBy, status]);
 
   const visibleGames = useMemo(() => settings.privacy_hide_hidden === 'true' && hiddenFilter !== 'hidden' ? games.filter((game) => !game.hidden) : games, [games, hiddenFilter, settings.privacy_hide_hidden]);
   const activeAdvancedCount = [tag.trim(), developer.trim(), favoriteOnly, hiddenFilter !== 'all', metadataStatus !== 'all', pathStatus !== 'all', collectionId].filter(Boolean).length;
