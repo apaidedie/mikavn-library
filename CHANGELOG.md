@@ -2,6 +2,29 @@
 
 All notable changes to MikaVN Library are documented here. This project follows a practical `0.x` cadence while the local-first desktop workflow stabilizes.
 
+## 0.1.7 - Diagnostic Export and Maintenance Hardening
+
+Prepared release candidate for the diagnostic export and large-library hardening pass.
+
+### Added
+
+- Maintenance can export a redacted diagnostic ZIP containing generated summaries, environment metadata, app-data diagnostics, and recent log previews.
+- Diagnostic exports deliberately exclude full databases, raw logs, image cache files, save-backup contents, and real game installation folders.
+- Backend tests inspect diagnostic ZIP contents and redaction behavior.
+- Frontend source tests cover the Maintenance diagnostic export action and API wiring.
+
+### Changed
+
+- Library rendering and image loading remain tuned for large local libraries through lower initial render budgets, native lazy cover loading, async image decoding, and debounced text filters.
+- Image health maintenance now centralizes orphan, duplicate-name, oversized-file, missing-reference, and legacy-path reporting with quarantine-first cleanup behavior.
+- Release build warning noise from the diagnostic export test helper was removed.
+
+### Safety Notes
+
+- The diagnostic export command writes only under app-data diagnostic export/staging directories.
+- It reads database health through read-only diagnostics and does not modify `mikavn.db`.
+- Local installation smoke on `E:\MikaVN Library` preserved the real database baseline: `quick_check=ok`, 4456 games, and 17738 asset records.
+
 ## 0.1.1 - Mature Local V1 Hardening
 
 Updated release candidate with the mature local V1 hardening pass.
