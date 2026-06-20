@@ -7,12 +7,15 @@ import { ImageAuditDetailPanel, matchesImageAuditItem } from './ImageAuditDetail
 
 export const MaintenanceImageAuditPanel = forwardRef<HTMLElement, {
   audit: ImageReferenceAudit | null;
+  artworkDiagnosisLoading: boolean;
+  artworkRepairLoading: boolean;
   canLoad: boolean;
   imageHealth: ImageHealthReport | null;
   imageHealthLoading: boolean;
   issueFilter: string;
   loading: boolean;
   query: string;
+  onDiagnoseArtwork: () => void;
   onLoadImageHealth: () => void;
   onQuarantineOrphans: () => void;
   onIssueFilterChange: (value: string) => void;
@@ -21,14 +24,18 @@ export const MaintenanceImageAuditPanel = forwardRef<HTMLElement, {
   onQueryChange: (value: string) => void;
   onResetFilters: () => void;
   onRevealPath: (path: string) => void;
+  onStartArtworkRepair: () => void;
 }>(function MaintenanceImageAuditPanel({
   audit,
+  artworkDiagnosisLoading,
+  artworkRepairLoading,
   canLoad,
   imageHealth,
   imageHealthLoading,
   issueFilter,
   loading,
   query,
+  onDiagnoseArtwork,
   onLoadImageHealth,
   onQuarantineOrphans,
   onIssueFilterChange,
@@ -37,6 +44,7 @@ export const MaintenanceImageAuditPanel = forwardRef<HTMLElement, {
   onQueryChange,
   onResetFilters,
   onRevealPath,
+  onStartArtworkRepair,
 }, ref) {
   const filteredItems = useMemo(() => audit?.items.filter((item) => matchesImageAuditItem(item, query, issueFilter)) ?? [], [audit, issueFilter, query]);
   const disabled = loading || !canLoad;
@@ -51,11 +59,15 @@ export const MaintenanceImageAuditPanel = forwardRef<HTMLElement, {
       />
       <PanelContent className="space-y-3">
         <ImageHealthSummaryPanel
+          artworkDiagnosisLoading={artworkDiagnosisLoading}
+          artworkRepairLoading={artworkRepairLoading}
           loading={imageHealthLoading}
           report={imageHealth}
+          onDiagnoseArtwork={onDiagnoseArtwork}
           onLoad={onLoadImageHealth}
           onQuarantineOrphans={onQuarantineOrphans}
           onRevealPath={onRevealPath}
+          onStartArtworkRepair={onStartArtworkRepair}
         />
         {audit ? (
           <ImageAuditDetailPanel
@@ -80,9 +92,31 @@ export const MaintenanceImageAuditPanel = forwardRef<HTMLElement, {
   );
 });
 
-function ImageHealthSummaryPanel({ loading, report, onLoad, onQuarantineOrphans, onRevealPath }: { loading: boolean; report: ImageHealthReport | null; onLoad: () => void; onQuarantineOrphans: () => void; onRevealPath: (path: string) => void }) {
+function ImageHealthSummaryPanel({
+  artworkDiagnosisLoading,
+  artworkRepairLoading,
+  loading,
+  report,
+  onDiagnoseArtwork,
+  onLoad,
+  onQuarantineOrphans,
+  onRevealPath,
+  onStartArtworkRepair,
+}: {
+  artworkDiagnosisLoading: boolean;
+  artworkRepairLoading: boolean;
+  loading: boolean;
+  report: ImageHealthReport | null;
+  onDiagnoseArtwork: () => void;
+  onLoad: () => void;
+  onQuarantineOrphans: () => void;
+  onRevealPath: (path: string) => void;
+  onStartArtworkRepair: () => void;
+}) {
   const summary = report?.summary;
   const canQuarantine = Boolean(report && summary && summary.orphanFiles > 0 && !loading);
+  const canDiagnoseArtwork = Boolean(report && summary && summary.missingArtworkGames > 0 && !loading && !artworkDiagnosisLoading);
+  const canStartArtworkRepair = Boolean(report && summary && summary.missingArtworkGames > 0 && !loading && !artworkRepairLoading);
   const cache = report?.cache;
   return (
     <SoftRow className="space-y-3 px-3 py-3">
@@ -93,13 +127,17 @@ function ImageHealthSummaryPanel({ loading, report, onLoad, onQuarantineOrphans,
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
           <Button disabled={loading} size="sm" variant="outline" onClick={onLoad}><ListChecks className="h-4 w-4" />{loading ? '检查中' : '检查图片健康'}</Button>
+          <Button disabled={!canDiagnoseArtwork} size="sm" variant="outline" onClick={onDiagnoseArtwork}>{artworkDiagnosisLoading ? '诊断中' : '诊断缺图'}</Button>
+          <Button disabled={!canStartArtworkRepair} size="sm" variant="secondary" onClick={onStartArtworkRepair}>{artworkRepairLoading ? '创建中' : '开始补图'}</Button>
           <Button disabled={!canQuarantine} size="sm" variant="secondary" onClick={onQuarantineOrphans}>移动到隔离区</Button>
         </div>
       </div>
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-9">
         <ImageHealthStat label="缓存图片" value={summary?.imageFiles ?? report?.cache.fileCount ?? 0} />
         <ImageHealthStat label="孤儿图片" tone={(summary?.orphanFiles ?? 0) > 0 ? 'warn' : 'ok'} value={summary?.orphanFiles ?? 0} />
         <ImageHealthStat label="缺失引用" tone={(summary?.missingLocalRefs ?? 0) > 0 ? 'warn' : 'ok'} value={summary?.missingLocalRefs ?? 0} />
+        <ImageHealthStat label="缺封面" tone={(summary?.missingCoverGames ?? 0) > 0 ? 'warn' : 'ok'} value={summary?.missingCoverGames ?? 0} />
+        <ImageHealthStat label="媒体图不完整" tone={(summary?.missingArtworkGames ?? 0) > 0 ? 'warn' : 'ok'} value={summary?.missingArtworkGames ?? 0} />
         <ImageHealthStat label="Playnite 旧导入" tone={(summary?.legacyAppDataImportRefs ?? 0) > 0 ? 'warn' : 'ok'} value={summary?.legacyAppDataImportRefs ?? 0} />
         <ImageHealthStat label="重复文件名" tone={(summary?.duplicateFileNameGroups ?? 0) > 0 ? 'warn' : 'ok'} value={summary?.duplicateFileNameGroups ?? 0} />
         <ImageHealthStat label="过大图片" tone={(summary?.oversizedFiles ?? 0) > 0 ? 'warn' : 'ok'} value={summary?.oversizedFiles ?? 0} />

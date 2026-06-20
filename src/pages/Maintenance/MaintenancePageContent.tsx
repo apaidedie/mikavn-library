@@ -149,12 +149,15 @@ export function MaintenancePageContent({ dataActions, duplicateMergeActions, his
       <MaintenanceImageAuditPanel
         ref={imageAuditRef}
         audit={inspectionActions.imageAudit}
+        artworkDiagnosisLoading={inspectionActions.artworkDiagnosisLoading}
+        artworkRepairLoading={queueActions.artworkRepairLoading}
         canLoad={Boolean(dataActions.diagnostics)}
         imageHealth={inspectionActions.imageHealth}
         imageHealthLoading={inspectionActions.imageHealthLoading}
         issueFilter={inspectionActions.imageAuditIssueFilter}
         loading={inspectionActions.imageAuditLoading}
         query={inspectionActions.imageAuditQuery}
+        onDiagnoseArtwork={inspectionActions.loadArtworkDiagnosis}
         onIssueFilterChange={inspectionActions.setImageAuditIssueFilter}
         onLoadAudit={inspectionActions.loadImageAudit}
         onLoadImageHealth={inspectionActions.loadImageHealth}
@@ -163,6 +166,7 @@ export function MaintenancePageContent({ dataActions, duplicateMergeActions, his
         onQueryChange={inspectionActions.setImageAuditQuery}
         onResetFilters={inspectionActions.resetImageAuditFilters}
         onRevealPath={(path) => void dataActions.revealPath(path)}
+        onStartArtworkRepair={queueActions.startArtworkRepair}
       />
 
       <MaintenanceDuplicateAuditHistoryPanel

@@ -48,3 +48,19 @@ test('maintenance image health ui exposes cache issue samples and reveal actions
   assert.match(panel, /定位/);
   assert.match(panel, /onRevealPath/);
 });
+
+test('maintenance image health ui links missing artwork findings to repair actions', () => {
+  const panel = fs.readFileSync('src/pages/Maintenance/MaintenanceImageAuditPanel.tsx', 'utf8');
+  const content = fs.readFileSync('src/pages/Maintenance/MaintenancePageContent.tsx', 'utf8');
+
+  assert.match(panel, /missingCoverGames/);
+  assert.match(panel, /missingArtworkGames/);
+  assert.match(panel, /缺封面/);
+  assert.match(panel, /媒体图不完整/);
+  assert.match(panel, /诊断缺图/);
+  assert.match(panel, /开始补图/);
+  assert.match(panel, /onDiagnoseArtwork/);
+  assert.match(panel, /onStartArtworkRepair/);
+  assert.match(content, /onDiagnoseArtwork=\{inspectionActions\.loadArtworkDiagnosis\}/);
+  assert.match(content, /onStartArtworkRepair=\{queueActions\.startArtworkRepair\}/);
+});
