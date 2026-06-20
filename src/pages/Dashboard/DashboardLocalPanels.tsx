@@ -1,4 +1,4 @@
-import { Activity, AlertTriangle, Archive, Clock3, Database, HardDrive, ImageOff, Search, ShieldCheck } from 'lucide-react';
+import { Activity, AlertTriangle, Archive, Clock3, Database, HardDrive, ImageOff, RotateCcw, Search, ShieldCheck } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/notice';
@@ -63,8 +63,12 @@ export function LocalSafetyPanel({ diagnostics, onOpenSaves, onOpenSettings, onO
               <div className="flex items-center gap-2 text-sm font-medium text-slate-100"><Database className="h-4 w-4 text-[rgb(var(--accent-rgb))]" />数据库与自检</div>
               <div className="mt-1 text-xs text-slate-500">{databaseSummary}</div>
               <div className={cn('mt-1 text-xs', backupStatus.actionNeeded ? 'text-amber-200' : 'text-slate-500')}>{backupDetail}</div>
+              <div className="mt-1 text-xs text-slate-600">恢复前自动保护备份，恢复会安排到下次启动应用。</div>
             </div>
-            <Button size="sm" variant="outline" onClick={() => onOpenSettings?.('local')}>备份与恢复</Button>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="outline" onClick={() => onOpenSettings?.('local')}>备份与恢复</Button>
+              <Button size="sm" variant="secondary" onClick={() => onOpenSettings?.('local')}><RotateCcw className="h-4 w-4" />恢复数据库</Button>
+            </div>
           </SoftRow>
           <SoftRow className="flex flex-col justify-between gap-3">
             <div>
