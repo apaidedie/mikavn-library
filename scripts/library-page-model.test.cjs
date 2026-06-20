@@ -127,6 +127,24 @@ test('formatLibraryLoadMoreLabel summarizes the current render window', () => {
   assert.equal(formatLibraryLoadMoreLabel(160, 1000), '加载更多 160 / 1,000');
 });
 
+test('formatLibraryBulkConfirmation summarizes the selected batch before writing', () => {
+  const { formatLibraryBulkConfirmation } = loadLibraryPageModel();
+
+  assert.equal(
+    formatLibraryBulkConfirmation(1234, '移出合集：Backlog'),
+    '确认对 1,234 个游戏执行批量操作：移出合集：Backlog？\n此操作只修改 MikaVN 数据库记录，不会删除真实游戏文件。',
+  );
+});
+
+test('library bulk actions require confirmation before database writes', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Library', 'useLibraryBulkActions.ts'), 'utf8');
+
+  assert.match(source, /formatLibraryBulkConfirmation/);
+  assert.match(source, /window\.confirm\(formatLibraryBulkConfirmation\(ids\.length, label\)\)/);
+  assert.match(source, /window\.confirm\(formatLibraryBulkConfirmation\(ids\.length, `\$\{action === 'add' \? '加入' : '移出'\}合集：\$\{selectedBulkCollection\.name\}`\)\)/);
+  assert.match(source, /window\.confirm\(formatLibraryBulkConfirmation\(selectedBulkGames\.length, `\$\{action === 'add' \? '添加' : '移除'\}标签：\$\{tags\.join\('、'\)\}`\)\)/);
+});
+
 test('library render budgets keep large sidebars bounded', () => {
   const {
     libraryListInitialRenderCount,

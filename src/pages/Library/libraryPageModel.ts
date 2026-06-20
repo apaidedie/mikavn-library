@@ -88,6 +88,10 @@ export function formatLibraryLoadMoreLabel(visibleCount: number, totalCount: num
   return `加载更多 ${formatLibraryCount(visibleCount)} / ${formatLibraryCount(totalCount)}`;
 }
 
+export function formatLibraryBulkConfirmation(count: number, label: string) {
+  return `确认对 ${formatLibraryCount(count)} 个游戏执行批量操作：${label}？\n此操作只修改 MikaVN 数据库记录，不会删除真实游戏文件。`;
+}
+
 export function changedLibraryMetadataFields(game: Game, input: AddGameInput) {
   const fields: string[] = [];
   const normalize = (value?: string | null) => value?.trim() || '';

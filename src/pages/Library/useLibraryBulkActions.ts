@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetState
 import { api } from '@/services/api';
 import type { Game, GameCollection, PlayStatus, UpdateGameInput } from '@/types/game';
 import { errorMessage } from '@/utils/errorMessage';
+import { formatLibraryBulkConfirmation } from './libraryPageModel';
 
 type UseLibraryBulkActionsOptions = {
   onChanged: () => void;
@@ -90,6 +91,7 @@ export function useLibraryBulkActions({ onChanged, refreshKey, setError, setGame
   const applyBulkUpdate = useCallback(async (input: UpdateGameInput, label: string) => {
     const ids = selectedBulkIds;
     if (ids.length === 0) return;
+    if (!window.confirm(formatLibraryBulkConfirmation(ids.length, label))) return;
     setBulkBusy(true);
     setError(null);
     setBulkMessage(null);
@@ -110,6 +112,7 @@ export function useLibraryBulkActions({ onChanged, refreshKey, setError, setGame
     if (!selectedBulkCollection) return;
     const ids = selectedBulkIds;
     if (ids.length === 0) return;
+    if (!window.confirm(formatLibraryBulkConfirmation(ids.length, `${action === 'add' ? '加入' : '移出'}合集：${selectedBulkCollection.name}`))) return;
     setBulkBusy(true);
     setError(null);
     setBulkMessage(null);
@@ -132,6 +135,7 @@ export function useLibraryBulkActions({ onChanged, refreshKey, setError, setGame
   const applyBulkTags = useCallback(async (action: 'add' | 'remove') => {
     const tags = bulkParsedTags;
     if (selectedBulkGames.length === 0 || tags.length === 0) return;
+    if (!window.confirm(formatLibraryBulkConfirmation(selectedBulkGames.length, `${action === 'add' ? '添加' : '移除'}标签：${tags.join('、')}`))) return;
     setBulkBusy(true);
     setError(null);
     setBulkMessage(null);
