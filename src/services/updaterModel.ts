@@ -3,6 +3,8 @@ export type UpdaterCheckResult =
   | { kind: 'up_to_date'; message: string }
   | { kind: 'available'; version: string; currentVersion?: string; notes: string; message: string };
 
+export const updaterFallbackDownloadUrl = 'https://github.com/apaidedie/mikavn-library/releases/latest';
+
 export type UpdateProtectionBackupInfo = {
   fileName: string;
   path: string;

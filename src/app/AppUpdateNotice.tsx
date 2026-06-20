@@ -1,6 +1,6 @@
-import { Download, RotateCw, X } from 'lucide-react';
+import { Download, ExternalLink, RotateCw, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import type { UpdaterCheckResult } from '@/services/updaterModel';
+import { updaterFallbackDownloadUrl, type UpdaterCheckResult } from '@/services/updaterModel';
 
 type AppUpdateNoticeProps = {
   notice: Extract<UpdaterCheckResult, { kind: 'available' }>;
@@ -22,6 +22,12 @@ export function AppUpdateNotice({ notice, installing, installed, progressText, e
           <p className="truncate text-xs text-emerald-100/80">{installed ? '更新已安装，请重启应用。' : notice.notes}</p>
           {progressText && <p className="mt-1 text-xs text-amber-100">{progressText}</p>}
           {error && <p className="mt-1 select-text text-xs text-rose-100">{error}</p>}
+          {error && (
+            <a className="mt-1 inline-flex items-center gap-1 text-xs text-emerald-50 underline underline-offset-2" href={updaterFallbackDownloadUrl} rel="noreferrer" target="_blank">
+              <ExternalLink className="h-3.5 w-3.5" />
+              备用下载页面
+            </a>
+          )}
         </div>
         <div className="flex shrink-0 gap-2">
           {installed ? (

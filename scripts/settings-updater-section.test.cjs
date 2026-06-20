@@ -53,3 +53,12 @@ test('settings update section links update backups to restore workflow', () => {
   assert.match(localTab, /database-restore-section/);
   assert.match(localData, /id="database-restore-section"/);
 });
+
+test('settings update failure offers public fallback download link', () => {
+  const source = read('src/pages/Settings/SettingsUpdateSection.tsx');
+
+  assert.match(source, /updaterFallbackDownloadUrl/);
+  assert.match(source, /备用下载页面/);
+  assert.match(source, /target="_blank"/);
+  assert.match(source, /rel="noreferrer"/);
+});

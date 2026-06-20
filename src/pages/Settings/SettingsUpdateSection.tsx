@@ -1,9 +1,9 @@
-import { Download, FolderOpen, RefreshCw, RotateCcw, RotateCw } from 'lucide-react';
+import { Download, ExternalLink, FolderOpen, RefreshCw, RotateCcw, RotateCw } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ConfigItem, ConfigSection } from '@/components/ui/config-item';
 import { checkForAppUpdate, installAppUpdate, restartAfterUpdate, type AppUpdateHandle } from '@/services/updater';
-import { formatUpdaterError, formatUpdaterInstallProgress, type UpdaterCheckResult } from '@/services/updaterModel';
+import { formatUpdaterError, formatUpdaterInstallProgress, updaterFallbackDownloadUrl, type UpdaterCheckResult } from '@/services/updaterModel';
 
 type InstallState = 'idle' | 'checking' | 'available' | 'up_to_date' | 'installing' | 'installed' | 'failed' | 'unavailable';
 
@@ -84,7 +84,17 @@ export function SettingsUpdateSection({ onOpenDatabaseRestore, onRevealBackup }:
           )}
           {result?.kind === 'available' && <div className="max-w-[42rem] text-right text-xs text-slate-400">发布说明：{result.notes}</div>}
           {result?.kind === 'unavailable' && <div className="max-w-[42rem] text-right text-xs text-amber-200">浏览器预览不会下载或安装更新。</div>}
-          {error && <textarea className="min-h-16 w-[min(42rem,calc(100vw-3rem))] rounded-md bg-black/30 p-2 text-xs text-rose-100" readOnly value={error} />}
+          {error && (
+            <div className="flex max-w-[42rem] flex-col items-end gap-2">
+              <textarea className="min-h-16 w-[min(42rem,calc(100vw-3rem))] rounded-md bg-black/30 p-2 text-xs text-rose-100" readOnly value={error} />
+              <Button asChild size="sm" variant="outline">
+                <a href={updaterFallbackDownloadUrl} rel="noreferrer" target="_blank">
+                  <ExternalLink className="h-4 w-4" />
+                  备用下载页面
+                </a>
+              </Button>
+            </div>
+          )}
           <div className="flex flex-wrap justify-end gap-2">
             <Button disabled={state !== 'available'} onClick={() => void installUpdate()} type="button" variant="secondary">
               <Download className="h-4 w-4" />

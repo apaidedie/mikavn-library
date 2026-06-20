@@ -32,3 +32,12 @@ test('app renders non-blocking update notice before routes', () => {
   assert.match(notice, /重启应用/);
   assert.match(notice, /本次忽略/);
 });
+
+test('startup update notice exposes fallback download link after install errors', () => {
+  const notice = read('src/app/AppUpdateNotice.tsx');
+
+  assert.match(notice, /updaterFallbackDownloadUrl/);
+  assert.match(notice, /备用下载页面/);
+  assert.match(notice, /target="_blank"/);
+  assert.match(notice, /rel="noreferrer"/);
+});

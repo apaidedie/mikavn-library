@@ -23,6 +23,12 @@ test('browser fallback reports desktop updater unavailable', () => {
   });
 });
 
+test('updater model exposes public fallback download page', () => {
+  const { updaterFallbackDownloadUrl } = loadModel();
+
+  assert.equal(updaterFallbackDownloadUrl, 'https://github.com/apaidedie/mikavn-library/releases/latest');
+});
+
 test('release notes summary keeps concise non-empty lines', () => {
   const { summarizeReleaseNotes } = loadModel();
   assert.equal(summarizeReleaseNotes('\n# MikaVN 0.2.0\n\n- 新增内置更新\n- 保留本地数据\n- 第三条'), '新增内置更新 / 保留本地数据');
