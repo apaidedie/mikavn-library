@@ -81,6 +81,42 @@ pub struct ImageDuplicateNameGroup {
     pub samples: Vec<String>,
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImageQuarantineReport {
+    pub quarantine_dir: String,
+    pub manifest_path: String,
+    pub moved_files: i64,
+    pub moved_bytes: u64,
+    pub skipped_files: i64,
+    pub skipped: Vec<ImageQuarantineSkippedFile>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImageQuarantineSkippedFile {
+    pub path: String,
+    pub reason: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ImageQuarantineManifest {
+    app: String,
+    created_at: String,
+    moved: Vec<ImageQuarantineManifestItem>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ImageQuarantineManifestItem {
+    source_path: String,
+    quarantine_path: String,
+    relative_path: String,
+    size_bytes: u64,
+    reason: String,
+}
+
 #[derive(Debug, Default)]
 struct ImageReferenceCollection {
     summary: ImageHealthSummary,
@@ -126,6 +162,109 @@ pub(crate) fn get_image_health_report_with_paths(
         cache,
         recommendations,
     })
+}
+
+pub fn quarantine_orphan_images(
+    app: &AppHandle,
+    options: ImageHealthReportOptions,
+) -> DbResult<ImageQuarantineReport> {
+    let paths = AppPaths::from_app(app)?;
+    quarantine_orphan_images_with_paths(&paths, options)
+}
+
+pub(crate) fn quarantine_orphan_images_with_paths(
+    paths: &AppPaths,
+    options: ImageHealthReportOptions,
+) -> DbResult<ImageQuarantineReport> {
+    let created_at = Utc::now();
+    let quarantine_dir = paths
+        .root()
+        .join("image-quarantine")
+        .join(created_at.format("%Y%m%d-%H%M%S").to_string());
+    fs::create_dir_all(&quarantine_dir)?;
+
+    let candidates = orphan_candidates(paths, options)?;
+    let images_root = paths.images().canonicalize().ok();
+    let mut moved = Vec::new();
+    let mut skipped = Vec::new();
+    let mut moved_bytes = 0;
+
+    for candidate in candidates {
+        let source = PathBuf::from(&candidate.path);
+        if !source.is_file() {
+            skipped.push(ImageQuarantineSkippedFile {
+                path: candidate.path,
+                reason: "source file no longer exists".to_string(),
+            });
+            continue;
+        }
+        if let (Some(images_root), Ok(canonical_source)) =
+            (images_root.as_ref(), source.canonicalize())
+        {
+            if !canonical_source.starts_with(images_root) {
+                skipped.push(ImageQuarantineSkippedFile {
+                    path: candidate.path,
+                    reason: "source is outside image cache".to_string(),
+                });
+                continue;
+            }
+        }
+
+        let target = quarantine_dir.join(&candidate.relative_path);
+        if target.exists() {
+            skipped.push(ImageQuarantineSkippedFile {
+                path: candidate.path,
+                reason: "quarantine target already exists".to_string(),
+            });
+            continue;
+        }
+        if let Some(parent) = target.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::rename(&source, &target)?;
+        moved_bytes += candidate.size_bytes;
+        moved.push(ImageQuarantineManifestItem {
+            source_path: candidate.path,
+            quarantine_path: target.to_string_lossy().to_string(),
+            relative_path: candidate.relative_path,
+            size_bytes: candidate.size_bytes,
+            reason: "orphan image cache file".to_string(),
+        });
+    }
+
+    let manifest_path = quarantine_dir.join("manifest.json");
+    let manifest = ImageQuarantineManifest {
+        app: "MikaVN Library".to_string(),
+        created_at: created_at.to_rfc3339(),
+        moved,
+    };
+    fs::write(&manifest_path, serde_json::to_string_pretty(&manifest)?)?;
+
+    Ok(ImageQuarantineReport {
+        quarantine_dir: quarantine_dir.to_string_lossy().to_string(),
+        manifest_path: manifest_path.to_string_lossy().to_string(),
+        moved_files: manifest.moved.len() as i64,
+        moved_bytes,
+        skipped_files: skipped.len() as i64,
+        skipped,
+    })
+}
+
+fn orphan_candidates(
+    paths: &AppPaths,
+    options: ImageHealthReportOptions,
+) -> DbResult<Vec<ImageCacheFileIssue>> {
+    let oversized_bytes = options
+        .oversized_bytes
+        .unwrap_or(DEFAULT_OVERSIZED_IMAGE_BYTES);
+    let references = collect_image_references(paths)?;
+    let cache = scan_image_cache(
+        paths,
+        &references.referenced_paths,
+        oversized_bytes,
+        usize::MAX,
+    )?;
+    Ok(cache.orphan_samples)
 }
 
 fn collect_image_references(paths: &AppPaths) -> DbResult<ImageReferenceCollection> {
@@ -430,6 +569,7 @@ mod tests {
     use crate::infrastructure::paths::AppPaths;
     use rusqlite::Connection;
     use std::fs;
+    use std::path::Path;
     use uuid::Uuid;
 
     #[test]
@@ -478,6 +618,35 @@ mod tests {
             .orphan_samples
             .iter()
             .any(|item| item.path.ends_with("orphan.webp")));
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn quarantine_orphan_images_moves_only_unreferenced_files() {
+        let root = std::env::temp_dir().join(format!("mikavn-image-quarantine-{}", Uuid::new_v4()));
+        let paths = AppPaths::from_root(root.clone()).unwrap();
+        fs::create_dir_all(paths.images()).unwrap();
+        let referenced = paths.images().join("cover.jpg");
+        let orphan = paths.images().join("stale/orphan.jpg");
+        fs::create_dir_all(orphan.parent().unwrap()).unwrap();
+        fs::write(&referenced, b"cover").unwrap();
+        fs::write(&orphan, b"orphan").unwrap();
+        create_health_db(&paths.database(), &referenced.to_string_lossy(), "", "");
+
+        let report =
+            quarantine_orphan_images_with_paths(&paths, ImageHealthReportOptions::default())
+                .unwrap();
+
+        assert_eq!(report.moved_files, 1);
+        assert_eq!(report.skipped_files, 0);
+        assert!(referenced.is_file());
+        assert!(!orphan.exists());
+        assert!(Path::new(&report.manifest_path).is_file());
+        assert!(report.quarantine_dir.contains("image-quarantine"));
+        let manifest = fs::read_to_string(&report.manifest_path).unwrap();
+        assert!(manifest.contains("stale"));
+        assert!(manifest.contains("orphan.jpg"));
 
         let _ = fs::remove_dir_all(root);
     }
