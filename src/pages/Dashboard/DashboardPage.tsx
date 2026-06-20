@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { EmptyState, Notice } from '@/components/ui/notice';
+import { EmptyState } from '@/components/ui/notice';
 import { PageFrame, PageShell } from '@/components/ui/page';
 import { api } from '@/services/api';
 import type { SettingsTab } from '@/pages/Settings/SettingsPage';
@@ -7,6 +7,7 @@ import type { AppDataDiagnostics } from '@/types/archive';
 import type { DashboardData, Game, LibraryFilterPreset } from '@/types/game';
 import type { TaskFilterPreset, TaskRecord } from '@/types/task';
 import { errorMessage } from '@/utils/errorMessage';
+import { DashboardErrorNotice } from './DashboardErrorNotice';
 import { ContinuePanel, TodayStrip } from './DashboardHeroPanels';
 import { LocalSafetyPanel, NeedsAttentionPanel } from './DashboardLocalPanels';
 import { deriveDashboardAttentionItems, deriveDashboardTaskSummary, rankContinueGames, uniqueDashboardGames } from './dashboardPersonal';
@@ -33,6 +34,8 @@ export function DashboardPage({ refreshKey, onOpenGame, onAddGame, onOpenScanner
   const [tasks, setTasks] = useState<TaskRecord[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [sectionErrors, setSectionErrors] = useState<string[]>([]);
+  const [diagnosticExportLoading, setDiagnosticExportLoading] = useState(false);
+  const [diagnosticExportMessage, setDiagnosticExportMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -76,8 +79,31 @@ export function DashboardPage({ refreshKey, onOpenGame, onAddGame, onOpenScanner
   const attentionItems = useMemo(() => deriveDashboardAttentionItems({ diagnostics, tasks }), [diagnostics, tasks]);
   const taskSummary = useMemo(() => deriveDashboardTaskSummary(tasks), [tasks]);
 
+  const exportDiagnosticPackage = async () => {
+    setDiagnosticExportLoading(true);
+    setDiagnosticExportMessage(null);
+    try {
+      const report = await api.exportDiagnosticPackage();
+      setDiagnosticExportMessage(`诊断包已导出：${report.fileName}。不包含完整数据库、图片缓存或存档文件。`);
+    } catch (reason) {
+      setDiagnosticExportMessage(`诊断包导出失败：${errorMessage(reason)}`);
+    } finally {
+      setDiagnosticExportLoading(false);
+    }
+  };
+
   if (error) {
-    return <div className="p-5"><Notice tone="error">{error}</Notice></div>;
+    return (
+      <div className="p-5">
+        <DashboardErrorNotice
+          diagnosticExportLoading={diagnosticExportLoading}
+          diagnosticExportMessage={diagnosticExportMessage}
+          message={error}
+          tone="error"
+          onExportDiagnosticPackage={exportDiagnosticPackage}
+        />
+      </div>
+    );
   }
 
   if (!data) {
@@ -90,7 +116,16 @@ export function DashboardPage({ refreshKey, onOpenGame, onAddGame, onOpenScanner
         <TodayStrip data={data} attentionCount={attentionItems.length} runningCount={taskSummary.runningCount} onAddGame={onAddGame} onOpenMaintenance={onOpenMaintenance} onOpenScanner={onOpenScanner} onOpenSettings={onOpenSettings} onOpenTasks={onOpenTasks} />
         {sectionErrors.length > 0 && (
           <div className="space-y-2">
-            {sectionErrors.map((item) => <Notice key={item} tone="warning">{item}</Notice>)}
+            {sectionErrors.map((item) => (
+              <DashboardErrorNotice
+                diagnosticExportLoading={diagnosticExportLoading}
+                diagnosticExportMessage={diagnosticExportMessage}
+                key={item}
+                message={item}
+                tone="warning"
+                onExportDiagnosticPackage={exportDiagnosticPackage}
+              />
+            ))}
           </div>
         )}
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(22rem,0.75fr)]">
