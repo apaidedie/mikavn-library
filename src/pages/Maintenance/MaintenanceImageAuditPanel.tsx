@@ -66,6 +66,7 @@ export const MaintenanceImageAuditPanel = forwardRef<HTMLElement, {
           onDiagnoseArtwork={onDiagnoseArtwork}
           onLoad={onLoadImageHealth}
           onQuarantineOrphans={onQuarantineOrphans}
+          onOpenGame={onOpenGame}
           onRevealPath={onRevealPath}
           onStartArtworkRepair={onStartArtworkRepair}
         />
@@ -100,6 +101,7 @@ function ImageHealthSummaryPanel({
   onDiagnoseArtwork,
   onLoad,
   onQuarantineOrphans,
+  onOpenGame,
   onRevealPath,
   onStartArtworkRepair,
 }: {
@@ -110,6 +112,7 @@ function ImageHealthSummaryPanel({
   onDiagnoseArtwork: () => void;
   onLoad: () => void;
   onQuarantineOrphans: () => void;
+  onOpenGame?: (gameId: string) => void;
   onRevealPath: (path: string) => void;
   onStartArtworkRepair: () => void;
 }) {
@@ -148,9 +151,9 @@ function ImageHealthSummaryPanel({
         <div className="space-y-2">
           <div className="text-[11px] font-medium text-slate-400">图片样本</div>
           <div className="grid gap-2 lg:grid-cols-2">
-            <ImageHealthFileSamples title="无效图片" samples={cache.invalidImageSamples} onRevealPath={onRevealPath} />
-            <ImageHealthFileSamples title="孤儿图片" samples={cache.orphanSamples} onRevealPath={onRevealPath} />
-            <ImageHealthFileSamples title="过大图片" samples={cache.oversizedSamples} onRevealPath={onRevealPath} />
+            <ImageHealthFileSamples title="无效图片" samples={cache.invalidImageSamples} onOpenGame={onOpenGame} onRevealPath={onRevealPath} />
+            <ImageHealthFileSamples title="孤儿图片" samples={cache.orphanSamples} onOpenGame={onOpenGame} onRevealPath={onRevealPath} />
+            <ImageHealthFileSamples title="过大图片" samples={cache.oversizedSamples} onOpenGame={onOpenGame} onRevealPath={onRevealPath} />
             <ImageHealthDuplicateSamples samples={cache.duplicateNameSamples} />
           </div>
         </div>
@@ -169,7 +172,7 @@ function ImageHealthStat({ label, value, tone = 'neutral' }: { label: string; va
   );
 }
 
-function ImageHealthFileSamples({ title, samples, onRevealPath }: { title: string; samples: ImageCacheFileIssue[]; onRevealPath: (path: string) => void }) {
+function ImageHealthFileSamples({ title, samples, onOpenGame, onRevealPath }: { title: string; samples: ImageCacheFileIssue[]; onOpenGame?: (gameId: string) => void; onRevealPath: (path: string) => void }) {
   const visible = samples.slice(0, 3);
   return (
     <div className="rounded-md border border-white/10 bg-black/[0.10] p-2">
@@ -180,9 +183,13 @@ function ImageHealthFileSamples({ title, samples, onRevealPath }: { title: strin
             <div key={`${title}-${sample.path}`} className="flex items-center justify-between gap-2">
               <div className="min-w-0">
                 <div className="truncate text-xs text-slate-200">{sample.relativePath}</div>
+                <ImageHealthReferenceLine sample={sample} />
                 <div className="text-[11px] text-slate-500">{formatBytes(sample.sizeBytes)}</div>
               </div>
-              <Button size="sm" variant="ghost" onClick={() => onRevealPath(sample.path)}>定位</Button>
+              <div className="flex shrink-0 gap-1">
+                {sample.referenceSamples[0]?.gameId && onOpenGame ? <Button size="sm" variant="ghost" onClick={() => onOpenGame(sample.referenceSamples[0].gameId!)}>打开游戏</Button> : null}
+                <Button size="sm" variant="ghost" onClick={() => onRevealPath(sample.path)}>定位</Button>
+              </div>
             </div>
           ))}
         </div>
@@ -191,6 +198,13 @@ function ImageHealthFileSamples({ title, samples, onRevealPath }: { title: strin
       )}
     </div>
   );
+}
+
+function ImageHealthReferenceLine({ sample }: { sample: ImageCacheFileIssue }) {
+  const reference = sample.referenceSamples[0];
+  if (!reference) return <div className="text-[11px] text-slate-600">引用：未被数据库引用</div>;
+  const source = [reference.gameTitle, reference.fieldName].filter(Boolean).join(' / ');
+  return <div className="truncate text-[11px] text-slate-500">引用：{source || reference.sourceKind}</div>;
 }
 
 function ImageHealthDuplicateSamples({ samples }: { samples: ImageDuplicateNameGroup[] }) {

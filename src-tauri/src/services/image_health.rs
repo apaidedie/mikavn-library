@@ -76,6 +76,16 @@ pub struct ImageCacheFileIssue {
     pub path: String,
     pub relative_path: String,
     pub size_bytes: u64,
+    pub reference_samples: Vec<ImageCacheReferenceSample>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImageCacheReferenceSample {
+    pub game_id: Option<String>,
+    pub game_title: Option<String>,
+    pub source_kind: String,
+    pub field_name: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -126,6 +136,7 @@ struct ImageQuarantineManifestItem {
 struct ImageReferenceCollection {
     summary: ImageHealthSummary,
     referenced_paths: HashSet<String>,
+    reference_sources: HashMap<String, Vec<ImageCacheReferenceSample>>,
 }
 
 pub fn get_image_health_report(
@@ -151,6 +162,7 @@ pub(crate) fn get_image_health_report_with_paths(
     let cache = scan_image_cache(
         paths,
         &references.referenced_paths,
+        &references.reference_sources,
         oversized_bytes,
         sample_limit,
     )?;
@@ -267,6 +279,7 @@ fn orphan_candidates(
     let cache = scan_image_cache(
         paths,
         &references.referenced_paths,
+        &references.reference_sources,
         oversized_bytes,
         usize::MAX,
     )?;
@@ -291,11 +304,7 @@ fn collect_image_references(paths: &AppPaths) -> DbResult<ImageReferenceCollecti
         )?;
     }
     if table_exists(&conn, "game_assets")? && column_exists(&conn, "game_assets", "uri")? {
-        let mut stmt = conn.prepare("SELECT uri FROM game_assets")?;
-        let rows = stmt.query_map([], |row| row.get::<_, Option<String>>(0))?;
-        for row in rows {
-            add_reference(paths, &mut collection, row?);
-        }
+        collect_asset_image_fields(paths, &conn, &mut collection)?;
     }
     Ok(collection)
 }
@@ -312,19 +321,106 @@ fn collect_game_image_fields(
     if columns.is_empty() {
         return Ok(());
     }
-    let sql = format!("SELECT {} FROM games", columns.join(", "));
+    let has_id = column_exists(conn, "games", "id")?;
+    let has_title = column_exists(conn, "games", "title")?;
+    let mut select_columns = Vec::new();
+    if has_id {
+        select_columns.push("id".to_string());
+    }
+    if has_title {
+        select_columns.push("title".to_string());
+    }
+    select_columns.extend(columns.iter().map(|column| (*column).to_string()));
+    let sql = format!("SELECT {} FROM games", select_columns.join(", "));
     let mut stmt = conn.prepare(&sql)?;
     let rows = stmt.query_map([], |row| {
+        let mut offset = 0;
+        let game_id = if has_id {
+            let value = row.get::<_, Option<String>>(offset)?;
+            offset += 1;
+            value
+        } else {
+            None
+        };
+        let game_title = if has_title {
+            let value = row.get::<_, Option<String>>(offset)?;
+            offset += 1;
+            value
+        } else {
+            None
+        };
         let mut values = Vec::new();
         for index in 0..columns.len() {
-            values.push(row.get::<_, Option<String>>(index)?);
+            values.push(row.get::<_, Option<String>>(offset + index)?);
         }
-        Ok(values)
+        Ok((game_id, game_title, values))
     })?;
     for row in rows {
-        for value in row? {
-            add_reference(paths, collection, value);
+        let (game_id, game_title, values) = row?;
+        for (index, value) in values.into_iter().enumerate() {
+            add_reference(
+                paths,
+                collection,
+                value,
+                Some(ImageCacheReferenceSample {
+                    game_id: game_id.clone(),
+                    game_title: game_title.clone(),
+                    source_kind: "game".to_string(),
+                    field_name: Some(columns[index].to_string()),
+                }),
+            );
         }
+    }
+    Ok(())
+}
+
+fn collect_asset_image_fields(
+    paths: &AppPaths,
+    conn: &Connection,
+    collection: &mut ImageReferenceCollection,
+) -> DbResult<()> {
+    let has_game_id = column_exists(conn, "game_assets", "game_id")?;
+    let has_asset_type = column_exists(conn, "game_assets", "asset_type")?;
+    let has_games_join = table_exists(conn, "games")?
+        && column_exists(conn, "games", "id")?
+        && column_exists(conn, "games", "title")?;
+    let sql = if has_game_id && has_games_join {
+        if has_asset_type {
+            "SELECT game_assets.uri, game_assets.game_id, games.title, game_assets.asset_type FROM game_assets LEFT JOIN games ON games.id = game_assets.game_id".to_string()
+        } else {
+            "SELECT game_assets.uri, game_assets.game_id, games.title, NULL FROM game_assets LEFT JOIN games ON games.id = game_assets.game_id".to_string()
+        }
+    } else if has_game_id {
+        if has_asset_type {
+            "SELECT uri, game_id, NULL, asset_type FROM game_assets".to_string()
+        } else {
+            "SELECT uri, game_id, NULL, NULL FROM game_assets".to_string()
+        }
+    } else {
+        "SELECT uri, NULL, NULL, NULL FROM game_assets".to_string()
+    };
+    let mut stmt = conn.prepare(&sql)?;
+    let rows = stmt.query_map([], |row| {
+        Ok((
+            row.get::<_, Option<String>>(0)?,
+            row.get::<_, Option<String>>(1)?,
+            row.get::<_, Option<String>>(2)?,
+            row.get::<_, Option<String>>(3)?,
+        ))
+    })?;
+    for row in rows {
+        let (value, game_id, game_title, asset_type) = row?;
+        add_reference(
+            paths,
+            collection,
+            value,
+            Some(ImageCacheReferenceSample {
+                game_id,
+                game_title,
+                source_kind: "asset".to_string(),
+                field_name: asset_type.or_else(|| Some("uri".to_string())),
+            }),
+        );
     }
     Ok(())
 }
@@ -333,6 +429,7 @@ fn add_reference(
     paths: &AppPaths,
     collection: &mut ImageReferenceCollection,
     value: Option<String>,
+    source: Option<ImageCacheReferenceSample>,
 ) {
     let Some(value) = value.map(|item| item.trim().trim_matches(['\'', '"']).to_string()) else {
         return;
@@ -352,7 +449,14 @@ fn add_reference(
     let resolved = resolve_existing_image_path(paths, &value);
     let missing = resolved.is_none();
     if let Some(path) = resolved.as_ref() {
-        collection.referenced_paths.insert(normalize_path_key(path));
+        let key = normalize_path_key(path);
+        collection.referenced_paths.insert(key.clone());
+        if let Some(source) = source {
+            let sources = collection.reference_sources.entry(key).or_default();
+            if sources.len() < 5 {
+                sources.push(source);
+            }
+        }
     }
 
     let under_app_images = resolved
@@ -402,6 +506,7 @@ fn resolve_existing_image_path(paths: &AppPaths, value: &str) -> Option<String> 
 fn scan_image_cache(
     paths: &AppPaths,
     referenced_paths: &HashSet<String>,
+    reference_sources: &HashMap<String, Vec<ImageCacheReferenceSample>>,
     oversized_bytes: u64,
     sample_limit: usize,
 ) -> DbResult<ImageCacheHealth> {
@@ -418,6 +523,7 @@ fn scan_image_cache(
         &root,
         &root,
         referenced_paths,
+        reference_sources,
         oversized_bytes,
         sample_limit,
         &mut duplicate_names,
@@ -443,6 +549,7 @@ fn scan_image_dir(
     root: &Path,
     path: &Path,
     referenced_paths: &HashSet<String>,
+    reference_sources: &HashMap<String, Vec<ImageCacheReferenceSample>>,
     oversized_bytes: u64,
     sample_limit: usize,
     duplicate_names: &mut HashMap<String, Vec<String>>,
@@ -457,6 +564,7 @@ fn scan_image_dir(
                 root,
                 &path,
                 referenced_paths,
+                reference_sources,
                 oversized_bytes,
                 sample_limit,
                 duplicate_names,
@@ -478,6 +586,10 @@ fn scan_image_dir(
             path: path.to_string_lossy().to_string(),
             relative_path: relative_path.clone(),
             size_bytes,
+            reference_samples: reference_sources
+                .get(&normalize_path_key(&path.to_string_lossy()))
+                .cloned()
+                .unwrap_or_default(),
         };
         health.file_count += 1;
         health.total_bytes += size_bytes;
@@ -720,6 +832,17 @@ mod tests {
             .invalid_image_samples
             .iter()
             .any(|item| item.relative_path.ends_with("empty.jpg")));
+        let sample = report.cache.invalid_image_samples.first().unwrap();
+        assert_eq!(sample.reference_samples.len(), 1);
+        assert_eq!(sample.reference_samples[0].game_id.as_deref(), Some("g1"));
+        assert_eq!(
+            sample.reference_samples[0].game_title.as_deref(),
+            Some("VN")
+        );
+        assert_eq!(
+            sample.reference_samples[0].field_name.as_deref(),
+            Some("cover_image")
+        );
 
         let _ = fs::remove_dir_all(root);
     }

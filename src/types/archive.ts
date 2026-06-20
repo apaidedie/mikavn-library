@@ -220,6 +220,14 @@ export type ImageCacheFileIssue = {
   path: string;
   relativePath: string;
   sizeBytes: number;
+  referenceSamples: ImageCacheReferenceSample[];
+};
+
+export type ImageCacheReferenceSample = {
+  gameId?: string | null;
+  gameTitle?: string | null;
+  sourceKind: string;
+  fieldName?: string | null;
 };
 
 export type ImageDuplicateNameGroup = {

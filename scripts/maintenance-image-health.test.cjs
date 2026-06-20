@@ -18,6 +18,8 @@ test('image health commands are registered and exposed through api', () => {
   assert.match(types, /export type ImageQuarantineReport/);
   assert.match(types, /invalidImageFiles/);
   assert.match(types, /invalidImageSamples/);
+  assert.match(types, /referenceSamples/);
+  assert.match(types, /ImageCacheReferenceSample/);
 });
 
 test('maintenance image health ui explains safe quarantine workflow', () => {
@@ -41,11 +43,15 @@ test('maintenance image health ui exposes cache issue samples and reveal actions
   const panel = fs.readFileSync('src/pages/Maintenance/MaintenanceImageAuditPanel.tsx', 'utf8');
 
   assert.match(panel, /invalidImageSamples/);
+  assert.match(panel, /referenceSamples/);
   assert.match(panel, /orphanSamples/);
   assert.match(panel, /oversizedSamples/);
   assert.match(panel, /duplicateNameSamples/);
   assert.match(panel, /图片样本/);
+  assert.match(panel, /引用/);
   assert.match(panel, /定位/);
+  assert.match(panel, /打开游戏/);
+  assert.match(panel, /onOpenGame/);
   assert.match(panel, /onRevealPath/);
 });
 

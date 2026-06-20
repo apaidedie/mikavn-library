@@ -148,10 +148,10 @@ export function createMockStoreDiagnostics(readGames: () => Game[]) {
           oversizedBytes: 7 * 1024 * 1024,
           invalidImageFileCount: 1,
           invalidImageBytes: 0,
-          orphanSamples: [{ path: `${MOCK_IMAGE_DIR}\\old.jpg`, relativePath: 'old.jpg', sizeBytes: 128 * 1024 }],
+          orphanSamples: [{ path: `${MOCK_IMAGE_DIR}\\old.jpg`, relativePath: 'old.jpg', sizeBytes: 128 * 1024, referenceSamples: [] }],
           duplicateNameSamples: [{ fileName: 'cover.jpg', count: 2, samples: ['a\\cover.jpg', 'b\\cover.jpg'] }],
-          oversizedSamples: [{ path: `${MOCK_IMAGE_DIR}\\large.jpg`, relativePath: 'large.jpg', sizeBytes: 7 * 1024 * 1024 }],
-          invalidImageSamples: [{ path: `${MOCK_IMAGE_DIR}\\empty.jpg`, relativePath: 'empty.jpg', sizeBytes: 0 }],
+          oversizedSamples: [{ path: `${MOCK_IMAGE_DIR}\\large.jpg`, relativePath: 'large.jpg', sizeBytes: 7 * 1024 * 1024, referenceSamples: [] }],
+          invalidImageSamples: [{ path: `${MOCK_IMAGE_DIR}\\empty.jpg`, relativePath: 'empty.jpg', sizeBytes: 0, referenceSamples: [{ gameId: games[0]?.id ?? null, gameTitle: games[0]?.title ?? '示例游戏', sourceKind: 'game', fieldName: 'cover_image' }] }],
         },
         recommendations: ['发现空文件或损坏的图片缓存；建议重新抓取对应封面或媒体图。'],
       });
