@@ -20,6 +20,34 @@ test('updater install creates database backup before download and install', () =
   assert.match(source, /backup.*fileName|backupReport|backup/i);
 });
 
+test('updater install forwards download progress events', () => {
+  const source = read('src/services/updater.ts');
+
+  assert.match(source, /UpdaterInstallProgress/);
+  assert.match(source, /onProgress\?:/);
+  assert.match(source, /phase: 'backing_up'/);
+  assert.match(source, /downloadAndInstall\(\(event\)/);
+  assert.match(source, /event\.event === 'Started'/);
+  assert.match(source, /event\.event === 'Progress'/);
+  assert.match(source, /event\.event === 'Finished'/);
+  assert.match(source, /phase: 'installing'/);
+});
+
+test('settings and startup update surfaces show install progress text', () => {
+  const settings = read('src/pages/Settings/SettingsUpdateSection.tsx');
+  const hook = read('src/app/useStartupUpdater.ts');
+  const notice = read('src/app/AppUpdateNotice.tsx');
+  const app = read('src/app/App.tsx');
+
+  assert.match(settings, /installProgress/);
+  assert.match(settings, /formatUpdaterInstallProgress/);
+  assert.match(settings, /progress/i);
+  assert.match(hook, /installProgress/);
+  assert.match(hook, /formatUpdaterInstallProgress/);
+  assert.match(notice, /progressText/);
+  assert.match(app, /progressText=\{startupUpdater\.installProgress\}/);
+});
+
 test('updater install reports backup failure before installing', () => {
   const source = read('src/services/updater.ts');
 

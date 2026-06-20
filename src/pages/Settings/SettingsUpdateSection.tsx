@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ConfigItem, ConfigSection } from '@/components/ui/config-item';
 import { checkForAppUpdate, installAppUpdate, restartAfterUpdate, type AppUpdateHandle } from '@/services/updater';
-import { formatUpdaterError, type UpdaterCheckResult } from '@/services/updaterModel';
+import { formatUpdaterError, formatUpdaterInstallProgress, type UpdaterCheckResult } from '@/services/updaterModel';
 
 type InstallState = 'idle' | 'checking' | 'available' | 'up_to_date' | 'installing' | 'installed' | 'failed' | 'unavailable';
 
@@ -13,11 +13,13 @@ export function SettingsUpdateSection() {
   const [update, setUpdate] = useState<AppUpdateHandle | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [backupInfo, setBackupInfo] = useState<{ fileName: string; path: string } | null>(null);
+  const [installProgress, setInstallProgress] = useState<string | null>(null);
 
   const checkUpdates = async () => {
     setState('checking');
     setError(null);
     setBackupInfo(null);
+    setInstallProgress(null);
     try {
       const response = await checkForAppUpdate();
       setResult(response.result);
@@ -35,9 +37,11 @@ export function SettingsUpdateSection() {
     setState('installing');
     setError(null);
     setBackupInfo(null);
-    const installResult = await installAppUpdate(update);
+    setInstallProgress(null);
+    const installResult = await installAppUpdate(update, (progress) => setInstallProgress(formatUpdaterInstallProgress(progress)));
     if (installResult.kind === 'installed') {
       setBackupInfo(installResult.backup ? { fileName: installResult.backup.fileName, path: installResult.backup.path } : null);
+      setInstallProgress(null);
       setState('installed');
       setResult({
         kind: 'available',
@@ -47,6 +51,7 @@ export function SettingsUpdateSection() {
       });
     } else {
       setState('failed');
+      setInstallProgress(null);
       setError(installResult.message);
     }
   };
@@ -61,7 +66,7 @@ export function SettingsUpdateSection() {
           </Button>
           <div className="max-w-[42rem] text-right text-sm text-slate-300">{result?.message ?? '尚未检查更新。'}</div>
           <div className="max-w-[42rem] text-right text-xs text-slate-400">下载并安装前会自动创建更新前数据库备份；备份失败会取消安装。</div>
-          {state === 'installing' && <div className="max-w-[42rem] text-right text-xs text-amber-200">备份中，然后下载并安装更新。</div>}
+          {state === 'installing' && <div className="max-w-[42rem] text-right text-xs text-amber-200">{installProgress ?? '备份中，然后下载并安装更新。'}</div>}
           {backupInfo && <div className="max-w-[42rem] break-all text-right text-xs text-emerald-200">更新前数据库备份：{backupInfo.fileName}</div>}
           {result?.kind === 'available' && <div className="max-w-[42rem] text-right text-xs text-slate-400">发布说明：{result.notes}</div>}
           {result?.kind === 'unavailable' && <div className="max-w-[42rem] text-right text-xs text-amber-200">浏览器预览不会下载或安装更新。</div>}

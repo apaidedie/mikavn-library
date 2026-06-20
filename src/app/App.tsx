@@ -139,6 +139,7 @@ export function App() {
           installed={startupUpdater.installed}
           installing={startupUpdater.installing}
           notice={startupUpdateNotice}
+          progressText={startupUpdater.installProgress}
           onDismiss={startupUpdater.dismissStartupUpdate}
           onInstall={startupUpdater.installStartupUpdate}
           onRestart={startupUpdater.restartStartupUpdate}

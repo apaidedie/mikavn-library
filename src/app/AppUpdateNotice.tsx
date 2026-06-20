@@ -6,19 +6,21 @@ type AppUpdateNoticeProps = {
   notice: Extract<UpdaterCheckResult, { kind: 'available' }>;
   installing: boolean;
   installed: boolean;
+  progressText: string | null;
   error: string | null;
   onDismiss: () => void;
   onInstall: () => void;
   onRestart: () => void;
 };
 
-export function AppUpdateNotice({ notice, installing, installed, error, onDismiss, onInstall, onRestart }: AppUpdateNoticeProps) {
+export function AppUpdateNotice({ notice, installing, installed, progressText, error, onDismiss, onInstall, onRestart }: AppUpdateNoticeProps) {
   return (
     <div className="border-b border-emerald-300/20 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-50">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="font-medium">发现新版本 {notice.version}</p>
           <p className="truncate text-xs text-emerald-100/80">{installed ? '更新已安装，请重启应用。' : notice.notes}</p>
+          {progressText && <p className="mt-1 text-xs text-amber-100">{progressText}</p>}
           {error && <p className="mt-1 select-text text-xs text-rose-100">{error}</p>}
         </div>
         <div className="flex shrink-0 gap-2">

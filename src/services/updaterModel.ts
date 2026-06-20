@@ -9,6 +9,11 @@ export type UpdateProtectionBackupInfo = {
   sizeBytes: number;
 };
 
+export type UpdaterInstallProgress =
+  | { phase: 'backing_up' }
+  | { phase: 'downloading'; downloadedBytes: number; totalBytes?: number; percent?: number }
+  | { phase: 'installing' };
+
 export type UpdaterInstallResult =
   | { kind: 'installed'; message: string; backup?: UpdateProtectionBackupInfo }
   | { kind: 'failed'; message: string };
@@ -67,4 +72,14 @@ export function formatUpdaterError(error: unknown): string {
     return `更新失败：${error.message}`;
   }
   return '更新失败：未知错误';
+}
+
+export function formatUpdaterInstallProgress(progress: UpdaterInstallProgress | null): string | null {
+  if (!progress) return null;
+  if (progress.phase === 'backing_up') return '正在创建更新前数据库备份...';
+  if (progress.phase === 'installing') return '正在安装更新...';
+  if (typeof progress.percent === 'number') {
+    return `正在下载更新：${Math.max(0, Math.min(100, Math.round(progress.percent)))}%`;
+  }
+  return `正在下载更新：已下载 ${progress.downloadedBytes} bytes`;
 }

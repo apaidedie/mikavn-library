@@ -49,3 +49,12 @@ test('copyable failure message keeps useful error text', () => {
   assert.equal(formatUpdaterError('network unavailable'), '更新失败：network unavailable');
   assert.equal(formatUpdaterError({ message: 'download failed' }), '更新失败：download failed');
 });
+
+test('install progress formatter reports backup, download percent, and install phases', () => {
+  const { formatUpdaterInstallProgress } = loadModel();
+
+  assert.equal(formatUpdaterInstallProgress({ phase: 'backing_up' }), '正在创建更新前数据库备份...');
+  assert.equal(formatUpdaterInstallProgress({ phase: 'downloading', downloadedBytes: 512, totalBytes: 1024, percent: 50 }), '正在下载更新：50%');
+  assert.equal(formatUpdaterInstallProgress({ phase: 'downloading', downloadedBytes: 512 }), '正在下载更新：已下载 512 bytes');
+  assert.equal(formatUpdaterInstallProgress({ phase: 'installing' }), '正在安装更新...');
+});

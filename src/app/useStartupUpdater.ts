@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { checkForAppUpdate, installAppUpdate, restartAfterUpdate, type AppUpdateHandle } from '@/services/updater';
-import type { UpdaterCheckResult } from '@/services/updaterModel';
+import { formatUpdaterInstallProgress, type UpdaterCheckResult } from '@/services/updaterModel';
 
 export function useStartupUpdater() {
   const [notice, setNotice] = useState<UpdaterCheckResult | null>(null);
   const [update, setUpdate] = useState<AppUpdateHandle | null>(null);
   const [installing, setInstalling] = useState(false);
   const [installed, setInstalled] = useState(false);
+  const [installProgress, setInstallProgress] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -33,16 +34,20 @@ export function useStartupUpdater() {
   const dismissStartupUpdate = () => {
     setNotice(null);
     setError(null);
+    setInstallProgress(null);
   };
 
   const installStartupUpdate = async () => {
     setInstalling(true);
     setError(null);
-    const result = await installAppUpdate(update);
+    setInstallProgress(null);
+    const result = await installAppUpdate(update, (progress) => setInstallProgress(formatUpdaterInstallProgress(progress)));
     setInstalling(false);
     if (result.kind === 'installed') {
       setInstalled(true);
+      setInstallProgress(null);
     } else {
+      setInstallProgress(null);
       setError(result.message);
     }
   };
@@ -51,5 +56,5 @@ export function useStartupUpdater() {
     await restartAfterUpdate();
   };
 
-  return { notice, installing, installed, error, dismissStartupUpdate, installStartupUpdate, restartStartupUpdate };
+  return { notice, installing, installed, installProgress, error, dismissStartupUpdate, installStartupUpdate, restartStartupUpdate };
 }
