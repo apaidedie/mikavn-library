@@ -31,3 +31,11 @@ test('local settings tab renders updater section before data maintenance', () =>
   assert.ok(dataIndex > -1, 'SettingsLocalDataSection must still be rendered');
   assert.ok(updateIndex < dataIndex, 'Updater section should be near the top of local maintenance settings');
 });
+
+test('settings update section explains update protection backup', () => {
+  const source = read('src/pages/Settings/SettingsUpdateSection.tsx');
+
+  assert.match(source, /更新前.*数据库备份/);
+  assert.match(source, /备份中|backing_up/);
+  assert.match(source, /backup\?\.fileName|backupInfo|backupPath/);
+});

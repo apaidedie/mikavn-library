@@ -64,7 +64,7 @@ export function LocalSafetyPanel({ diagnostics, onOpenSaves, onOpenSettings, onO
               <div className="mt-1 text-xs text-slate-500">{databaseSummary}</div>
               <div className={cn('mt-1 text-xs', backupStatus.actionNeeded ? 'text-amber-200' : 'text-slate-500')}>{backupDetail}</div>
             </div>
-            <Button size="sm" variant="outline" onClick={() => onOpenSettings?.('local')}>打开设置</Button>
+            <Button size="sm" variant="outline" onClick={() => onOpenSettings?.('local')}>备份与恢复</Button>
           </SoftRow>
           <SoftRow className="flex flex-col justify-between gap-3">
             <div>

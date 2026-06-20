@@ -63,6 +63,8 @@ export function SettingsLocalDataSection({
   onRestoreDatabase,
   onRevealPath,
 }: SettingsLocalDataSectionProps) {
+  const latestBackup = diagnostics?.databaseBackups.files[0] ?? null;
+
   return (
     <ConfigSection title="本地数据">
       <ConfigItem title="数据目录自检" description="读取当前应用数据目录、数据库完整性、图片引用和备份文件状态。">
@@ -127,11 +129,18 @@ export function SettingsLocalDataSection({
           <Button aria-label="复制数据库位置" disabled={!databasePath} size="sm" variant="ghost" onClick={() => void onCopyDirectoryPath('数据库位置', databasePath)}><Copy className="h-4 w-4" />复制</Button>
         </div>
       </ConfigItem>
-      <ConfigItem title="手动备份数据库" description="生成 SQLite 一致性备份，备份文件可由你选择保存位置。">
-        <Button variant="secondary" onClick={onBackupDatabase}><Download className="h-4 w-4" />备份</Button>
-      </ConfigItem>
-      <ConfigItem title="恢复数据库备份" description="复制备份到 pending-restore，下次启动前会先创建保护备份再替换当前数据库。">
-        <Button variant="outline" onClick={onRestoreDatabase}><RotateCcw className="h-4 w-4" />安排恢复</Button>
+      <ConfigItem title="数据库备份与恢复" description="手动备份、打开备份目录，或安排下次启动恢复数据库。恢复前会自动创建保护备份。">
+        <div className="flex max-w-[42rem] flex-col items-end gap-2 text-right">
+          <div className="text-xs text-slate-400">
+            最近备份：{latestBackup ? `${latestBackup.fileName} · ${formatBytes(latestBackup.sizeBytes)}` : '暂无可用数据库备份'}
+          </div>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button disabled={!diagnostics?.databaseBackups.rootPath} variant="ghost" onClick={() => diagnostics && void onRevealPath('数据库备份目录', diagnostics.databaseBackups.rootPath)}><Folder className="h-4 w-4" />打开备份目录</Button>
+            <Button variant="secondary" onClick={onBackupDatabase}><Download className="h-4 w-4" />手动备份</Button>
+            <Button variant="outline" onClick={onRestoreDatabase}><RotateCcw className="h-4 w-4" />安排恢复</Button>
+          </div>
+          <div className="text-xs text-slate-500">恢复会复制备份到 pending-restore，下次启动前先创建保护备份再替换当前数据库。</div>
+        </div>
       </ConfigItem>
       <ConfigItem title="库归档位置" description="导出会在此目录下新建归档文件夹或 ZIP 文件；预览/导入可填写归档文件夹或 .zip 文件。">
         <div className="flex flex-wrap items-center justify-end gap-2">
