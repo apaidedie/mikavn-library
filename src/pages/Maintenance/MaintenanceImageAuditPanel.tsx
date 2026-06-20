@@ -117,7 +117,7 @@ function ImageHealthSummaryPanel({
   onStartArtworkRepair: () => void;
 }) {
   const summary = report?.summary;
-  const canQuarantine = Boolean(report && summary && summary.orphanFiles > 0 && !loading);
+  const canSafeCleanup = Boolean(report && summary && summary.orphanFiles > 0 && !loading);
   const canDiagnoseArtwork = Boolean(report && summary && summary.missingArtworkGames > 0 && !loading && !artworkDiagnosisLoading);
   const canStartArtworkRepair = Boolean(report && summary && summary.missingArtworkGames > 0 && !loading && !artworkRepairLoading);
   const cache = report?.cache;
@@ -126,13 +126,14 @@ function ImageHealthSummaryPanel({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2 text-sm font-medium text-slate-100"><ShieldCheck className="h-4 w-4 text-emerald-200" />图片健康</div>
-          <div className="mt-1 text-xs text-slate-500">检查图片引用和缓存文件；无效图片表示空文件或损坏文件。移动到隔离区只搬运孤儿图片，不会永久删除文件。</div>
+          <div className="mt-1 text-xs text-slate-500">检查图片引用和缓存文件；无效图片表示空文件或损坏文件。一键安全整理只处理未被数据库引用的孤儿缓存，移动到隔离区，不会永久删除文件。</div>
+          <div className="mt-1 text-xs text-slate-600">缺封面和失效引用会保留给补图或明细审计，避免误改仍在使用的图片。</div>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
           <Button disabled={loading} size="sm" variant="outline" onClick={onLoad}><ListChecks className="h-4 w-4" />{loading ? '检查中' : '检查图片健康'}</Button>
           <Button disabled={!canDiagnoseArtwork} size="sm" variant="outline" onClick={onDiagnoseArtwork}>{artworkDiagnosisLoading ? '诊断中' : '诊断缺图'}</Button>
           <Button disabled={!canStartArtworkRepair} size="sm" variant="secondary" onClick={onStartArtworkRepair}>{artworkRepairLoading ? '创建中' : '开始补图'}</Button>
-          <Button disabled={!canQuarantine} size="sm" variant="secondary" onClick={onQuarantineOrphans}>移动到隔离区</Button>
+          <Button disabled={!canSafeCleanup} size="sm" variant="secondary" onClick={onQuarantineOrphans}>一键安全整理</Button>
         </div>
       </div>
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5 xl:grid-cols-10">

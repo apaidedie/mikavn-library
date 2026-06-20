@@ -73,7 +73,7 @@ export function useMaintenanceInspectionActions({ setError, setMessage }: UseMai
       const result = await api.quarantineOrphanImages({ sampleLimit: 100 });
       const report = await api.getImageHealthReport({ sampleLimit: 100 });
       setImageHealth(report);
-      setMessage({ text: `已移动 ${formatCount(result.movedFiles)} 个孤儿图片到隔离区。` });
+      setMessage({ text: `安全整理完成：已移动 ${formatCount(result.movedFiles)} 个孤儿图片到隔离区。` });
     } catch (reason) {
       setError(errorMessage(reason));
     } finally {

@@ -72,3 +72,16 @@ test('maintenance image health ui links missing artwork findings to repair actio
   assert.match(content, /onDiagnoseArtwork=\{inspectionActions\.loadArtworkDiagnosis\}/);
   assert.match(content, /onStartArtworkRepair=\{queueActions\.startArtworkRepair\}/);
 });
+
+test('maintenance image health ui exposes one-click safe cleanup wording', () => {
+  const panel = fs.readFileSync('src/pages/Maintenance/MaintenanceImageAuditPanel.tsx', 'utf8');
+  const actions = fs.readFileSync('src/pages/Maintenance/useMaintenanceInspectionActions.ts', 'utf8');
+
+  assert.match(panel, /一键安全整理/);
+  assert.match(panel, /只处理未被数据库引用的孤儿缓存/);
+  assert.match(panel, /缺封面和失效引用会保留给补图或明细审计/);
+  assert.match(panel, /canSafeCleanup/);
+  assert.match(panel, /onQuarantineOrphans/);
+  assert.match(actions, /安全整理完成/);
+  assert.doesNotMatch(panel, /一键永久删除/);
+});
