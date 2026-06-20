@@ -2,8 +2,10 @@ use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
 use chrono::Utc;
+use regex::Regex;
 use rusqlite::{Connection, OpenFlags};
 use serde::{Deserialize, Serialize};
 use tauri::AppHandle;
@@ -300,6 +302,7 @@ fn collect_image_references(paths: &AppPaths) -> DbResult<ImageReferenceCollecti
     let mut collection = ImageReferenceCollection::default();
     if table_exists(&conn, "games")? {
         collect_game_image_fields(paths, &conn, &mut collection)?;
+        collect_description_image_fields(paths, &conn, &mut collection)?;
         collection.summary.missing_cover_games =
             count_games_where(&conn, "cover_image IS NULL OR TRIM(cover_image) = ''")?;
         collection.summary.missing_artwork_games = count_games_where(
@@ -371,6 +374,47 @@ fn collect_game_image_fields(
                     game_title: game_title.clone(),
                     source_kind: "game".to_string(),
                     field_name: Some(columns[index].to_string()),
+                }),
+            );
+        }
+    }
+    Ok(())
+}
+
+fn collect_description_image_fields(
+    paths: &AppPaths,
+    conn: &Connection,
+    collection: &mut ImageReferenceCollection,
+) -> DbResult<()> {
+    if !column_exists(conn, "games", "description")? {
+        return Ok(());
+    }
+    let has_id = column_exists(conn, "games", "id")?;
+    let has_title = column_exists(conn, "games", "title")?;
+    let id_expr = if has_id { "id" } else { "NULL" };
+    let title_expr = if has_title { "title" } else { "NULL" };
+    let mut stmt = conn.prepare(&format!(
+        "SELECT {id_expr}, {title_expr}, description FROM games"
+    ))?;
+    let rows = stmt.query_map([], |row| {
+        Ok((
+            row.get::<_, Option<String>>(0)?,
+            row.get::<_, Option<String>>(1)?,
+            row.get::<_, Option<String>>(2)?,
+        ))
+    })?;
+    for row in rows {
+        let (game_id, game_title, description) = row?;
+        for source in description_image_sources(&description.unwrap_or_default()) {
+            add_reference(
+                paths,
+                collection,
+                Some(source),
+                Some(ImageCacheReferenceSample {
+                    game_id: game_id.clone(),
+                    game_title: game_title.clone(),
+                    source_kind: "description".to_string(),
+                    field_name: Some("description".to_string()),
                 }),
             );
         }
@@ -692,6 +736,80 @@ fn is_invalid_image_cache_file(path: &Path) -> DbResult<bool> {
     Ok(!valid)
 }
 
+fn description_image_sources(value: &str) -> Vec<String> {
+    static DESCRIPTION_IMAGE_RE: OnceLock<Regex> = OnceLock::new();
+    let pattern = DESCRIPTION_IMAGE_RE.get_or_init(|| {
+        Regex::new(r#"(?is)!\[[^\]]*\]\(([^)]*?)\)|<img\b[^>]*>|\[img\]([\s\S]*?)\[/img\]|https?://[^\s<>"']+?\.(?:png|jpe?g|webp|gif)(?:\?[^\s<>"']*)?"#)
+            .expect("valid description image regex")
+    });
+
+    pattern
+        .captures_iter(value)
+        .filter_map(|captures| description_image_source_from_match(&captures))
+        .collect()
+}
+
+fn description_image_source_from_match(captures: &regex::Captures<'_>) -> Option<String> {
+    if let Some(source) = captures.get(1) {
+        return clean_description_image_source(source.as_str(), false);
+    }
+    let token = captures.get(0)?.as_str();
+    if token.trim_start().to_lowercase().starts_with("<img") {
+        return read_description_image_attr(token)
+            .and_then(|source| clean_description_image_source(&source, false));
+    }
+    if let Some(source) = captures.get(2) {
+        return clean_description_image_source(source.as_str(), false);
+    }
+    clean_description_image_source(token, true)
+}
+
+fn read_description_image_attr(tag: &str) -> Option<String> {
+    static IMG_SRC_RE: OnceLock<Regex> = OnceLock::new();
+    let pattern = IMG_SRC_RE.get_or_init(|| {
+        Regex::new(r#"(?i)\b(?:src|data-src|data-original|data-lazy-src)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))"#)
+            .expect("valid img src regex")
+    });
+    pattern.captures(tag).and_then(|captures| {
+        captures
+            .get(1)
+            .or_else(|| captures.get(2))
+            .or_else(|| captures.get(3))
+            .map(|value| decode_description_html(value.as_str().trim()))
+    })
+}
+
+fn clean_description_image_source(value: &str, trim_trailing_punctuation: bool) -> Option<String> {
+    let mut clean = decode_description_html(value)
+        .trim()
+        .trim_matches(['\'', '"'])
+        .to_string();
+    if trim_trailing_punctuation {
+        clean = clean
+            .trim_end_matches([')', ',', '，', '。', '.', ';', '；'])
+            .to_string();
+    }
+    if clean.starts_with("//") {
+        clean = format!("https:{clean}");
+    }
+    if clean.is_empty() {
+        None
+    } else {
+        Some(clean)
+    }
+}
+
+fn decode_description_html(value: &str) -> String {
+    value
+        .replace("&amp;", "&")
+        .replace("&quot;", "\"")
+        .replace("&#39;", "'")
+        .replace("&apos;", "'")
+        .replace("&nbsp;", " ")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+}
+
 fn table_exists(conn: &Connection, table: &str) -> DbResult<bool> {
     Ok(conn.query_row(
         "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?1)",
@@ -859,6 +977,34 @@ mod tests {
         let _ = fs::remove_dir_all(root);
     }
 
+    #[test]
+    fn image_health_report_counts_description_image_references() {
+        let root =
+            std::env::temp_dir().join(format!("mikavn-image-description-{}", Uuid::new_v4()));
+        let paths = AppPaths::from_root(root.clone()).unwrap();
+        fs::create_dir_all(paths.images()).unwrap();
+        let description_image = paths.images().join("description.webp");
+        fs::write(&description_image, b"RIFFxxxxWEBP").unwrap();
+        let missing_description_image = paths.images().join("missing-description.webp");
+        let description = format!(
+            "Intro\n![local]({})\n![missing]({})",
+            description_image.to_string_lossy(),
+            missing_description_image.to_string_lossy()
+        );
+        create_description_health_db(&paths.database(), &description);
+
+        let report =
+            get_image_health_report_with_paths(&paths, ImageHealthReportOptions::default())
+                .unwrap();
+
+        assert_eq!(report.summary.total_image_refs, 2);
+        assert_eq!(report.summary.missing_local_refs, 1);
+        assert_eq!(report.cache.referenced_file_count, 1);
+        assert_eq!(report.cache.orphan_file_count, 0);
+
+        let _ = fs::remove_dir_all(root);
+    }
+
     fn create_health_db(path: &std::path::Path, cover: &str, legacy: &str, missing: &str) {
         let conn = Connection::open(path).unwrap();
         conn.execute_batch(
@@ -885,6 +1031,28 @@ mod tests {
         conn.execute(
             "INSERT INTO games (id, title, cover_image, banner_image, background_image, description) VALUES ('g1', 'VN', ?1, ?2, ?3, '')",
             (cover, legacy, missing),
+        )
+        .unwrap();
+    }
+
+    fn create_description_health_db(path: &std::path::Path, description: &str) {
+        let conn = Connection::open(path).unwrap();
+        conn.execute_batch(
+            r#"
+            CREATE TABLE games (
+              id TEXT PRIMARY KEY,
+              title TEXT NOT NULL,
+              cover_image TEXT,
+              banner_image TEXT,
+              background_image TEXT,
+              description TEXT
+            );
+            "#,
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO games (id, title, cover_image, banner_image, background_image, description) VALUES ('g1', 'VN', '', '', '', ?1)",
+            [description],
         )
         .unwrap();
     }
