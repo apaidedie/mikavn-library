@@ -36,3 +36,15 @@ test('maintenance image health ui explains safe quarantine workflow', () => {
   assert.match(panel, /不会永久删除/);
   assert.doesNotMatch(panel, /永久删除孤儿图片/);
 });
+
+test('maintenance image health ui exposes cache issue samples and reveal actions', () => {
+  const panel = fs.readFileSync('src/pages/Maintenance/MaintenanceImageAuditPanel.tsx', 'utf8');
+
+  assert.match(panel, /invalidImageSamples/);
+  assert.match(panel, /orphanSamples/);
+  assert.match(panel, /oversizedSamples/);
+  assert.match(panel, /duplicateNameSamples/);
+  assert.match(panel, /图片样本/);
+  assert.match(panel, /定位/);
+  assert.match(panel, /onRevealPath/);
+});
