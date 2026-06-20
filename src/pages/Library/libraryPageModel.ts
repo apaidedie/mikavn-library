@@ -1,10 +1,11 @@
 import type { AddGameInput, Game, PlayStatus } from '@/types/game';
 
 export const libraryStatuses: Array<PlayStatus | 'all'> = ['all', 'planned', 'playing', 'completed', 'paused', 'archived'];
-export const libraryListInitialRenderCount = 500;
-export const libraryListRenderBatchSize = 500;
+export const libraryListInitialRenderCount = 240;
+export const libraryListRenderBatchSize = 240;
 export const libraryGridInitialRenderCount = 160;
 export const libraryGridRenderBatchSize = 160;
+export const librarySelectedRenderExpansionCap = 960;
 
 export type LibraryGameGroup = {
   id: PlayStatus | 'recent' | 'all';
@@ -40,7 +41,10 @@ export function groupLibraryGames(games: Game[], statusLabels: Record<PlayStatus
 }
 
 export function getLibraryVisibleCount(totalCount: number, renderCount: number, selectedIndex: number) {
-  return Math.min(totalCount, Math.max(renderCount, selectedIndex + 1));
+  const current = Math.min(totalCount, renderCount);
+  if (selectedIndex < current) return current;
+  const selectedTarget = selectedIndex + 1;
+  return Math.min(totalCount, Math.max(current, Math.min(selectedTarget, librarySelectedRenderExpansionCap)));
 }
 
 export function formatLibraryCount(value: number) {

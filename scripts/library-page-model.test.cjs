@@ -126,3 +126,27 @@ test('formatLibraryLoadMoreLabel summarizes the current render window', () => {
 
   assert.equal(formatLibraryLoadMoreLabel(160, 1000), '加载更多 160 / 1,000');
 });
+
+test('library render budgets keep large sidebars bounded', () => {
+  const {
+    libraryListInitialRenderCount,
+    libraryListRenderBatchSize,
+    libraryGridInitialRenderCount,
+    libraryGridRenderBatchSize,
+    librarySelectedRenderExpansionCap,
+  } = loadLibraryPageModel();
+
+  assert.equal(libraryListInitialRenderCount, 240);
+  assert.equal(libraryListRenderBatchSize, 240);
+  assert.equal(libraryGridInitialRenderCount, 160);
+  assert.equal(libraryGridRenderBatchSize, 160);
+  assert.equal(librarySelectedRenderExpansionCap, 960);
+});
+
+test('getLibraryVisibleCount caps far selected items instead of rendering thousands', () => {
+  const { getLibraryVisibleCount } = loadLibraryPageModel();
+
+  assert.equal(getLibraryVisibleCount(5000, 240, 300), 301);
+  assert.equal(getLibraryVisibleCount(5000, 240, 4000), 960);
+  assert.equal(getLibraryVisibleCount(5000, 1200, 4000), 1200);
+});
