@@ -1,4 +1,4 @@
-import { Download, RefreshCw, RotateCw } from 'lucide-react';
+import { Download, FolderOpen, RefreshCw, RotateCcw, RotateCw } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ConfigItem, ConfigSection } from '@/components/ui/config-item';
@@ -7,7 +7,12 @@ import { formatUpdaterError, formatUpdaterInstallProgress, type UpdaterCheckResu
 
 type InstallState = 'idle' | 'checking' | 'available' | 'up_to_date' | 'installing' | 'installed' | 'failed' | 'unavailable';
 
-export function SettingsUpdateSection() {
+type SettingsUpdateSectionProps = {
+  onOpenDatabaseRestore?: () => void;
+  onRevealBackup?: (path: string) => void | Promise<void>;
+};
+
+export function SettingsUpdateSection({ onOpenDatabaseRestore, onRevealBackup }: SettingsUpdateSectionProps) {
   const [state, setState] = useState<InstallState>('idle');
   const [result, setResult] = useState<UpdaterCheckResult | null>(null);
   const [update, setUpdate] = useState<AppUpdateHandle | null>(null);
@@ -67,7 +72,16 @@ export function SettingsUpdateSection() {
           <div className="max-w-[42rem] text-right text-sm text-slate-300">{result?.message ?? '尚未检查更新。'}</div>
           <div className="max-w-[42rem] text-right text-xs text-slate-400">下载并安装前会自动创建更新前数据库备份；备份失败会取消安装。</div>
           {state === 'installing' && <div className="max-w-[42rem] text-right text-xs text-amber-200">{installProgress ?? '备份中，然后下载并安装更新。'}</div>}
-          {backupInfo && <div className="max-w-[42rem] break-all text-right text-xs text-emerald-200">更新前数据库备份：{backupInfo.fileName}</div>}
+          {backupInfo && (
+            <div className="flex max-w-[42rem] flex-col items-end gap-2 text-right">
+              <div className="break-all text-xs text-emerald-200">更新前数据库备份：{backupInfo.fileName}</div>
+              <div className="text-xs text-slate-500">如果更新后数据异常，可以从本地数据页安排恢复；恢复前会再次创建保护备份。</div>
+              <div className="flex flex-wrap justify-end gap-2">
+                <Button size="sm" type="button" variant="ghost" onClick={() => void onRevealBackup?.(backupInfo.path)}><FolderOpen className="h-4 w-4" />打开备份位置</Button>
+                <Button size="sm" type="button" variant="outline" onClick={() => void onOpenDatabaseRestore?.()}><RotateCcw className="h-4 w-4" />去恢复数据库</Button>
+              </div>
+            </div>
+          )}
           {result?.kind === 'available' && <div className="max-w-[42rem] text-right text-xs text-slate-400">发布说明：{result.notes}</div>}
           {result?.kind === 'unavailable' && <div className="max-w-[42rem] text-right text-xs text-amber-200">浏览器预览不会下载或安装更新。</div>}
           {error && <textarea className="min-h-16 w-[min(42rem,calc(100vw-3rem))] rounded-md bg-black/30 p-2 text-xs text-rose-100" readOnly value={error} />}

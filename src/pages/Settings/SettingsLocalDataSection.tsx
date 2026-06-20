@@ -129,7 +129,7 @@ export function SettingsLocalDataSection({
           <Button aria-label="复制数据库位置" disabled={!databasePath} size="sm" variant="ghost" onClick={() => void onCopyDirectoryPath('数据库位置', databasePath)}><Copy className="h-4 w-4" />复制</Button>
         </div>
       </ConfigItem>
-      <ConfigItem title="数据库备份与恢复" description="手动备份、打开备份目录，或安排下次启动恢复数据库。恢复前会自动创建保护备份。">
+      <ConfigItem id="database-restore-section" title="数据库备份与恢复" description="手动备份、打开备份目录，或安排下次启动恢复数据库。恢复前会自动创建保护备份。">
         <div className="flex max-w-[42rem] flex-col items-end gap-2 text-right">
           <div className="text-xs text-slate-400">
             最近备份：{latestBackup ? `${latestBackup.fileName} · ${formatBytes(latestBackup.sizeBytes)}` : '暂无可用数据库备份'}

@@ -17,7 +17,8 @@ test('package scripts and dependencies include updater gates and frontend plugin
   const pkg = readJson('package.json');
 
   assert.equal(pkg.scripts['test:updater-release'], 'node --test scripts/updater-release-config.test.cjs scripts/updater-service-model.test.cjs scripts/settings-updater-section.test.cjs scripts/startup-updater.test.cjs scripts/updater-install-flow.test.cjs scripts/settings-local-data-section.test.cjs');
-  assert.equal(pkg.scripts['test:diagnostic-export'], 'node --test scripts/diagnostic-export.test.cjs');
+  assert.match(pkg.scripts['test:diagnostic-export'], /scripts\/diagnostic-export\.test\.cjs/);
+  assert.match(pkg.scripts['test:diagnostic-export'], /scripts\/dashboard-diagnostic-export\.test\.cjs/);
   assert.match(pkg.scripts['test:release-scripts'], /updater-release-config\.test\.cjs/);
   assert.match(pkg.dependencies['@tauri-apps/plugin-updater'], /^\^2\./);
   assert.match(pkg.dependencies['@tauri-apps/plugin-process'], /^\^2\./);

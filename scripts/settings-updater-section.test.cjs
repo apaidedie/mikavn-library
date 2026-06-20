@@ -39,3 +39,17 @@ test('settings update section explains update protection backup', () => {
   assert.match(source, /备份中|backing_up/);
   assert.match(source, /backup\?\.fileName|backupInfo|backupPath/);
 });
+
+test('settings update section links update backups to restore workflow', () => {
+  const section = read('src/pages/Settings/SettingsUpdateSection.tsx');
+  const localTab = read('src/pages/Settings/SettingsLocalTabContent.tsx');
+  const localData = read('src/pages/Settings/SettingsLocalDataSection.tsx');
+
+  assert.match(section, /打开备份位置/);
+  assert.match(section, /去恢复数据库/);
+  assert.match(section, /onRevealBackup/);
+  assert.match(section, /onOpenDatabaseRestore/);
+  assert.match(localTab, /scrollToDatabaseRestore/);
+  assert.match(localTab, /database-restore-section/);
+  assert.match(localData, /id="database-restore-section"/);
+});

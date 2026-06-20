@@ -10,9 +10,9 @@ export function ConfigSection({ title, children, className }: { title: string; c
   );
 }
 
-export function ConfigItem({ title, description, children, className }: { title: string; description?: string; children: ReactNode; className?: string }) {
+export function ConfigItem({ title, description, children, className, id }: { title: string; description?: string; children: ReactNode; className?: string; id?: string }) {
   return (
-    <div className={cn('motion-soft-row flex flex-col gap-3 border-0 px-3.5 py-2.5 shadow-none hover:bg-white/[0.032] sm:flex-row sm:items-center sm:justify-between sm:gap-5', className)}>
+    <div className={cn('motion-soft-row flex flex-col gap-3 border-0 px-3.5 py-2.5 shadow-none hover:bg-white/[0.032] sm:flex-row sm:items-center sm:justify-between sm:gap-5', className)} id={id}>
       <div className="min-w-0 space-y-1">
         <div className="text-sm font-medium leading-none text-slate-100">{title}</div>
         {description && <div className="max-w-2xl text-xs leading-5 text-slate-500">{description}</div>}

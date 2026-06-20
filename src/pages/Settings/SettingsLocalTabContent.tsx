@@ -19,6 +19,9 @@ type SettingsLocalTabContentProps = {
 
 export function SettingsLocalTabContent({ form, libraryRoots, localData, settings }: SettingsLocalTabContentProps) {
   const actions = settings.actions;
+  const scrollToDatabaseRestore = () => {
+    document.getElementById('database-restore-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
 
   return (
     <>
@@ -35,7 +38,10 @@ export function SettingsLocalTabContent({ form, libraryRoots, localData, setting
         onUpdateLibraryRoot={libraryRoots.updateLibraryRoot}
       />
 
-      <SettingsUpdateSection />
+      <SettingsUpdateSection
+        onOpenDatabaseRestore={scrollToDatabaseRestore}
+        onRevealBackup={(path) => void localData.revealPath('更新前数据库备份', path)}
+      />
 
       <SettingsLocalDataSection
         archiveDir={localData.archiveDir}
