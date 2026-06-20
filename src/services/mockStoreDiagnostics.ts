@@ -132,6 +132,7 @@ export function createMockStoreDiagnostics(readGames: () => Game[]) {
           orphanFiles: 1,
           duplicateFileNameGroups: 1,
           oversizedFiles: 1,
+          invalidImageFiles: 1,
           missingCoverGames,
           missingArtworkGames,
         },
@@ -145,11 +146,14 @@ export function createMockStoreDiagnostics(readGames: () => Game[]) {
           duplicateFileNameGroups: 1,
           oversizedFileCount: 1,
           oversizedBytes: 7 * 1024 * 1024,
+          invalidImageFileCount: 1,
+          invalidImageBytes: 0,
           orphanSamples: [{ path: `${MOCK_IMAGE_DIR}\\old.jpg`, relativePath: 'old.jpg', sizeBytes: 128 * 1024 }],
           duplicateNameSamples: [{ fileName: 'cover.jpg', count: 2, samples: ['a\\cover.jpg', 'b\\cover.jpg'] }],
           oversizedSamples: [{ path: `${MOCK_IMAGE_DIR}\\large.jpg`, relativePath: 'large.jpg', sizeBytes: 7 * 1024 * 1024 }],
+          invalidImageSamples: [{ path: `${MOCK_IMAGE_DIR}\\empty.jpg`, relativePath: 'empty.jpg', sizeBytes: 0 }],
         },
-        recommendations: ['先预览孤儿图片隔离；隔离不会永久删除文件。'],
+        recommendations: ['发现空文件或损坏的图片缓存；建议重新抓取对应封面或媒体图。'],
       });
     },
 

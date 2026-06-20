@@ -16,6 +16,8 @@ test('image health commands are registered and exposed through api', () => {
   assert.match(api, /quarantineOrphanImages/);
   assert.match(types, /export type ImageHealthReport/);
   assert.match(types, /export type ImageQuarantineReport/);
+  assert.match(types, /invalidImageFiles/);
+  assert.match(types, /invalidImageSamples/);
 });
 
 test('maintenance image health ui explains safe quarantine workflow', () => {
@@ -28,6 +30,8 @@ test('maintenance image health ui explains safe quarantine workflow', () => {
   assert.match(panel, /孤儿图片/);
   assert.match(panel, /重复文件名/);
   assert.match(panel, /过大图片/);
+  assert.match(panel, /无效图片/);
+  assert.match(panel, /空文件或损坏/);
   assert.match(panel, /隔离区/);
   assert.match(panel, /不会永久删除/);
   assert.doesNotMatch(panel, /永久删除孤儿图片/);

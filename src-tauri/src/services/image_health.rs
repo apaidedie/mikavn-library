@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::fs;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use chrono::Utc;
@@ -44,6 +45,7 @@ pub struct ImageHealthSummary {
     pub orphan_files: i64,
     pub duplicate_file_name_groups: i64,
     pub oversized_files: i64,
+    pub invalid_image_files: i64,
     pub missing_cover_games: i64,
     pub missing_artwork_games: i64,
 }
@@ -60,9 +62,12 @@ pub struct ImageCacheHealth {
     pub duplicate_file_name_groups: i64,
     pub oversized_file_count: i64,
     pub oversized_bytes: u64,
+    pub invalid_image_file_count: i64,
+    pub invalid_image_bytes: u64,
     pub orphan_samples: Vec<ImageCacheFileIssue>,
     pub duplicate_name_samples: Vec<ImageDuplicateNameGroup>,
     pub oversized_samples: Vec<ImageCacheFileIssue>,
+    pub invalid_image_samples: Vec<ImageCacheFileIssue>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -154,6 +159,7 @@ pub(crate) fn get_image_health_report_with_paths(
     summary.orphan_files = cache.orphan_file_count;
     summary.duplicate_file_name_groups = cache.duplicate_file_name_groups;
     summary.oversized_files = cache.oversized_file_count;
+    summary.invalid_image_files = cache.invalid_image_file_count;
     let recommendations = image_health_recommendations(&summary);
 
     Ok(ImageHealthReport {
@@ -498,7 +504,15 @@ fn scan_image_dir(
             health.oversized_file_count += 1;
             health.oversized_bytes += size_bytes;
             if health.oversized_samples.len() < sample_limit {
-                health.oversized_samples.push(issue);
+                health.oversized_samples.push(issue.clone());
+            }
+        }
+
+        if is_invalid_image_cache_file(&path)? {
+            health.invalid_image_file_count += 1;
+            health.invalid_image_bytes += size_bytes;
+            if health.invalid_image_samples.len() < sample_limit {
+                health.invalid_image_samples.push(issue);
             }
         }
     }
@@ -509,6 +523,10 @@ fn image_health_recommendations(summary: &ImageHealthSummary) -> Vec<String> {
     let mut recommendations = Vec::new();
     if summary.orphan_files > 0 {
         recommendations.push("先预览孤儿图片隔离；隔离不会永久删除文件。".to_string());
+    }
+    if summary.invalid_image_files > 0 {
+        recommendations
+            .push("发现空文件或损坏的图片缓存；建议重新抓取对应封面或媒体图。".to_string());
     }
     if summary.missing_local_refs > 0 {
         recommendations.push("先修复缺失图片引用，再运行缓存隔离。".to_string());
@@ -522,6 +540,35 @@ fn image_health_recommendations(summary: &ImageHealthSummary) -> Vec<String> {
         recommendations.push("图片缓存和引用未发现需要立即处理的问题。".to_string());
     }
     recommendations
+}
+
+fn is_invalid_image_cache_file(path: &Path) -> DbResult<bool> {
+    let Some(extension) = path.extension().and_then(|value| value.to_str()) else {
+        return Ok(false);
+    };
+    let extension = extension.to_ascii_lowercase();
+    if !matches!(extension.as_str(), "jpg" | "jpeg" | "png" | "webp" | "gif") {
+        return Ok(false);
+    }
+
+    let mut file = fs::File::open(path)?;
+    let mut header = [0u8; 16];
+    let read = file.read(&mut header)?;
+    if read == 0 {
+        return Ok(true);
+    }
+
+    let bytes = &header[..read];
+    let valid = match extension.as_str() {
+        "jpg" | "jpeg" => {
+            bytes.len() >= 3 && bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF
+        }
+        "png" => bytes.starts_with(b"\x89PNG\r\n\x1A\n"),
+        "webp" => bytes.len() >= 12 && bytes.starts_with(b"RIFF") && &bytes[8..12] == b"WEBP",
+        "gif" => bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a"),
+        _ => true,
+    };
+    Ok(!valid)
 }
 
 fn table_exists(conn: &Connection, table: &str) -> DbResult<bool> {
@@ -647,6 +694,32 @@ mod tests {
         let manifest = fs::read_to_string(&report.manifest_path).unwrap();
         assert!(manifest.contains("stale"));
         assert!(manifest.contains("orphan.jpg"));
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn image_health_report_counts_invalid_image_cache_files() {
+        let root = std::env::temp_dir().join(format!("mikavn-image-invalid-{}", Uuid::new_v4()));
+        let paths = AppPaths::from_root(root.clone()).unwrap();
+        fs::create_dir_all(paths.images()).unwrap();
+        let invalid = paths.images().join("empty.jpg");
+        fs::write(&invalid, b"").unwrap();
+        create_health_db(&paths.database(), &invalid.to_string_lossy(), "", "");
+
+        let report =
+            get_image_health_report_with_paths(&paths, ImageHealthReportOptions::default())
+                .unwrap();
+
+        assert_eq!(report.summary.invalid_image_files, 1);
+        assert_eq!(report.cache.invalid_image_file_count, 1);
+        assert_eq!(report.cache.invalid_image_bytes, 0);
+        assert_eq!(report.cache.orphan_file_count, 0);
+        assert!(report
+            .cache
+            .invalid_image_samples
+            .iter()
+            .any(|item| item.relative_path.ends_with("empty.jpg")));
 
         let _ = fs::remove_dir_all(root);
     }
