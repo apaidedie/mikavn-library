@@ -60,6 +60,16 @@ pub struct DatabaseBackupCleanupReport {
     pub removed: Vec<DatabaseBackupFile>,
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DatabaseUpdateProtectionBackupReport {
+    pub path: String,
+    pub file_name: String,
+    pub size_bytes: u64,
+    pub created_at: String,
+    pub quick_check: String,
+}
+
 #[derive(Debug, Clone)]
 struct DatabaseBackupCandidate {
     file: DatabaseBackupFile,
@@ -285,6 +295,13 @@ pub fn cleanup_old_database_backups(
     cleanup_old_database_backups_with_paths(&paths, policy)
 }
 
+pub fn create_update_protection_backup(
+    app: &AppHandle,
+) -> DbResult<DatabaseUpdateProtectionBackupReport> {
+    let paths = AppPaths::from_app(app)?;
+    create_update_protection_backup_with_paths(&paths)
+}
+
 fn cleanup_old_database_backups_with_paths(
     paths: &AppPaths,
     policy: DatabaseBackupCleanupPolicy,
@@ -441,6 +458,7 @@ fn is_known_database_backup_name(kind: BackupDirKind, file_name: &str) -> bool {
     match kind {
         BackupDirKind::AnyDatabaseBackup => {
             lower.starts_with("mikavn.before-")
+                || lower.starts_with("before-update-")
                 || lower.starts_with("before-restore-")
                 || lower.starts_with("before-import-")
                 || lower.starts_with("rejected-")
@@ -538,7 +556,45 @@ fn schedule_pending_restore(
     })
 }
 
-fn validate_restore_database_file(path: &Path) -> DbResult<()> {
+fn create_update_protection_backup_with_paths(
+    paths: &AppPaths,
+) -> DbResult<DatabaseUpdateProtectionBackupReport> {
+    let database = paths.database();
+    if !database.is_file() {
+        return Err(DbError::path_not_found("current database does not exist"));
+    }
+
+    let created_at = Utc::now();
+    let target_dir = paths.database_backups().join("update-protection");
+    fs::create_dir_all(&target_dir)?;
+    let file_name = format!("before-update-{}.db", created_at.format("%Y%m%d-%H%M%S"));
+    let target = target_dir.join(&file_name);
+
+    let db = Database::new_from_path(database)?;
+    db.backup_to_path(&target)?;
+    let quick_check = validate_database_backup_file(&target)?;
+    let size_bytes = fs::metadata(&target)?.len();
+
+    logger::log_warn(
+        paths,
+        "database.backup",
+        format!(
+            "update protection backup created: {} ({} bytes)",
+            logger::display_path(&target),
+            size_bytes
+        ),
+    );
+
+    Ok(DatabaseUpdateProtectionBackupReport {
+        path: target.to_string_lossy().to_string(),
+        file_name,
+        size_bytes,
+        created_at: created_at.to_rfc3339(),
+        quick_check,
+    })
+}
+
+fn validate_database_backup_file(path: &Path) -> DbResult<String> {
     let conn = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
     let check: String = conn.query_row("PRAGMA quick_check", [], |row| row.get(0))?;
     if check != "ok" {
@@ -557,7 +613,11 @@ fn validate_restore_database_file(path: &Path) -> DbResult<()> {
             "database backup does not look like a MikaVN database",
         ));
     }
-    Ok(())
+    Ok(check)
+}
+
+fn validate_restore_database_file(path: &Path) -> DbResult<()> {
+    validate_database_backup_file(path).map(|_| ())
 }
 
 fn move_file(source: &Path, target: &Path) -> DbResult<()> {
@@ -709,6 +769,70 @@ mod tests {
             .files
             .iter()
             .any(|file| file.file_name == "before-restore-20260101-000000.db"));
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn update_protection_backup_creates_verified_database_copy() {
+        let root =
+            std::env::temp_dir().join(format!("mikavn-update-backup-test-{}", Uuid::new_v4()));
+        let paths = AppPaths::from_root(root.clone()).unwrap();
+        create_mikavn_db(&paths.database(), "current");
+
+        let report = create_update_protection_backup_with_paths(&paths).unwrap();
+
+        assert_eq!(report.quick_check, "ok");
+        assert!(report.file_name.starts_with("before-update-"));
+        assert!(report.file_name.ends_with(".db"));
+        assert!(report.path.contains("update-protection"));
+        assert!(Path::new(&report.path).is_file());
+        assert!(report.size_bytes > 0);
+        assert_eq!(database_marker(Path::new(&report.path)), "current");
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn update_protection_backup_is_listed_and_cleanup_safe() {
+        let root = std::env::temp_dir().join(format!(
+            "mikavn-update-backup-summary-test-{}",
+            Uuid::new_v4()
+        ));
+        let paths = AppPaths::from_root(root.clone()).unwrap();
+        create_mikavn_db(&paths.database(), "current");
+        let old_backup = paths
+            .database_backups()
+            .join("update-protection")
+            .join("before-update-20260101-000000.db");
+        let newest_backup = paths
+            .database_backups()
+            .join("update-protection")
+            .join("before-update-20260102-000000.db");
+        fs::create_dir_all(old_backup.parent().unwrap()).unwrap();
+        fs::write(&old_backup, b"old").unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        fs::write(&newest_backup, b"new").unwrap();
+
+        let summary = database_backup_summary(&paths).unwrap();
+        assert_eq!(summary.file_count, 2);
+        assert!(summary
+            .files
+            .iter()
+            .any(|file| file.file_name == "before-update-20260101-000000.db"));
+
+        let report = cleanup_old_database_backups_with_paths(
+            &paths,
+            DatabaseBackupCleanupPolicy {
+                retain_count: Some(1),
+                retain_days: None,
+            },
+        )
+        .unwrap();
+
+        assert_eq!(report.scanned_files, 2);
+        assert_eq!(report.removed_files, 1);
+        assert!(!old_backup.exists());
+        assert!(newest_backup.exists());
+        assert!(paths.database().exists());
         let _ = fs::remove_dir_all(root);
     }
 

@@ -76,6 +76,7 @@ pub fn run() {
             commands::assets::merge_tags,
             commands::assets::delete_tag,
             commands::backups::backup_database,
+            commands::backups::backup_database_before_update,
             commands::backups::restore_database_backup,
             commands::diagnostics::get_app_data_diagnostics,
             commands::diagnostics::audit_image_references,

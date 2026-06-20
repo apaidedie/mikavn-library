@@ -3,6 +3,7 @@ use tauri::{AppHandle, State};
 use crate::db::models::TaskRecord;
 use crate::db::DbResult;
 use crate::services::backups as backup_service;
+use crate::services::backups::DatabaseUpdateProtectionBackupReport;
 use crate::AppState;
 
 #[tauri::command]
@@ -23,4 +24,11 @@ pub fn restore_database_backup(
 ) -> DbResult<TaskRecord> {
     let db = state.db()?;
     backup_service::enqueue_database_restore_task(app, &db, path)
+}
+
+#[tauri::command]
+pub fn backup_database_before_update(
+    app: AppHandle,
+) -> DbResult<DatabaseUpdateProtectionBackupReport> {
+    backup_service::create_update_protection_backup(&app)
 }
