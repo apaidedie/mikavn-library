@@ -26,7 +26,7 @@ export function GameDetailHero({ blurCover, game, onEdit, onLaunch, onRemove, se
     <>
       {heroImage && (
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <img alt="" className={cn('absolute inset-x-0 top-0 h-[520px] w-full object-cover opacity-55', blurCover && 'scale-105 blur-md')} src={heroImage} />
+          <img alt="" className={cn('absolute inset-x-0 top-0 h-[520px] w-full object-cover opacity-55', blurCover && 'scale-105 blur-md')} decoding="async" loading="eager" src={heroImage} />
           <div className="absolute inset-x-0 top-0 h-[560px] bg-[linear-gradient(180deg,rgba(29,36,47,0.12),rgb(var(--app-bg-rgb))_86%),linear-gradient(90deg,rgb(var(--app-bg-rgb))_0%,rgb(var(--app-bg-rgb)/0.78)_32%,rgb(var(--app-bg-rgb)/0.34)_70%,rgb(var(--app-bg-rgb)/0.72)_100%)]" />
           <div className="absolute inset-0 bg-[rgb(var(--app-bg-rgb)/0.34)]" />
         </div>
@@ -50,7 +50,7 @@ export function GameDetailHero({ blurCover, game, onEdit, onLaunch, onRemove, se
                 <Button aria-label="删除记录" className="w-9 px-0" title="删除记录" variant="ghost" onClick={onRemove}><Trash2 className="h-4 w-4 text-rose-200" /></Button>
               </div>
             </div>
-            <CoverImage alt={game.title} blur={blurCover} className="aspect-[2/3] h-[170px] shrink-0 rounded-lg shadow-2xl shadow-black/45 ring-1 ring-white/10" src={game.coverImage} />
+            <CoverImage alt={game.title} blur={blurCover} className="aspect-[2/3] h-[170px] shrink-0 rounded-lg shadow-2xl shadow-black/45 ring-1 ring-white/10" loading="eager" src={game.coverImage} />
           </div>
 
           <div className="flex flex-wrap items-center gap-12 pl-1 pt-3">
