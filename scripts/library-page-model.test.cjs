@@ -76,6 +76,24 @@ test('groupLibraryGames keeps the first seven played games as recent and buckets
   assert.deepEqual(groups.find((group) => group.id === 'playing').games.map((item) => item.id), ['played-8']);
 });
 
+test('library game groups use localized labels for mature Chinese UI', () => {
+  const { groupLibraryGames } = loadLibraryPageModel();
+  const recentGroups = groupLibraryGames([game({ id: 'played', lastPlayedAt: '2026-06-01T00:00:00.000Z' })], labels);
+  const emptyStatusGroups = groupLibraryGames([game({ id: 'only-game', playStatus: 'custom' })], labels);
+
+  assert.equal(recentGroups[0].label, '最近游玩');
+  assert.equal(emptyStatusGroups[0].label, '全部游戏');
+});
+
+test('library sidebar chrome uses localized product copy', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Library', 'LibrarySidebarControls.tsx'), 'utf8');
+
+  assert.match(source, /游戏库/);
+  assert.match(source, /个游戏/);
+  assert.doesNotMatch(source, />Library</);
+  assert.doesNotMatch(source, /\{gameCount\} games/);
+});
+
 test('getLibraryVisibleCount includes selected items beyond the current render window', () => {
   const { getLibraryVisibleCount } = loadLibraryPageModel();
 

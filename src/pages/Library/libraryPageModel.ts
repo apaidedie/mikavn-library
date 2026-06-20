@@ -45,7 +45,7 @@ export function groupLibraryGames(games: Game[], statusLabels: Record<PlayStatus
     buckets.set(game.playStatus, items);
   }
 
-  const groups: LibraryGameGroup[] = recent.length > 0 ? [{ id: 'recent', label: 'Recent Games', games: recent }] : [];
+  const groups: LibraryGameGroup[] = recent.length > 0 ? [{ id: 'recent', label: '最近游玩', games: recent }] : [];
   for (const status of libraryStatuses) {
     if (status === 'all') continue;
     const items = buckets.get(status);
@@ -54,7 +54,7 @@ export function groupLibraryGames(games: Game[], statusLabels: Record<PlayStatus
     }
   }
 
-  return groups.length > 0 ? groups : [{ id: 'all', label: 'All Games', games }];
+  return groups.length > 0 ? groups : [{ id: 'all', label: '全部游戏', games }];
 }
 
 export function getLibraryVisibleCount(totalCount: number, renderCount: number, selectedIndex: number) {

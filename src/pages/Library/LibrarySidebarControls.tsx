@@ -27,8 +27,8 @@ export function LibrarySidebarControls({ bulkActions, filters, gameCount, onAdd,
     <div className="space-y-2 border-b border-white/10 px-2 py-2">
       <div className="flex h-8 items-center justify-between gap-2 px-1">
         <div className="min-w-0">
-          <div className="truncate text-xs font-semibold uppercase tracking-wide text-slate-300">Library</div>
-          <div className="mt-0.5 text-[11px] text-slate-500">{gameCount} games</div>
+          <div className="truncate text-xs font-semibold text-slate-300">游戏库</div>
+          <div className="mt-0.5 text-[11px] text-slate-500">{formatLibraryCount(gameCount)} 个游戏</div>
         </div>
         <div className="flex shrink-0 items-center gap-1">
           <Button aria-label="列表视图" className="h-7 w-7" size="icon" variant={viewMode === 'list' ? 'secondary' : 'ghost'} onClick={() => onViewModeChange('list')}><List className="h-4 w-4" /></Button>
