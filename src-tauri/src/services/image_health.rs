@@ -46,6 +46,7 @@ pub struct ImageHealthSummary {
     pub duplicate_file_name_groups: i64,
     pub oversized_files: i64,
     pub invalid_image_files: i64,
+    pub invalid_image_refs: i64,
     pub missing_cover_games: i64,
     pub missing_artwork_games: i64,
 }
@@ -63,6 +64,7 @@ pub struct ImageCacheHealth {
     pub oversized_file_count: i64,
     pub oversized_bytes: u64,
     pub invalid_image_file_count: i64,
+    pub invalid_referenced_file_count: i64,
     pub invalid_image_bytes: u64,
     pub orphan_samples: Vec<ImageCacheFileIssue>,
     pub duplicate_name_samples: Vec<ImageDuplicateNameGroup>,
@@ -172,6 +174,8 @@ pub(crate) fn get_image_health_report_with_paths(
     summary.duplicate_file_name_groups = cache.duplicate_file_name_groups;
     summary.oversized_files = cache.oversized_file_count;
     summary.invalid_image_files = cache.invalid_image_file_count;
+    summary.invalid_image_refs = cache.invalid_referenced_file_count;
+    summary.issue_image_refs += cache.invalid_referenced_file_count;
     let recommendations = image_health_recommendations(&summary);
 
     Ok(ImageHealthReport {
@@ -602,7 +606,9 @@ fn scan_image_dir(
             .or_default()
             .push(relative_path);
 
-        if referenced_paths.contains(&normalize_path_key(&path.to_string_lossy())) {
+        let path_key = normalize_path_key(&path.to_string_lossy());
+        let is_referenced = referenced_paths.contains(&path_key);
+        if is_referenced {
             health.referenced_file_count += 1;
         } else {
             health.orphan_file_count += 1;
@@ -623,6 +629,9 @@ fn scan_image_dir(
         if is_invalid_image_cache_file(&path)? {
             health.invalid_image_file_count += 1;
             health.invalid_image_bytes += size_bytes;
+            if is_referenced {
+                health.invalid_referenced_file_count += 1;
+            }
             if health.invalid_image_samples.len() < sample_limit {
                 health.invalid_image_samples.push(issue);
             }
@@ -824,7 +833,10 @@ mod tests {
                 .unwrap();
 
         assert_eq!(report.summary.invalid_image_files, 1);
+        assert_eq!(report.summary.invalid_image_refs, 1);
+        assert_eq!(report.summary.issue_image_refs, 1);
         assert_eq!(report.cache.invalid_image_file_count, 1);
+        assert_eq!(report.cache.invalid_referenced_file_count, 1);
         assert_eq!(report.cache.invalid_image_bytes, 0);
         assert_eq!(report.cache.orphan_file_count, 0);
         assert!(report

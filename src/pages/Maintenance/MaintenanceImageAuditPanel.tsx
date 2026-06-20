@@ -135,10 +135,11 @@ function ImageHealthSummaryPanel({
           <Button disabled={!canQuarantine} size="sm" variant="secondary" onClick={onQuarantineOrphans}>移动到隔离区</Button>
         </div>
       </div>
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-9">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5 xl:grid-cols-10">
         <ImageHealthStat label="缓存图片" value={summary?.imageFiles ?? report?.cache.fileCount ?? 0} />
         <ImageHealthStat label="孤儿图片" tone={(summary?.orphanFiles ?? 0) > 0 ? 'warn' : 'ok'} value={summary?.orphanFiles ?? 0} />
         <ImageHealthStat label="缺失引用" tone={(summary?.missingLocalRefs ?? 0) > 0 ? 'warn' : 'ok'} value={summary?.missingLocalRefs ?? 0} />
+        <ImageHealthStat label="失效引用" tone={(summary?.invalidImageRefs ?? 0) > 0 ? 'warn' : 'ok'} value={summary?.invalidImageRefs ?? 0} />
         <ImageHealthStat label="缺封面" tone={(summary?.missingCoverGames ?? 0) > 0 ? 'warn' : 'ok'} value={summary?.missingCoverGames ?? 0} />
         <ImageHealthStat label="媒体图不完整" tone={(summary?.missingArtworkGames ?? 0) > 0 ? 'warn' : 'ok'} value={summary?.missingArtworkGames ?? 0} />
         <ImageHealthStat label="Playnite 旧导入" tone={(summary?.legacyAppDataImportRefs ?? 0) > 0 ? 'warn' : 'ok'} value={summary?.legacyAppDataImportRefs ?? 0} />

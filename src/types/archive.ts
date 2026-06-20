@@ -247,6 +247,7 @@ export type ImageCacheHealth = {
   oversizedFileCount: number;
   oversizedBytes: number;
   invalidImageFileCount: number;
+  invalidReferencedFileCount: number;
   invalidImageBytes: number;
   orphanSamples: ImageCacheFileIssue[];
   duplicateNameSamples: ImageDuplicateNameGroup[];
@@ -267,6 +268,7 @@ export type ImageHealthSummary = {
   duplicateFileNameGroups: number;
   oversizedFiles: number;
   invalidImageFiles: number;
+  invalidImageRefs: number;
   missingCoverGames: number;
   missingArtworkGames: number;
 };
