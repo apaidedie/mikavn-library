@@ -159,7 +159,13 @@ function ImageHealthSummaryPanel({
         <ImageHealthStat label="过大图片" tone={(summary?.oversizedFiles ?? 0) > 0 ? 'warn' : 'ok'} value={summary?.oversizedFiles ?? 0} />
         <ImageHealthStat label="无效图片" tone={(summary?.invalidImageFiles ?? 0) > 0 ? 'warn' : 'ok'} value={summary?.invalidImageFiles ?? 0} />
       </div>
-      {report?.recommendations.length ? <div className="text-xs text-slate-500">{report.recommendations[0]}</div> : <div className="text-xs text-slate-600">未检查前不会修改任何文件。</div>}
+      {report?.recommendations.length ? (
+        <div className="space-y-1">
+          {report.recommendations.map((recommendation) => (
+            <div className="text-xs text-slate-500" data-health-recommendation key={recommendation}>{recommendation}</div>
+          ))}
+        </div>
+      ) : <div className="text-xs text-slate-600">未检查前不会修改任何文件。</div>}
       {canInspectBrokenRefs ? <div className="text-xs text-slate-500">缺失引用、失效引用和旧导入路径需要进入明细审计逐条确认。</div> : null}
       {cache ? (
         <div className="space-y-2">

@@ -104,3 +104,11 @@ test('maintenance image health ui exposes one-click safe cleanup wording', () =>
   assert.match(actions, /安全整理完成/);
   assert.doesNotMatch(panel, /一键永久删除/);
 });
+
+test('maintenance image health ui shows every health recommendation', () => {
+  const panel = fs.readFileSync('src/pages/Maintenance/MaintenanceImageAuditPanel.tsx', 'utf8');
+
+  assert.match(panel, /report\.recommendations\.map/);
+  assert.match(panel, /health-recommendation/);
+  assert.doesNotMatch(panel, /report\.recommendations\[0\]/);
+});

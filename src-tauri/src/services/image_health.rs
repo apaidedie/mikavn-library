@@ -696,6 +696,12 @@ fn image_health_recommendations(summary: &ImageHealthSummary) -> Vec<String> {
     if summary.missing_local_refs > 0 {
         recommendations.push("先修复缺失图片引用，再运行缓存隔离。".to_string());
     }
+    if summary.duplicate_file_name_groups > 0 {
+        recommendations.push("重复文件名需要人工定位样本并确认内容是否相同。".to_string());
+    }
+    if summary.oversized_files > 0 {
+        recommendations.push("过大图片建议先定位样本，确认后再压缩或重新抓取。".to_string());
+    }
     if summary.legacy_app_data_import_refs > 0 {
         recommendations.push(
             "Playnite 旧导入路径仍在 app-data/images 内，可稍后做便携路径规范化。".to_string(),
@@ -904,6 +910,14 @@ mod tests {
             .orphan_samples
             .iter()
             .any(|item| item.path.ends_with("orphan.webp")));
+        assert!(report
+            .recommendations
+            .iter()
+            .any(|item| item.contains("重复文件名")));
+        assert!(report
+            .recommendations
+            .iter()
+            .any(|item| item.contains("过大图片")));
 
         let _ = fs::remove_dir_all(root);
     }
