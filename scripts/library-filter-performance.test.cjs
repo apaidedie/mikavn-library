@@ -13,3 +13,17 @@ test('library filters debounce text inputs before building api filters', () => {
   assert.match(source, /tag: debouncedTag\.trim\(\) \|\| undefined/);
   assert.match(source, /developer: debouncedDeveloper\.trim\(\) \|\| undefined/);
 });
+
+test('game repository pushes common library filters into sqlite before mapping rows', () => {
+  const source = fs.readFileSync('src-tauri/src/repositories/games.rs', 'utf8');
+  const listStart = source.indexOf('pub fn list(');
+  const addStart = source.indexOf('pub fn add(');
+  const listBody = source.slice(listStart, addStart);
+
+  assert.ok(listStart > -1, 'GameRepository::list must exist');
+  assert.doesNotMatch(listBody, /let mut games = self\.list_all\(\)\?/);
+  assert.match(listBody, /query_clauses/);
+  assert.match(listBody, /ORDER BY/);
+  assert.match(listBody, /LOWER\(COALESCE\(title/);
+  assert.match(listBody, /params_from_iter/);
+});

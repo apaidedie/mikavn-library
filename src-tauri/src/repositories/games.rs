@@ -1,6 +1,6 @@
 use chrono::Utc;
-use rusqlite::{params, Connection, OptionalExtension, Row};
-use std::collections::HashSet;
+use rusqlite::types::Value;
+use rusqlite::{params, params_from_iter, Connection, OptionalExtension, Row};
 use uuid::Uuid;
 
 use crate::db::models::{AddGameInput, Game, GameFilter, UpdateGameInput};
@@ -26,41 +26,102 @@ impl<'a> GameRepository<'a> {
             .ok_or_else(|| DbError::new("VALIDATION_ERROR", "game not found"))
     }
 
-    fn list_all(&self) -> DbResult<Vec<Game>> {
-        let mut stmt = self.conn.prepare("SELECT * FROM games")?;
-        let rows = stmt.query_map([], game_from_row)?;
-        Ok(rows.collect::<Result<Vec<_>, _>>()?)
-    }
-
     pub fn list(
         &self,
         filter: GameFilter,
         collection_game_ids: Option<&[String]>,
     ) -> DbResult<Vec<Game>> {
-        let mut games = self.list_all()?;
+        let query = trim_optional(filter.query);
+        let tag = trim_optional(filter.tag);
+        let developer = trim_optional(filter.developer);
+        let metadata_status = trim_optional(filter.metadata_status);
+        let sort_by = filter.sort_by.unwrap_or_else(|| "updated_at".to_string());
+        let desc = filter.sort_direction.unwrap_or_else(|| "desc".to_string()) != "asc";
+        let mut query_clauses: Vec<String> = Vec::new();
+        let mut query_params: Vec<Value> = Vec::new();
 
-        if let Some(query) = trim_optional(filter.query) {
+        if let Some(query) = query.as_ref() {
             let needle = query.to_lowercase();
-            games.retain(|game| {
-                let haystack = format!(
-                    "{} {} {} {} {} {}",
-                    game.title,
-                    game.original_title.clone().unwrap_or_default(),
-                    game.developer.clone().unwrap_or_default(),
-                    game.brand.clone().unwrap_or_default(),
-                    game.aliases.join(" "),
-                    game.tags.join(" ")
-                )
-                .to_lowercase();
-                haystack.contains(&needle)
-            });
+            let pattern = contains_like_pattern(&needle);
+            query_clauses.push(
+                "(LOWER(COALESCE(title, '')) LIKE ? ESCAPE '\\' OR LOWER(COALESCE(original_title, '')) LIKE ? ESCAPE '\\' OR LOWER(COALESCE(developer, '')) LIKE ? ESCAPE '\\' OR LOWER(COALESCE(brand, '')) LIKE ? ESCAPE '\\' OR LOWER(COALESCE(aliases, '')) LIKE ? ESCAPE '\\' OR LOWER(COALESCE(tags, '')) LIKE ? ESCAPE '\\')"
+                    .to_string(),
+            );
+            for _ in 0..6 {
+                query_params.push(Value::Text(pattern.clone()));
+            }
         }
 
         if let Some(status) = filter.status.filter(|value| value != "all") {
-            games.retain(|game| game.play_status == status);
+            query_clauses.push("play_status = ?".to_string());
+            query_params.push(Value::Text(status));
         }
 
-        if let Some(tag) = trim_optional(filter.tag) {
+        if let Some(tag) = tag.as_ref() {
+            let pattern = contains_like_pattern(&tag.to_lowercase());
+            query_clauses.push(
+                "(LOWER(COALESCE(tags, '')) LIKE ? ESCAPE '\\' OR LOWER(COALESCE(genres, '')) LIKE ? ESCAPE '\\')"
+                    .to_string(),
+            );
+            query_params.push(Value::Text(pattern.clone()));
+            query_params.push(Value::Text(pattern));
+        }
+
+        if let Some(developer) = developer.as_ref() {
+            let needle = developer.to_lowercase();
+            query_clauses.push(
+                "(LOWER(COALESCE(developer, '')) = ? OR LOWER(COALESCE(brand, '')) = ? OR LOWER(COALESCE(publisher, '')) = ?)"
+                    .to_string(),
+            );
+            for _ in 0..3 {
+                query_params.push(Value::Text(needle.clone()));
+            }
+        }
+
+        if let Some(favorite) = filter.favorite {
+            query_clauses.push("favorite = ?".to_string());
+            query_params.push(Value::Integer(bool_int(favorite)));
+        }
+
+        if let Some(hidden) = filter.hidden {
+            query_clauses.push("hidden = ?".to_string());
+            query_params.push(Value::Integer(bool_int(hidden)));
+        }
+
+        if let Some(path_status) = trim_optional(filter.path_status).filter(|value| value != "all")
+        {
+            query_clauses.push("path_status = ?".to_string());
+            query_params.push(Value::Text(path_status));
+        }
+
+        if let Some(ids) = collection_game_ids {
+            if ids.is_empty() {
+                return Ok(Vec::new());
+            }
+            query_clauses.push(format!(
+                "id IN ({})",
+                std::iter::repeat_n("?", ids.len()).collect::<Vec<_>>().join(", ")
+            ));
+            for id in ids {
+                query_params.push(Value::Text(id.clone()));
+            }
+        }
+
+        let mut sql = "SELECT * FROM games".to_string();
+        if !query_clauses.is_empty() {
+            sql.push_str(" WHERE ");
+            sql.push_str(&query_clauses.join(" AND "));
+        }
+        sql.push_str(" ORDER BY ");
+        sql.push_str(sql_sort_column(&sort_by));
+        sql.push(' ');
+        sql.push_str(if desc { "DESC" } else { "ASC" });
+
+        let mut stmt = self.conn.prepare(&sql)?;
+        let rows = stmt.query_map(params_from_iter(query_params.iter()), game_from_row)?;
+        let mut games = rows.collect::<Result<Vec<_>, _>>()?;
+
+        if let Some(tag) = tag {
             let needle = tag.to_lowercase();
             games.retain(|game| {
                 game.tags
@@ -70,42 +131,8 @@ impl<'a> GameRepository<'a> {
             });
         }
 
-        if let Some(developer) = trim_optional(filter.developer) {
-            let needle = developer.to_lowercase();
-            games.retain(|game| {
-                game.developer.as_deref().unwrap_or_default().to_lowercase() == needle
-                    || game.brand.as_deref().unwrap_or_default().to_lowercase() == needle
-                    || game.publisher.as_deref().unwrap_or_default().to_lowercase() == needle
-            });
-        }
-
-        if let Some(favorite) = filter.favorite {
-            games.retain(|game| game.favorite == favorite);
-        }
-
-        if let Some(hidden) = filter.hidden {
-            games.retain(|game| game.hidden == hidden);
-        }
-
-        if let Some(metadata_status) = trim_optional(filter.metadata_status) {
+        if let Some(metadata_status) = metadata_status {
             games.retain(|game| metadata_status_matches(game, &metadata_status));
-        }
-
-        if let Some(path_status) = trim_optional(filter.path_status).filter(|value| value != "all")
-        {
-            games.retain(|game| game.path_status == path_status);
-        }
-
-        if let Some(ids) = collection_game_ids {
-            let ids = ids.iter().map(String::as_str).collect::<HashSet<_>>();
-            games.retain(|game| ids.contains(game.id.as_str()));
-        }
-
-        let sort_by = filter.sort_by.unwrap_or_else(|| "updated_at".to_string());
-        let desc = filter.sort_direction.unwrap_or_else(|| "desc".to_string()) != "asc";
-        games.sort_by_key(|game| sort_key(game, &sort_by));
-        if desc {
-            games.reverse();
         }
 
         Ok(games)
@@ -453,14 +480,27 @@ fn json_list(values: Vec<String>) -> DbResult<String> {
     Ok(serde_json::to_string(&clean_list(values))?)
 }
 
-fn sort_key(game: &Game, sort_by: &str) -> String {
+fn contains_like_pattern(value: &str) -> String {
+    let mut pattern = String::with_capacity(value.len() + 2);
+    pattern.push('%');
+    for ch in value.chars() {
+        if matches!(ch, '%' | '_' | '\\') {
+            pattern.push('\\');
+        }
+        pattern.push(ch);
+    }
+    pattern.push('%');
+    pattern
+}
+
+fn sql_sort_column(sort_by: &str) -> &'static str {
     match sort_by {
-        "title" => game.title.clone(),
-        "created_at" => game.created_at.clone(),
-        "last_played_at" => game.last_played_at.clone().unwrap_or_default(),
-        "release_date" => game.release_date.clone().unwrap_or_default(),
-        "rating" => format!("{:03}", game.rating.unwrap_or(-1)),
-        _ => game.updated_at.clone(),
+        "title" => "title",
+        "created_at" => "created_at",
+        "last_played_at" => "COALESCE(last_played_at, '')",
+        "release_date" => "COALESCE(release_date, '')",
+        "rating" => "COALESCE(rating, -1)",
+        _ => "updated_at",
     }
 }
 
