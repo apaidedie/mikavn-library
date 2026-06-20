@@ -73,6 +73,15 @@ test('maintenance image health ui links missing artwork findings to repair actio
   assert.match(content, /onStartArtworkRepair=\{queueActions\.startArtworkRepair\}/);
 });
 
+test('maintenance image health ui links broken image references to audit details', () => {
+  const panel = fs.readFileSync('src/pages/Maintenance/MaintenanceImageAuditPanel.tsx', 'utf8');
+
+  assert.match(panel, /canInspectBrokenRefs/);
+  assert.match(panel, /查看失效引用/);
+  assert.match(panel, /缺失引用、失效引用和旧导入路径需要进入明细审计逐条确认/);
+  assert.match(panel, /onLoadAudit/);
+});
+
 test('maintenance image health ui exposes one-click safe cleanup wording', () => {
   const panel = fs.readFileSync('src/pages/Maintenance/MaintenanceImageAuditPanel.tsx', 'utf8');
   const actions = fs.readFileSync('src/pages/Maintenance/useMaintenanceInspectionActions.ts', 'utf8');

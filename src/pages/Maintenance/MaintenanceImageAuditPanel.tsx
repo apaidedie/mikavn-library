@@ -65,6 +65,7 @@ export const MaintenanceImageAuditPanel = forwardRef<HTMLElement, {
           report={imageHealth}
           onDiagnoseArtwork={onDiagnoseArtwork}
           onLoad={onLoadImageHealth}
+          onLoadAudit={onLoadAudit}
           onQuarantineOrphans={onQuarantineOrphans}
           onOpenGame={onOpenGame}
           onRevealPath={onRevealPath}
@@ -100,6 +101,7 @@ function ImageHealthSummaryPanel({
   report,
   onDiagnoseArtwork,
   onLoad,
+  onLoadAudit,
   onQuarantineOrphans,
   onOpenGame,
   onRevealPath,
@@ -111,6 +113,7 @@ function ImageHealthSummaryPanel({
   report: ImageHealthReport | null;
   onDiagnoseArtwork: () => void;
   onLoad: () => void;
+  onLoadAudit: () => void;
   onQuarantineOrphans: () => void;
   onOpenGame?: (gameId: string) => void;
   onRevealPath: (path: string) => void;
@@ -120,6 +123,13 @@ function ImageHealthSummaryPanel({
   const canSafeCleanup = Boolean(report && summary && summary.orphanFiles > 0 && !loading);
   const canDiagnoseArtwork = Boolean(report && summary && summary.missingArtworkGames > 0 && !loading && !artworkDiagnosisLoading);
   const canStartArtworkRepair = Boolean(report && summary && summary.missingArtworkGames > 0 && !loading && !artworkRepairLoading);
+  const canInspectBrokenRefs = Boolean(report && summary && !loading && (
+    summary.missingLocalRefs > 0
+    || summary.invalidImageRefs > 0
+    || summary.cDriveRefs > 0
+    || summary.playniteRefs > 0
+    || summary.externalLegacyRefs > 0
+  ));
   const cache = report?.cache;
   return (
     <SoftRow className="space-y-3 px-3 py-3">
@@ -131,6 +141,7 @@ function ImageHealthSummaryPanel({
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
           <Button disabled={loading} size="sm" variant="outline" onClick={onLoad}><ListChecks className="h-4 w-4" />{loading ? '检查中' : '检查图片健康'}</Button>
+          <Button disabled={!canInspectBrokenRefs} size="sm" variant="outline" onClick={onLoadAudit}>查看失效引用</Button>
           <Button disabled={!canDiagnoseArtwork} size="sm" variant="outline" onClick={onDiagnoseArtwork}>{artworkDiagnosisLoading ? '诊断中' : '诊断缺图'}</Button>
           <Button disabled={!canStartArtworkRepair} size="sm" variant="secondary" onClick={onStartArtworkRepair}>{artworkRepairLoading ? '创建中' : '开始补图'}</Button>
           <Button disabled={!canSafeCleanup} size="sm" variant="secondary" onClick={onQuarantineOrphans}>一键安全整理</Button>
@@ -149,6 +160,7 @@ function ImageHealthSummaryPanel({
         <ImageHealthStat label="无效图片" tone={(summary?.invalidImageFiles ?? 0) > 0 ? 'warn' : 'ok'} value={summary?.invalidImageFiles ?? 0} />
       </div>
       {report?.recommendations.length ? <div className="text-xs text-slate-500">{report.recommendations[0]}</div> : <div className="text-xs text-slate-600">未检查前不会修改任何文件。</div>}
+      {canInspectBrokenRefs ? <div className="text-xs text-slate-500">缺失引用、失效引用和旧导入路径需要进入明细审计逐条确认。</div> : null}
       {cache ? (
         <div className="space-y-2">
           <div className="text-[11px] font-medium text-slate-400">图片样本</div>
