@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '@/services/api';
 import type { Game } from '@/types/game';
 import type { ApplyMetadataFields, BatchMatchResult, BatchMatchStatus, MetadataSearchResult, NormalizedMetadata } from '@/types/metadata';
@@ -18,6 +18,8 @@ import {
 export type TaskMessage = { text: string; taskId?: string | null };
 
 export function useBatchMetadataPageActions(refreshKey: number, queuePresetRequest?: QueuePresetRequest | null) {
+  const loadGamesRequestRef = useRef(0);
+  const batchStatusRequestRef = useRef(0);
   const [games, setGames] = useState<Game[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [status, setStatus] = useState<BatchMatchStatus | null>(null);
@@ -48,11 +50,24 @@ export function useBatchMetadataPageActions(refreshKey: number, queuePresetReque
 
   useEffect(() => {
     if (!status || status.job.status !== 'running') return;
+    const refreshRunningStatus = async () => {
+      const requestId = ++batchStatusRequestRef.current;
+      try {
+        const nextStatus = await api.getBatchMatchStatus(status.job.id);
+        if (requestId !== batchStatusRequestRef.current) return;
+        setStatus(nextStatus);
+      } catch {
+        // A transient polling failure should not stop an active metadata job.
+      }
+    };
     const timer = window.setInterval(() => {
-      api.getBatchMatchStatus(status.job.id).then(setStatus).catch(() => undefined);
+      void refreshRunningStatus();
     }, 1200);
-    return () => window.clearInterval(timer);
-  }, [status]);
+    return () => {
+      batchStatusRequestRef.current += 1;
+      window.clearInterval(timer);
+    };
+  }, [status?.job.id, status?.job.status]);
 
   const queueState = useMemo(() => deriveBatchMetadataQueueState(games, { query: queueQuery, missingProviderFilter }), [games, missingProviderFilter, queueQuery]);
   const resultState = useMemo(() => deriveBatchMetadataResultState(status?.results ?? [], {
@@ -64,9 +79,13 @@ export function useBatchMetadataPageActions(refreshKey: number, queuePresetReque
   }), [appliedIds, resultQuery, resultStatusFilter, selectedCandidates, status?.results, writeFilter]);
 
   async function loadGames() {
+    const requestId = ++loadGamesRequestRef.current;
     try {
-      setGames(await api.listGames({ sortBy: 'updated_at', sortDirection: 'desc' }));
+      const nextGames = await api.listGames({ sortBy: 'updated_at', sortDirection: 'desc' });
+      if (requestId !== loadGamesRequestRef.current) return;
+      setGames(nextGames);
     } catch (reason) {
+      if (requestId !== loadGamesRequestRef.current) return;
       setError(errorMessage(reason));
     }
   }

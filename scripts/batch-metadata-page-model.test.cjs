@@ -137,3 +137,49 @@ test('getBatchMetadataCandidate prefers manual selections before default candida
   assert.equal(getBatchMetadataCandidate(item, {}), fallback);
   assert.equal(getBatchMetadataCandidate(result({ id: 'empty', status: 'no_result', candidates: [] }), {}), null);
 });
+
+test('batch metadata queue render window keeps large queues bounded', () => {
+  const {
+    batchMetadataQueueInitialRenderCount,
+    batchMetadataQueueRenderBatchSize,
+    getBatchMetadataQueueRenderWindow,
+  } = loadBatchMetadataPageModel();
+  const games = Array.from({ length: 500 }, (_, index) => game({ id: `game-${index}` }));
+
+  const initialWindow = getBatchMetadataQueueRenderWindow(games, batchMetadataQueueInitialRenderCount);
+  const expandedWindow = getBatchMetadataQueueRenderWindow(games, batchMetadataQueueInitialRenderCount + batchMetadataQueueRenderBatchSize);
+  const emptyWindow = getBatchMetadataQueueRenderWindow([], batchMetadataQueueInitialRenderCount);
+
+  assert.equal(batchMetadataQueueInitialRenderCount, 160);
+  assert.equal(batchMetadataQueueRenderBatchSize, 160);
+  assert.equal(initialWindow.visibleGames.length, 160);
+  assert.equal(initialWindow.renderedCount, 160);
+  assert.equal(initialWindow.totalCount, 500);
+  assert.equal(initialWindow.hasMore, true);
+  assert.equal(expandedWindow.visibleGames.length, 320);
+  assert.equal(emptyWindow.hasMore, false);
+});
+
+test('batch metadata actions ignore stale async loads and status polls', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Metadata', 'useBatchMetadataPageActions.ts'), 'utf8');
+
+  assert.match(source, /useRef/);
+  assert.match(source, /const loadGamesRequestRef = useRef\(0\)/);
+  assert.match(source, /const batchStatusRequestRef = useRef\(0\)/);
+  assert.match(source, /const requestId = \+\+loadGamesRequestRef\.current/);
+  assert.match(source, /if \(requestId !== loadGamesRequestRef\.current\) return/);
+  assert.match(source, /const requestId = \+\+batchStatusRequestRef\.current/);
+  assert.match(source, /const nextStatus = await api\.getBatchMatchStatus\(status\.job\.id\)/);
+  assert.match(source, /if \(requestId !== batchStatusRequestRef\.current\) return/);
+  assert.doesNotMatch(source, /\.then\(setStatus\)/);
+});
+
+test('batch metadata queue panel renders through a bounded window helper', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Metadata', 'BatchMetadataQueuePanel.tsx'), 'utf8');
+
+  assert.match(source, /getBatchMetadataQueueRenderWindow/);
+  assert.match(source, /const \{ visibleGames, hasMore, renderedCount, totalCount \} = useMemo/);
+  assert.match(source, /visibleGames\.map\(\(game\)/);
+  assert.match(source, /onSelectIds\(filteredIncompleteGames\.map\(\(game\) => game\.id\)\)/);
+  assert.match(source, /加载更多/);
+});

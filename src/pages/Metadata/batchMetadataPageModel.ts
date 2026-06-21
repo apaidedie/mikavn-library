@@ -20,10 +20,18 @@ export type BatchMetadataResultState = {
   applicableResults: BatchMatchResult[];
   resultCounts: BatchMetadataResultCounts;
 };
+export type BatchMetadataQueueRenderWindow = {
+  visibleGames: Game[];
+  renderedCount: number;
+  totalCount: number;
+  hasMore: boolean;
+};
 
 export const defaultFields: ApplyMetadataFields = ['originalTitle', 'description', 'releaseDate', 'developer', 'tags', 'genres', 'coverImage', 'externalIds'];
 export const mediaFields: ApplyMetadataFields = ['coverImage', 'externalIds'];
 export const textFields: ApplyMetadataFields = ['originalTitle', 'description', 'releaseDate', 'developer', 'tags', 'genres'];
+export const batchMetadataQueueInitialRenderCount = 160;
+export const batchMetadataQueueRenderBatchSize = 160;
 
 export const missingProviderOptions: { id: MissingProviderFilter; label: string; shortLabel: string }[] = [
   { id: 'all', label: '全部缺失来源', shortLabel: '全部' },
@@ -143,6 +151,17 @@ export function deriveBatchMetadataResultState(results: BatchMatchResult[], filt
 
 export function getBatchMetadataCandidate(result: BatchMatchResult, selectedCandidates: Record<string, MetadataSearchResult>) {
   return selectedCandidates[result.id] ?? result.candidates.find((item) => item.provider === result.selectedProvider && item.id === result.selectedId) ?? result.candidates[0] ?? null;
+}
+
+export function getBatchMetadataQueueRenderWindow(games: Game[], visibleCount: number): BatchMetadataQueueRenderWindow {
+  const safeVisibleCount = Math.max(0, Math.min(games.length, Math.floor(visibleCount)));
+  const visibleGames = games.slice(0, safeVisibleCount);
+  return {
+    visibleGames,
+    renderedCount: visibleGames.length,
+    totalCount: games.length,
+    hasMore: visibleGames.length < games.length,
+  };
 }
 
 export function providerLabel(value?: string | null) {

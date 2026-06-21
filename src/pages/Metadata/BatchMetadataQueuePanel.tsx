@@ -1,4 +1,5 @@
 import { DatabaseZap, RefreshCw } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -8,8 +9,11 @@ import { Select } from '@/components/ui/select';
 import type { Game } from '@/types/game';
 import type { ApplyMetadataFields } from '@/types/metadata';
 import {
+  batchMetadataQueueInitialRenderCount,
+  batchMetadataQueueRenderBatchSize,
   defaultFields,
   fieldOptions,
+  getBatchMetadataQueueRenderWindow,
   mediaFields,
   missingProviderOptions,
   normalizeMissingProviderFilter,
@@ -37,6 +41,20 @@ type BatchMetadataQueuePanelProps = {
 };
 
 export function BatchMetadataQueuePanel({ fields, filteredIncompleteGames, incompleteGames, loading, missingProviderFilter, onFieldsChange, onMissingProviderFilterChange, onQueueQueryChange, onResetQueueFilters, onSelectIds, onStart, onToggleField, onToggleGame, queueGapCounts, queueQuery, selectedIds }: BatchMetadataQueuePanelProps) {
+  const queueFilterKey = `${missingProviderFilter}\n${queueQuery}`;
+  const [queueVisibleState, setQueueVisibleState] = useState({ count: batchMetadataQueueInitialRenderCount, filterKey: queueFilterKey });
+  const visibleCount = queueVisibleState.filterKey === queueFilterKey ? queueVisibleState.count : batchMetadataQueueInitialRenderCount;
+  const { visibleGames, hasMore, renderedCount, totalCount } = useMemo(
+    () => getBatchMetadataQueueRenderWindow(filteredIncompleteGames, visibleCount),
+    [filteredIncompleteGames, visibleCount],
+  );
+  const loadMore = () => {
+    setQueueVisibleState((current) => ({
+      count: (current.filterKey === queueFilterKey ? current.count : batchMetadataQueueInitialRenderCount) + batchMetadataQueueRenderBatchSize,
+      filterKey: queueFilterKey,
+    }));
+  };
+
   return (
     <Panel>
       <PanelHeader title="匹配队列" icon={<DatabaseZap className="h-4 w-4" />} />
@@ -80,7 +98,7 @@ export function BatchMetadataQueuePanel({ fields, filteredIncompleteGames, incom
         <div className="max-h-[calc(100vh-25rem)] space-y-1.5 overflow-auto pr-1">
           {filteredIncompleteGames.length === 0 ? (
             <EmptyState className="py-8">当前筛选没有待补全条目。</EmptyState>
-          ) : filteredIncompleteGames.map((game) => (
+          ) : visibleGames.map((game) => (
             <label className="block" key={game.id}>
               <SoftRow className="flex gap-3 bg-black/[0.08] px-2.5 py-2">
                 <Checkbox checked={selectedIds.includes(game.id)} className="mt-1" onChange={() => onToggleGame(game.id)} />
@@ -96,6 +114,11 @@ export function BatchMetadataQueuePanel({ fields, filteredIncompleteGames, incom
             </label>
           ))}
         </div>
+        {hasMore && (
+          <Button className="w-full justify-center" size="sm" variant="outline" onClick={loadMore}>
+            加载更多 {renderedCount} / {totalCount}
+          </Button>
+        )}
         <div className="space-y-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="text-xs font-medium text-slate-500">写入字段</div>
