@@ -24,6 +24,7 @@ function New-Report {
     runRoot = $runRoot
     markerPath = $markerPath
     launcherPath = $launcherPath
+    uacPolicy = $uacPolicy
     startedAt = $startedAt
     finishedAt = (Get-Date).ToString("o")
     note = "This smoke intentionally triggers Windows UAC. For success, approve UAC; for cancel, reject UAC."
@@ -35,6 +36,15 @@ function Write-Report {
 
   $Report | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $reportPath -Encoding UTF8
   $Report | ConvertTo-Json -Depth 6
+}
+
+function Get-UacPolicy {
+  try {
+    Get-ItemProperty -LiteralPath "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" |
+      Select-Object EnableLUA, ConsentPromptBehaviorAdmin, ConsentPromptBehaviorUser, PromptOnSecureDesktop
+  } catch {
+    $null
+  }
 }
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..\..")
@@ -65,6 +75,12 @@ $cancelPatterns = @(
   "被用户取消",
   "UAC"
 )
+
+$uacPolicy = Get-UacPolicy
+if ($ExpectedAction -eq "cancel" -and $uacPolicy -and $uacPolicy.EnableLUA -eq 1 -and $uacPolicy.ConsentPromptBehaviorAdmin -eq 0) {
+  Write-Report (New-Report -Status "unsupported" -Succeeded $false -Message "UAC policy is configured to elevate administrators without prompting; cancellation cannot be validated on this Windows profile.")
+  exit 1
+}
 
 try {
   $process = Start-Process -FilePath "powershell.exe" -ArgumentList $arguments -Verb RunAs -PassThru -WindowStyle Hidden

@@ -29,3 +29,14 @@ test('elevated launch cancellation reports accidental approval from marker evide
   assert.match(source, /choose No\/Cancel/);
   assert.doesNotMatch(source, /UAC was expected to be cancelled, but Start-Process returned a process/);
 });
+
+test('elevated launch cancellation preflights UAC auto-approval policy', () => {
+  const scriptPath = path.join(repoRoot, 'scripts', 'desktop-smoke', 'run-elevated-launch-smoke.ps1');
+  const source = fs.readFileSync(scriptPath, 'utf8');
+
+  assert.match(source, /ConsentPromptBehaviorAdmin/);
+  assert.match(source, /uacPolicy = \$uacPolicy/);
+  assert.match(source, /Status "unsupported"/);
+  assert.match(source, /UAC policy is configured to elevate administrators without prompting/);
+  assert.match(source, /cancellation cannot be validated on this Windows profile/);
+});
