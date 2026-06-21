@@ -215,9 +215,10 @@ async function main() {
     {
       const { context, page, consoleErrors } = await openSeededPage(browser, 'advanced-search', games);
       await page.goto(baseUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
-      await page.getByText('高级搜索').first().waitFor({ timeout: 10000 });
+      await page.getByRole('heading', { name: '高级搜索' }).waitFor({ timeout: 10000 });
+      await page.getByRole('textbox', { name: '关键词或条件' }).waitFor({ timeout: 10000 });
       report.timings.searchMs = await measure('advanced search', searchBudgetMs, async () => {
-        await page.getByPlaceholder(/输入标题|关键词|快捷搜索/).fill('tag:性能目标 rating>=80');
+        await page.getByRole('textbox', { name: '关键词或条件' }).fill('tag:性能目标 rating>=80');
         await page.getByRole('button', { name: /^搜索$/ }).click();
         await page.getByText(formatLargeSmokeSearchTotal(expectedSearchCount)).first().waitFor({ timeout: searchBudgetMs });
         await page.getByText('大型库性能样本 26 终途').first().waitFor({ timeout: 5000 });

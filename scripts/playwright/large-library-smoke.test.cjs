@@ -94,3 +94,13 @@ test('large library smoke prints timing regression warnings for release logs', (
   assert.match(source, /formatLargeLibrarySmokeWarnings/);
   assert.match(source, /console\.warn/);
 });
+
+test('large library smoke waits for advanced search content before searching', () => {
+  const source = fs.readFileSync(sourcePath, 'utf8');
+
+  assert.match(source, /getByRole\('heading', \{ name: '高级搜索' \}\)\.waitFor/);
+  assert.match(source, /getByRole\('textbox', \{ name: '关键词或条件' \}\)\.waitFor/);
+  assert.match(source, /getByRole\('textbox', \{ name: '关键词或条件' \}\)\.fill/);
+  assert.doesNotMatch(source, /getByText\('高级搜索'\)\.first\(\)\.waitFor/);
+  assert.doesNotMatch(source, /getByPlaceholder\(\/输入标题\|关键词\|快捷搜索\/\)/);
+});
