@@ -1,4 +1,5 @@
 import { Database, Palette, Save, Search } from 'lucide-react';
+import { DiagnosticExportPathActions } from '@/components/diagnostics/DiagnosticExportPathActions';
 import { Button } from '@/components/ui/button';
 import { Notice } from '@/components/ui/notice';
 import { PageFrame, PageHeader, PageShell } from '@/components/ui/page';
@@ -36,6 +37,17 @@ export function SettingsPage({ tabRequest, onAccentPreview, onThemePreview, onSa
           <div className="space-y-2">
             {settings.error && <Notice className="py-2" tone="error">{settings.error}</Notice>}
             {settings.message && <TaskNotice message={settings.message.text} taskId={settings.message.taskId} onOpenTask={onOpenTask} />}
+            {settings.message && settings.localData.diagnosticExportPath && (
+              <div className="flex flex-wrap gap-2">
+                <DiagnosticExportPathActions
+                  buttonSize="sm"
+                  buttonVariant="ghost"
+                  path={settings.localData.diagnosticExportPath}
+                  onCopy={settings.localData.copyDiagnosticExportPath}
+                  onReveal={settings.localData.revealDiagnosticExportPath}
+                />
+              </div>
+            )}
           </div>
         )}
 

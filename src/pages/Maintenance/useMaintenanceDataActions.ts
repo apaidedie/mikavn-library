@@ -18,6 +18,7 @@ export function useMaintenanceDataActions({ setError, setMessage }: UseMaintenan
   const [cleanupLoading, setCleanupLoading] = useState(false);
   const [assetCleanupLoading, setAssetCleanupLoading] = useState(false);
   const [diagnosticExportLoading, setDiagnosticExportLoading] = useState(false);
+  const [diagnosticExportPath, setDiagnosticExportPath] = useState<string | null>(null);
   const [assetCleanupPreview, setAssetCleanupPreview] = useState<AssetCacheCleanupResult | null>(null);
 
   const loadDiagnostics = useCallback(async () => {
@@ -103,8 +104,10 @@ export function useMaintenanceDataActions({ setError, setMessage }: UseMaintenan
     setDiagnosticExportLoading(true);
     setError(null);
     setMessage(null);
+    setDiagnosticExportPath(null);
     try {
       const report = await api.exportDiagnosticPackage();
+      setDiagnosticExportPath(report.path);
       setMessage({ text: `诊断包已导出：${report.fileName}（${formatBytes(report.sizeBytes)}）。包含自检摘要和脱敏日志预览，不包含完整数据库、图片缓存或存档文件。` });
     } catch (reason) {
       setError(errorMessage(reason));
@@ -121,6 +124,28 @@ export function useMaintenanceDataActions({ setError, setMessage }: UseMaintenan
       setError(errorMessage(reason));
     }
   }, [setError]);
+
+  const revealDiagnosticExportPath = useCallback(async () => {
+    if (!diagnosticExportPath) return;
+    setError(null);
+    try {
+      await api.revealPath(diagnosticExportPath);
+      setMessage({ text: '已打开诊断包位置。' });
+    } catch (reason) {
+      setError(errorMessage(reason));
+    }
+  }, [diagnosticExportPath, setError, setMessage]);
+
+  const copyDiagnosticExportPath = useCallback(async () => {
+    if (!diagnosticExportPath) return;
+    setError(null);
+    try {
+      await navigator.clipboard.writeText(diagnosticExportPath);
+      setMessage({ text: '已复制诊断包路径。' });
+    } catch (reason) {
+      setError(errorMessage(reason));
+    }
+  }, [diagnosticExportPath, setError, setMessage]);
 
   const copyPath = useCallback(async (label: string, path: string) => {
     setError(null);
@@ -139,12 +164,15 @@ export function useMaintenanceDataActions({ setError, setMessage }: UseMaintenan
     cleanupDatabaseBackups,
     cleanupLoading,
     copyPath,
+    copyDiagnosticExportPath,
     diagnostics,
     diagnosticExportLoading,
+    diagnosticExportPath,
     exportDiagnosticPackage,
     loadDiagnostics,
     loading,
     previewAssetCacheCleanup,
+    revealDiagnosticExportPath,
     revealPath,
   };
 }

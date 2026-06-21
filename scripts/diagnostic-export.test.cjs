@@ -21,13 +21,32 @@ test('maintenance data panel exposes safe diagnostic export action', () => {
   const panel = fs.readFileSync('src/pages/Maintenance/MaintenanceDataLocationPanel.tsx', 'utf8');
   const actions = fs.readFileSync('src/pages/Maintenance/useMaintenanceDataActions.ts', 'utf8');
   const content = fs.readFileSync('src/pages/Maintenance/MaintenancePageContent.tsx', 'utf8');
+  const status = fs.readFileSync('src/pages/Maintenance/MaintenanceStatusNotices.tsx', 'utf8');
 
   assert.match(panel, /导出诊断包/);
   assert.match(panel, /onExportDiagnosticPackage/);
   assert.match(panel, /diagnosticExportLoading/);
   assert.match(actions, /exportDiagnosticPackage/);
+  assert.match(actions, /diagnosticExportPath/);
+  assert.match(actions, /setDiagnosticExportPath\(report\.path\)/);
   assert.match(actions, /不包含完整数据库、图片缓存或存档文件/);
   assert.match(content, /onExportDiagnosticPackage=\{dataActions\.exportDiagnosticPackage\}/);
+  assert.match(status, /DiagnosticExportPathActions/);
+  assert.match(status, /diagnosticExportPath/);
+  assert.match(status, /onRevealDiagnosticExportPath/);
+  assert.match(status, /onCopyDiagnosticExportPath/);
+});
+
+test('settings diagnostic export result can reveal or copy exported path', () => {
+  const page = fs.readFileSync('src/pages/Settings/SettingsPage.tsx', 'utf8');
+  const actions = fs.readFileSync('src/pages/Settings/useSettingsLocalDataActions.ts', 'utf8');
+
+  assert.match(actions, /diagnosticExportPath/);
+  assert.match(actions, /setDiagnosticExportPath\(report\.path\)/);
+  assert.match(page, /DiagnosticExportPathActions/);
+  assert.match(page, /settings\.localData\.diagnosticExportPath/);
+  assert.match(page, /settings\.localData\.revealDiagnosticExportPath/);
+  assert.match(page, /settings\.localData\.copyDiagnosticExportPath/);
 });
 
 test('global app error boundary exposes diagnostic package export after render crashes', () => {

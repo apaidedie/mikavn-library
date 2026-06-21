@@ -85,7 +85,15 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
           )}
         />
 
-        <MaintenanceStatusNotices diagnostics={dataActions.diagnostics} error={error} message={message} onOpenTask={onOpenTasks} />
+        <MaintenanceStatusNotices
+          diagnostics={dataActions.diagnostics}
+          diagnosticExportPath={dataActions.diagnosticExportPath}
+          error={error}
+          message={message}
+          onCopyDiagnosticExportPath={dataActions.copyDiagnosticExportPath}
+          onOpenTask={onOpenTasks}
+          onRevealDiagnosticExportPath={dataActions.revealDiagnosticExportPath}
+        />
         <MaintenancePageContent
           dataActions={dataActions}
           duplicateMergeActions={duplicateMergeActions}

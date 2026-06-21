@@ -1,4 +1,5 @@
 import { CheckCircle2 } from 'lucide-react';
+import { DiagnosticExportPathActions } from '@/components/diagnostics/DiagnosticExportPathActions';
 import { Notice } from '@/components/ui/notice';
 import { TaskNotice } from '@/components/ui/task-notice';
 import type { AppDataDiagnostics } from '@/types/archive';
@@ -7,18 +8,40 @@ type TaskMessage = { text: string; taskId?: string | null };
 
 type MaintenanceStatusNoticesProps = {
   diagnostics: AppDataDiagnostics | null;
+  diagnosticExportPath: string | null;
   error: string | null;
   message: TaskMessage | null;
+  onCopyDiagnosticExportPath: () => void;
   onOpenTask?: (taskId?: string | null) => void;
+  onRevealDiagnosticExportPath: () => void;
 };
 
-export function MaintenanceStatusNotices({ diagnostics, error, message, onOpenTask }: MaintenanceStatusNoticesProps) {
+export function MaintenanceStatusNotices({
+  diagnostics,
+  diagnosticExportPath,
+  error,
+  message,
+  onCopyDiagnosticExportPath,
+  onOpenTask,
+  onRevealDiagnosticExportPath,
+}: MaintenanceStatusNoticesProps) {
   return (
     <>
       {(error || message) && (
         <div className="space-y-2">
           {error && <Notice className="py-2" tone="error">{error}</Notice>}
           {message && <TaskNotice message={message.text} taskId={message.taskId} onOpenTask={onOpenTask} />}
+          {message && diagnosticExportPath && (
+            <div className="flex flex-wrap gap-2">
+              <DiagnosticExportPathActions
+                buttonSize="sm"
+                buttonVariant="ghost"
+                path={diagnosticExportPath}
+                onCopy={onCopyDiagnosticExportPath}
+                onReveal={onRevealDiagnosticExportPath}
+              />
+            </div>
+          )}
         </div>
       )}
 
