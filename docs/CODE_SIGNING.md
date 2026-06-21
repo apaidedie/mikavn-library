@@ -29,6 +29,12 @@ Build first:
 npm run tauri:build
 ```
 
+`npm run tauri:build` is the updater-signed release build and requires `TAURI_SIGNING_PRIVATE_KEY` when updater artifacts are enabled. For local smoke testing without updater signing secrets, use:
+
+```powershell
+npm run tauri:build:local
+```
+
 Then sign the release executable and installer with a trusted certificate thumbprint:
 
 ```powershell

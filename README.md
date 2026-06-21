@@ -114,7 +114,13 @@ Frontend build:
 npm run build
 ```
 
-Desktop build after Rust is installed:
+Desktop build after Rust is installed. Use the local build for unsigned smoke installers without updater signing secrets:
+
+```bash
+npm run tauri:build:local
+```
+
+Use the updater-signed build for public GitHub releases:
 
 ```bash
 npm run tauri:build
@@ -138,12 +144,12 @@ In-app Windows updates use the Tauri v2 updater plugin and public GitHub Release
 Latest mature V1 acceptance pass. For the repeatable release checklist, see `RELEASE_CHECKLIST.md`.
 
 - `npm run release:check` verifies version alignment, release metadata, Tauri security hardening, browser/large smoke gates, and release desktop-smoke gating; `npm run release:check:strict` also verifies public GitHub release links. `npm run release:validate:strict` runs the local release validation chain end to end, and `npm run release:validate:core` reruns the strict non-smoke core checks.
-- `cargo fmt --check`, `cargo clippy -- -D warnings`, and `cargo test` under `src-tauri` pass with the current repository test count (126 Rust tests in the latest local run).
+- `cargo fmt --check`, `cargo clippy -- -D warnings`, and `cargo test` under `src-tauri` pass with the current repository test count (148 Rust tests in the latest local run).
 - `npm run test:release-scripts`, `npm run test:playwright-scripts`, `npm run test:updater-release`, and `npm run test:diagnostic-export` cover release handoff, source-size, build-chunk, Playwright module-resolution helpers, updater config, updater UI wiring, diagnostic export wiring, and browser-preview fallback.
 - `npm run build` passes TypeScript and Vite production build checks.
 - `npm run smoke:browser` starts or reuses a local Vite server, then runs page-level Playwright QA plus core workflow smoke.
 - `npm run smoke:large` starts or reuses a local Vite server, seeds 4500 browser-preview records by default, and verifies library rendering/filtering plus advanced search timings.
-- `npm run tauri:build` produces the Windows release executable and NSIS installer; latest local release/package run rebuilt both artifacts successfully.
+- `npm run tauri:build:local` produces an unsigned Windows release executable and NSIS installer for local smoke validation without updater signing secrets; `npm run tauri:build` remains the updater-signed public release build and requires `TAURI_SIGNING_PRIVATE_KEY`.
 - `npm run smoke:install` silently installs the NSIS package into `output/clean-install-smoke/run-*/install`, launches the installed app with isolated app data, verifies first-run database/window creation, and silently uninstalls it.
 - `npm run smoke:portable-data` silently installs the NSIS package without `MIKAVN_APP_DATA_DIR`, verifies first-run `mikavn.db` plus `.mikavn-portable` are created under executable-adjacent `app-data/`, and fails if a fallback `%APPDATA%` database appears.
 - `npm run smoke:desktop` verifies the release executable starts, exposes a main window handle, and creates `mikavn.db` only under the isolated `output/desktop-smoke/run-*/isolated-app-data` root; latest local desktop smoke passed against the rebuilt release executable.
