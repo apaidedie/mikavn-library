@@ -145,6 +145,17 @@ function largeLibraryWarningCountFromReport(report) {
   return Number(match[1]);
 }
 
+function manualRiskChecklistSummary(checklist) {
+  const checkboxMatches = [...checklist.matchAll(/^\s*-\s*\[( |x|X)\]\s+/gm)];
+  const total = checkboxMatches.length;
+  const checked = checkboxMatches.filter((match) => match[1].toLowerCase() === 'x').length;
+  return {
+    total,
+    checked,
+    pending: total - checked,
+  };
+}
+
 function checkReleaseHandoff(options = {}) {
   const releaseDir = path.resolve(options.releaseDir || process.env.MIKAVN_RELEASE_HANDOFF_DIR || defaultReleaseDir());
   if (!fs.existsSync(releaseDir) || !fs.statSync(releaseDir).isDirectory()) {
@@ -181,6 +192,7 @@ function checkReleaseHandoff(options = {}) {
 
   const checklist = fs.readFileSync(path.join(releaseDir, 'MANUAL_RISK_PASS_CHECKLIST.md'), 'utf8');
   requireTokens(checklist, REQUIRED_CHECKLIST_TOKENS, 'manual risk checklist');
+  const manualRiskChecklist = manualRiskChecklistSummary(checklist);
 
   return {
     releaseDir,
@@ -189,7 +201,8 @@ function checkReleaseHandoff(options = {}) {
     buildMode,
     signingStatus,
     largeLibraryPerformanceWarnings,
-    manualRiskStatus: 'checklist-required',
+    manualRiskStatus: manualRiskChecklist.pending === 0 ? 'passed' : 'checklist-pending',
+    manualRiskChecklist,
   };
 }
 
@@ -204,6 +217,7 @@ if (require.main === module) {
       signingStatus: result.signingStatus,
       largeLibraryPerformanceWarnings: result.largeLibraryPerformanceWarnings,
       manualRiskStatus: result.manualRiskStatus,
+      manualRiskChecklist: result.manualRiskChecklist,
     }, null, 2));
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));

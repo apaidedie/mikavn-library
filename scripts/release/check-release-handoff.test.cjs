@@ -95,7 +95,27 @@ test('checkReleaseHandoff accepts complete artifacts, checksums, reports, and ch
   assert.equal(result.requiredFiles.length, 5);
   assert.equal(result.signingStatus, 'documented-unsigned');
   assert.equal(result.buildMode, 'updater-capable');
-  assert.equal(result.manualRiskStatus, 'checklist-required');
+  assert.equal(result.manualRiskStatus, 'checklist-pending');
+  assert.deepEqual(result.manualRiskChecklist, {
+    total: 19,
+    checked: 0,
+    pending: 19,
+  });
+});
+
+test('checkReleaseHandoff marks manual risk checklist passed when all items are checked', () => {
+  const { releaseDir } = createHandoff();
+  const checklistPath = path.join(releaseDir, 'MANUAL_RISK_PASS_CHECKLIST.md');
+  fs.writeFileSync(checklistPath, fs.readFileSync(checklistPath, 'utf8').replaceAll('- [ ]', '- [x]'));
+
+  const result = checkReleaseHandoff({ releaseDir });
+
+  assert.equal(result.manualRiskStatus, 'passed');
+  assert.deepEqual(result.manualRiskChecklist, {
+    total: 19,
+    checked: 19,
+    pending: 0,
+  });
 });
 
 test('checkReleaseHandoff accepts local unsigned builds that record tauri local build', () => {
