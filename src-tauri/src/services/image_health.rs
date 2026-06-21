@@ -578,7 +578,7 @@ fn scan_image_cache(
         &mut health,
     )?;
     for (file_name, samples) in duplicate_names {
-        if samples.len() > 1 {
+        if samples.len() > 1 && !is_common_generated_cache_name(&file_name) {
             health.duplicate_file_name_groups += 1;
             if health.duplicate_name_samples.len() < sample_limit {
                 health.duplicate_name_samples.push(ImageDuplicateNameGroup {
@@ -590,6 +590,20 @@ fn scan_image_cache(
         }
     }
     Ok(health)
+}
+
+fn is_common_generated_cache_name(file_name: &str) -> bool {
+    let Some((stem, extension)) = file_name.rsplit_once('.') else {
+        return false;
+    };
+    if !matches!(extension, "jpg" | "jpeg" | "png" | "webp" | "gif" | "ico") {
+        return false;
+    }
+    matches!(stem, "cover" | "background" | "banner" | "icon")
+        || stem
+            .strip_prefix("description-")
+            .map(|suffix| !suffix.is_empty() && suffix.chars().all(|value| value.is_ascii_digit()))
+            .unwrap_or(false)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -904,7 +918,7 @@ mod tests {
         assert_eq!(report.summary.issue_image_refs, 1);
         assert_eq!(report.cache.file_count, 6);
         assert_eq!(report.cache.orphan_file_count, 4);
-        assert_eq!(report.cache.duplicate_file_name_groups, 2);
+        assert_eq!(report.cache.duplicate_file_name_groups, 1);
         assert_eq!(report.cache.oversized_file_count, 1);
         assert!(report
             .cache
