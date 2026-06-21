@@ -111,6 +111,12 @@ pub struct ImageDuplicateNameGroup {
     pub samples: Vec<String>,
 }
 
+#[derive(Debug, Clone, Default)]
+struct ImageDuplicateNameGroups {
+    total_groups: i64,
+    samples: Vec<ImageDuplicateNameGroup>,
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ImageDuplicateContentGroup {
@@ -615,23 +621,43 @@ fn scan_image_cache(
         &mut content_candidates,
         &mut health,
     )?;
-    for (file_name, samples) in duplicate_names {
-        if samples.len() > 1 && !is_common_generated_cache_name(&file_name) {
-            health.duplicate_file_name_groups += 1;
-            if health.duplicate_name_samples.len() < sample_limit {
-                health.duplicate_name_samples.push(ImageDuplicateNameGroup {
-                    file_name,
-                    count: samples.len() as i64,
-                    samples: samples.into_iter().take(5).collect(),
-                });
-            }
-        }
-    }
+    let duplicate_name_groups = duplicate_name_groups_from_names(duplicate_names, sample_limit);
+    health.duplicate_file_name_groups = duplicate_name_groups.total_groups;
+    health.duplicate_name_samples = duplicate_name_groups.samples;
     let duplicate_content_groups =
         duplicate_content_groups_from_candidates(content_candidates, sample_limit)?;
     health.duplicate_content_groups = duplicate_content_groups.total_groups;
     health.duplicate_content_samples = duplicate_content_groups.samples;
     Ok(health)
+}
+
+fn duplicate_name_groups_from_names(
+    duplicate_names: HashMap<String, Vec<String>>,
+    sample_limit: usize,
+) -> ImageDuplicateNameGroups {
+    let mut groups = ImageDuplicateNameGroups::default();
+    for (file_name, samples) in duplicate_names {
+        if samples.len() <= 1 || is_common_generated_cache_name(&file_name) {
+            continue;
+        }
+        let mut samples = samples;
+        samples.sort();
+        groups.total_groups += 1;
+        groups.samples.push(ImageDuplicateNameGroup {
+            file_name,
+            count: samples.len() as i64,
+            samples: samples.into_iter().take(5).collect(),
+        });
+    }
+    groups.samples.sort_by(|left, right| {
+        right
+            .count
+            .cmp(&left.count)
+            .then_with(|| left.file_name.cmp(&right.file_name))
+            .then_with(|| left.samples.first().cmp(&right.samples.first()))
+    });
+    groups.samples.truncate(sample_limit);
+    groups
 }
 
 fn is_common_generated_cache_name(file_name: &str) -> bool {

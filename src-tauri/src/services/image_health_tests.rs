@@ -337,6 +337,43 @@ fn duplicate_content_groups_and_samples_are_stably_sorted() {
     let _ = fs::remove_dir_all(root);
 }
 
+#[test]
+fn duplicate_file_name_groups_and_samples_are_stably_sorted() {
+    let groups = duplicate_name_groups_from_names(
+        HashMap::from([
+            (
+                "same.jpg".to_string(),
+                vec![
+                    "small\\z\\same.jpg".to_string(),
+                    "small\\a\\same.jpg".to_string(),
+                ],
+            ),
+            (
+                "dup.webp".to_string(),
+                vec![
+                    "large\\c\\dup.webp".to_string(),
+                    "large\\a\\dup.webp".to_string(),
+                    "large\\b\\dup.webp".to_string(),
+                ],
+            ),
+        ]),
+        1,
+    );
+
+    assert_eq!(groups.total_groups, 2);
+    assert_eq!(groups.samples.len(), 1);
+    assert_eq!(groups.samples[0].file_name, "dup.webp");
+    assert_eq!(groups.samples[0].count, 3);
+    assert_eq!(
+        groups.samples[0].samples,
+        vec![
+            "large\\a\\dup.webp".to_string(),
+            "large\\b\\dup.webp".to_string(),
+            "large\\c\\dup.webp".to_string(),
+        ]
+    );
+}
+
 fn create_health_db(path: &std::path::Path, cover: &str, legacy: &str, missing: &str) {
     let conn = Connection::open(path).unwrap();
     conn.execute_batch(
