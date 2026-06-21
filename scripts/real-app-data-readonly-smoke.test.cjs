@@ -12,8 +12,11 @@ test('real app-data readonly smoke is exposed and cannot mutate the live library
   assert.match(script, /PRAGMA quick_check/);
   assert.match(script, /database-update-protection/);
   assert.match(script, /MaxMissingLocalAssetPaths/);
+  assert.match(script, /MaxUnsupportedLocalAssetImages/);
   assert.match(script, /missingLocalWindowsPathCount/);
   assert.match(script, /missingLocalWindowsPathSamples/);
+  assert.match(script, /unsupportedLocalImageCount/);
+  assert.match(script, /localImageKindCounts/);
   assert.match(script, /os\.path\.isfile/);
   assert.match(script, /Assert-UnderRoot/);
   assert.doesNotMatch(script, /\bRemove-Item\b/);
