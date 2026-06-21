@@ -32,12 +32,17 @@ test('dashboard diagnostic export action is available for hard and partial start
 test('dashboard diagnostic export notice can reveal or copy exported path', () => {
   const pageSource = read('src/pages/Dashboard/DashboardPage.tsx');
   const noticeSource = read('src/pages/Dashboard/DashboardErrorNotice.tsx');
+  const actionsSource = fs.existsSync(path.join(repoRoot, 'src/components/diagnostics/DiagnosticExportPathActions.tsx'))
+    ? read('src/components/diagnostics/DiagnosticExportPathActions.tsx')
+    : '';
 
   assert.match(pageSource, /diagnosticExportPath/);
   assert.match(pageSource, /setDiagnosticExportPath\(report\.path\)/);
   assert.match(pageSource, /api\.revealPath\(diagnosticExportPath\)/);
   assert.match(noticeSource, /diagnosticExportPath/);
-  assert.match(noticeSource, /打开诊断包位置/);
-  assert.match(noticeSource, /复制诊断包路径/);
-  assert.match(noticeSource, /navigator\.clipboard\.writeText\(diagnosticExportPath\)/);
+  assert.match(noticeSource, /DiagnosticExportPathActions/);
+  assert.match(noticeSource, /onCopy=\{\(\) => void navigator\.clipboard\.writeText\(diagnosticExportPath\)\}/);
+  assert.match(actionsSource, /export function DiagnosticExportPathActions/);
+  assert.match(actionsSource, /打开诊断包位置/);
+  assert.match(actionsSource, /复制诊断包路径/);
 });

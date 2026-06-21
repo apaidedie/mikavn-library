@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
-import { ClipboardCopy, FileArchive, FolderOpen, RotateCcw } from 'lucide-react';
+import { ClipboardCopy, FileArchive, RotateCcw } from 'lucide-react';
+import { DiagnosticExportPathActions } from '@/components/diagnostics/DiagnosticExportPathActions';
 import { Button } from '@/components/ui/button';
 import { Notice } from '@/components/ui/notice';
 import { api } from '@/services/api';
@@ -91,12 +92,7 @@ export class AppErrorBoundary extends Component<{ children: ReactNode }, AppErro
           <div className="flex flex-wrap gap-2">
             <Button disabled={this.state.exporting} variant="secondary" onClick={() => void this.exportDiagnosticPackage()}><FileArchive className="h-4 w-4" />{this.state.exporting ? '导出中' : '导出诊断包'}</Button>
             <Button variant="outline" onClick={() => void this.copyErrorSummary()}><ClipboardCopy className="h-4 w-4" />复制错误摘要</Button>
-            {this.state.exportPath && (
-              <>
-                <Button variant="outline" onClick={() => void this.revealDiagnosticPackage()}><FolderOpen className="h-4 w-4" />打开诊断包位置</Button>
-                <Button variant="outline" onClick={() => void this.copyDiagnosticPackagePath()}><ClipboardCopy className="h-4 w-4" />复制诊断包路径</Button>
-              </>
-            )}
+            {this.state.exportPath && <DiagnosticExportPathActions path={this.state.exportPath} onCopy={this.copyDiagnosticPackagePath} onReveal={this.revealDiagnosticPackage} />}
             <Button variant="outline" onClick={() => window.location.reload()}><RotateCcw className="h-4 w-4" />重载界面</Button>
           </div>
         </div>
