@@ -587,6 +587,9 @@ fn split_args(args: &str) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+    use std::path::{Path, PathBuf};
+    use std::time::{Duration, Instant};
 
     #[test]
     fn split_args_preserves_quoted_values() {
@@ -614,6 +617,49 @@ mod tests {
         let mut profile = test_profile("custom_command");
         profile.executable_path = "echo hello".to_string();
         assert!(validate_profile(&profile).is_ok());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn launcher_profile_smoke_runs_direct_shortcut_custom_and_locale_wrappers() {
+        let root = launcher_smoke_root();
+        fs::create_dir_all(&root).unwrap();
+        let command_processor =
+            std::env::var("ComSpec").unwrap_or_else(|_| r"C:\Windows\System32\cmd.exe".to_string());
+
+        let direct_marker = root.join("direct.txt");
+        let mut direct = test_profile("direct");
+        direct.executable_path = command_processor.clone();
+        direct.arguments = Some(format!("/C echo direct>{}", direct_marker.display()));
+        run_profile_and_wait_for_marker(&direct, &direct_marker);
+
+        let shortcut_marker = root.join("shortcut.txt");
+        let shortcut_script = root.join("shortcut-target.cmd");
+        fs::write(
+            &shortcut_script,
+            format!(
+                "@echo off\r\necho shortcut>{}\r\n",
+                shortcut_marker.display()
+            ),
+        )
+        .unwrap();
+        let mut shortcut = test_profile("shortcut_lnk");
+        shortcut.executable_path = shortcut_script.to_string_lossy().to_string();
+        run_profile_and_wait_for_marker(&shortcut, &shortcut_marker);
+
+        let custom_marker = root.join("custom.txt");
+        let mut custom = test_profile("custom_command");
+        custom.executable_path = format!("echo custom>{}", custom_marker.display());
+        run_profile_and_wait_for_marker(&custom, &custom_marker);
+
+        let locale_marker = root.join("locale.txt");
+        let mut locale = test_profile("locale_emulator");
+        locale.executable_path = "/C".to_string();
+        locale.locale_emulator_path = Some(command_processor);
+        locale.arguments = Some(format!("echo locale>{}", locale_marker.display()));
+        run_profile_and_wait_for_marker(&locale, &locale_marker);
+
+        let _ = fs::remove_dir_all(root);
     }
 
     #[cfg(windows)]
@@ -646,5 +692,38 @@ mod tests {
             created_at: String::new(),
             updated_at: String::new(),
         }
+    }
+
+    #[cfg(windows)]
+    fn launcher_smoke_root() -> PathBuf {
+        std::env::temp_dir().join(format!(
+            "mikavn-launcher-profile-smoke-{}",
+            uuid::Uuid::new_v4()
+        ))
+    }
+
+    #[cfg(windows)]
+    fn run_profile_and_wait_for_marker(profile: &LaunchProfile, marker: &Path) {
+        let mut command = build_launch_command(profile).unwrap();
+        apply_command_options(&mut command, profile);
+        let status = command.status().unwrap();
+        assert!(
+            status.success(),
+            "launcher command failed for {}",
+            profile.runner_type
+        );
+        wait_for_marker(marker);
+    }
+
+    #[cfg(windows)]
+    fn wait_for_marker(path: &Path) {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while Instant::now() < deadline {
+            if path.is_file() {
+                return;
+            }
+            std::thread::sleep(Duration::from_millis(100));
+        }
+        panic!("launcher marker was not written: {}", path.display());
     }
 }
