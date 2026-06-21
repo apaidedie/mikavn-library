@@ -38,14 +38,17 @@ test('settings and startup update surfaces show install progress text', () => {
   const hook = read('src/app/useStartupUpdater.ts');
   const notice = read('src/app/AppUpdateNotice.tsx');
   const app = read('src/app/App.tsx');
+  const controller = read('src/app/useAppController.ts');
 
   assert.match(settings, /installProgress/);
   assert.match(settings, /formatUpdaterInstallProgress/);
   assert.match(settings, /progress/i);
   assert.match(hook, /installProgress/);
   assert.match(hook, /formatUpdaterInstallProgress/);
+  assert.match(controller, /useStartupUpdater/);
+  assert.match(controller, /startupUpdater/);
   assert.match(notice, /progressText/);
-  assert.match(app, /progressText=\{startupUpdater\.installProgress\}/);
+  assert.match(app, /progressText=\{app\.startupUpdater\.installProgress\}/);
 });
 
 test('updater install reports backup failure before installing', () => {

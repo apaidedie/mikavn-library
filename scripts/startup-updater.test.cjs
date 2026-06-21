@@ -22,9 +22,12 @@ test('startup updater hook checks once and only exposes available updates', () =
 
 test('app renders non-blocking update notice before routes', () => {
   const app = read('src/app/App.tsx');
+  const controller = read('src/app/useAppController.ts');
   const notice = read('src/app/AppUpdateNotice.tsx');
 
-  assert.match(app, /useStartupUpdater/);
+  assert.match(controller, /useStartupUpdater/);
+  assert.match(controller, /startupUpdateNotice/);
+  assert.match(app, /useAppController/);
   assert.match(app, /AppUpdateNotice/);
   assert.ok(app.indexOf('<AppUpdateNotice') < app.indexOf('<AppRoutes'), 'notice should render before routes');
   assert.match(notice, /发现新版本/);
