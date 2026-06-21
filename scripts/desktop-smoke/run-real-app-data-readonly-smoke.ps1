@@ -3,6 +3,7 @@ param(
   [int]$MinGameCount = 1,
   [int]$MinImageFiles = 1,
   [int]$MinBackupFiles = 1,
+  [int]$MaxMissingLocalAssetPaths = 0,
   [switch]$NoReport
 )
 
@@ -43,6 +44,7 @@ if (!$python) {
 
 $pythonCode = @'
 import json
+import os
 import sqlite3
 import sys
 
@@ -59,9 +61,16 @@ for name in ["games", "game_assets", "tasks", "task_logs", "save_backups"]:
 
 asset_summary = None
 if table_exists("game_assets"):
+    local_paths = [
+        row["uri"]
+        for row in conn.execute("SELECT uri FROM game_assets WHERE uri GLOB '[A-Za-z]:\\*'")
+    ]
+    missing_local_paths = [path for path in local_paths if not os.path.isfile(path)]
     asset_summary = {
         "emptyUriCount": conn.execute("SELECT COUNT(*) FROM game_assets WHERE uri IS NULL OR TRIM(uri) = ''").fetchone()[0],
-        "localWindowsPathCount": conn.execute("SELECT COUNT(*) FROM game_assets WHERE uri GLOB '[A-Za-z]:\\*'").fetchone()[0],
+        "localWindowsPathCount": len(local_paths),
+        "missingLocalWindowsPathCount": len(missing_local_paths),
+        "missingLocalWindowsPathSamples": missing_local_paths[:10],
     }
 
 result = {
@@ -95,6 +104,10 @@ if ($images.fileCount -lt $MinImageFiles) {
 }
 if ($databaseBackups.fileCount -lt $MinBackupFiles) {
   throw "Real data smoke failed: database backup count $($databaseBackups.fileCount) is below minimum $MinBackupFiles"
+}
+if ($database.assetSummary -and $database.assetSummary.missingLocalWindowsPathCount -gt $MaxMissingLocalAssetPaths) {
+  $samples = $database.assetSummary.missingLocalWindowsPathSamples -join "`n"
+  throw "Real data smoke failed: missing local asset refs $($database.assetSummary.missingLocalWindowsPathCount) exceeds maximum $MaxMissingLocalAssetPaths. Samples:`n$samples"
 }
 
 $report = [ordered]@{
