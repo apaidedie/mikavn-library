@@ -66,7 +66,8 @@ test('updater install failure after backup preserves backup recovery information
   const startup = read('src/app/useStartupUpdater.ts');
 
   assert.match(model, /\{ kind: 'failed'; message: string; backup\?: UpdateProtectionBackupInfo \}/);
-  assert.match(updater, /catch \(error\) \{\s*return \{\s*kind: 'failed',\s*message: formatUpdaterError\(error\),\s*backup:/s);
+  assert.match(updater, /if \(!backupReport\) \{\s*return \{ kind: 'failed', message: `更新前数据库备份失败，已取消安装。\$\{formatUpdaterError\(error\)\}` \};\s*\}/s);
+  assert.match(updater, /catch \(error\) \{[\s\S]*return \{[\s\S]*kind: 'failed',[\s\S]*message: formatUpdaterError\(error\),[\s\S]*backup:/);
   assert.match(updater, /fileName: backupReport\.fileName/);
   assert.match(settings, /installResult\.kind === 'installed'/);
   assert.match(settings, /installResult\.backup \? \{ fileName: installResult\.backup\.fileName, path: installResult\.backup\.path \} : null/);
@@ -89,4 +90,13 @@ test('settings updater prevents duplicate install requests while an install is i
   assert.match(settings, /if \(\s*installInFlightRef\.current\s*\|\|\s*state !== 'available'\s*\|\|\s*!update\s*\) return;/);
   assert.match(settings, /installInFlightRef\.current = true/);
   assert.match(settings, /finally \{[\s\S]*installInFlightRef\.current = false;[\s\S]*\}/);
+});
+
+test('updater service rejects duplicate install requests across entry points', () => {
+  const updater = read('src/services/updater.ts');
+
+  assert.match(updater, /let installUpdateInFlight = false/);
+  assert.match(updater, /if \(\s*installUpdateInFlight\s*\) \{\s*return \{\s*kind: 'failed',\s*message: '更新失败：已有更新安装正在进行。'\s*\};\s*\}/s);
+  assert.match(updater, /installUpdateInFlight = true/);
+  assert.match(updater, /finally \{[\s\S]*installUpdateInFlight = false;[\s\S]*\}/);
 });

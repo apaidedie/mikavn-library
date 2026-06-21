@@ -13,6 +13,8 @@ import {
 
 export type AppUpdateHandle = Update;
 
+let installUpdateInFlight = false;
+
 export async function checkForAppUpdate(): Promise<{ result: UpdaterCheckResult; update: AppUpdateHandle | null }> {
   if (!isDesktopUpdaterRuntime()) {
     return { result: createBrowserUpdaterUnavailableResult(), update: null };
@@ -26,16 +28,15 @@ export async function installAppUpdate(update: AppUpdateHandle | null, onProgres
   if (!update) {
     return { kind: 'failed', message: '更新失败：没有可安装的更新。' };
   }
+  if (installUpdateInFlight) {
+    return { kind: 'failed', message: '更新失败：已有更新安装正在进行。' };
+  }
 
+  installUpdateInFlight = true;
   let backupReport;
   try {
     onProgress?.({ phase: 'backing_up' });
     backupReport = await api.backupDatabaseBeforeUpdate();
-  } catch (error) {
-    return { kind: 'failed', message: `更新前数据库备份失败，已取消安装。${formatUpdaterError(error)}` };
-  }
-
-  try {
     let downloadedBytes = 0;
     let totalBytes: number | undefined;
     await update.downloadAndInstall((event) => {
@@ -54,6 +55,9 @@ export async function installAppUpdate(update: AppUpdateHandle | null, onProgres
       },
     };
   } catch (error) {
+    if (!backupReport) {
+      return { kind: 'failed', message: `更新前数据库备份失败，已取消安装。${formatUpdaterError(error)}` };
+    }
     return {
       kind: 'failed',
       message: formatUpdaterError(error),
@@ -63,6 +67,8 @@ export async function installAppUpdate(update: AppUpdateHandle | null, onProgres
         sizeBytes: backupReport.sizeBytes,
       },
     };
+  } finally {
+    installUpdateInFlight = false;
   }
 }
 
