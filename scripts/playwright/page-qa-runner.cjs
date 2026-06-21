@@ -127,6 +127,10 @@ async function clickMaintenanceStart(page, label) {
   await row.getByRole('button', { name: /开始/ }).click();
 }
 
+async function waitForAssetCacheCleanupResult(page) {
+  await page.getByText(/缓存清理(?:完成|预览完成)/).first().waitFor({ timeout: 5000 });
+}
+
 async function expectNoHorizontalOverflow(page, label) {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   if (overflow <= 2) return;
@@ -303,7 +307,7 @@ async function main() {
         const removedAssetRecords = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.assets') || '[]'));
         if (removedAssetRecords.some((asset) => asset.id === 'qa-asset-shot')) throw new Error('asset gallery remove action did not delete the screenshot asset record');
         await page.getByRole('button', { name: /清理缓存/ }).click();
-        await page.getByText(/缓存清理完成/).first().waitFor({ timeout: 5000 });
+        await waitForAssetCacheCleanupResult(page);
         await page.getByRole('button', { name: '批量', exact: true }).click();
         await page.getByRole('button', { name: /选中当前/ }).click();
         await page.getByText(/已选 2/).first().waitFor({ timeout: 5000 });
@@ -943,7 +947,7 @@ async function main() {
     }
 
     await runCase(browser, 'advanced-search-results', 'advanced-search', { games: [...games, secondaryExternalIdCompleteGame] }, async (page) => {
-      const searchInput = page.getByPlaceholder(/输入标题|关键词|快捷搜索/);
+      const searchInput = page.getByRole('textbox', { name: '关键词或条件' });
       await searchInput.fill('meta:complete');
       await page.getByRole('button', { name: /^搜索$/ }).click();
       await page.getByText('二级 ID 完整条目').first().waitFor({ timeout: 5000 });

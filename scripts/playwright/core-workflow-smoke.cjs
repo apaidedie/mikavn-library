@@ -73,6 +73,10 @@ async function expectText(page, pattern, timeout = 7000) {
   await page.getByText(pattern).first().waitFor({ timeout });
 }
 
+async function waitForAssetCacheCleanupResult(page) {
+  await expectText(page, /缓存清理(?:完成|预览完成)/);
+}
+
 async function navigate(page, view) {
   const labels = {
     dashboard: '首页',
@@ -126,7 +130,7 @@ async function main() {
     await page.goto(baseUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
     await expectText(page, /高级搜索/);
 
-    await page.getByPlaceholder(/输入标题|关键词|快捷搜索/).fill('rating>=80');
+    await page.getByRole('textbox', { name: '关键词或条件' }).fill('rating>=80');
     await page.getByRole('button', { name: /^搜索$/ }).click();
     await expectText(page, '星之终途');
     await page.getByPlaceholder('搜索名称').fill('Smoke 高分全年龄');
@@ -145,7 +149,7 @@ async function main() {
     await page.getByRole('button', { name: /下载/ }).first().click();
     await expectText(page, /图片已下载到本地缓存并设为主图/);
     await page.getByRole('button', { name: /清理缓存/ }).click();
-    await expectText(page, /缓存清理完成/);
+    await waitForAssetCacheCleanupResult(page);
     const afterAssetGames = await getStorage(page, 'mikavn-library.mock.games');
     const afterAssetRecords = await getStorage(page, 'mikavn-library.mock.assets');
     const assetGame = afterAssetGames.find((item) => item.id === 'qa-1');

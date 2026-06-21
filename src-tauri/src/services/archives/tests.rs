@@ -116,6 +116,43 @@ fn zip_archive_preview_and_extract_are_safe() {
 }
 
 #[test]
+fn zip_archive_preview_rejects_unsafe_entry_paths() {
+    let root = std::env::temp_dir().join(format!(
+        "mikavn-archive-zip-unsafe-preview-test-{}",
+        Uuid::new_v4()
+    ));
+    fs::create_dir_all(&root).unwrap();
+    let archive_path = root.join("unsafe.zip");
+    let file = File::create(&archive_path).unwrap();
+    let mut writer = ZipWriter::new(file);
+    let options = SimpleFileOptions::default().compression_method(CompressionMethod::Deflated);
+    let manifest = LibraryArchiveManifest {
+        app: "MikaVN Library".to_string(),
+        archive_version: 1,
+        exported_at: Utc::now().to_rfc3339(),
+        database_file: "mikavn.db".to_string(),
+        include_images: false,
+        include_save_backups: false,
+        images_count: 0,
+        save_backups_count: 0,
+        notes: Vec::new(),
+    };
+    writer.start_file("manifest.json", options).unwrap();
+    writer
+        .write_all(serde_json::to_string_pretty(&manifest).unwrap().as_bytes())
+        .unwrap();
+    writer.start_file("../outside.txt", options).unwrap();
+    writer.write_all(b"escape").unwrap();
+    writer.finish().unwrap();
+
+    let error = preview_archive_zip(&archive_path).unwrap_err();
+
+    assert_eq!(error.code, "VALIDATION_ERROR");
+    assert!(error.message.contains("unsafe path"));
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
 fn validate_archive_restore_database_rejects_non_mikavn_database() {
     let root = std::env::temp_dir().join(format!(
         "mikavn-archive-restore-validate-test-{}",

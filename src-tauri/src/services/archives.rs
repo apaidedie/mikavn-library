@@ -948,7 +948,11 @@ fn preview_archive_zip(path: &Path) -> DbResult<LibraryArchivePreview> {
         if entry.is_dir() {
             continue;
         }
-        let name = normalize_zip_entry_name(entry.name());
+        let enclosed = entry
+            .enclosed_name()
+            .ok_or_else(|| DbError::validation("archive contains an unsafe path"))?
+            .to_path_buf();
+        let name = zip_path_name(&enclosed)?;
         if name == "manifest.json" {
             let mut content = String::new();
             entry.read_to_string(&mut content)?;
@@ -1384,10 +1388,6 @@ fn zip_path_name(path: &Path) -> DbResult<String> {
         ));
     }
     Ok(name)
-}
-
-fn normalize_zip_entry_name(name: &str) -> String {
-    name.trim_start_matches('/').replace('\\', "/")
 }
 
 #[cfg(test)]
