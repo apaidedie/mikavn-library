@@ -61,6 +61,7 @@ test('install progress formatter reports backup, download percent, and install p
 
   assert.equal(formatUpdaterInstallProgress({ phase: 'backing_up' }), '正在创建更新前数据库备份...');
   assert.equal(formatUpdaterInstallProgress({ phase: 'downloading', downloadedBytes: 512, totalBytes: 1024, percent: 50 }), '正在下载更新：50%');
-  assert.equal(formatUpdaterInstallProgress({ phase: 'downloading', downloadedBytes: 512 }), '正在下载更新：已下载 512 bytes');
+  assert.equal(formatUpdaterInstallProgress({ phase: 'downloading', downloadedBytes: 512 }), '正在下载更新：已下载 512 B');
+  assert.equal(formatUpdaterInstallProgress({ phase: 'downloading', downloadedBytes: 1536 * 1024 }), '正在下载更新：已下载 1.5 MB');
   assert.equal(formatUpdaterInstallProgress({ phase: 'installing' }), '正在安装更新...');
 });

@@ -83,5 +83,11 @@ export function formatUpdaterInstallProgress(progress: UpdaterInstallProgress | 
   if (typeof progress.percent === 'number') {
     return `正在下载更新：${Math.max(0, Math.min(100, Math.round(progress.percent)))}%`;
   }
-  return `正在下载更新：已下载 ${progress.downloadedBytes} bytes`;
+  return `正在下载更新：已下载 ${formatDownloadBytes(progress.downloadedBytes)}`;
+}
+
+function formatDownloadBytes(value: number) {
+  if (value >= 1024 * 1024) return `${(value / 1024 / 1024).toFixed(1)} MB`;
+  if (value >= 1024) return `${(value / 1024).toFixed(1)} KB`;
+  return `${Math.max(0, Math.round(value))} B`;
 }
