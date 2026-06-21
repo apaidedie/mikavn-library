@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '@/services/api';
 import { chooseDirectory } from '@/services/dialog';
 import type { ImportScanReport, ScanCandidate } from '@/types/game';
@@ -20,6 +20,8 @@ import {
 type TaskMessage = { text: string; taskId?: string | null };
 
 export function useScannerPageActions() {
+  const matchStatusRequestRef = useRef(0);
+  const scanStatusRequestRef = useRef(0);
   const [path, setPath] = useState('');
   const [recursive, setRecursive] = useState(true);
   const [candidates, setCandidates] = useState<ScanCandidate[]>([]);
@@ -46,18 +48,33 @@ export function useScannerPageActions() {
 
   useEffect(() => {
     if (!matchStatus || matchStatus.job.status !== 'running') return;
+    const refreshMatchStatus = async () => {
+      const requestId = ++matchStatusRequestRef.current;
+      try {
+        const status = await api.getBatchMatchStatus(matchStatus.job.id);
+        if (requestId !== matchStatusRequestRef.current) return;
+        setMatchStatus(status);
+      } catch {
+        // Keep polling on transient metadata status failures.
+      }
+    };
     const timer = window.setInterval(() => {
-      api.getBatchMatchStatus(matchStatus.job.id).then(setMatchStatus).catch(() => undefined);
+      void refreshMatchStatus();
     }, 1200);
-    return () => window.clearInterval(timer);
-  }, [matchStatus]);
+    return () => {
+      matchStatusRequestRef.current += 1;
+      window.clearInterval(timer);
+    };
+  }, [matchStatus?.job.id, matchStatus?.job.status]);
 
   useEffect(() => {
     if (!scanStatus || !scanning) return;
 
     const refresh = async () => {
+      const requestId = ++scanStatusRequestRef.current;
       try {
         const status = await api.getScanTaskStatus(scanStatus.task.id);
+        if (requestId !== scanStatusRequestRef.current) return;
         setScanStatus(status);
         if (status.task.status === 'completed') {
           applyCompletedScan(status);
@@ -67,13 +84,17 @@ export function useScannerPageActions() {
           setMessage({ text: '扫描已取消。', taskId: status.task.id });
         }
       } catch (reason) {
+        if (requestId !== scanStatusRequestRef.current) return;
         setError(errorMessage(reason));
       }
     };
 
     const timer = window.setInterval(() => void refresh(), 900);
     void refresh();
-    return () => window.clearInterval(timer);
+    return () => {
+      scanStatusRequestRef.current += 1;
+      window.clearInterval(timer);
+    };
   }, [applyCompletedScan, scanStatus?.task.id, scanning]);
 
   const scan = useCallback(async () => {

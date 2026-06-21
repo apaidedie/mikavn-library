@@ -99,3 +99,16 @@ test('shouldResetImportReportFilters only enables reset when filters are active'
   assert.equal(shouldResetImportReportFilters('skip', ''), true);
   assert.equal(shouldResetImportReportFilters('all', '路径'), true);
 });
+
+test('scanner actions ignore stale scan and metadata match status polls', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Scanner', 'useScannerPageActions.ts'), 'utf8');
+
+  assert.match(source, /useRef/);
+  assert.match(source, /const matchStatusRequestRef = useRef\(0\)/);
+  assert.match(source, /const scanStatusRequestRef = useRef\(0\)/);
+  assert.match(source, /const requestId = \+\+matchStatusRequestRef\.current/);
+  assert.match(source, /if \(requestId !== matchStatusRequestRef\.current\) return/);
+  assert.match(source, /const requestId = \+\+scanStatusRequestRef\.current/);
+  assert.match(source, /if \(requestId !== scanStatusRequestRef\.current\) return/);
+  assert.doesNotMatch(source, /\.then\(setMatchStatus\)/);
+});
