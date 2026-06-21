@@ -19,3 +19,13 @@ test('elevated launch smoke script has explicit UAC success and cancellation evi
   assert.match(source, /expectedAction/);
   assert.match(source, /succeeded/);
 });
+
+test('elevated launch cancellation reports accidental approval from marker evidence', () => {
+  const scriptPath = path.join(repoRoot, 'scripts', 'desktop-smoke', 'run-elevated-launch-smoke.ps1');
+  const source = fs.readFileSync(scriptPath, 'utf8');
+
+  assert.match(source, /UAC approval was observed while cancellation was expected/);
+  assert.match(source, /Status "approved"/);
+  assert.match(source, /choose No\/Cancel/);
+  assert.doesNotMatch(source, /UAC was expected to be cancelled, but Start-Process returned a process/);
+});

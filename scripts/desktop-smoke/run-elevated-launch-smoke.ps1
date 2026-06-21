@@ -87,19 +87,24 @@ try {
   exit 1
 }
 
-if ($ExpectedAction -eq "cancel") {
-  Write-Report (New-Report -Status "failed" -Succeeded $false -Message "UAC was expected to be cancelled, but Start-Process returned a process." -ErrorText "")
-  exit 1
-}
-
 $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
 while ((Get-Date) -lt $deadline) {
   if (Test-Path -LiteralPath $markerPath) {
+    if ($ExpectedAction -eq "cancel") {
+      Write-Report (New-Report -Status "approved" -Succeeded $false -Message "UAC approval was observed while cancellation was expected. Rerun the smoke and choose No/Cancel in the UAC prompt.")
+      exit 1
+    }
+
     Write-Report (New-Report -Status "completed" -Succeeded $true -Message "UAC-approved elevated process wrote the marker file.")
     exit 0
   }
 
   if ($process -and $process.HasExited -and -not (Test-Path -LiteralPath $markerPath)) {
+    if ($ExpectedAction -eq "cancel") {
+      Write-Report (New-Report -Status "failed" -Succeeded $false -Message "Start-Process returned an elevated process while cancellation was expected, but no marker was written.")
+      exit 1
+    }
+
     Write-Report (New-Report -Status "failed" -Succeeded $false -Message "Elevated process exited without writing marker.")
     exit 1
   }
