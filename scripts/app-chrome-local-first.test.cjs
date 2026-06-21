@@ -16,3 +16,10 @@ test('AppChrome top bar collapses fixed-width chrome on narrow screens', () => {
   assert.equal(appChromeSource.includes('md:block'), true);
   assert.equal(appChromeSource.includes('hidden min-w-0 sm:relative sm:ml-2 sm:block sm:w-[250px]'), true);
 });
+
+test('AppChrome top search is localized and can be cleared quickly', () => {
+  assert.equal(appChromeSource.includes('placeholder="搜索标题 / 关键词"'), true);
+  assert.equal(appChromeSource.includes('aria-label="清空搜索"'), true);
+  assert.equal(appChromeSource.includes("onUpdateLibrarySearch('')"), true);
+  assert.equal(appChromeSource.includes('placeholder="Search"'), false);
+});

@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, Grid2X2, Home, Moon, Plus, RefreshCw, Search, Settings, SlidersHorizontal, Sun } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Grid2X2, Home, Moon, Plus, RefreshCw, Search, Settings, SlidersHorizontal, Sun, X } from 'lucide-react';
 import type { CSSProperties, ReactNode, RefObject } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/utils/cn';
@@ -76,12 +76,24 @@ export function AppChrome({ accent, children, librarySearchValue, onFocusLibrary
               <input
                 ref={topSearchRef}
                 aria-label="搜索游戏"
-                className="h-8 w-full rounded-md border-0 bg-black/20 pl-8 pr-3 text-sm text-slate-100 outline-none placeholder:italic placeholder:text-slate-500 focus:ring-2 focus:ring-[rgb(var(--accent-rgb)/0.28)]"
+                className="h-8 w-full rounded-md border-0 bg-black/20 pl-8 pr-8 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:ring-2 focus:ring-[rgb(var(--accent-rgb)/0.28)]"
                 onChange={(event) => onUpdateLibrarySearch(event.target.value)}
                 onFocus={onFocusLibrarySearch}
-                placeholder="Search"
+                placeholder="搜索标题 / 关键词"
                 value={librarySearchValue}
               />
+              {librarySearchValue && (
+                <button
+                  aria-label="清空搜索"
+                  className="motion-button absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-md text-slate-500 hover:bg-white/[0.08] hover:text-slate-100"
+                  onClick={() => onUpdateLibrarySearch('')}
+                  onMouseDown={(event) => event.preventDefault()}
+                  title="清空搜索"
+                  type="button"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
             <div className="ml-1 flex items-center gap-2">
               <ToolbarButton active={view === 'dashboard'} label="首页" onClick={() => onSetView('dashboard')}><Home className="h-4 w-4" /></ToolbarButton>

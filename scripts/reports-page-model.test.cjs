@@ -26,3 +26,14 @@ test('reports page ignores stale async data loads', () => {
   assert.match(source, /if \(requestId !== reportLoadRequestRef\.current\) return/);
   assert.doesNotMatch(source, /Promise\.all\([\s\S]*\)\.then\(\(\[gameList, nextSettings\]\)/);
 });
+
+test('reports page shortcuts open focused library repair searches', () => {
+  const source = fs.readFileSync('src/pages/Reports/ReportsPage.tsx', 'utf8');
+
+  assert.match(source, /在游戏库查看缺封面/);
+  assert.match(source, /onOpenLibrary\(\{ metadataStatus: 'missing_cover' \}\)/);
+  assert.match(source, /onOpenLibrary\(\{ metadataStatus: 'missing_description_image' \}\)/);
+  assert.match(source, /onOpenLibrary\(\{ metadataStatus: 'missing_external_id' \}\)/);
+  assert.match(source, /onOpenLibrary\(\{ pathStatus: 'broken' \}\)/);
+  assert.match(source, /onOpenExample=\{onOpenGame\}/);
+});

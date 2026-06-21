@@ -120,3 +120,15 @@ test('deriveRecentResultTasks returns latest completed, failed, and cancelled ta
 
   assert.deepEqual(deriveRecentResultTasks(tasks, 2).map((item) => item.id), ['failed-new', 'cancelled-middle']);
 });
+
+test('task page exposes searchable per-task logs and copy actions', () => {
+  const queuePanel = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Tasks', 'TaskQueuePanel.tsx'), 'utf8');
+  const page = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Tasks', 'TasksPage.tsx'), 'utf8');
+
+  assert.match(page, /logsByTask=\{tasksPage\.logsByTask\}/);
+  assert.match(page, /onCopyTaskLog=\{\(log\) => void tasksPage\.copyTaskLog\(log\)\}/);
+  assert.match(queuePanel, /任务日志/);
+  assert.match(queuePanel, /placeholder="搜索日志"/);
+  assert.match(queuePanel, /matchesLogQuery\(log, logQuery\)/);
+  assert.match(queuePanel, /title="复制任务日志"/);
+});
