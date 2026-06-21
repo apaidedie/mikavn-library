@@ -40,6 +40,15 @@ test('imageSrc uses MikaVN image protocol for local Windows app-data images in T
   );
 });
 
+test('imageSrc lets Tauri asset protocol handle external local image paths', () => {
+  const { imageSrc } = loadImageSrc();
+
+  assert.equal(
+    imageSrc('C:\\Users\\Asus\\Pictures\\VN Cover 01.jpg'),
+    'asset://C:\\Users\\Asus\\Pictures\\VN Cover 01.jpg',
+  );
+});
+
 test('imageSrc keeps web-safe image URLs unchanged', () => {
   const { imageSrc } = loadImageSrc();
 
