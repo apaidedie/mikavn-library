@@ -40,7 +40,7 @@
     "release:handoff:check": "node scripts/release/check-release-handoff.cjs",
     "release:validate": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/release/run-release-validation.ps1",
     "release:validate:strict": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/release/run-release-validation.ps1 -StrictGitHubLinks",
-    "release:validate:core": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/release/run-release-validation.ps1 -StrictGitHubLinks -SkipBrowserSmoke -SkipLargeSmoke -SkipTauriBuild -SkipInstallSmoke -SkipPortableDataSmoke -SkipDesktopSmoke",
+    "release:validate:core": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/release/run-release-validation.ps1 -StrictGitHubLinks -SkipBrowserSmoke -SkipLargeSmoke -SkipTauriBuild -SkipInstallSmoke -SkipPortableDataSmoke -SkipRealDataSmoke -SkipDesktopSmoke",
     "smoke:browser": "node scripts/playwright/run-smoke-with-vite.cjs browser",
     "smoke:large": "node scripts/playwright/run-smoke-with-vite.cjs large",
     "smoke:install": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/desktop-smoke/run-clean-install-smoke.ps1",

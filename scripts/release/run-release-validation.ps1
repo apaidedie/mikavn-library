@@ -5,6 +5,7 @@ param(
   [switch]$SkipTauriBuild,
   [switch]$SkipInstallSmoke,
   [switch]$SkipPortableDataSmoke,
+  [switch]$SkipRealDataSmoke,
   [switch]$SkipDesktopSmoke
 )
 
@@ -56,6 +57,9 @@ try {
   }
   if (!$SkipPortableDataSmoke) {
     Invoke-Step "Portable app-data smoke" { npm run smoke:portable-data }
+  }
+  if (!$SkipRealDataSmoke) {
+    Invoke-Step "Real app-data readonly smoke" { npm run smoke:real-data:readonly }
   }
   if (!$SkipDesktopSmoke) {
     Invoke-Step "Desktop smoke" { npm run smoke:desktop }

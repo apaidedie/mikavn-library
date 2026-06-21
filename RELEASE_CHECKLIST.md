@@ -8,7 +8,7 @@ Use this checklist before packaging or sharing a build. The app is Windows-first
 - Keep reusable verification scripts under `scripts/`; keep generated QA artifacts, logs, installers, and local packaging tools under `output/`.
 - Check version alignment across `package.json`, `package-lock.json`, `src-tauri/Cargo.toml`, and `src-tauri/tauri.conf.json`.
 - Run `npm run release:check`; this verifies version alignment, required release metadata, license consistency, and the hardened Tauri security baseline (explicit CSP, prototype freezing, and scoped asset protocol). Before a public GitHub release, run `npm run release:check:strict` so repository-link placeholders are checked without relying on npm argument forwarding.
-- For a full local release candidate pass, run `npm run release:validate:strict`. When browser smoke, large smoke, Tauri build, and desktop smoke were already verified separately, run `npm run release:validate:core` to repeat the strict non-smoke core checks.
+- For a full local release candidate pass, run `npm run release:validate:strict`. When browser smoke, large smoke, Tauri build, install smoke, portable app-data smoke, real-data readonly smoke, and desktop smoke were already verified separately, run `npm run release:validate:core` to repeat the strict non-smoke core checks.
 - Run `npm run test:release-scripts`, `npm run test:playwright-scripts`, `npm run test:updater-release`, and `npm run test:diagnostic-export` when release tooling, updater wiring, diagnostic export, or smoke runners change.
 
 ## 2. Automated Checks
@@ -31,7 +31,7 @@ npm run build
 
 Expected baseline for the current mature V1 snapshot: Rust tests pass with the current repository test count, release/playwright script unit tests pass, the frontend build completes TypeScript plus Vite production checks, and browser smoke covers backup/restore/archival task logs.
 
-`npm run release:validate:strict` runs these checks in sequence before the smoke and packaging steps, so release candidates can be validated from one command when a full pass is needed. `npm run release:validate:core` skips browser, large-library, Tauri build, clean-install, portable app-data, and desktop smoke when those slower checks were already verified separately.
+`npm run release:validate:strict` runs these checks in sequence before the smoke and packaging steps, so release candidates can be validated from one command when a full pass is needed. `npm run release:validate:core` skips browser, large-library, Tauri build, clean-install, portable app-data, real-data readonly, and desktop smoke when those slower checks were already verified separately.
 
 ## 3. Browser Smoke
 
@@ -49,7 +49,7 @@ For scale-sensitive changes to library rendering, filtering, or advanced search,
 npm run smoke:large
 ```
 
-The large-library smoke seeds 1500 browser-preview records, validates library list/filter and advanced search timings, and writes screenshots plus `large-library-report.json` under `output/playwright/large-library-current/`.
+The large-library smoke seeds 4500 browser-preview records by default, validates library list/filter and advanced search timings, and writes screenshots plus `large-library-report.json` under `output/playwright/large-library-current/`.
 
 CI runs `npm run smoke:browser` and `npm run smoke:large` against a local Vite server and uploads the Playwright screenshots/reports as workflow artifacts. For release candidates, still run them locally when reviewing visual changes so the generated screenshots can be inspected before tagging.
 
@@ -60,11 +60,14 @@ After a release build exists, run:
 ```powershell
 npm run smoke:install
 npm run smoke:portable-data
+npm run smoke:real-data:readonly
 npm run smoke:desktop
 npm run release:handoff:check
 ```
 
 `npm run smoke:install` silently installs the NSIS package into `output/clean-install-smoke/run-*/install`, launches the installed app with isolated app data, verifies first-run database/window creation, and silently uninstalls it. `npm run smoke:portable-data` installs without `MIKAVN_APP_DATA_DIR`, verifies executable-adjacent `app-data/` plus `.mikavn-portable`, and fails if `%APPDATA%` receives `mikavn.db`.
+
+`npm run smoke:real-data:readonly` checks the real `E:\MikaVN Library` install without mutation. It verifies SQLite `quick_check`, database backup samples, update-protection backups, local image references, and sampled image-cache headers before a local release candidate is considered safe for your existing library.
 
 The smoke should start `src-tauri/target/release/mikavn-library.exe`, detect that the main window was exposed, and create or open `mikavn.db` only under `output/desktop-smoke/run-*/isolated-app-data`. The report records `mainWindowDetected`, `mainWindowHandle`, and `mainWindowTitle` when available. The script sets `MIKAVN_APP_DATA_DIR` for the launched process and must fail if the database appears outside that isolated root; desktop smoke must not read from or write to the real `%APPDATA%\dev.mikavn.library` profile.
 

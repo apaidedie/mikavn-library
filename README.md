@@ -143,7 +143,7 @@ In-app Windows updates use the Tauri v2 updater plugin and public GitHub Release
 
 Latest mature V1 acceptance pass. For the repeatable release checklist, see `RELEASE_CHECKLIST.md`.
 
-- `npm run release:check` verifies version alignment, release metadata, Tauri security hardening, browser/large smoke gates, and release desktop-smoke gating; `npm run release:check:strict` also verifies public GitHub release links. `npm run release:validate:strict` runs the local release validation chain end to end, and `npm run release:validate:core` reruns the strict non-smoke core checks.
+- `npm run release:check` verifies version alignment, release metadata, Tauri security hardening, browser/large smoke gates, and release desktop-smoke gating; `npm run release:check:strict` also verifies public GitHub release links. `npm run release:validate:strict` runs the local release validation chain end to end, including the real installed library readonly smoke on the release machine, and `npm run release:validate:core` reruns the strict non-smoke core checks.
 - `cargo fmt --check`, `cargo clippy -- -D warnings`, and `cargo test` under `src-tauri` pass with the current repository test count (148 Rust tests in the latest local run).
 - `npm run test:release-scripts`, `npm run test:playwright-scripts`, `npm run test:updater-release`, and `npm run test:diagnostic-export` cover release handoff, source-size, build-chunk, Playwright module-resolution helpers, updater config, updater UI wiring, diagnostic export wiring, and browser-preview fallback.
 - `npm run build` passes TypeScript and Vite production build checks.
@@ -152,6 +152,7 @@ Latest mature V1 acceptance pass. For the repeatable release checklist, see `REL
 - `npm run tauri:build:local` produces an unsigned Windows release executable and NSIS installer for local smoke validation without updater signing secrets; `npm run tauri:build` remains the updater-signed public release build and requires `TAURI_SIGNING_PRIVATE_KEY`.
 - `npm run smoke:install` silently installs the NSIS package into `output/clean-install-smoke/run-*/install`, launches the installed app with isolated app data, verifies first-run database/window creation, and silently uninstalls it.
 - `npm run smoke:portable-data` silently installs the NSIS package without `MIKAVN_APP_DATA_DIR`, verifies first-run `mikavn.db` plus `.mikavn-portable` are created under executable-adjacent `app-data/`, and fails if a fallback `%APPDATA%` database appears.
+- `npm run smoke:real-data:readonly` checks the real `E:\MikaVN Library` install without mutation: SQLite `quick_check`, backup samples, local image references, and sampled image-cache headers.
 - `npm run smoke:desktop` verifies the release executable starts, exposes a main window handle, and creates `mikavn.db` only under the isolated `output/desktop-smoke/run-*/isolated-app-data` root; latest local desktop smoke passed against the rebuilt release executable.
 - `npm run release:handoff:check` verifies the copied release handoff directory contains the rebuilt executable, NSIS installer, matching SHA256 sums, validation report, signing-status documentation, and manual risk-pass checklist.
 - `npm run release:signing:check` reports Windows Authenticode status; public installers should be signed with a trusted certificate as described in `docs/CODE_SIGNING.md`.

@@ -38,9 +38,10 @@ Or, equivalently, the expanded validation chain:
 - `npm run tauri:build`
 - `npm run smoke:install`
 - `npm run smoke:portable-data`
+- `npm run smoke:real-data:readonly`
 - `npm run smoke:desktop`
 
-CI also gates `npm run smoke:browser` and `npm run smoke:large`, and uploads browser, Vite, and desktop smoke artifacts for review. Local release candidates should also pass `npm run smoke:install` and `npm run smoke:portable-data` so the NSIS installer lifecycle and executable-adjacent app-data behavior are covered before sharing.
+CI also gates `npm run smoke:browser` and `npm run smoke:large`, and uploads browser, Vite, and desktop smoke artifacts for review. Local release candidates should also pass `npm run smoke:install`, `npm run smoke:portable-data`, and `npm run smoke:real-data:readonly` so the NSIS installer lifecycle, executable-adjacent app-data behavior, and existing real library data health are covered before sharing.
 
 Recommended manual smoke coverage is listed in `RELEASE_CHECKLIST.md`.
 

@@ -111,4 +111,6 @@ test('ci and local release validation run updater-specific tests', () => {
   assert.match(ciWorkflow, /npm run test:diagnostic-export/);
   assert.match(releaseValidation, /npm run test:updater-release/);
   assert.match(releaseValidation, /npm run test:diagnostic-export/);
+  assert.match(releaseValidation, /SkipRealDataSmoke/);
+  assert.match(releaseValidation, /npm run smoke:real-data:readonly/);
 });
