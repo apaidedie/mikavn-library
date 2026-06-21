@@ -1,5 +1,5 @@
 import { ClipboardCopy, Download, ExternalLink, FolderOpen, RefreshCw, RotateCcw, RotateCw } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ConfigItem, ConfigSection } from '@/components/ui/config-item';
 import { checkForAppUpdate, installAppUpdate, restartAfterUpdate, type AppUpdateHandle } from '@/services/updater';
@@ -20,6 +20,7 @@ export function SettingsUpdateSection({ onOpenDatabaseRestore, onRevealBackup }:
   const [backupInfo, setBackupInfo] = useState<{ fileName: string; path: string } | null>(null);
   const [backupActionMessage, setBackupActionMessage] = useState<string | null>(null);
   const [installProgress, setInstallProgress] = useState<string | null>(null);
+  const installInFlightRef = useRef(false);
   const recoveryHint = createUpdaterRecoveryHint(error);
 
   const checkUpdates = async () => {
@@ -42,27 +43,38 @@ export function SettingsUpdateSection({ onOpenDatabaseRestore, onRevealBackup }:
   };
 
   const installUpdate = async () => {
+    if (installInFlightRef.current || state !== 'available' || !update) return;
+    installInFlightRef.current = true;
     setState('installing');
     setError(null);
     setBackupInfo(null);
     setBackupActionMessage(null);
     setInstallProgress(null);
-    const installResult = await installAppUpdate(update, (progress) => setInstallProgress(formatUpdaterInstallProgress(progress)));
-    if (installResult.kind === 'installed') {
-      setBackupInfo(installResult.backup ? { fileName: installResult.backup.fileName, path: installResult.backup.path } : null);
-      setInstallProgress(null);
-      setState('installed');
-      setResult({
-        kind: 'available',
-        version: result?.kind === 'available' ? result.version : '新版本',
-        notes: result?.kind === 'available' ? result.notes : '更新已安装。',
-        message: installResult.message,
-      });
-    } else {
+    try {
+      const installResult = await installAppUpdate(update, (progress) => setInstallProgress(formatUpdaterInstallProgress(progress)));
+      if (installResult.kind === 'installed') {
+        setBackupInfo(installResult.backup ? { fileName: installResult.backup.fileName, path: installResult.backup.path } : null);
+        setInstallProgress(null);
+        setState('installed');
+        setResult({
+          kind: 'available',
+          version: result?.kind === 'available' ? result.version : '新版本',
+          notes: result?.kind === 'available' ? result.notes : '更新已安装。',
+          message: installResult.message,
+        });
+      } else {
+        setState('failed');
+        setInstallProgress(null);
+        setBackupInfo(installResult.backup ? { fileName: installResult.backup.fileName, path: installResult.backup.path } : null);
+        setError(installResult.message);
+      }
+    } catch (error) {
       setState('failed');
       setInstallProgress(null);
-      setBackupInfo(installResult.backup ? { fileName: installResult.backup.fileName, path: installResult.backup.path } : null);
-      setError(installResult.message);
+      setBackupInfo(null);
+      setError(formatUpdaterError(error));
+    } finally {
+      installInFlightRef.current = false;
     }
   };
 

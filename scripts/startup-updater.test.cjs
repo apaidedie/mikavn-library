@@ -91,3 +91,12 @@ test('startup update notice can reveal or copy pre-update backup path', () => {
   assert.match(app, /onRevealBackup=\{app\.startupUpdater\.revealStartupBackupPath\}/);
   assert.match(app, /onCopyBackupPath=\{app\.startupUpdater\.copyStartupBackupPath\}/);
 });
+
+test('startup updater prevents duplicate install requests while an install is in flight', () => {
+  const hook = read('src/app/useStartupUpdater.ts');
+
+  assert.match(hook, /installInFlightRef/);
+  assert.match(hook, /if \(\s*installInFlightRef\.current\s*\|\|\s*installed\s*\|\|\s*!update\s*\) return;/);
+  assert.match(hook, /installInFlightRef\.current = true/);
+  assert.match(hook, /finally \{[\s\S]*installInFlightRef\.current = false;[\s\S]*\}/);
+});

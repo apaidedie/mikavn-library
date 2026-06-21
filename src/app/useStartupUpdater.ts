@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '@/services/api';
 import { checkForAppUpdate, installAppUpdate, restartAfterUpdate, type AppUpdateHandle } from '@/services/updater';
 import { formatUpdaterError, formatUpdaterInstallProgress, type UpdateProtectionBackupInfo, type UpdaterCheckResult } from '@/services/updaterModel';
@@ -12,6 +12,7 @@ export function useStartupUpdater() {
   const [error, setError] = useState<string | null>(null);
   const [backupInfo, setBackupInfo] = useState<UpdateProtectionBackupInfo | null>(null);
   const [backupActionMessage, setBackupActionMessage] = useState<string | null>(null);
+  const installInFlightRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -43,21 +44,31 @@ export function useStartupUpdater() {
   };
 
   const installStartupUpdate = async () => {
+    if (installInFlightRef.current || installed || !update) return;
+    installInFlightRef.current = true;
     setInstalling(true);
     setError(null);
     setInstallProgress(null);
     setBackupInfo(null);
     setBackupActionMessage(null);
-    const result = await installAppUpdate(update, (progress) => setInstallProgress(formatUpdaterInstallProgress(progress)));
-    setInstalling(false);
-    if (result.kind === 'installed') {
-      setInstalled(true);
+    try {
+      const result = await installAppUpdate(update, (progress) => setInstallProgress(formatUpdaterInstallProgress(progress)));
+      if (result.kind === 'installed') {
+        setInstalled(true);
+        setInstallProgress(null);
+        setBackupInfo(result.backup ?? null);
+      } else {
+        setInstallProgress(null);
+        setBackupInfo(result.backup ?? null);
+        setError(result.message);
+      }
+    } catch (error) {
       setInstallProgress(null);
-      setBackupInfo(result.backup ?? null);
-    } else {
-      setInstallProgress(null);
-      setBackupInfo(result.backup ?? null);
-      setError(result.message);
+      setBackupInfo(null);
+      setError(formatUpdaterError(error));
+    } finally {
+      setInstalling(false);
+      installInFlightRef.current = false;
     }
   };
 

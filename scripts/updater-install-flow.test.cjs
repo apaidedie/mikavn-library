@@ -81,3 +81,12 @@ test('api exposes backup_database_before_update command', () => {
   assert.match(api, /backup_database_before_update/);
   assert.match(types, /DatabaseUpdateProtectionBackupReport/);
 });
+
+test('settings updater prevents duplicate install requests while an install is in flight', () => {
+  const settings = read('src/pages/Settings/SettingsUpdateSection.tsx');
+
+  assert.match(settings, /installInFlightRef/);
+  assert.match(settings, /if \(\s*installInFlightRef\.current\s*\|\|\s*state !== 'available'\s*\|\|\s*!update\s*\) return;/);
+  assert.match(settings, /installInFlightRef\.current = true/);
+  assert.match(settings, /finally \{[\s\S]*installInFlightRef\.current = false;[\s\S]*\}/);
+});
