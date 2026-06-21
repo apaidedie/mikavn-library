@@ -43,7 +43,7 @@ export function SettingsPage({ tabRequest, onAccentPreview, onThemePreview, onSa
           <TabsList className="border-b border-white/10">
             <TabsTrigger value="appearance"><Palette className="mr-2 h-4 w-4" />外观</TabsTrigger>
             <TabsTrigger value="sources"><Search className="mr-2 h-4 w-4" />数据源与 AI</TabsTrigger>
-            <TabsTrigger value="local"><Database className="mr-2 h-4 w-4" />本地与隐私</TabsTrigger>
+            <TabsTrigger value="local"><Database className="mr-2 h-4 w-4" />备份与本地</TabsTrigger>
           </TabsList>
 
           <TabsContent className="space-y-6" value="appearance">

@@ -19,6 +19,13 @@ test('local data settings exposes clear backup and restore entry', () => {
   assert.match(source, /保护备份/);
 });
 
+test('settings top-level local tab advertises backup access', () => {
+  const source = read('src/pages/Settings/SettingsPage.tsx');
+
+  assert.match(source, /备份与本地/);
+  assert.doesNotMatch(source, />本地与隐私</);
+});
+
 test('local preferences expose startup database auto backup setting', () => {
   const preferences = read('src/pages/Settings/SettingsLocalPreferencesSection.tsx');
   const mapping = read('src/pages/Settings/settingsFormMapping.ts');

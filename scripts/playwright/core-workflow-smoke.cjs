@@ -231,7 +231,7 @@ async function main() {
 
     await navigate(page, 'settings');
     await expectText(page, /设置/);
-    await page.getByRole('tab', { name: /本地与隐私/ }).click();
+    await page.getByRole('tab', { name: /备份与本地/ }).click();
     await expectText(page, /标签维护/);
     await page.locator('select').filter({ has: page.locator('option', { hasText: '标签 · 全年龄' }) }).selectOption('tag:%E5%85%A8%E5%B9%B4%E9%BE%84');
     await page.getByPlaceholder('新标签名').fill('全年龄QA');
@@ -252,7 +252,7 @@ async function main() {
     console.log('OK tag maintenance rename/merge/delete');
 
     await expectText(page, /诊断日志/);
-    await page.getByRole('button', { name: /^备份$/ }).click();
+    await page.getByRole('button', { name: /^手动备份$/ }).click();
     await expectText(page, /数据库备份任务已创建/);
     const afterDatabaseBackupTasks = await getStorage(page, 'mikavn-library.mock.tasks');
     const databaseBackupTask = afterDatabaseBackupTasks.find((item) => item.taskType === 'database.backup');

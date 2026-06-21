@@ -163,11 +163,11 @@ async function main() {
         await page.getByLabel('首页').click();
         await page.getByText('今日状态').first().waitFor({ timeout: 5000 });
         await page.locator('section').filter({ hasText: '今日状态' }).first().getByRole('button', { name: /本地设置/ }).click();
-        await page.waitForFunction(() => [...document.querySelectorAll('[role="tab"]')].some((tab) => tab.textContent?.includes('本地与隐私') && tab.getAttribute('data-state') === 'active'), null, { timeout: 5000 });
+        await page.waitForFunction(() => [...document.querySelectorAll('[role="tab"]')].some((tab) => tab.textContent?.includes('备份与本地') && tab.getAttribute('data-state') === 'active'), null, { timeout: 5000 });
         await page.getByLabel('首页').click();
         await page.getByText('本地安全').first().waitFor({ timeout: 5000 });
-        await page.locator('section').filter({ hasText: '本地安全' }).first().getByRole('button', { name: /打开设置/ }).click();
-        await page.waitForFunction(() => [...document.querySelectorAll('[role="tab"]')].some((tab) => tab.textContent?.includes('本地与隐私') && tab.getAttribute('data-state') === 'active'), null, { timeout: 5000 });
+        await page.locator('section').filter({ hasText: '本地安全' }).first().getByRole('button', { name: /恢复数据库/ }).click();
+        await page.waitForFunction(() => [...document.querySelectorAll('[role="tab"]')].some((tab) => tab.textContent?.includes('备份与本地') && tab.getAttribute('data-state') === 'active'), null, { timeout: 5000 });
         await page.getByText('数据目录自检').first().waitFor({ timeout: 5000 });
       }],
       ['dashboard-task-shortcuts', 'dashboard', { games: [...games, descriptionRepairGame], tasks: [descriptionImageRepairFailedTask, fanzaDescriptionImageRepairTask, ...tasks], taskLogs }, async (page) => {
@@ -208,7 +208,7 @@ async function main() {
         await page.locator('section').filter({ hasText: '今日状态' }).first().getByRole('button', { name: /添加游戏/ }).waitFor({ timeout: 5000 });
         await expectNoHorizontalOverflow(page, 'dashboard mobile');
         await page.locator('section').filter({ hasText: '今日状态' }).first().getByRole('button', { name: /本地设置/ }).click();
-        await page.waitForFunction(() => [...document.querySelectorAll('[role="tab"]')].some((tab) => tab.textContent?.includes('本地与隐私') && tab.getAttribute('data-state') === 'active'), null, { timeout: 5000 });
+        await page.waitForFunction(() => [...document.querySelectorAll('[role="tab"]')].some((tab) => tab.textContent?.includes('备份与本地') && tab.getAttribute('data-state') === 'active'), null, { timeout: 5000 });
         await expectNoHorizontalOverflow(page, 'dashboard mobile settings shortcut');
         await page.getByLabel('首页').click();
         await page.getByText('今日状态').first().waitFor({ timeout: 5000 });
@@ -847,7 +847,7 @@ async function main() {
         await page.getByRole('button', { name: /保存设置/ }).click();
         const savedMetadataProviderSettings = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.settings') || '{}'));
         if (savedMetadataProviderSettings.provider_bangumi_enabled !== 'false' || savedMetadataProviderSettings.provider_ymgal_enabled !== 'false') throw new Error('secondary metadata provider toggles did not persist');
-        await page.getByRole('tab', { name: /本地与隐私/ }).click();
+        await page.getByRole('tab', { name: /备份与本地/ }).click();
         await page.getByPlaceholder(/VisualNovel/).fill('D:\\Games\\VisualNovel');
         await page.getByRole('button', { name: /复制待添加库目录/ }).click();
         const copiedPendingLibraryRoot = await page.evaluate(() => navigator.clipboard.readText());
@@ -920,7 +920,7 @@ async function main() {
         if (deletedTagGame?.tags.includes('恋爱')) throw new Error('page QA tag delete did not remove tag from games');
       }],
       ['settings-tray-disabled-toggle', 'settings', { settings: { ...settings, tray_enabled: 'false' } }, async (page) => {
-        await page.getByRole('tab', { name: /本地与隐私/ }).click();
+        await page.getByRole('tab', { name: /备份与本地/ }).click();
         await page.getByText('后台与托盘').first().waitFor({ timeout: 5000 });
         await page.getByText('托盘图标未启用').first().waitFor({ timeout: 5000 });
         await page.getByText('关闭主窗口时直接退出').first().waitFor({ timeout: 5000 });
