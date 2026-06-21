@@ -60,6 +60,7 @@ test('large smoke warmup timeout is configurable and long enough for cold Vite t
   const defaultMatch = source.match(/const warmupTimeoutMs = .*?parseInt\([^)]*'(\d+)'/s);
   assert.ok(defaultMatch, 'expected a default warmup timeout');
   assert.ok(Number.parseInt(defaultMatch[1], 10) >= 120000);
+  assert.match(source, /page\.goto\(baseUrl,\s*\{\s*waitUntil: 'domcontentloaded',\s*timeout: warmupTimeoutMs\s*\}\)/s);
 });
 
 test('large smoke defaults to a real-library-scale sample size', () => {

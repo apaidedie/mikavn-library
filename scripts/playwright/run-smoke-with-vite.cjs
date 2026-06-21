@@ -96,7 +96,7 @@ async function warmViteForBudgetedSmoke() {
   const browser = await chromium.launch(browserLaunchOptions());
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 });
   try {
-    await page.goto(baseUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.goto(baseUrl, { waitUntil: 'domcontentloaded', timeout: warmupTimeoutMs });
     await page.waitForFunction(
       () => !document.body.innerText.includes('载入页面...') && document.body.innerText.length > 20,
       null,
