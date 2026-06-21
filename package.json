@@ -24,6 +24,7 @@
     "test:game-detail-actions": "node --test scripts/game-detail-actions.test.cjs",
     "test:game-form-mapping": "node --test scripts/game-form-mapping.test.cjs",
     "test:task-page-model": "node --test scripts/task-page-model.test.cjs",
+    "test:reports-page-model": "node --test scripts/reports-page-model.test.cjs",
     "test:scanner-page-model": "node --test scripts/scanner-page-model.test.cjs",
     "test:batch-metadata-page-model": "node --test scripts/batch-metadata-page-model.test.cjs",
     "test:saves-page-model": "node --test scripts/saves-page-model.test.cjs",

@@ -177,7 +177,7 @@ function countValues(values: string[]) {
 
 function buildMarkdown(games: Game[], stats: ReturnType<typeof buildStats>) {
   const lines = [
-    '# MikaVN Library Report',
+    '# MikaVN Library 游玩报告',
     '',
     `- 生成时间：${new Date().toISOString()}`,
     `- 报告条目：${games.length}`,
