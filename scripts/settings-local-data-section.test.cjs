@@ -54,3 +54,10 @@ test('local data settings distinguishes external Playnite image refs from migrat
   assert.match(source, /不含已迁入 app-data\/images 的旧导入缓存/);
   assert.doesNotMatch(source, /label="Playnite 图片引用"/);
 });
+
+test('local data settings labels the backup total as all database backups', () => {
+  const source = read('src/pages/Settings/SettingsLocalDataSection.tsx');
+
+  assert.match(source, /label="数据库备份"/);
+  assert.doesNotMatch(source, /label="旧数据库备份"/);
+});
