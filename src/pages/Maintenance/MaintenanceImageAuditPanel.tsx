@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Panel, PanelContent, PanelHeader, SoftRow } from '@/components/ui/page';
 import type { ImageCacheFileIssue, ImageDuplicateNameGroup, ImageHealthReport, ImageReferenceAudit } from '@/types/archive';
 import { ImageAuditDetailPanel, matchesImageAuditItem } from './ImageAuditDetailPanel';
+import { getImageHealthActionHint } from './maintenanceImageHealthModel';
 
 export const MaintenanceImageAuditPanel = forwardRef<HTMLElement, {
   audit: ImageReferenceAudit | null;
@@ -130,6 +131,7 @@ function ImageHealthSummaryPanel({
     || summary.playniteRefs > 0
     || summary.externalLegacyRefs > 0
   ));
+  const actionHint = getImageHealthActionHint({ report, loading });
   const cache = report?.cache;
   return (
     <SoftRow className="space-y-3 px-3 py-3">
@@ -148,6 +150,7 @@ function ImageHealthSummaryPanel({
           <Button disabled={!canSafeCleanup} size="sm" variant="secondary" onClick={onQuarantineOrphans}>一键安全整理</Button>
         </div>
       </div>
+      <div className="text-xs text-slate-500" data-image-health-action-hint>{actionHint}</div>
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5 xl:grid-cols-11">
         <ImageHealthStat label="缓存图片" value={summary?.imageFiles ?? report?.cache.fileCount ?? 0} />
         <ImageHealthStat label="孤儿图片" tone={(summary?.orphanFiles ?? 0) > 0 ? 'warn' : 'ok'} value={summary?.orphanFiles ?? 0} />

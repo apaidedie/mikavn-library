@@ -2,18 +2,11 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
-const REQUIRED_FILES = [
-  'mikavn-library.exe',
-  'MikaVN.Library_0.1.1_x64-setup.exe',
-  'SHA256SUMS.txt',
-  'RELEASE_VALIDATION_REPORT.md',
-  'MANUAL_RISK_PASS_CHECKLIST.md',
-];
-
 const REQUIRED_REPORT_TOKENS = [
   'npm run release:validate:core',
   'npm run smoke:browser',
   'npm run smoke:large',
+  'Large library performance warnings',
   'npm run tauri:build',
   'npm run smoke:install',
   'npm run smoke:portable-data',
@@ -51,10 +44,41 @@ const REQUIRED_CHECKLIST_TOKENS = [
   'Saved search',
 ];
 
+const REQUIRED_PASSED_COMMANDS = [
+  'npm run release:validate:core',
+  'npm run smoke:browser',
+  'npm run smoke:large',
+  'npm run smoke:install',
+  'npm run smoke:portable-data',
+  'npm run smoke:real-data:readonly',
+  'npm run smoke:desktop',
+  'npm run release:handoff:check',
+];
+
 function defaultReleaseDir() {
   const repoRoot = path.resolve(__dirname, '..', '..');
+  const { version } = readReleaseMetadata(repoRoot);
+  return path.join(repoRoot, 'output', 'release', `${version}-windows-x64`);
+}
+
+function readReleaseMetadata(repoRoot = path.resolve(__dirname, '..', '..')) {
   const packageJson = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
-  return path.join(repoRoot, 'output', 'release', `${packageJson.version}-windows-x64`);
+  const tauriConfig = JSON.parse(fs.readFileSync(path.join(repoRoot, 'src-tauri', 'tauri.conf.json'), 'utf8'));
+  return {
+    productName: tauriConfig.productName || 'MikaVN Library',
+    version: packageJson.version,
+  };
+}
+
+function requiredReleaseFiles(repoRoot = path.resolve(__dirname, '..', '..')) {
+  const { productName, version } = readReleaseMetadata(repoRoot);
+  return [
+    'mikavn-library.exe',
+    `${productName}_${version}_x64-setup.exe`,
+    'SHA256SUMS.txt',
+    'RELEASE_VALIDATION_REPORT.md',
+    'MANUAL_RISK_PASS_CHECKLIST.md',
+  ];
 }
 
 function sha256File(filePath) {
@@ -92,13 +116,42 @@ function signingStatusFromReport(report) {
   throw new Error('release validation report must document signing status');
 }
 
+function commandMarkedPassed(report, command) {
+  const escaped = command.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const patterns = [
+    new RegExp(`\`${escaped}\`\\s*:\\s*(?:passed|PASS|ok|OK)\\b`, 'i'),
+    new RegExp(`^\\s*-?\\s*${escaped}\\s*:\\s*(?:passed|PASS|ok|OK)\\b`, 'im'),
+  ];
+  return patterns.some((pattern) => pattern.test(report));
+}
+
+function requirePassedCommands(report) {
+  for (const command of REQUIRED_PASSED_COMMANDS) {
+    if (!commandMarkedPassed(report, command)) throw new Error(`release validation report must mark required command as passed: ${command}`);
+  }
+}
+
+function buildModeFromReport(report) {
+  if (commandMarkedPassed(report, 'npm run tauri:build')) return 'updater-capable';
+  if (commandMarkedPassed(report, 'npm run tauri:build:local')) return 'local-unsigned';
+  throw new Error('release validation report must mark npm run tauri:build or npm run tauri:build:local as passed');
+}
+
+function largeLibraryWarningCountFromReport(report) {
+  const match = /Large library performance warnings:\s*(\d+)\b/i.exec(report);
+  if (!match) {
+    throw new Error('release validation report must record a numeric large library performance warning count');
+  }
+  return Number(match[1]);
+}
+
 function checkReleaseHandoff(options = {}) {
   const releaseDir = path.resolve(options.releaseDir || process.env.MIKAVN_RELEASE_HANDOFF_DIR || defaultReleaseDir());
   if (!fs.existsSync(releaseDir) || !fs.statSync(releaseDir).isDirectory()) {
     throw new Error(`release handoff directory not found: ${releaseDir}`);
   }
 
-  const requiredFiles = REQUIRED_FILES.map((fileName) => {
+  const requiredFiles = requiredReleaseFiles().map((fileName) => {
     const filePath = path.join(releaseDir, fileName);
     if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
       throw new Error(`release handoff is missing required file: ${fileName}`);
@@ -121,7 +174,10 @@ function checkReleaseHandoff(options = {}) {
 
   const report = fs.readFileSync(path.join(releaseDir, 'RELEASE_VALIDATION_REPORT.md'), 'utf8');
   requireTokens(report, REQUIRED_REPORT_TOKENS, 'release validation report');
+  requirePassedCommands(report);
+  const buildMode = buildModeFromReport(report);
   const signingStatus = signingStatusFromReport(report);
+  const largeLibraryPerformanceWarnings = largeLibraryWarningCountFromReport(report);
 
   const checklist = fs.readFileSync(path.join(releaseDir, 'MANUAL_RISK_PASS_CHECKLIST.md'), 'utf8');
   requireTokens(checklist, REQUIRED_CHECKLIST_TOKENS, 'manual risk checklist');
@@ -130,7 +186,9 @@ function checkReleaseHandoff(options = {}) {
     releaseDir,
     artifacts,
     requiredFiles,
+    buildMode,
     signingStatus,
+    largeLibraryPerformanceWarnings,
     manualRiskStatus: 'checklist-required',
   };
 }
@@ -142,7 +200,9 @@ if (require.main === module) {
       releaseDir: result.releaseDir,
       artifacts: result.artifacts,
       requiredFiles: result.requiredFiles.length,
+      buildMode: result.buildMode,
       signingStatus: result.signingStatus,
+      largeLibraryPerformanceWarnings: result.largeLibraryPerformanceWarnings,
       manualRiskStatus: result.manualRiskStatus,
     }, null, 2));
   } catch (error) {

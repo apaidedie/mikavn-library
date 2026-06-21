@@ -236,6 +236,53 @@ test('image quarantine completion message includes skipped and refreshed orphan 
   assert.equal(message, '安全整理完成：已移动 12 个孤儿图片到隔离区；跳过 2 个；复查剩余 3 个孤儿图片。');
 });
 
+test('image health action hint explains disabled maintenance actions', () => {
+  const { getImageHealthActionHint } = loadMaintenanceImageHealthModel();
+  const cleanReport = {
+    summary: {
+      orphanFiles: 0,
+      missingLocalRefs: 0,
+      invalidImageRefs: 0,
+      cDriveRefs: 0,
+      playniteRefs: 0,
+      externalLegacyRefs: 0,
+      missingArtworkGames: 0,
+    },
+  };
+  const brokenOnlyReport = {
+    summary: {
+      orphanFiles: 0,
+      missingLocalRefs: 2,
+      invalidImageRefs: 0,
+      cDriveRefs: 0,
+      playniteRefs: 0,
+      externalLegacyRefs: 0,
+      missingArtworkGames: 0,
+    },
+  };
+
+  assert.equal(
+    getImageHealthActionHint({ report: null, loading: false }),
+    '先检查图片健康后，再查看失效引用、诊断缺图或安全整理孤儿图片。',
+  );
+  assert.equal(
+    getImageHealthActionHint({ report: cleanReport, loading: false }),
+    '当前图片健康检查没有发现需要处理的图片问题。',
+  );
+  assert.equal(
+    getImageHealthActionHint({ report: brokenOnlyReport, loading: false }),
+    '没有可补全的媒体缺图；没有可整理的孤儿图片。',
+  );
+});
+
+test('maintenance image health ui renders the action availability hint', () => {
+  const panel = fs.readFileSync('src/pages/Maintenance/MaintenanceImageAuditPanel.tsx', 'utf8');
+
+  assert.match(panel, /getImageHealthActionHint/);
+  assert.match(panel, /data-image-health-action-hint/);
+  assert.match(panel, /\{actionHint\}/);
+});
+
 test('description image repair history parses self-contained logs without a game index', () => {
   const { descriptionImageRepairLogsNeedSourceLookup, summarizeDescriptionImageRepairTask } = loadDescriptionImageRepairResultPanel();
   const detail = taskDetail(['已修复：简介图片修复候选 [game-description]，dlsite RJ01000001，插入 2 张图片。']);

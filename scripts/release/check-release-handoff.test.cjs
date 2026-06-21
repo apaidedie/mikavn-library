@@ -18,23 +18,26 @@ function sha256(contents) {
 
 function createHandoff(overrides = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'mikavn-release-handoff-'));
-  const releaseDir = path.join(root, 'output', 'release', '0.1.1-windows-x64');
+  const version = overrides.version || JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'package.json'), 'utf8')).version;
+  const installerName = overrides.installerName || `MikaVN Library_${version}_x64-setup.exe`;
+  const releaseDir = path.join(root, 'output', 'release', `${version}-windows-x64`);
   const exe = Buffer.from('exe');
   const installer = Buffer.from('installer');
   writeFile(path.join(releaseDir, 'mikavn-library.exe'), exe);
-  writeFile(path.join(releaseDir, 'MikaVN.Library_0.1.1_x64-setup.exe'), installer);
+  writeFile(path.join(releaseDir, installerName), installer);
   writeFile(path.join(releaseDir, 'SHA256SUMS.txt'), [
     `${sha256(exe)}  mikavn-library.exe`,
-    `${sha256(installer)}  MikaVN.Library_0.1.1_x64-setup.exe`,
+    `${sha256(installer)}  ${installerName}`,
     '',
   ].join('\n'));
-  writeFile(path.join(releaseDir, 'RELEASE_VALIDATION_REPORT.md'), [
+  const reportLines = [
     '# MikaVN Library 0.1.1 Local Release Validation',
     '## Automated Checks',
     '- `npm run release:validate:core`: passed.',
     '- `npm run smoke:browser`: passed.',
     '- `npm run smoke:large`: passed.',
-    '- `npm run tauri:build`: passed.',
+    '- Large library performance warnings: 0.',
+    overrides.localTauriBuildOnly ? '- `npm run tauri:build:local`: passed.' : '- `npm run tauri:build`: passed.',
     '- `npm run smoke:install`: passed.',
     '- `npm run smoke:portable-data`: passed.',
     '- `npm run smoke:real-data:readonly`: passed. `quick_check` ok; image header samples ok.',
@@ -50,7 +53,8 @@ function createHandoff(overrides = {}) {
     '| Privacy and logs | evidence | manual |',
     '| Search UX | evidence | manual |',
     ...(overrides.reportLines || []),
-  ].join('\n'));
+  ];
+  writeFile(path.join(releaseDir, 'RELEASE_VALIDATION_REPORT.md'), reportLines.join('\n'));
   writeFile(path.join(releaseDir, 'MANUAL_RISK_PASS_CHECKLIST.md'), [
     '# MikaVN Library 0.1.1 Manual Risk Pass Checklist',
     '## Launch Profiles',
@@ -90,7 +94,19 @@ test('checkReleaseHandoff accepts complete artifacts, checksums, reports, and ch
   assert.equal(result.artifacts.length, 2);
   assert.equal(result.requiredFiles.length, 5);
   assert.equal(result.signingStatus, 'documented-unsigned');
+  assert.equal(result.buildMode, 'updater-capable');
   assert.equal(result.manualRiskStatus, 'checklist-required');
+});
+
+test('checkReleaseHandoff accepts local unsigned builds that record tauri local build', () => {
+  const { releaseDir } = createHandoff({ localTauriBuildOnly: true });
+
+  const result = checkReleaseHandoff({ releaseDir });
+
+  assert.equal(result.releaseDir, releaseDir);
+  assert.equal(result.artifacts.length, 2);
+  assert.equal(result.signingStatus, 'documented-unsigned');
+  assert.equal(result.buildMode, 'local-unsigned');
 });
 
 test('checkReleaseHandoff rejects checksum drift', () => {
@@ -134,5 +150,41 @@ test('checkReleaseHandoff requires real data readonly smoke evidence in the vali
   assert.throws(
     () => checkReleaseHandoff({ releaseDir }),
     /release validation report is missing required token: .*npm run smoke:real-data:readonly/,
+  );
+});
+
+test('checkReleaseHandoff rejects required validation commands that are not marked passed', () => {
+  const { releaseDir } = createHandoff();
+  const reportPath = path.join(releaseDir, 'RELEASE_VALIDATION_REPORT.md');
+  const report = fs.readFileSync(reportPath, 'utf8');
+  fs.writeFileSync(reportPath, report.replace('- `npm run tauri:build`: passed.', '- `npm run tauri:build`: not run.'));
+
+  assert.throws(
+    () => checkReleaseHandoff({ releaseDir }),
+    /release validation report must mark npm run tauri:build or npm run tauri:build:local as passed/,
+  );
+});
+
+test('checkReleaseHandoff requires large library warning count in the validation report', () => {
+  const { releaseDir } = createHandoff();
+  const reportPath = path.join(releaseDir, 'RELEASE_VALIDATION_REPORT.md');
+  const report = fs.readFileSync(reportPath, 'utf8');
+  fs.writeFileSync(reportPath, report.replace('- Large library performance warnings: 0.\n', ''));
+
+  assert.throws(
+    () => checkReleaseHandoff({ releaseDir }),
+    /release validation report is missing required token: .*Large library performance warnings/,
+  );
+});
+
+test('checkReleaseHandoff rejects non-numeric large library warning count', () => {
+  const { releaseDir } = createHandoff();
+  const reportPath = path.join(releaseDir, 'RELEASE_VALIDATION_REPORT.md');
+  const report = fs.readFileSync(reportPath, 'utf8');
+  fs.writeFileSync(reportPath, report.replace('Large library performance warnings: 0.', 'Large library performance warnings: unknown.'));
+
+  assert.throws(
+    () => checkReleaseHandoff({ releaseDir }),
+    /release validation report must record a numeric large library performance warning count/,
   );
 });

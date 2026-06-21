@@ -50,6 +50,7 @@ npm run smoke:large
 ```
 
 The large-library smoke seeds 4500 browser-preview records by default, validates library list/filter and advanced search timings, and writes screenshots plus `large-library-report.json` under `output/playwright/large-library-current/`.
+Record `Large library performance warnings: <count>` in `RELEASE_VALIDATION_REPORT.md` from that report's `history.warnings.length`; `npm run release:handoff:check` requires the warning count so timing regressions stay visible during release handoff.
 
 CI runs `npm run smoke:browser` and `npm run smoke:large` against a local Vite server and uploads the Playwright screenshots/reports as workflow artifacts. For release candidates, still run them locally when reviewing visual changes so the generated screenshots can be inspected before tagging.
 
