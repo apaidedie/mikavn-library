@@ -5,6 +5,7 @@ param(
   [int]$MinBackupFiles = 1,
   [int]$MaxMissingLocalAssetPaths = 0,
   [int]$MaxUnsupportedLocalAssetImages = 0,
+  [int]$MaxBackupQuickCheckFiles = 3,
   [switch]$NoReport
 )
 
@@ -64,6 +65,57 @@ function Get-OptionalDirectorySummary([string]$Root, [string]$Name, [string]$Chi
     fileCount = $files.Count
     totalBytes = [int64]$bytes
     latestFileTime = $latest
+  }
+}
+
+function Test-DatabaseBackupQuickChecks([object]$Summary, [string]$Description, [int]$Limit) {
+  $path = $Summary.path
+  if (!$path -or !(Test-Path -LiteralPath $path -PathType Container) -or $Limit -le 0) {
+    return [ordered]@{
+      label = $Description
+      path = $path
+      checkedCount = 0
+      allOk = $true
+      files = @()
+    }
+  }
+
+  $files = @(Get-ChildItem -LiteralPath $path -Recurse -File -Filter *.db -ErrorAction SilentlyContinue |
+    Sort-Object LastWriteTime -Descending |
+    Select-Object -First $Limit)
+  if ($files.Count -eq 0) {
+    return [ordered]@{
+      label = $Description
+      path = $path
+      checkedCount = 0
+      allOk = $true
+      files = @()
+    }
+  }
+
+  $backupPaths = @($files | ForEach-Object { $_.FullName })
+  $backupJson = $backupQuickCheckCode | python - @backupPaths
+  if ($LASTEXITCODE -ne 0) {
+    throw "Backup quick_check failed while reading $Description backups under $path"
+  }
+  $check = $backupJson | ConvertFrom-Json
+  foreach ($file in @($check.files)) {
+    if ($file.error) {
+      throw "Backup quick_check failed for $($file.path): $($file.error)"
+    }
+    if ($file.quickCheck -ne "ok") {
+      throw "Backup quick_check failed for $($file.path): $($file.quickCheck)"
+    }
+    if (!$file.hasGamesTable) {
+      throw "Backup quick_check failed for $($file.path): does not look like a MikaVN database backup"
+    }
+  }
+  [ordered]@{
+    label = $Description
+    path = $path
+    checkedCount = $check.checkedCount
+    allOk = $true
+    files = $check.files
   }
 }
 
@@ -149,6 +201,28 @@ conn.close()
 print(json.dumps(result, ensure_ascii=False))
 '@
 
+$backupQuickCheckCode = @'
+import json
+import sqlite3
+import sys
+
+files = []
+for path in sys.argv[1:]:
+    item = {"path": path, "quickCheck": None, "hasGamesTable": False, "error": None}
+    try:
+        conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+        item["quickCheck"] = conn.execute("PRAGMA quick_check").fetchone()[0]
+        item["hasGamesTable"] = conn.execute(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='games')"
+        ).fetchone()[0] == 1
+        conn.close()
+    except Exception as error:
+        item["error"] = str(error)
+    files.append(item)
+
+print(json.dumps({"checkedCount": len(files), "files": files}, ensure_ascii=False))
+'@
+
 $dbJson = $pythonCode | python - $databasePath
 if ($LASTEXITCODE -ne 0) {
   throw "SQLite readonly smoke failed while reading $databasePath"
@@ -160,6 +234,11 @@ $databaseBackups = Get-DirectorySummary $appDataRoot "database-backups"
 $updateProtection = Get-OptionalDirectorySummary $appDataRoot "database-backups" "update-protection"
 $legacyUpdateProtection = Get-OptionalDirectorySummary $appDataRoot "database-update-protection"
 $logs = Get-DirectorySummary $appDataRoot "logs"
+$backupQuickChecks = [ordered]@{
+  databaseBackups = Test-DatabaseBackupQuickChecks $databaseBackups "database-backups" $MaxBackupQuickCheckFiles
+  databaseUpdateProtection = Test-DatabaseBackupQuickChecks $updateProtection "database-backups/update-protection" $MaxBackupQuickCheckFiles
+  legacyDatabaseUpdateProtection = Test-DatabaseBackupQuickChecks $legacyUpdateProtection "database-update-protection" $MaxBackupQuickCheckFiles
+}
 
 if ($database.quickCheck -ne "ok") {
   throw "SQLite quick_check failed: $($database.quickCheck)"
@@ -193,6 +272,7 @@ $report = [ordered]@{
   databaseBackups = $databaseBackups
   databaseUpdateProtection = $updateProtection
   legacyDatabaseUpdateProtection = $legacyUpdateProtection
+  backupQuickChecks = $backupQuickChecks
   logs = $logs
   readonly = $true
 }
