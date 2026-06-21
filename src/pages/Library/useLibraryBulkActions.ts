@@ -99,7 +99,11 @@ export function useLibraryBulkActions({ onChanged, refreshKey, setError, setGame
     setError(null);
     setBulkMessage(null);
     try {
-      const updated = await runLibraryBulkRequests(ids, (id) => api.updateGame(id, input));
+      const updated = await runLibraryBulkRequests(
+        ids,
+        (id) => api.updateGame(id, input),
+        (completed, total) => setBulkMessage(formatLibraryBulkProgress(completed, total, label)),
+      );
       const updatedById = new Map(updated.map((game) => [game.id, game]));
       setGames((current) => current.map((game) => updatedById.get(game.id) ?? game));
       setBulkMessage(`已更新 ${formatCount(updated.length)} 个游戏：${label}。`);
@@ -119,11 +123,20 @@ export function useLibraryBulkActions({ onChanged, refreshKey, setError, setGame
     setBulkBusy(true);
     setError(null);
     setBulkMessage(null);
+    const label = `${action === 'add' ? '加入' : '移出'}合集：${selectedBulkCollection.name}`;
     try {
       if (action === 'add') {
-        await runLibraryBulkRequests(ids, (id) => api.addGameToCollection(selectedBulkCollection.id, id));
+        await runLibraryBulkRequests(
+          ids,
+          (id) => api.addGameToCollection(selectedBulkCollection.id, id),
+          (completed, total) => setBulkMessage(formatLibraryBulkProgress(completed, total, label)),
+        );
       } else {
-        await runLibraryBulkRequests(ids, (id) => api.removeGameFromCollection(selectedBulkCollection.id, id));
+        await runLibraryBulkRequests(
+          ids,
+          (id) => api.removeGameFromCollection(selectedBulkCollection.id, id),
+          (completed, total) => setBulkMessage(formatLibraryBulkProgress(completed, total, label)),
+        );
       }
       setBulkMessage(`已将 ${formatCount(ids.length)} 个游戏${action === 'add' ? '加入' : '移出'}合集：${selectedBulkCollection.name}。`);
       setCollections(await api.listCollections());
@@ -142,10 +155,15 @@ export function useLibraryBulkActions({ onChanged, refreshKey, setError, setGame
     setBulkBusy(true);
     setError(null);
     setBulkMessage(null);
+    const label = `${action === 'add' ? '添加' : '移除'}标签：${tags.join('、')}`;
     try {
-      const updated = await runLibraryBulkRequests(selectedBulkGames, (game) => api.updateGame(game.id, {
-        tags: action === 'add' ? addTags(game.tags, tags) : removeTags(game.tags, tags),
-      }));
+      const updated = await runLibraryBulkRequests(
+        selectedBulkGames,
+        (game) => api.updateGame(game.id, {
+          tags: action === 'add' ? addTags(game.tags, tags) : removeTags(game.tags, tags),
+        }),
+        (completed, total) => setBulkMessage(formatLibraryBulkProgress(completed, total, label)),
+      );
       const updatedById = new Map(updated.map((game) => [game.id, game]));
       setGames((current) => current.map((game) => updatedById.get(game.id) ?? game));
       setBulkMessage(`已为 ${formatCount(updated.length)} 个游戏${action === 'add' ? '添加' : '移除'}标签：${tags.join('、')}。`);
@@ -187,14 +205,20 @@ export function useLibraryBulkActions({ onChanged, refreshKey, setError, setGame
 async function runLibraryBulkRequests<TItem, TResult>(
   items: TItem[],
   worker: (item: TItem) => Promise<TResult>,
+  onProgress?: (completed: number, total: number) => void,
   batchSize = libraryBulkWriteBatchSize,
 ) {
   const results: TResult[] = [];
   for (let index = 0; index < items.length; index += batchSize) {
     const batch = items.slice(index, index + batchSize);
     results.push(...await Promise.all(batch.map(worker)));
+    onProgress?.(Math.min(index + batch.length, items.length), items.length);
   }
   return results;
+}
+
+function formatLibraryBulkProgress(completed: number, total: number, label: string) {
+  return `正在处理批量操作：${label} (${formatCount(completed)} / ${formatCount(total)})`;
 }
 
 function formatCount(value: number) {

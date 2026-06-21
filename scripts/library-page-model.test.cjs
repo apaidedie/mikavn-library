@@ -184,6 +184,18 @@ test('library bulk writes are batched for large libraries', () => {
   assert.doesNotMatch(source, /Promise\.all\(selectedBulkGames\.map/);
 });
 
+test('library bulk writes report per-batch progress for long operations', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Library', 'useLibraryBulkActions.ts'), 'utf8');
+
+  assert.match(source, /onProgress\?: \(completed: number, total: number\) => void/);
+  assert.match(source, /onProgress\?\.\(Math\.min\(index \+ batch\.length, items\.length\), items\.length\)/);
+  assert.match(source, /formatLibraryBulkProgress\(completed, total, label\)/);
+  assert.match(source, /const label = `\$\{action === 'add' \? '加入' : '移出'\}合集：\$\{selectedBulkCollection\.name\}`/);
+  assert.match(source, /const label = `\$\{action === 'add' \? '添加' : '移除'\}标签：\$\{tags\.join\('、'\)\}`/);
+  assert.match(source, /function formatLibraryBulkProgress\(completed: number, total: number, label: string\)/);
+  assert.match(source, /正在处理批量操作：\$\{label\} \(\$\{formatCount\(completed\)\} \/ \$\{formatCount\(total\)\}\)/);
+});
+
 test('library bulk select-all confirms before selecting a large visible batch', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Library', 'useLibraryBulkActions.ts'), 'utf8');
 
