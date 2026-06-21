@@ -179,6 +179,17 @@ export function createMockStoreDiagnostics(readGames: () => Game[]) {
       });
     },
 
+    quarantineDuplicateContentImages(_options: ImageHealthReportOptions = {}): Promise<ImageQuarantineReport> {
+      return Promise.resolve({
+        quarantineDir: mockAppDataPath('image-quarantine', 'duplicate-content-preview'),
+        manifestPath: mockAppDataPath('image-quarantine', 'duplicate-content-preview', 'manifest.json'),
+        movedFiles: 1,
+        movedBytes: 256 * 1024,
+        skippedFiles: 0,
+        skipped: [],
+      });
+    },
+
     cleanupOldDatabaseBackups(policy: DatabaseBackupCleanupPolicy = {}): Promise<DatabaseBackupCleanupReport> {
       const retainCount = policy.retainCount ?? 10;
       const retainDays = policy.retainDays ?? 30;

@@ -4,7 +4,7 @@ import type { ImageHealthReport, ImageReferenceAudit } from '@/types/archive';
 import type { ArtworkRepairDiagnosis } from '@/types/metadata';
 import { errorMessage } from '@/utils/errorMessage';
 import { formatCount } from './MaintenancePageParts';
-import { formatImageQuarantineCompletionMessage } from './maintenanceImageHealthModel';
+import { formatImageDuplicateContentQuarantineCompletionMessage, formatImageQuarantineCompletionMessage } from './maintenanceImageHealthModel';
 
 type TaskMessage = { text: string; taskId?: string | null };
 
@@ -88,6 +88,27 @@ export function useMaintenanceInspectionActions({ setError, setMessage }: UseMai
     }
   }, [imageHealth?.summary.orphanFiles, setError, setMessage]);
 
+  const quarantineDuplicateContentImages = useCallback(async () => {
+    const duplicateGroupCount = imageHealth?.summary.duplicateContentGroups ?? 0;
+    const confirmed = window.confirm(
+      `将整理 ${formatCount(duplicateGroupCount)} 组重复内容缓存。\n\n只会移动未被数据库引用的重复副本；会保留被数据库引用的图片。如果整组都未被引用，也会至少保留一个未引用副本。隔离区会写入 manifest.json，必要时可以按清单找回原路径。确认继续？`,
+    );
+    if (!confirmed) return;
+
+    setImageHealthLoading(true);
+    setError(null);
+    try {
+      const result = await api.quarantineDuplicateContentImages({ sampleLimit: 100 });
+      const report = await api.getImageHealthReport({ sampleLimit: 100 });
+      setImageHealth(report);
+      setMessage({ text: formatImageDuplicateContentQuarantineCompletionMessage(result, report) });
+    } catch (reason) {
+      setError(errorMessage(reason));
+    } finally {
+      setImageHealthLoading(false);
+    }
+  }, [imageHealth?.summary.duplicateContentGroups, setError, setMessage]);
+
   const resetImageAuditFilters = useCallback(() => {
     setImageAuditQuery('');
     setImageAuditIssueFilter('all');
@@ -112,6 +133,7 @@ export function useMaintenanceInspectionActions({ setError, setMessage }: UseMai
     loadArtworkDiagnosis,
     loadImageAudit,
     loadImageHealth,
+    quarantineDuplicateContentImages,
     quarantineOrphanImages,
     resetArtworkDiagnosisFilters,
     resetImageAuditFilters,

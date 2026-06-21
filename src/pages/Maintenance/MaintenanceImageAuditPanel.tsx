@@ -18,6 +18,7 @@ export const MaintenanceImageAuditPanel = forwardRef<HTMLElement, {
   query: string;
   onDiagnoseArtwork: () => void;
   onLoadImageHealth: () => void;
+  onQuarantineDuplicateContent: () => void;
   onQuarantineOrphans: () => void;
   onIssueFilterChange: (value: string) => void;
   onLoadAudit: () => void;
@@ -38,6 +39,7 @@ export const MaintenanceImageAuditPanel = forwardRef<HTMLElement, {
   query,
   onDiagnoseArtwork,
   onLoadImageHealth,
+  onQuarantineDuplicateContent,
   onQuarantineOrphans,
   onIssueFilterChange,
   onLoadAudit,
@@ -67,6 +69,7 @@ export const MaintenanceImageAuditPanel = forwardRef<HTMLElement, {
           onDiagnoseArtwork={onDiagnoseArtwork}
           onLoad={onLoadImageHealth}
           onLoadAudit={onLoadAudit}
+          onQuarantineDuplicateContent={onQuarantineDuplicateContent}
           onQuarantineOrphans={onQuarantineOrphans}
           onOpenGame={onOpenGame}
           onRevealPath={onRevealPath}
@@ -103,6 +106,7 @@ function ImageHealthSummaryPanel({
   onDiagnoseArtwork,
   onLoad,
   onLoadAudit,
+  onQuarantineDuplicateContent,
   onQuarantineOrphans,
   onOpenGame,
   onRevealPath,
@@ -115,6 +119,7 @@ function ImageHealthSummaryPanel({
   onDiagnoseArtwork: () => void;
   onLoad: () => void;
   onLoadAudit: () => void;
+  onQuarantineDuplicateContent: () => void;
   onQuarantineOrphans: () => void;
   onOpenGame?: (gameId: string) => void;
   onRevealPath: (path: string) => void;
@@ -122,6 +127,7 @@ function ImageHealthSummaryPanel({
 }) {
   const summary = report?.summary;
   const canSafeCleanup = Boolean(report && summary && summary.orphanFiles > 0 && !loading);
+  const canCleanupDuplicateContent = Boolean(report && summary && summary.duplicateContentGroups > 0 && !loading);
   const canDiagnoseArtwork = Boolean(report && summary && summary.missingArtworkGames > 0 && !loading && !artworkDiagnosisLoading);
   const canStartArtworkRepair = Boolean(report && summary && summary.missingArtworkGames > 0 && !loading && !artworkRepairLoading);
   const canInspectBrokenRefs = Boolean(report && summary && !loading && (
@@ -138,7 +144,7 @@ function ImageHealthSummaryPanel({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2 text-sm font-medium text-slate-100"><ShieldCheck className="h-4 w-4 text-emerald-200" />图片健康</div>
-          <div className="mt-1 text-xs text-slate-500">检查图片引用和缓存文件；无效图片表示空文件或损坏文件，类型不匹配表示扩展名和真实格式不同。一键安全整理只处理未被数据库引用的孤儿缓存，移动到隔离区，不会永久删除文件。</div>
+          <div className="mt-1 text-xs text-slate-500">检查图片引用和缓存文件；无效图片表示空文件或损坏文件，类型不匹配表示扩展名和真实格式不同。一键安全整理只处理未被数据库引用的孤儿缓存；整理重复内容只隔离重复内容中的未引用副本，移动到隔离区，不会永久删除文件。</div>
           <div className="mt-1 text-xs text-slate-600">隔离区会写入 manifest.json；如果误隔离，可以按清单找回原路径并恢复文件。</div>
           <div className="mt-1 text-xs text-slate-600">缺封面和失效引用会保留给补图或明细审计，避免误改仍在使用的图片。</div>
         </div>
@@ -148,6 +154,7 @@ function ImageHealthSummaryPanel({
           <Button disabled={!canDiagnoseArtwork} size="sm" variant="outline" onClick={onDiagnoseArtwork}>{artworkDiagnosisLoading ? '诊断中' : '诊断缺图'}</Button>
           <Button disabled={!canStartArtworkRepair} size="sm" variant="secondary" onClick={onStartArtworkRepair}>{artworkRepairLoading ? '创建中' : '开始补图'}</Button>
           <Button disabled={!canSafeCleanup} size="sm" variant="secondary" onClick={onQuarantineOrphans}>一键安全整理</Button>
+          <Button disabled={!canCleanupDuplicateContent} size="sm" variant="secondary" onClick={onQuarantineDuplicateContent}>整理重复内容</Button>
         </div>
       </div>
       <div className="text-xs text-slate-500" data-image-health-action-hint>{actionHint}</div>

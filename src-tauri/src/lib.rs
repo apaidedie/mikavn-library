@@ -98,6 +98,7 @@ pub fn run() {
             commands::diagnostics::audit_image_references,
             commands::diagnostics::get_image_health_report,
             commands::diagnostics::quarantine_orphan_images,
+            commands::diagnostics::quarantine_duplicate_content_images,
             commands::diagnostics::cleanup_old_database_backups,
             commands::collections::list_collections,
             commands::collections::create_collection,

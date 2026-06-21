@@ -46,6 +46,14 @@ pub fn quarantine_orphan_images(
 }
 
 #[tauri::command]
+pub fn quarantine_duplicate_content_images(
+    app: AppHandle,
+    options: ImageHealthReportOptions,
+) -> DbResult<ImageQuarantineReport> {
+    image_health::quarantine_duplicate_content_images(&app, options)
+}
+
+#[tauri::command]
 pub fn cleanup_old_database_backups(
     app: AppHandle,
     policy: DatabaseBackupCleanupPolicy,

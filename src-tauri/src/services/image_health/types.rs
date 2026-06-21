@@ -115,6 +115,7 @@ pub(super) struct ImageCacheContentCandidate {
     pub(super) path: PathBuf,
     pub(super) relative_path: String,
     pub(super) size_bytes: u64,
+    pub(super) content_hash: u64,
 }
 
 #[derive(Debug, Clone, Default)]

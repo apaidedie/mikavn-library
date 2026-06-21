@@ -162,6 +162,7 @@ export function MaintenancePageContent({ dataActions, duplicateMergeActions, his
         onLoadAudit={inspectionActions.loadImageAudit}
         onLoadImageHealth={inspectionActions.loadImageHealth}
         onOpenGame={onOpenGame}
+        onQuarantineDuplicateContent={inspectionActions.quarantineDuplicateContentImages}
         onQuarantineOrphans={inspectionActions.quarantineOrphanImages}
         onQueryChange={inspectionActions.setImageAuditQuery}
         onResetFilters={inspectionActions.resetImageAuditFilters}

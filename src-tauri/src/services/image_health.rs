@@ -12,12 +12,18 @@ use crate::infrastructure::paths::AppPaths;
 use crate::services::images;
 
 mod description;
+mod quarantine;
 mod types;
 
 use description::description_image_sources;
+pub use quarantine::{quarantine_duplicate_content_images, quarantine_orphan_images};
+#[cfg(test)]
+pub(crate) use quarantine::{
+    quarantine_duplicate_content_images_with_paths, quarantine_orphan_images_with_paths,
+};
 use types::{
     ImageCacheContentCandidate, ImageDuplicateContentGroups, ImageDuplicateNameGroups,
-    ImageQuarantineManifest, ImageQuarantineManifestItem, ImageReferenceCollection,
+    ImageReferenceCollection,
 };
 pub use types::{
     ImageCacheFileIssue, ImageCacheHealth, ImageCacheReferenceSample, ImageDuplicateContentGroup,
@@ -74,110 +80,6 @@ pub(crate) fn get_image_health_report_with_paths(
         cache,
         recommendations,
     })
-}
-
-pub fn quarantine_orphan_images(
-    app: &AppHandle,
-    options: ImageHealthReportOptions,
-) -> DbResult<ImageQuarantineReport> {
-    let paths = AppPaths::from_app(app)?;
-    quarantine_orphan_images_with_paths(&paths, options)
-}
-
-pub(crate) fn quarantine_orphan_images_with_paths(
-    paths: &AppPaths,
-    options: ImageHealthReportOptions,
-) -> DbResult<ImageQuarantineReport> {
-    let created_at = Utc::now();
-    let quarantine_dir = paths
-        .root()
-        .join("image-quarantine")
-        .join(created_at.format("%Y%m%d-%H%M%S").to_string());
-    fs::create_dir_all(&quarantine_dir)?;
-
-    let candidates = orphan_candidates(paths, options)?;
-    let images_root = paths.images().canonicalize().ok();
-    let mut moved = Vec::new();
-    let mut skipped = Vec::new();
-    let mut moved_bytes = 0;
-
-    for candidate in candidates {
-        let source = PathBuf::from(&candidate.path);
-        if !source.is_file() {
-            skipped.push(ImageQuarantineSkippedFile {
-                path: candidate.path,
-                reason: "source file no longer exists".to_string(),
-            });
-            continue;
-        }
-        if let (Some(images_root), Ok(canonical_source)) =
-            (images_root.as_ref(), source.canonicalize())
-        {
-            if !canonical_source.starts_with(images_root) {
-                skipped.push(ImageQuarantineSkippedFile {
-                    path: candidate.path,
-                    reason: "source is outside image cache".to_string(),
-                });
-                continue;
-            }
-        }
-
-        let target = quarantine_dir.join(&candidate.relative_path);
-        if target.exists() {
-            skipped.push(ImageQuarantineSkippedFile {
-                path: candidate.path,
-                reason: "quarantine target already exists".to_string(),
-            });
-            continue;
-        }
-        if let Some(parent) = target.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        fs::rename(&source, &target)?;
-        moved_bytes += candidate.size_bytes;
-        moved.push(ImageQuarantineManifestItem {
-            source_path: candidate.path,
-            quarantine_path: target.to_string_lossy().to_string(),
-            relative_path: candidate.relative_path,
-            size_bytes: candidate.size_bytes,
-            reason: "orphan image cache file".to_string(),
-        });
-    }
-
-    let manifest_path = quarantine_dir.join("manifest.json");
-    let manifest = ImageQuarantineManifest {
-        app: "MikaVN Library".to_string(),
-        created_at: created_at.to_rfc3339(),
-        moved,
-    };
-    fs::write(&manifest_path, serde_json::to_string_pretty(&manifest)?)?;
-
-    Ok(ImageQuarantineReport {
-        quarantine_dir: quarantine_dir.to_string_lossy().to_string(),
-        manifest_path: manifest_path.to_string_lossy().to_string(),
-        moved_files: manifest.moved.len() as i64,
-        moved_bytes,
-        skipped_files: skipped.len() as i64,
-        skipped,
-    })
-}
-
-fn orphan_candidates(
-    paths: &AppPaths,
-    options: ImageHealthReportOptions,
-) -> DbResult<Vec<ImageCacheFileIssue>> {
-    let oversized_bytes = options
-        .oversized_bytes
-        .unwrap_or(DEFAULT_OVERSIZED_IMAGE_BYTES);
-    let references = collect_image_references(paths)?;
-    let cache = scan_image_cache(
-        paths,
-        &references.referenced_paths,
-        &references.reference_sources,
-        oversized_bytes,
-        usize::MAX,
-    )?;
-    Ok(cache.orphan_samples)
 }
 
 fn collect_image_references(paths: &AppPaths) -> DbResult<ImageReferenceCollection> {
@@ -583,6 +485,7 @@ fn scan_image_dir(
             path: path.clone(),
             relative_path: relative_path.clone(),
             size_bytes,
+            content_hash: 0,
         });
 
         let path_key = normalize_path_key(&path.to_string_lossy());
@@ -636,40 +539,28 @@ fn duplicate_content_groups_from_candidates(
     candidates: Vec<ImageCacheContentCandidate>,
     sample_limit: usize,
 ) -> DbResult<ImageDuplicateContentGroups> {
-    let mut by_size: HashMap<u64, Vec<ImageCacheContentCandidate>> = HashMap::new();
-    for candidate in candidates {
-        by_size
-            .entry(candidate.size_bytes)
-            .or_default()
-            .push(candidate);
-    }
-
-    let mut by_content: HashMap<(u64, u64), Vec<String>> = HashMap::new();
-    for (size_bytes, same_size_candidates) in by_size {
-        if same_size_candidates.len() < 2 {
-            continue;
-        }
-        for candidate in same_size_candidates {
-            by_content
-                .entry((hash_file_content(&candidate.path)?, size_bytes))
-                .or_default()
-                .push(candidate.relative_path);
-        }
-    }
-
     let mut groups = ImageDuplicateContentGroups::default();
-    for ((content_hash, size_bytes), samples) in by_content {
-        if samples.len() > 1 {
-            let mut samples = samples;
-            samples.sort();
-            groups.total_groups += 1;
-            groups.samples.push(ImageDuplicateContentGroup {
-                content_hash: format!("{content_hash:016x}"),
-                size_bytes,
-                count: samples.len() as i64,
-                samples: samples.into_iter().take(5).collect(),
-            });
-        }
+    for group in duplicate_content_candidate_groups_from_candidates(candidates)? {
+        let size_bytes = group
+            .first()
+            .map(|candidate| candidate.size_bytes)
+            .unwrap_or(0);
+        let content_hash = group
+            .first()
+            .map(|candidate| candidate.content_hash)
+            .unwrap_or(0);
+        let mut samples = group
+            .into_iter()
+            .map(|candidate| candidate.relative_path)
+            .collect::<Vec<_>>();
+        samples.sort();
+        groups.total_groups += 1;
+        groups.samples.push(ImageDuplicateContentGroup {
+            content_hash: format!("{content_hash:016x}"),
+            size_bytes,
+            count: samples.len() as i64,
+            samples: samples.into_iter().take(5).collect(),
+        });
     }
     groups.samples.sort_by(|left, right| {
         right
@@ -681,6 +572,38 @@ fn duplicate_content_groups_from_candidates(
     });
     groups.samples.truncate(sample_limit);
     Ok(groups)
+}
+
+fn duplicate_content_candidate_groups_from_candidates(
+    candidates: Vec<ImageCacheContentCandidate>,
+) -> DbResult<Vec<Vec<ImageCacheContentCandidate>>> {
+    let mut by_size: HashMap<u64, Vec<ImageCacheContentCandidate>> = HashMap::new();
+    for candidate in candidates {
+        by_size
+            .entry(candidate.size_bytes)
+            .or_default()
+            .push(candidate);
+    }
+
+    let mut by_content: HashMap<(u64, u64), Vec<ImageCacheContentCandidate>> = HashMap::new();
+    for (size_bytes, same_size_candidates) in by_size {
+        if same_size_candidates.len() < 2 {
+            continue;
+        }
+        for mut candidate in same_size_candidates {
+            let content_hash = hash_file_content(&candidate.path)?;
+            candidate.content_hash = content_hash;
+            by_content
+                .entry((content_hash, size_bytes))
+                .or_default()
+                .push(candidate);
+        }
+    }
+
+    Ok(by_content
+        .into_values()
+        .filter(|group| group.len() > 1)
+        .collect())
 }
 
 fn image_health_recommendations(summary: &ImageHealthSummary) -> Vec<String> {

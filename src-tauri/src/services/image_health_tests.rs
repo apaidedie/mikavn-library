@@ -108,6 +108,44 @@ fn quarantine_orphan_images_moves_only_unreferenced_files() {
 }
 
 #[test]
+fn quarantine_duplicate_content_images_keeps_referenced_and_one_unreferenced_copy() {
+    let root = std::env::temp_dir().join(format!(
+        "mikavn-image-duplicate-content-quarantine-{}",
+        Uuid::new_v4()
+    ));
+    let paths = AppPaths::from_root(root.clone()).unwrap();
+    fs::create_dir_all(paths.images().join("referenced")).unwrap();
+    fs::create_dir_all(paths.images().join("orphaned")).unwrap();
+
+    let referenced = paths.images().join("referenced/cover.jpg");
+    let unreferenced_duplicate = paths.images().join("referenced/cover-copy.webp");
+    let unreferenced_kept = paths.images().join("orphaned/a.jpg");
+    let unreferenced_moved = paths.images().join("orphaned/b.webp");
+    fs::write(&referenced, b"\xFF\xD8\xFFsame-referenced").unwrap();
+    fs::write(&unreferenced_duplicate, b"\xFF\xD8\xFFsame-referenced").unwrap();
+    fs::write(&unreferenced_kept, b"\xFF\xD8\xFFsame-orphaned").unwrap();
+    fs::write(&unreferenced_moved, b"\xFF\xD8\xFFsame-orphaned").unwrap();
+    create_health_db(&paths.database(), &referenced.to_string_lossy(), "", "");
+
+    let report =
+        quarantine_duplicate_content_images_with_paths(&paths, ImageHealthReportOptions::default())
+            .unwrap();
+
+    assert_eq!(report.moved_files, 2);
+    assert_eq!(report.skipped_files, 0);
+    assert!(referenced.is_file());
+    assert!(!unreferenced_duplicate.exists());
+    assert!(unreferenced_kept.is_file());
+    assert!(!unreferenced_moved.exists());
+    let manifest = fs::read_to_string(&report.manifest_path).unwrap();
+    assert!(manifest.contains("duplicate content image cache file"));
+    assert!(manifest.contains("cover-copy.webp"));
+    assert!(manifest.contains("b.webp"));
+
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
 fn image_health_report_counts_invalid_image_cache_files() {
     let root = std::env::temp_dir().join(format!("mikavn-image-invalid-{}", Uuid::new_v4()));
     let paths = AppPaths::from_root(root.clone()).unwrap();
@@ -217,16 +255,19 @@ fn duplicate_content_detection_skips_unique_size_files_before_hashing() {
                 path: duplicate_a,
                 relative_path: "alpha.jpg".to_string(),
                 size_bytes: 12,
+                content_hash: 0,
             },
             ImageCacheContentCandidate {
                 path: duplicate_b,
                 relative_path: "beta.webp".to_string(),
                 size_bytes: 12,
+                content_hash: 0,
             },
             ImageCacheContentCandidate {
                 path: missing_unique,
                 relative_path: "missing-unique.jpg".to_string(),
                 size_bytes: 1,
+                content_hash: 0,
             },
         ],
         100,
@@ -293,26 +334,31 @@ fn duplicate_content_groups_and_samples_are_stably_sorted() {
                 path: beta,
                 relative_path: "z-beta.webp".to_string(),
                 size_bytes: 10,
+                content_hash: 0,
             },
             ImageCacheContentCandidate {
                 path: alpha,
                 relative_path: "a-alpha.jpg".to_string(),
                 size_bytes: 10,
+                content_hash: 0,
             },
             ImageCacheContentCandidate {
                 path: third_large,
                 relative_path: "large-third.jpg".to_string(),
                 size_bytes: 18,
+                content_hash: 0,
             },
             ImageCacheContentCandidate {
                 path: first_large,
                 relative_path: "large-first.jpg".to_string(),
                 size_bytes: 18,
+                content_hash: 0,
             },
             ImageCacheContentCandidate {
                 path: second_large,
                 relative_path: "large-second.jpg".to_string(),
                 size_bytes: 18,
+                content_hash: 0,
             },
         ],
         10,
