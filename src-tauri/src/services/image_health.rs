@@ -788,17 +788,26 @@ fn duplicate_content_groups_from_candidates(
     let mut groups = ImageDuplicateContentGroups::default();
     for ((content_hash, size_bytes), samples) in by_content {
         if samples.len() > 1 {
+            let mut samples = samples;
+            samples.sort();
             groups.total_groups += 1;
-            if groups.samples.len() < sample_limit {
-                groups.samples.push(ImageDuplicateContentGroup {
-                    content_hash: format!("{content_hash:016x}"),
-                    size_bytes,
-                    count: samples.len() as i64,
-                    samples: samples.into_iter().take(5).collect(),
-                });
-            }
+            groups.samples.push(ImageDuplicateContentGroup {
+                content_hash: format!("{content_hash:016x}"),
+                size_bytes,
+                count: samples.len() as i64,
+                samples: samples.into_iter().take(5).collect(),
+            });
         }
     }
+    groups.samples.sort_by(|left, right| {
+        right
+            .count
+            .cmp(&left.count)
+            .then_with(|| right.size_bytes.cmp(&left.size_bytes))
+            .then_with(|| left.samples.first().cmp(&right.samples.first()))
+            .then_with(|| left.content_hash.cmp(&right.content_hash))
+    });
+    groups.samples.truncate(sample_limit);
     Ok(groups)
 }
 

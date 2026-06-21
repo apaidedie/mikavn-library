@@ -269,6 +269,74 @@ fn duplicate_content_group_count_is_not_limited_by_sample_limit() {
     let _ = fs::remove_dir_all(root);
 }
 
+#[test]
+fn duplicate_content_groups_and_samples_are_stably_sorted() {
+    let root = std::env::temp_dir().join(format!(
+        "mikavn-image-content-stable-sort-{}",
+        Uuid::new_v4()
+    ));
+    fs::create_dir_all(&root).unwrap();
+    let beta = root.join("z-beta.webp");
+    let alpha = root.join("a-alpha.jpg");
+    let first_large = root.join("large-first.jpg");
+    let second_large = root.join("large-second.jpg");
+    let third_large = root.join("large-third.jpg");
+    fs::write(&beta, b"same-small").unwrap();
+    fs::write(&alpha, b"same-small").unwrap();
+    fs::write(&first_large, b"same-large-content").unwrap();
+    fs::write(&second_large, b"same-large-content").unwrap();
+    fs::write(&third_large, b"same-large-content").unwrap();
+
+    let groups = duplicate_content_groups_from_candidates(
+        vec![
+            ImageCacheContentCandidate {
+                path: beta,
+                relative_path: "z-beta.webp".to_string(),
+                size_bytes: 10,
+            },
+            ImageCacheContentCandidate {
+                path: alpha,
+                relative_path: "a-alpha.jpg".to_string(),
+                size_bytes: 10,
+            },
+            ImageCacheContentCandidate {
+                path: third_large,
+                relative_path: "large-third.jpg".to_string(),
+                size_bytes: 18,
+            },
+            ImageCacheContentCandidate {
+                path: first_large,
+                relative_path: "large-first.jpg".to_string(),
+                size_bytes: 18,
+            },
+            ImageCacheContentCandidate {
+                path: second_large,
+                relative_path: "large-second.jpg".to_string(),
+                size_bytes: 18,
+            },
+        ],
+        10,
+    )
+    .unwrap();
+
+    assert_eq!(groups.total_groups, 2);
+    assert_eq!(groups.samples[0].count, 3);
+    assert_eq!(
+        groups.samples[0].samples,
+        vec![
+            "large-first.jpg".to_string(),
+            "large-second.jpg".to_string(),
+            "large-third.jpg".to_string(),
+        ]
+    );
+    assert_eq!(groups.samples[1].count, 2);
+    assert_eq!(
+        groups.samples[1].samples,
+        vec!["a-alpha.jpg".to_string(), "z-beta.webp".to_string()]
+    );
+    let _ = fs::remove_dir_all(root);
+}
+
 fn create_health_db(path: &std::path::Path, cover: &str, legacy: &str, missing: &str) {
     let conn = Connection::open(path).unwrap();
     conn.execute_batch(
