@@ -20,6 +20,15 @@ function Assert-UnderRoot([string]$Root, [string]$Path, [string]$Description) {
   return $resolvedPath
 }
 
+function Resolve-UnderRootPath([string]$Root, [string]$Path, [string]$Description) {
+  $resolvedRoot = (Resolve-Path -LiteralPath $Root).Path
+  $resolvedPath = [System.IO.Path]::GetFullPath($Path)
+  if (!$resolvedPath.StartsWith($resolvedRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+    throw "$Description is outside expected root. Root=$resolvedRoot Path=$resolvedPath"
+  }
+  return $resolvedPath
+}
+
 function Get-DirectorySummary([string]$Root, [string]$Name) {
   $path = Assert-UnderRoot $Root (Join-Path $Root $Name) $Name
   $files = @(Get-ChildItem -LiteralPath $path -Recurse -File -ErrorAction SilentlyContinue)
@@ -27,6 +36,31 @@ function Get-DirectorySummary([string]$Root, [string]$Name) {
   $latest = ($files | Sort-Object LastWriteTime -Descending | Select-Object -First 1).LastWriteTime
   [ordered]@{
     path = $path
+    fileCount = $files.Count
+    totalBytes = [int64]$bytes
+    latestFileTime = $latest
+  }
+}
+
+function Get-OptionalDirectorySummary([string]$Root, [string]$Name, [string]$ChildName = "") {
+  $relativePath = if ($ChildName) { Join-Path $Name $ChildName } else { $Name }
+  $path = Resolve-UnderRootPath $Root (Join-Path $Root $relativePath) $relativePath
+  if (!(Test-Path -LiteralPath $path -PathType Container)) {
+    return [ordered]@{
+      path = $path
+      exists = $false
+      fileCount = 0
+      totalBytes = [int64]0
+      latestFileTime = $null
+    }
+  }
+
+  $files = @(Get-ChildItem -LiteralPath $path -Recurse -File -ErrorAction SilentlyContinue)
+  $bytes = ($files | Measure-Object -Property Length -Sum).Sum
+  $latest = ($files | Sort-Object LastWriteTime -Descending | Select-Object -First 1).LastWriteTime
+  [ordered]@{
+    path = $path
+    exists = $true
     fileCount = $files.Count
     totalBytes = [int64]$bytes
     latestFileTime = $latest
@@ -123,7 +157,8 @@ $database = $dbJson | ConvertFrom-Json
 
 $images = Get-DirectorySummary $appDataRoot "images"
 $databaseBackups = Get-DirectorySummary $appDataRoot "database-backups"
-$updateProtection = Get-DirectorySummary $appDataRoot "database-update-protection"
+$updateProtection = Get-OptionalDirectorySummary $appDataRoot "database-backups" "update-protection"
+$legacyUpdateProtection = Get-OptionalDirectorySummary $appDataRoot "database-update-protection"
 $logs = Get-DirectorySummary $appDataRoot "logs"
 
 if ($database.quickCheck -ne "ok") {
@@ -157,6 +192,7 @@ $report = [ordered]@{
   images = $images
   databaseBackups = $databaseBackups
   databaseUpdateProtection = $updateProtection
+  legacyDatabaseUpdateProtection = $legacyUpdateProtection
   logs = $logs
   readonly = $true
 }
