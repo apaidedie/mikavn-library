@@ -40,6 +40,14 @@ pub fn quarantine_invalid_image_cache_files(
     quarantine_invalid_image_cache_files_with_paths(&paths, options)
 }
 
+pub fn quarantine_oversized_image_cache_files(
+    app: &AppHandle,
+    options: ImageHealthReportOptions,
+) -> DbResult<ImageQuarantineReport> {
+    let paths = AppPaths::from_app(app)?;
+    quarantine_oversized_image_cache_files_with_paths(&paths, options)
+}
+
 pub(crate) fn quarantine_orphan_images_with_paths(
     paths: &AppPaths,
     options: ImageHealthReportOptions,
@@ -70,6 +78,17 @@ pub(crate) fn quarantine_invalid_image_cache_files_with_paths(
         paths,
         invalid_unreferenced_candidates(paths, options)?,
         "invalid unreferenced image cache file",
+    )
+}
+
+pub(crate) fn quarantine_oversized_image_cache_files_with_paths(
+    paths: &AppPaths,
+    options: ImageHealthReportOptions,
+) -> DbResult<ImageQuarantineReport> {
+    quarantine_image_cache_files(
+        paths,
+        oversized_unreferenced_candidates(paths, options)?,
+        "oversized unreferenced image cache file",
     )
 }
 
@@ -224,6 +243,28 @@ fn invalid_unreferenced_candidates(
     )?;
     Ok(cache
         .invalid_image_samples
+        .into_iter()
+        .filter(|item| item.reference_samples.is_empty())
+        .collect())
+}
+
+fn oversized_unreferenced_candidates(
+    paths: &AppPaths,
+    options: ImageHealthReportOptions,
+) -> DbResult<Vec<ImageCacheFileIssue>> {
+    let oversized_bytes = options
+        .oversized_bytes
+        .unwrap_or(DEFAULT_OVERSIZED_IMAGE_BYTES);
+    let references = collect_image_references(paths)?;
+    let cache = scan_image_cache(
+        paths,
+        &references.referenced_paths,
+        &references.reference_sources,
+        oversized_bytes,
+        usize::MAX,
+    )?;
+    Ok(cache
+        .oversized_samples
         .into_iter()
         .filter(|item| item.reference_samples.is_empty())
         .collect())

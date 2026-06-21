@@ -100,6 +100,7 @@ pub fn run() {
             commands::diagnostics::quarantine_orphan_images,
             commands::diagnostics::quarantine_duplicate_content_images,
             commands::diagnostics::quarantine_invalid_image_cache_files,
+            commands::diagnostics::quarantine_oversized_image_cache_files,
             commands::diagnostics::cleanup_old_database_backups,
             commands::collections::list_collections,
             commands::collections::create_collection,

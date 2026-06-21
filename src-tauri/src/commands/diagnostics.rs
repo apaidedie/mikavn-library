@@ -62,6 +62,14 @@ pub fn quarantine_invalid_image_cache_files(
 }
 
 #[tauri::command]
+pub fn quarantine_oversized_image_cache_files(
+    app: AppHandle,
+    options: ImageHealthReportOptions,
+) -> DbResult<ImageQuarantineReport> {
+    image_health::quarantine_oversized_image_cache_files(&app, options)
+}
+
+#[tauri::command]
 pub fn cleanup_old_database_backups(
     app: AppHandle,
     policy: DatabaseBackupCleanupPolicy,

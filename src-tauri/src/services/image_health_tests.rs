@@ -186,6 +186,49 @@ fn quarantine_invalid_image_cache_files_moves_only_unreferenced_invalid_files() 
 }
 
 #[test]
+fn quarantine_oversized_image_cache_files_moves_only_unreferenced_large_files() {
+    let root = std::env::temp_dir().join(format!(
+        "mikavn-image-oversized-quarantine-{}",
+        Uuid::new_v4()
+    ));
+    let paths = AppPaths::from_root(root.clone()).unwrap();
+    fs::create_dir_all(paths.images().join("large")).unwrap();
+    let referenced_large = paths.images().join("large/referenced.jpg");
+    let unreferenced_large = paths.images().join("large/orphan.webp");
+    let small_orphan = paths.images().join("small-orphan.jpg");
+    fs::write(&referenced_large, b"\xFF\xD8\xFFlarge-referenced").unwrap();
+    fs::write(&unreferenced_large, b"\xFF\xD8\xFFlarge-orphan").unwrap();
+    fs::write(&small_orphan, b"\xFF\xD8\xFFok").unwrap();
+    create_health_db(
+        &paths.database(),
+        &referenced_large.to_string_lossy(),
+        "",
+        "",
+    );
+
+    let report = quarantine_oversized_image_cache_files_with_paths(
+        &paths,
+        ImageHealthReportOptions {
+            oversized_bytes: Some(8),
+            sample_limit: None,
+        },
+    )
+    .unwrap();
+
+    assert_eq!(report.moved_files, 1);
+    assert_eq!(report.skipped_files, 0);
+    assert!(referenced_large.is_file());
+    assert!(!unreferenced_large.exists());
+    assert!(small_orphan.is_file());
+    let manifest = fs::read_to_string(&report.manifest_path).unwrap();
+    assert!(manifest.contains("oversized unreferenced image cache file"));
+    assert!(manifest.contains("orphan.webp"));
+    assert!(!manifest.contains("referenced.jpg"));
+
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
 fn image_health_report_counts_invalid_image_cache_files() {
     let root = std::env::temp_dir().join(format!("mikavn-image-invalid-{}", Uuid::new_v4()));
     let paths = AppPaths::from_root(root.clone()).unwrap();

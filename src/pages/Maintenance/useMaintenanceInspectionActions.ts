@@ -4,7 +4,7 @@ import type { ImageHealthReport, ImageReferenceAudit } from '@/types/archive';
 import type { ArtworkRepairDiagnosis } from '@/types/metadata';
 import { errorMessage } from '@/utils/errorMessage';
 import { formatCount } from './MaintenancePageParts';
-import { formatImageDuplicateContentQuarantineCompletionMessage, formatImageInvalidQuarantineCompletionMessage, formatImageQuarantineCompletionMessage } from './maintenanceImageHealthModel';
+import { formatImageDuplicateContentQuarantineCompletionMessage, formatImageInvalidQuarantineCompletionMessage, formatImageOversizedQuarantineCompletionMessage, formatImageQuarantineCompletionMessage } from './maintenanceImageHealthModel';
 
 type TaskMessage = { text: string; taskId?: string | null };
 
@@ -130,6 +130,27 @@ export function useMaintenanceInspectionActions({ setError, setMessage }: UseMai
     }
   }, [imageHealth?.summary.invalidImageFiles, imageHealth?.summary.invalidImageRefs, setError, setMessage]);
 
+  const quarantineOversizedImageCacheFiles = useCallback(async () => {
+    const oversizedCount = imageHealth?.summary.oversizedFiles ?? 0;
+    const confirmed = window.confirm(
+      `将整理 ${formatCount(oversizedCount)} 个过大图片样本。\n\n只会移动未被数据库引用的过大图片；仍被引用的过大图片会保留给压缩、重新抓取或人工确认。隔离区会写入 manifest.json，必要时可以按清单找回原路径。确认继续？`,
+    );
+    if (!confirmed) return;
+
+    setImageHealthLoading(true);
+    setError(null);
+    try {
+      const result = await api.quarantineOversizedImageCacheFiles({ sampleLimit: 100 });
+      const report = await api.getImageHealthReport({ sampleLimit: 100 });
+      setImageHealth(report);
+      setMessage({ text: formatImageOversizedQuarantineCompletionMessage(result, report) });
+    } catch (reason) {
+      setError(errorMessage(reason));
+    } finally {
+      setImageHealthLoading(false);
+    }
+  }, [imageHealth?.summary.oversizedFiles, setError, setMessage]);
+
   const resetImageAuditFilters = useCallback(() => {
     setImageAuditQuery('');
     setImageAuditIssueFilter('all');
@@ -157,6 +178,7 @@ export function useMaintenanceInspectionActions({ setError, setMessage }: UseMai
     quarantineDuplicateContentImages,
     quarantineInvalidImageCacheFiles,
     quarantineOrphanImages,
+    quarantineOversizedImageCacheFiles,
     resetArtworkDiagnosisFilters,
     resetImageAuditFilters,
     setArtworkDiagnosisQuery,

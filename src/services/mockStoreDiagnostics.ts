@@ -201,6 +201,17 @@ export function createMockStoreDiagnostics(readGames: () => Game[]) {
       });
     },
 
+    quarantineOversizedImageCacheFiles(_options: ImageHealthReportOptions = {}): Promise<ImageQuarantineReport> {
+      return Promise.resolve({
+        quarantineDir: mockAppDataPath('image-quarantine', 'oversized-images-preview'),
+        manifestPath: mockAppDataPath('image-quarantine', 'oversized-images-preview', 'manifest.json'),
+        movedFiles: 1,
+        movedBytes: 7 * 1024 * 1024,
+        skippedFiles: 0,
+        skipped: [],
+      });
+    },
+
     cleanupOldDatabaseBackups(policy: DatabaseBackupCleanupPolicy = {}): Promise<DatabaseBackupCleanupReport> {
       const retainCount = policy.retainCount ?? 10;
       const retainDays = policy.retainDays ?? 30;
