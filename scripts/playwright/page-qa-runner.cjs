@@ -18,6 +18,7 @@ const {
   taskLogs,
   tasks,
 } = require('./page-qa-fixtures.cjs');
+const { assertImagesLoaded } = require('./image-render-assertions.cjs');
 const { resolvePlaywright } = require('./playwright-resolution.cjs');
 
 const baseUrl = process.env.MIKAVN_QA_URL || 'http://127.0.0.1:1420/';
@@ -220,7 +221,7 @@ async function main() {
         await page.getByText('媒体完整').first().waitFor({ timeout: 5000 });
         await page.getByText('1 张引用').first().waitFor({ timeout: 5000 });
         const descriptionImages = page.locator('section').filter({ hasText: '简介' }).locator('figure img');
-        if (await descriptionImages.count() < 1) throw new Error('library detail description image was not rendered');
+        await assertImagesLoaded(descriptionImages, 'library detail description image');
         await page.getByText('媒体图库').first().waitFor({ timeout: 5000 });
         const downloadedCoverUrl = `${baseUrl.replace(/\/$/, '')}${hero}?qa=downloaded-cover`;
         await page.getByPlaceholder('https://example.com/cover.jpg').fill(downloadedCoverUrl);
@@ -703,7 +704,7 @@ async function main() {
         await page.getByText('媒体健康').first().waitFor({ timeout: 5000 });
         await page.getByText('简介图片修复候选').first().waitFor({ timeout: 5000 });
         const detailDescriptionImages = page.locator('section').filter({ hasText: '简介' }).locator('figure img');
-        if (await detailDescriptionImages.count() < 1) throw new Error('description repair result game shortcut did not show rendered description image');
+        await assertImagesLoaded(detailDescriptionImages, 'description repair result detail image');
       }],
       ['maintenance-health-metadata-match', 'maintenance', {}, async (page) => {
         await page.getByText('维护中心').first().waitFor({ timeout: 5000 });

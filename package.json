@@ -12,7 +12,7 @@
     "typecheck": "tsc --noEmit",
     "test:release-scripts": "node --test scripts/release/check-build-chunks.test.cjs scripts/release/check-source-size.test.cjs scripts/release/check-release-handoff.test.cjs scripts/release/cargo-release-profile.test.cjs scripts/updater-release-config.test.cjs",
     "test:image-src": "node --test scripts/image-src.test.cjs",
-    "test:playwright-scripts": "node --test scripts/playwright/playwright-resolution.test.cjs scripts/playwright/large-library-smoke.test.cjs",
+    "test:playwright-scripts": "node --test scripts/playwright/playwright-resolution.test.cjs scripts/playwright/large-library-smoke.test.cjs scripts/playwright/image-render-assertions.test.cjs",
     "test:updater-release": "node --test scripts/updater-release-config.test.cjs scripts/updater-service-model.test.cjs scripts/settings-updater-section.test.cjs scripts/startup-updater.test.cjs scripts/updater-install-flow.test.cjs scripts/settings-local-data-section.test.cjs",
     "test:data-safety": "node --test scripts/startup-database-backup.test.cjs scripts/settings-local-data-section.test.cjs scripts/real-app-data-readonly-smoke.test.cjs",
     "test:dashboard-personal": "node --test scripts/dashboard-personal-helper.test.cjs scripts/dashboard-local-safety.test.cjs",
