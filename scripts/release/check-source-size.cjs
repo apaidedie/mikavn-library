@@ -113,6 +113,11 @@ const DEFAULT_SOURCE_BUDGETS = [
     maxLines: 1950,
   },
   {
+    filePath: path.resolve(__dirname, '..', '..', 'src-tauri', 'src', 'services', 'backups.rs'),
+    maxBytes: 42 * 1024,
+    maxLines: 900,
+  },
+  {
     filePath: path.resolve(__dirname, '..', '..', 'src-tauri', 'src', 'services', 'diagnostics.rs'),
     maxBytes: 52 * 1024,
     maxLines: 1525,

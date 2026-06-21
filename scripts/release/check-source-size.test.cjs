@@ -63,6 +63,7 @@ test('default source budgets cover frontend, Rust service, and smoke runner hot 
     'src/pages/Metadata/BatchMetadataPage.tsx',
     'src/pages/Saves/SavesPage.tsx',
     'src-tauri/src/services/archives.rs',
+    'src-tauri/src/services/backups.rs',
     'src-tauri/src/services/diagnostics.rs',
     'src-tauri/src/services/image_health.rs',
     'src-tauri/src/db/game_merge_ext.rs',
@@ -190,4 +191,11 @@ test('image health service budget keeps tests outside the production scanner mod
 
   assert.ok(budget);
   assert.ok(budget.maxLines <= 1000);
+});
+
+test('backup service budget keeps data-safety tests outside the production module', () => {
+  const budget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('src-tauri/src/services/backups.rs'));
+
+  assert.ok(budget);
+  assert.ok(budget.maxLines <= 900);
 });
