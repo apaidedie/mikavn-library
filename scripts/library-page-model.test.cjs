@@ -201,6 +201,14 @@ test('getLibraryRenderWindow keeps large lists bounded and pins far selected gam
   assert.equal(window.selectedPinned, true);
 });
 
+test('getLibraryRenderIdentity changes when the current result window changes', () => {
+  const { getLibraryRenderIdentity } = loadLibraryPageModel();
+
+  assert.equal(getLibraryRenderIdentity([]), '0::');
+  assert.equal(getLibraryRenderIdentity([game({ id: 'a' }), game({ id: 'b' })]), '2:a:b');
+  assert.equal(getLibraryRenderIdentity([game({ id: 'a' }), game({ id: 'c' })]), '2:a:c');
+});
+
 test('buildLibraryGameLookup supports constant-time selected game lookups for large libraries', () => {
   const { buildLibraryGameLookup } = loadLibraryPageModel();
   const games = Array.from({ length: 5000 }, (_, index) => game({ id: `game-${index}` }));
@@ -225,4 +233,16 @@ test('library nav renders through the bounded render window helper', () => {
 
   assert.match(source, /getLibraryRenderWindow/);
   assert.doesNotMatch(source, /games\.slice\(0, visibleCount\)/);
+});
+
+test('library nav resets render budgets synchronously when result identity changes', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Library', 'LibraryGameNav.tsx'), 'utf8');
+
+  assert.match(source, /getLibraryRenderIdentity/);
+  assert.match(source, /renderState\.identity === renderIdentity \? renderState\.count : libraryListInitialRenderCount/);
+  assert.match(source, /renderState\.identity === renderIdentity \? renderState\.count : libraryGridInitialRenderCount/);
+  assert.match(source, /setRenderState\(\(\) => \(\{ identity: renderIdentity, count: Math\.min\(games\.length, renderWindow\.primaryGames\.length \+ libraryListRenderBatchSize\) \}\)\)/);
+  assert.match(source, /setRenderState\(\(\) => \(\{ identity: renderIdentity, count: Math\.min\(games\.length, renderWindow\.primaryGames\.length \+ libraryGridRenderBatchSize\) \}\)\)/);
+  assert.doesNotMatch(source, /setRenderCount\(libraryListInitialRenderCount\)/);
+  assert.doesNotMatch(source, /setRenderCount\(libraryGridInitialRenderCount\)/);
 });

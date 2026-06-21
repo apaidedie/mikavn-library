@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { CoverImage } from '@/components/ui/cover';
@@ -8,6 +8,7 @@ import { PLAY_STATUS_LABEL } from '@/types/game';
 import { cn } from '@/utils/cn';
 import {
   formatLibraryLoadMoreLabel,
+  getLibraryRenderIdentity,
   getLibraryRenderWindow,
   groupLibraryGames,
   libraryGridInitialRenderCount,
@@ -27,11 +28,9 @@ type LibraryGameNavProps = {
 };
 
 export function GameList({ blurCovers, bulkMode, games, onSelect, onToggleSelection, selectedId, selectedIds }: LibraryGameNavProps) {
-  const [renderCount, setRenderCount] = useState(libraryListInitialRenderCount);
-
-  useEffect(() => {
-    setRenderCount(libraryListInitialRenderCount);
-  }, [games]);
+  const renderIdentity = getLibraryRenderIdentity(games);
+  const [renderState, setRenderState] = useState({ identity: renderIdentity, count: libraryListInitialRenderCount });
+  const renderCount = renderState.identity === renderIdentity ? renderState.count : libraryListInitialRenderCount;
 
   if (games.length === 0) {
     return <EmptyLibrary />;
@@ -69,7 +68,7 @@ export function GameList({ blurCovers, bulkMode, games, onSelect, onToggleSelect
       ))}
       {renderWindow.hasMore && (
         <div className="px-2 pb-2 pt-1">
-          <Button className="h-8 w-full text-xs" size="sm" variant="outline" onClick={() => setRenderCount((count) => Math.min(games.length, count + libraryListRenderBatchSize))}>
+          <Button className="h-8 w-full text-xs" size="sm" variant="outline" onClick={() => setRenderState(() => ({ identity: renderIdentity, count: Math.min(games.length, renderWindow.primaryGames.length + libraryListRenderBatchSize) }))}>
             {formatLibraryLoadMoreLabel(renderWindow.primaryGames.length, games.length)}
           </Button>
         </div>
@@ -79,11 +78,9 @@ export function GameList({ blurCovers, bulkMode, games, onSelect, onToggleSelect
 }
 
 export function GameGrid({ blurCovers, bulkMode, games, onSelect, onToggleSelection, selectedId, selectedIds }: LibraryGameNavProps) {
-  const [renderCount, setRenderCount] = useState(libraryGridInitialRenderCount);
-
-  useEffect(() => {
-    setRenderCount(libraryGridInitialRenderCount);
-  }, [games]);
+  const renderIdentity = getLibraryRenderIdentity(games);
+  const [renderState, setRenderState] = useState({ identity: renderIdentity, count: libraryGridInitialRenderCount });
+  const renderCount = renderState.identity === renderIdentity ? renderState.count : libraryGridInitialRenderCount;
 
   if (games.length === 0) {
     return <EmptyLibrary />;
@@ -108,7 +105,7 @@ export function GameGrid({ blurCovers, bulkMode, games, onSelect, onToggleSelect
       </div>
       {renderWindow.hasMore && (
         <div className="px-2 pb-3">
-          <Button className="h-8 w-full text-xs" size="sm" variant="outline" onClick={() => setRenderCount((count) => Math.min(games.length, count + libraryGridRenderBatchSize))}>
+          <Button className="h-8 w-full text-xs" size="sm" variant="outline" onClick={() => setRenderState(() => ({ identity: renderIdentity, count: Math.min(games.length, renderWindow.primaryGames.length + libraryGridRenderBatchSize) }))}>
             {formatLibraryLoadMoreLabel(renderWindow.primaryGames.length, games.length)}
           </Button>
         </div>

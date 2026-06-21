@@ -30,6 +30,10 @@ export function buildLibraryGameLookup(games: Game[]) {
   return lookup;
 }
 
+export function getLibraryRenderIdentity(games: Game[]) {
+  return `${games.length}:${games[0]?.id ?? ''}:${games[games.length - 1]?.id ?? ''}`;
+}
+
 export function groupLibraryGames(games: Game[], statusLabels: Record<PlayStatus, string>): LibraryGameGroup[] {
   const recent: Game[] = [];
   const buckets = new Map<PlayStatus, Game[]>();
