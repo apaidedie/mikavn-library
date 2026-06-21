@@ -73,3 +73,22 @@ test('restorePreviewCompletionMessage summarizes merge and mirror previews', () 
   assert.equal(restorePreviewCompletionMessage('merge', preview({ mode: 'merge', newFiles: 2, overwrittenFiles: 1, keptFiles: 4 })), '合并恢复预览完成：新增 2，覆盖 1，保留 4。');
   assert.equal(restorePreviewCompletionMessage('mirror', preview({ mode: 'mirror', newFiles: 2, overwrittenFiles: 1, removedFiles: 3 })), '镜像恢复预览完成：新增 2，覆盖 1，清理 3。');
 });
+
+test('saves page loads a bounded game list and ignores stale initial loads', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Saves', 'useSavesPageActions.ts'), 'utf8');
+
+  assert.match(source, /listGames\(\{ sortBy: 'updated_at', sortDirection: 'desc', limit: 500 \}\)/);
+  assert.match(source, /let cancelled = false/);
+  assert.match(source, /if \(cancelled\) return/);
+  assert.match(source, /return \(\) => \{\s*cancelled = true;\s*\}/s);
+});
+
+test('saves page ignores stale save path refreshes while selected game changes', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Saves', 'useSavesPageActions.ts'), 'utf8');
+
+  assert.match(source, /useRef/);
+  assert.match(source, /const refreshSavesRequestRef = useRef\(0\)/);
+  assert.match(source, /const requestId = \+\+refreshSavesRequestRef\.current/);
+  assert.match(source, /Promise\.all\(\[api\.listSavePaths\(gameId\), api\.listSaveBackups\(gameId\)\]\)/);
+  assert.match(source, /if \(requestId !== refreshSavesRequestRef\.current\) return/);
+});

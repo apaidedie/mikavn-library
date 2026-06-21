@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '@/services/api';
 import { chooseDirectory } from '@/services/dialog';
 import type { Game } from '@/types/game';
@@ -23,28 +23,45 @@ export function useSavesPageActions(refreshKey: number) {
   const [restorePreviewLoadingKey, setRestorePreviewLoadingKey] = useState<string | null>(null);
   const [message, setMessage] = useState<TaskMessage | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const refreshSavesRequestRef = useRef(0);
 
   const selectedGame = useMemo(() => games.find((game) => game.id === selectedGameId) ?? null, [games, selectedGameId]);
 
   const refreshSaves = useCallback(async (gameId = selectedGameId) => {
+    const requestId = ++refreshSavesRequestRef.current;
     if (!gameId) return;
     try {
       const [nextPaths, nextBackups] = await Promise.all([api.listSavePaths(gameId), api.listSaveBackups(gameId)]);
+      if (requestId !== refreshSavesRequestRef.current) return;
       setPaths(nextPaths);
       setBackups(nextBackups);
       setCandidates([]);
       setRestorePreviews({});
       setError(null);
     } catch (reason) {
+      if (requestId !== refreshSavesRequestRef.current) return;
       setError(errorMessage(reason));
     }
   }, [selectedGameId]);
 
   useEffect(() => {
-    api.listGames({ sortBy: 'updated_at', sortDirection: 'desc' }).then((items) => {
-      setGames(items);
-      setSelectedGameId((current) => current ?? items[0]?.id ?? null);
-    }).catch((reason: unknown) => setError(errorMessage(reason)));
+    let cancelled = false;
+
+    api
+      .listGames({ sortBy: 'updated_at', sortDirection: 'desc', limit: 500 })
+      .then((items) => {
+        if (cancelled) return;
+        setGames(items);
+        setSelectedGameId((current) => current ?? items[0]?.id ?? null);
+      })
+      .catch((reason: unknown) => {
+        if (cancelled) return;
+        setError(errorMessage(reason));
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [refreshKey]);
 
   useEffect(() => {
