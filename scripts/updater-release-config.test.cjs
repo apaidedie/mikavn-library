@@ -20,6 +20,7 @@ test('package scripts and dependencies include updater gates and frontend plugin
   assert.match(pkg.scripts['test:diagnostic-export'], /scripts\/diagnostic-export\.test\.cjs/);
   assert.match(pkg.scripts['test:diagnostic-export'], /scripts\/dashboard-diagnostic-export\.test\.cjs/);
   assert.match(pkg.scripts['test:release-scripts'], /updater-release-config\.test\.cjs/);
+  assert.match(pkg.scripts['smoke:real-data:readonly'], /run-real-app-data-readonly-smoke\.ps1/);
   assert.match(pkg.dependencies['@tauri-apps/plugin-updater'], /^\^2\./);
   assert.match(pkg.dependencies['@tauri-apps/plugin-process'], /^\^2\./);
 });
@@ -95,6 +96,8 @@ test('release metadata gate knows about updater release checks', () => {
 
   assert.match(gate, /test:updater-release/);
   assert.match(gate, /test:diagnostic-export/);
+  assert.match(gate, /smoke:real-data:readonly/);
+  assert.match(gate, /run-real-app-data-readonly-smoke\.ps1/);
   assert.match(gate, /updater-release-config\.test\.cjs/);
   assert.match(gate, /latest\.json/);
   assert.match(gate, /TAURI_SIGNING_PRIVATE_KEY/);

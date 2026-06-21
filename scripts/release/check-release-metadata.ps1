@@ -66,7 +66,7 @@ if ($package.private -ne $true) {
   throw "package.json should remain private=true; GitHub release publishes the desktop installer, not an npm package."
 }
 
-$requiredScripts = @("build", "typecheck", "test:release-scripts", "test:playwright-scripts", "test:updater-release", "test:diagnostic-export", "release:check", "release:check:strict", "release:signing:check", "release:signing:require", "release:sign", "release:handoff:check", "release:validate", "release:validate:strict", "release:validate:core", "smoke:browser", "smoke:large", "smoke:install", "smoke:portable-data", "tauri:build", "smoke:desktop")
+$requiredScripts = @("build", "typecheck", "test:release-scripts", "test:playwright-scripts", "test:updater-release", "test:diagnostic-export", "release:check", "release:check:strict", "release:signing:check", "release:signing:require", "release:sign", "release:handoff:check", "release:validate", "release:validate:strict", "release:validate:core", "smoke:browser", "smoke:large", "smoke:install", "smoke:portable-data", "smoke:real-data:readonly", "tauri:build", "smoke:desktop")
 foreach ($scriptName in $requiredScripts) {
   if ($null -eq $package.scripts.$scriptName -or [string]::IsNullOrWhiteSpace([string]$package.scripts.$scriptName)) {
     throw "package.json is missing required script '$scriptName'."
@@ -152,6 +152,13 @@ foreach ($token in @("scripts/desktop-smoke/run-portable-app-data-smoke.ps1")) {
   }
 }
 
+foreach ($token in @("scripts/desktop-smoke/run-real-app-data-readonly-smoke.ps1")) {
+  $scriptText = [string]$package.scripts.'smoke:real-data:readonly'
+  if (!$scriptText.Contains($token)) {
+    throw "package.json smoke:real-data:readonly must include token '$token'."
+  }
+}
+
 $requiredScriptFiles = @(
   "scripts\playwright\page-qa-runner.cjs",
   "scripts\playwright\core-workflow-smoke.cjs",
@@ -160,6 +167,7 @@ $requiredScriptFiles = @(
   "scripts\desktop-smoke\run-desktop-smoke.ps1",
   "scripts\desktop-smoke\run-clean-install-smoke.ps1",
   "scripts\desktop-smoke\run-portable-app-data-smoke.ps1",
+  "scripts\desktop-smoke\run-real-app-data-readonly-smoke.ps1",
   "scripts\release\check-windows-signing.ps1",
   "scripts\release\sign-windows-release.ps1",
   "scripts\release\run-release-validation.ps1",
