@@ -89,16 +89,19 @@ test('image health commands are registered and exposed through api', () => {
   assert.match(lib, /commands::diagnostics::quarantine_duplicate_content_images/);
   assert.match(lib, /commands::diagnostics::quarantine_invalid_image_cache_files/);
   assert.match(lib, /commands::diagnostics::quarantine_oversized_image_cache_files/);
+  assert.match(lib, /commands::diagnostics::quarantine_content_type_mismatch_files/);
   assert.match(commands, /pub fn get_image_health_report/);
   assert.match(commands, /pub fn quarantine_orphan_images/);
   assert.match(commands, /pub fn quarantine_duplicate_content_images/);
   assert.match(commands, /pub fn quarantine_invalid_image_cache_files/);
   assert.match(commands, /pub fn quarantine_oversized_image_cache_files/);
+  assert.match(commands, /pub fn quarantine_content_type_mismatch_files/);
   assert.match(api, /getImageHealthReport/);
   assert.match(api, /quarantineOrphanImages/);
   assert.match(api, /quarantineDuplicateContentImages/);
   assert.match(api, /quarantineInvalidImageCacheFiles/);
   assert.match(api, /quarantineOversizedImageCacheFiles/);
+  assert.match(api, /quarantineContentTypeMismatchFiles/);
   assert.match(types, /export type ImageHealthReport/);
   assert.match(types, /export type ImageQuarantineReport/);
   assert.match(types, /invalidImageFiles/);
@@ -207,19 +210,23 @@ test('maintenance image health ui exposes one-click safe cleanup wording', () =>
   assert.match(panel, /整理重复内容/);
   assert.match(panel, /整理无效图片/);
   assert.match(panel, /整理过大图片/);
+  assert.match(panel, /整理类型不匹配/);
   assert.match(panel, /只处理未被数据库引用的孤儿缓存/);
   assert.match(panel, /只隔离重复内容中的未引用副本/);
   assert.match(panel, /只隔离未被数据库引用的无效图片/);
   assert.match(panel, /只隔离未被数据库引用的过大图片/);
+  assert.match(panel, /只隔离未被数据库引用的类型不匹配图片/);
   assert.match(panel, /缺封面和失效引用会保留给补图或明细审计/);
   assert.match(panel, /canSafeCleanup/);
   assert.match(panel, /canCleanupDuplicateContent/);
   assert.match(panel, /canCleanupInvalidImages/);
   assert.match(panel, /canCleanupOversizedImages/);
+  assert.match(panel, /canCleanupContentTypeMismatch/);
   assert.match(panel, /onQuarantineOrphans/);
   assert.match(panel, /onQuarantineDuplicateContent/);
   assert.match(panel, /onQuarantineInvalidImages/);
   assert.match(panel, /onQuarantineOversizedImages/);
+  assert.match(panel, /onQuarantineContentTypeMismatch/);
   assert.match(actions, /formatImageQuarantineCompletionMessage/);
   assert.doesNotMatch(panel, /一键永久删除/);
 });
@@ -270,6 +277,17 @@ test('maintenance oversized image quarantine requires explicit confirmation befo
   assert.ok(quarantineIndex > -1, 'oversized cleanup action must call the oversized quarantine api');
   assert.ok(confirmIndex < quarantineIndex, 'confirmation copy must appear before files are moved');
   assert.match(actions, /仍被引用的过大图片会保留/);
+});
+
+test('maintenance content type mismatch quarantine requires explicit confirmation before moving files', () => {
+  const actions = fs.readFileSync('src/pages/Maintenance/useMaintenanceInspectionActions.ts', 'utf8');
+  const confirmIndex = actions.indexOf('未被数据库引用的类型不匹配图片');
+  const quarantineIndex = actions.indexOf('api.quarantineContentTypeMismatchFiles');
+
+  assert.ok(confirmIndex > -1, 'content-type mismatch cleanup action must explain unreferenced files first');
+  assert.ok(quarantineIndex > -1, 'content-type mismatch cleanup action must call the quarantine api');
+  assert.ok(confirmIndex < quarantineIndex, 'confirmation copy must appear before files are moved');
+  assert.match(actions, /仍被引用的类型不匹配图片会保留/);
 });
 
 test('maintenance image health ui treats app-data legacy imports as informational', () => {
@@ -326,6 +344,16 @@ test('oversized image quarantine completion message reports refreshed oversized 
   );
 
   assert.equal(message, '过大图片整理完成：已移动 7 个未引用大图到隔离区；跳过 1 个；复查剩余 4 个过大图片。');
+});
+
+test('content type mismatch quarantine completion message reports refreshed mismatches', () => {
+  const { formatImageContentTypeMismatchQuarantineCompletionMessage } = loadMaintenanceImageHealthModel();
+  const message = formatImageContentTypeMismatchQuarantineCompletionMessage(
+    { movedFiles: 3, skippedFiles: 1 },
+    { summary: { contentTypeMismatchFiles: 2, contentTypeMismatchRefs: 1 } },
+  );
+
+  assert.equal(message, '类型不匹配整理完成：已移动 3 个未引用错配图片到隔离区；跳过 1 个；复查剩余 1 个未引用错配图片。');
 });
 
 test('image health action hint explains disabled maintenance actions', () => {

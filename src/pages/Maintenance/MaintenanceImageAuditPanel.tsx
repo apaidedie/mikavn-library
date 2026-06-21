@@ -18,6 +18,7 @@ export const MaintenanceImageAuditPanel = forwardRef<HTMLElement, {
   query: string;
   onDiagnoseArtwork: () => void;
   onLoadImageHealth: () => void;
+  onQuarantineContentTypeMismatch: () => void;
   onQuarantineDuplicateContent: () => void;
   onQuarantineInvalidImages: () => void;
   onQuarantineOrphans: () => void;
@@ -41,6 +42,7 @@ export const MaintenanceImageAuditPanel = forwardRef<HTMLElement, {
   query,
   onDiagnoseArtwork,
   onLoadImageHealth,
+  onQuarantineContentTypeMismatch,
   onQuarantineDuplicateContent,
   onQuarantineInvalidImages,
   onQuarantineOrphans,
@@ -73,6 +75,7 @@ export const MaintenanceImageAuditPanel = forwardRef<HTMLElement, {
           onDiagnoseArtwork={onDiagnoseArtwork}
           onLoad={onLoadImageHealth}
           onLoadAudit={onLoadAudit}
+          onQuarantineContentTypeMismatch={onQuarantineContentTypeMismatch}
           onQuarantineDuplicateContent={onQuarantineDuplicateContent}
           onQuarantineInvalidImages={onQuarantineInvalidImages}
           onQuarantineOrphans={onQuarantineOrphans}
@@ -112,6 +115,7 @@ function ImageHealthSummaryPanel({
   onDiagnoseArtwork,
   onLoad,
   onLoadAudit,
+  onQuarantineContentTypeMismatch,
   onQuarantineDuplicateContent,
   onQuarantineInvalidImages,
   onQuarantineOrphans,
@@ -127,6 +131,7 @@ function ImageHealthSummaryPanel({
   onDiagnoseArtwork: () => void;
   onLoad: () => void;
   onLoadAudit: () => void;
+  onQuarantineContentTypeMismatch: () => void;
   onQuarantineDuplicateContent: () => void;
   onQuarantineInvalidImages: () => void;
   onQuarantineOrphans: () => void;
@@ -140,6 +145,7 @@ function ImageHealthSummaryPanel({
   const canCleanupDuplicateContent = Boolean(report && summary && summary.duplicateContentGroups > 0 && !loading);
   const canCleanupInvalidImages = Boolean(report && summary && Math.max(0, summary.invalidImageFiles - summary.invalidImageRefs) > 0 && !loading);
   const canCleanupOversizedImages = Boolean(report && summary && summary.oversizedFiles > 0 && !loading);
+  const canCleanupContentTypeMismatch = Boolean(report && summary && Math.max(0, summary.contentTypeMismatchFiles - summary.contentTypeMismatchRefs) > 0 && !loading);
   const canDiagnoseArtwork = Boolean(report && summary && summary.missingArtworkGames > 0 && !loading && !artworkDiagnosisLoading);
   const canStartArtworkRepair = Boolean(report && summary && summary.missingArtworkGames > 0 && !loading && !artworkRepairLoading);
   const canInspectBrokenRefs = Boolean(report && summary && !loading && (
@@ -156,7 +162,7 @@ function ImageHealthSummaryPanel({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2 text-sm font-medium text-slate-100"><ShieldCheck className="h-4 w-4 text-emerald-200" />图片健康</div>
-          <div className="mt-1 text-xs text-slate-500">检查图片引用和缓存文件；无效图片表示空文件或损坏文件，类型不匹配表示扩展名和真实格式不同。一键安全整理只处理未被数据库引用的孤儿缓存；整理重复内容只隔离重复内容中的未引用副本；整理无效图片只隔离未被数据库引用的无效图片；整理过大图片只隔离未被数据库引用的过大图片，移动到隔离区，不会永久删除文件。</div>
+          <div className="mt-1 text-xs text-slate-500">检查图片引用和缓存文件；无效图片表示空文件或损坏文件，类型不匹配表示扩展名和真实格式不同。一键安全整理只处理未被数据库引用的孤儿缓存；整理重复内容只隔离重复内容中的未引用副本；整理无效图片只隔离未被数据库引用的无效图片；整理过大图片只隔离未被数据库引用的过大图片；整理类型不匹配只隔离未被数据库引用的类型不匹配图片，移动到隔离区，不会永久删除文件。</div>
           <div className="mt-1 text-xs text-slate-600">隔离区会写入 manifest.json；如果误隔离，可以按清单找回原路径并恢复文件。</div>
           <div className="mt-1 text-xs text-slate-600">缺封面和失效引用会保留给补图或明细审计，避免误改仍在使用的图片。</div>
         </div>
@@ -169,6 +175,7 @@ function ImageHealthSummaryPanel({
           <Button disabled={!canCleanupDuplicateContent} size="sm" variant="secondary" onClick={onQuarantineDuplicateContent}>整理重复内容</Button>
           <Button disabled={!canCleanupInvalidImages} size="sm" variant="secondary" onClick={onQuarantineInvalidImages}>整理无效图片</Button>
           <Button disabled={!canCleanupOversizedImages} size="sm" variant="secondary" onClick={onQuarantineOversizedImages}>整理过大图片</Button>
+          <Button disabled={!canCleanupContentTypeMismatch} size="sm" variant="secondary" onClick={onQuarantineContentTypeMismatch}>整理类型不匹配</Button>
         </div>
       </div>
       <div className="text-xs text-slate-500" data-image-health-action-hint>{actionHint}</div>

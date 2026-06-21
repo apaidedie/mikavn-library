@@ -229,6 +229,46 @@ fn quarantine_oversized_image_cache_files_moves_only_unreferenced_large_files() 
 }
 
 #[test]
+fn quarantine_content_type_mismatch_files_moves_only_unreferenced_mismatches() {
+    let root = std::env::temp_dir().join(format!(
+        "mikavn-image-mismatch-quarantine-{}",
+        Uuid::new_v4()
+    ));
+    let paths = AppPaths::from_root(root.clone()).unwrap();
+    fs::create_dir_all(paths.images().join("mismatch")).unwrap();
+    let referenced_mismatch = paths.images().join("mismatch/referenced.jpg");
+    let unreferenced_mismatch = paths.images().join("mismatch/orphan.webp");
+    let valid_orphan = paths.images().join("valid-orphan.jpg");
+    fs::write(&referenced_mismatch, b"\x89PNG\r\n\x1A\nreferenced").unwrap();
+    fs::write(&unreferenced_mismatch, b"\xFF\xD8\xFForphan").unwrap();
+    fs::write(&valid_orphan, b"\xFF\xD8\xFFvalid").unwrap();
+    create_health_db(
+        &paths.database(),
+        &referenced_mismatch.to_string_lossy(),
+        "",
+        "",
+    );
+
+    let report = quarantine_content_type_mismatch_files_with_paths(
+        &paths,
+        ImageHealthReportOptions::default(),
+    )
+    .unwrap();
+
+    assert_eq!(report.moved_files, 1);
+    assert_eq!(report.skipped_files, 0);
+    assert!(referenced_mismatch.is_file());
+    assert!(!unreferenced_mismatch.exists());
+    assert!(valid_orphan.is_file());
+    let manifest = fs::read_to_string(&report.manifest_path).unwrap();
+    assert!(manifest.contains("content type mismatch unreferenced image cache file"));
+    assert!(manifest.contains("orphan.webp"));
+    assert!(!manifest.contains("referenced.jpg"));
+
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
 fn image_health_report_counts_invalid_image_cache_files() {
     let root = std::env::temp_dir().join(format!("mikavn-image-invalid-{}", Uuid::new_v4()));
     let paths = AppPaths::from_root(root.clone()).unwrap();

@@ -4,7 +4,7 @@ import type { ImageHealthReport, ImageReferenceAudit } from '@/types/archive';
 import type { ArtworkRepairDiagnosis } from '@/types/metadata';
 import { errorMessage } from '@/utils/errorMessage';
 import { formatCount } from './MaintenancePageParts';
-import { formatImageDuplicateContentQuarantineCompletionMessage, formatImageInvalidQuarantineCompletionMessage, formatImageOversizedQuarantineCompletionMessage, formatImageQuarantineCompletionMessage } from './maintenanceImageHealthModel';
+import { formatImageContentTypeMismatchQuarantineCompletionMessage, formatImageDuplicateContentQuarantineCompletionMessage, formatImageInvalidQuarantineCompletionMessage, formatImageOversizedQuarantineCompletionMessage, formatImageQuarantineCompletionMessage } from './maintenanceImageHealthModel';
 
 type TaskMessage = { text: string; taskId?: string | null };
 
@@ -151,6 +151,27 @@ export function useMaintenanceInspectionActions({ setError, setMessage }: UseMai
     }
   }, [imageHealth?.summary.oversizedFiles, setError, setMessage]);
 
+  const quarantineContentTypeMismatchFiles = useCallback(async () => {
+    const mismatchUnreferencedCount = Math.max(0, (imageHealth?.summary.contentTypeMismatchFiles ?? 0) - (imageHealth?.summary.contentTypeMismatchRefs ?? 0));
+    const confirmed = window.confirm(
+      `将把 ${formatCount(mismatchUnreferencedCount)} 个未被数据库引用的类型不匹配图片移动到隔离区。\n\n仍被引用的类型不匹配图片会保留给补图、重新抓取或人工确认，不会直接移动。隔离区会写入 manifest.json，必要时可以按清单找回原路径。确认继续？`,
+    );
+    if (!confirmed) return;
+
+    setImageHealthLoading(true);
+    setError(null);
+    try {
+      const result = await api.quarantineContentTypeMismatchFiles({ sampleLimit: 100 });
+      const report = await api.getImageHealthReport({ sampleLimit: 100 });
+      setImageHealth(report);
+      setMessage({ text: formatImageContentTypeMismatchQuarantineCompletionMessage(result, report) });
+    } catch (reason) {
+      setError(errorMessage(reason));
+    } finally {
+      setImageHealthLoading(false);
+    }
+  }, [imageHealth?.summary.contentTypeMismatchFiles, imageHealth?.summary.contentTypeMismatchRefs, setError, setMessage]);
+
   const resetImageAuditFilters = useCallback(() => {
     setImageAuditQuery('');
     setImageAuditIssueFilter('all');
@@ -176,6 +197,7 @@ export function useMaintenanceInspectionActions({ setError, setMessage }: UseMai
     loadImageAudit,
     loadImageHealth,
     quarantineDuplicateContentImages,
+    quarantineContentTypeMismatchFiles,
     quarantineInvalidImageCacheFiles,
     quarantineOrphanImages,
     quarantineOversizedImageCacheFiles,
