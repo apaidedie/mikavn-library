@@ -11,6 +11,7 @@ fs.mkdirSync(outDir, { recursive: true });
 const now = new Date().toISOString();
 const gameCount = Number.parseInt(process.env.MIKAVN_LARGE_LIBRARY_COUNT || '4500', 10);
 const libraryLoadBudgetMs = Number.parseInt(process.env.MIKAVN_LARGE_LIBRARY_LOAD_BUDGET_MS || '12000', 10);
+const detailSwitchBudgetMs = Number.parseInt(process.env.MIKAVN_LARGE_LIBRARY_DETAIL_BUDGET_MS || '3000', 10);
 const searchBudgetMs = Number.parseInt(process.env.MIKAVN_LARGE_LIBRARY_SEARCH_BUDGET_MS || '8000', 10);
 
 const settings = {
@@ -107,6 +108,10 @@ function countMatchingGames(games, predicate) {
   return games.reduce((count, game) => count + (predicate(game) ? 1 : 0), 0);
 }
 
+function findDetailSwitchTarget(games) {
+  return [...games].reverse().find(hasPerformanceTargetTag);
+}
+
 function formatLargeSmokeCount(value) {
   return new Intl.NumberFormat('zh-CN').format(value);
 }
@@ -149,8 +154,19 @@ async function main() {
   const games = makeLargeGames(gameCount);
   const expectedTargetCount = countMatchingGames(games, hasPerformanceTargetTag);
   const expectedSearchCount = countMatchingGames(games, isLargeSmokeSearchMatch);
+  const detailSwitchTarget = findDetailSwitchTarget(games);
+  if (!detailSwitchTarget) throw new Error('large smoke data did not include a detail switch target');
   const browser = await chromium.launch({ headless: true });
-  const report = { gameCount, expected: { targetCount: expectedTargetCount, searchCount: expectedSearchCount }, budgets: { libraryLoadBudgetMs, searchBudgetMs }, timings: {} };
+  const report = {
+    gameCount,
+    expected: {
+      targetCount: expectedTargetCount,
+      searchCount: expectedSearchCount,
+      detailSwitchTargetId: detailSwitchTarget.id,
+    },
+    budgets: { libraryLoadBudgetMs, detailSwitchBudgetMs, searchBudgetMs },
+    timings: {},
+  };
 
   try {
     {
@@ -172,11 +188,23 @@ async function main() {
       await page.locator('aside').getByRole('button', { name: /筛选/ }).click();
       await page.getByPlaceholder('标签').fill('性能目标');
       await page.getByText(formatLargeSmokeGameTotal(expectedTargetCount)).first().waitFor({ timeout: 5000 });
+      const detailTargetButton = page
+        .locator('.game-nav-row')
+        .filter({ hasText: detailSwitchTarget.title })
+        .getByRole('button')
+        .first();
+      await detailTargetButton.waitFor({ timeout: 5000 });
+      report.timings.detailSwitchMs = await measure('library detail switch', detailSwitchBudgetMs, async () => {
+        await detailTargetButton.click();
+        await page.locator('h2', { hasText: detailSwitchTarget.title }).first().waitFor({ timeout: detailSwitchBudgetMs });
+      });
+      await page.screenshot({ path: path.join(outDir, 'large-library-detail.png'), fullPage: true });
       await page.screenshot({ path: path.join(outDir, 'large-library-list.png'), fullPage: true });
       const importantConsoleErrors = consoleErrors.filter((item) => !/favicon|DevTools/.test(item));
       if (importantConsoleErrors.length) throw new Error(`library console errors: ${importantConsoleErrors.join(' | ')}`);
       await context.close();
       console.log(`OK large library list ${formatLargeSmokeCount(gameCount)} entries in ${report.timings.libraryLoadMs}ms`);
+      console.log(`OK large library detail switch in ${report.timings.detailSwitchMs}ms`);
     }
 
     {
