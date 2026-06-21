@@ -526,7 +526,7 @@ fn add_reference(
     if missing {
         collection.summary.missing_local_refs += 1;
     }
-    if missing || c_drive || playnite {
+    if missing || c_drive || (playnite && !under_app_images) {
         collection.summary.issue_image_refs += 1;
     }
 }
@@ -878,8 +878,8 @@ mod tests {
         let duplicate_a = paths.images().join("dupes/a/same.png");
         let duplicate_b = paths.images().join("dupes/b/same.png");
         let oversized = paths.images().join("large.jpg");
-        fs::write(&cover, b"cover").unwrap();
-        fs::write(&legacy, b"legacy").unwrap();
+        fs::write(&cover, b"\xFF\xD8\xFFcover").unwrap();
+        fs::write(&legacy, b"\xFF\xD8\xFFlegacy").unwrap();
         fs::write(&orphan, b"orphan").unwrap();
         fs::write(&duplicate_a, b"a").unwrap();
         fs::write(&duplicate_b, b"b").unwrap();
@@ -901,6 +901,7 @@ mod tests {
         assert_eq!(report.summary.c_drive_refs, 1);
         assert_eq!(report.summary.playnite_refs, 1);
         assert_eq!(report.summary.legacy_app_data_import_refs, 1);
+        assert_eq!(report.summary.issue_image_refs, 1);
         assert_eq!(report.cache.file_count, 6);
         assert_eq!(report.cache.orphan_file_count, 4);
         assert_eq!(report.cache.duplicate_file_name_groups, 2);
