@@ -233,8 +233,12 @@ fn run_description_image_repair(
                     task_id,
                     "info",
                     &format!(
-                        "已修复：{} {}，插入 {} 张图片。",
-                        candidate.provider, candidate.provider_id, count
+                        "已修复：{} [{}]，{} {}，插入 {} 张图片。",
+                        candidate.title,
+                        candidate.game_id,
+                        candidate.provider,
+                        candidate.provider_id,
+                        count
                     ),
                 );
             }
@@ -244,8 +248,12 @@ fn run_description_image_repair(
                     task_id,
                     "warn",
                     &format!(
-                        "跳过：{} {}，{}。",
-                        candidate.provider, candidate.provider_id, reason
+                        "跳过：{} [{}]，{} {}，{}。",
+                        candidate.title,
+                        candidate.game_id,
+                        candidate.provider,
+                        candidate.provider_id,
+                        reason
                     ),
                 );
             }
@@ -255,8 +263,12 @@ fn run_description_image_repair(
                     task_id,
                     "error",
                     &format!(
-                        "失败：{} {}，{}。",
-                        candidate.provider, candidate.provider_id, error
+                        "失败：{} [{}]，{} {}，{}。",
+                        candidate.title,
+                        candidate.game_id,
+                        candidate.provider,
+                        candidate.provider_id,
+                        error
                     ),
                 );
             }

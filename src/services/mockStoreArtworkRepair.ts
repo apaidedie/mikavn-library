@@ -131,6 +131,9 @@ export function createMockStoreArtworkRepair({ readGames, writeGames }: MockStor
         retryable: true,
       });
       addTaskLog(task.id, 'info', `简介图片修复候选：${candidates.map((candidate) => `${candidate.provider}:${candidate.providerId}`).join(', ')}`);
+      for (const candidate of candidates) {
+        addTaskLog(task.id, 'info', `已修复：${candidate.title} [${candidate.gameId}]，${candidate.provider} ${candidate.providerId}，插入 1 张图片。`);
+      }
       return task;
     },
 

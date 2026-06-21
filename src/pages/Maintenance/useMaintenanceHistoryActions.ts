@@ -3,7 +3,7 @@ import { api } from '@/services/api';
 import { errorMessage } from '@/utils/errorMessage';
 import { summarizeArtworkRepairTask, type ArtworkRepairTaskSummary } from './ArtworkRepairResultPanel';
 import type { BatchMatchHistorySummary } from './BatchMatchResultPanel';
-import { summarizeDescriptionImageRepairTask, type DescriptionImageRepairTaskSummary } from './DescriptionImageRepairResultPanel';
+import { descriptionImageRepairLogsNeedSourceLookup, summarizeDescriptionImageRepairTask, type DescriptionImageRepairTaskSummary } from './DescriptionImageRepairResultPanel';
 import { summarizeDuplicateAuditTask, type DuplicateAuditTaskSummary } from './DuplicateAuditResultPanel';
 import { formatCount } from './MaintenancePageParts';
 
@@ -77,8 +77,10 @@ export function useMaintenanceHistoryActions({ setError, setMessage }: UseMainte
     if (!options?.quiet) setError(null);
     try {
       const tasks = (await api.listTasks(100)).filter((task) => task.taskType === 'metadata.description_image_repair').slice(0, 5);
-      const games = await api.listGames({ sortBy: 'updated_at', sortDirection: 'desc' });
-      const summaries = await Promise.all(tasks.map(async (task) => summarizeDescriptionImageRepairTask(await api.getTaskDetail(task.id), games)));
+      const details = await Promise.all(tasks.map(async (task) => api.getTaskDetail(task.id)));
+      const needsSourceLookup = details.some((detail) => descriptionImageRepairLogsNeedSourceLookup(detail.logs));
+      const games = needsSourceLookup ? await api.listGames({ sortBy: 'updated_at', sortDirection: 'desc' }) : [];
+      const summaries = details.map((detail) => summarizeDescriptionImageRepairTask(detail, games));
       setDescriptionHistory(summaries);
       descriptionHistoryLoadedRef.current = true;
       if (!options?.quiet) setMessage({ text: summaries.length > 0 ? `已读取 ${formatCount(summaries.length)} 个简介图片修复任务结果。` : '还没有简介图片修复任务记录。' });

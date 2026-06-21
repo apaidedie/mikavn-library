@@ -1,6 +1,65 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const path = require('node:path');
 const test = require('node:test');
+const ts = require('typescript');
+
+function loadDescriptionImageRepairResultPanel() {
+  const sourcePath = path.join(__dirname, '..', 'src', 'pages', 'Maintenance', 'DescriptionImageRepairResultPanel.tsx');
+  const source = fs.readFileSync(sourcePath, 'utf8');
+  const transpiled = ts.transpileModule(source, {
+    compilerOptions: {
+      esModuleInterop: true,
+      jsx: ts.JsxEmit.ReactJSX,
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2022,
+    },
+  }).outputText;
+
+  const module = { exports: {} };
+  const localRequire = (specifier) => {
+    if (specifier === 'react/jsx-runtime') return { jsx: () => null, jsxs: () => null, Fragment: 'Fragment' };
+    if (specifier === '@/components/ui/badge') return { Badge: () => null };
+    if (specifier === '@/components/ui/button') return { Button: () => null };
+    if (specifier === '@/components/ui/page') return { SoftRow: () => null };
+    if (specifier === '@/utils/taskLabels') {
+      return {
+        taskLabel: (value) => value,
+        taskStatusClass: () => '',
+        taskStatusLabel: (value) => value,
+      };
+    }
+    if (specifier === '@/utils/time') return { formatDateTime: (value) => value };
+    throw new Error(`Unexpected require: ${specifier}`);
+  };
+  const fn = new Function('module', 'exports', 'require', transpiled);
+  fn(module, module.exports, localRequire);
+  return module.exports;
+}
+
+function taskDetail(logMessages) {
+  return {
+    task: {
+      id: 'task-1',
+      taskType: 'metadata.description_image_repair',
+      status: 'completed',
+      progress: 1,
+      message: '简介图片修复完成',
+      error: null,
+      retryPayload: null,
+      retryable: true,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    },
+    logs: logMessages.map((message, index) => ({
+      id: `log-${index}`,
+      taskId: 'task-1',
+      level: 'info',
+      message,
+      createdAt: '2026-01-01T00:00:00.000Z',
+    })),
+  };
+}
 
 test('image health commands are registered and exposed through api', () => {
   const lib = fs.readFileSync('src-tauri/src/lib.rs', 'utf8');
@@ -111,4 +170,44 @@ test('maintenance image health ui shows every health recommendation', () => {
   assert.match(panel, /report\.recommendations\.map/);
   assert.match(panel, /health-recommendation/);
   assert.doesNotMatch(panel, /report\.recommendations\[0\]/);
+});
+
+test('description image repair history parses self-contained logs without a game index', () => {
+  const { descriptionImageRepairLogsNeedSourceLookup, summarizeDescriptionImageRepairTask } = loadDescriptionImageRepairResultPanel();
+  const detail = taskDetail(['已修复：简介图片修复候选 [game-description]，dlsite RJ01000001，插入 2 张图片。']);
+
+  assert.equal(descriptionImageRepairLogsNeedSourceLookup(detail.logs), false);
+  const summary = summarizeDescriptionImageRepairTask(detail, []);
+
+  assert.equal(summary.updated.length, 1);
+  assert.equal(summary.updated[0].title, '简介图片修复候选');
+  assert.equal(summary.updated[0].gameId, 'game-description');
+  assert.equal(summary.updated[0].provider, 'dlsite');
+  assert.equal(summary.updated[0].providerId, 'RJ01000001');
+  assert.equal(summary.updated[0].imageCount, 2);
+});
+
+test('description image repair history still resolves legacy provider-only logs from a game index', () => {
+  const { descriptionImageRepairLogsNeedSourceLookup, summarizeDescriptionImageRepairTask } = loadDescriptionImageRepairResultPanel();
+  const detail = taskDetail(['已修复：dlsite RJ01000001，插入 1 张图片。']);
+  const games = [{ id: 'game-description', title: '简介图片修复候选', dlsiteId: 'RJ01000001', fanzaId: null }];
+
+  assert.equal(descriptionImageRepairLogsNeedSourceLookup(detail.logs), true);
+  const summary = summarizeDescriptionImageRepairTask(detail, games);
+
+  assert.equal(summary.updated[0].title, '简介图片修复候选');
+  assert.equal(summary.updated[0].gameId, 'game-description');
+});
+
+test('maintenance description history only loads games for legacy task logs', () => {
+  const actions = fs.readFileSync('src/pages/Maintenance/useMaintenanceHistoryActions.ts', 'utf8');
+  const rust = fs.readFileSync('src-tauri/src/services/metadata_description_images.rs', 'utf8');
+  const mock = fs.readFileSync('src/services/mockStoreArtworkRepair.ts', 'utf8');
+
+  assert.match(actions, /descriptionImageRepairLogsNeedSourceLookup/);
+  assert.match(actions, /const details = await Promise\.all\(tasks\.map\(async \(task\) => api\.getTaskDetail\(task\.id\)\)\)/);
+  assert.match(actions, /const needsSourceLookup = details\.some\(\(detail\) => descriptionImageRepairLogsNeedSourceLookup\(detail\.logs\)\)/);
+  assert.match(actions, /needsSourceLookup\s*\?\s*await api\.listGames\(\{ sortBy: 'updated_at', sortDirection: 'desc' \}\)\s*:\s*\[\]/);
+  assert.match(rust, /"已修复：\{\} \[\{\}\]，\{\} \{\}，插入 \{\} 张图片。"/);
+  assert.match(mock, /`已修复：\$\{candidate\.title\} \[\$\{candidate\.gameId\}\]，\$\{candidate\.provider\} \$\{candidate\.providerId\}，插入 1 张图片。`/);
 });

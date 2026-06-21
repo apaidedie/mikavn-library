@@ -63,7 +63,7 @@ export function DescriptionImageRepairTaskRow({ actionBusy = false, summary, onO
   );
 }
 
-export function summarizeDescriptionImageRepairTask(detail: TaskDetail, games: Game[]): DescriptionImageRepairTaskSummary {
+export function summarizeDescriptionImageRepairTask(detail: TaskDetail, games: Game[] = []): DescriptionImageRepairTaskSummary {
   const index = buildDescriptionSourceIndex(games);
   const items = detail.logs
     .flatMap((log) => parseDescriptionImageRepairLog(log, index))
@@ -77,6 +77,12 @@ export function summarizeDescriptionImageRepairTask(detail: TaskDetail, games: G
     skipped: allItems.filter((item) => item.status === 'skipped'),
     failed: allItems.filter((item) => item.status === 'failed'),
   };
+}
+
+export function descriptionImageRepairLogsNeedSourceLookup(logs: TaskLogEntry[]) {
+  const messages = logs.map((log) => log.message.trim()).filter(Boolean);
+  if (messages.some(isSelfContainedDescriptionImageRepairLog)) return false;
+  return messages.some((message) => isLegacyDescriptionImageRepairLog(message) || /^简介图片修复候选：/.test(message) || /\b(?:dlsite|fanza):[^\s，,。]+/i.test(message));
 }
 
 export function filterDescriptionImageRepairSummary(summary: DescriptionImageRepairTaskSummary, query: string, statusFilter: string, providerFilter: string): DescriptionImageRepairTaskSummary {
@@ -152,6 +158,24 @@ function descriptionImageRepairPendingLogItems(logs: TaskLogEntry[], sourceIndex
 function parseDescriptionImageRepairLog(log: TaskLogEntry, sourceIndex: Map<string, Game>): DescriptionImageRepairLogSummary[] {
   const message = log.message.trim();
 
+  const updatedWithSource = message.match(/^已修复：(.+) \[([^\]]+)\]，([a-zA-Z0-9_-]+)[:\s]+([^\s，,。]+)，插入\s*(\d+)\s*张图片。?$/);
+  if (updatedWithSource) {
+    const [, title, gameId, provider, providerId, imageCount] = updatedWithSource;
+    return [descriptionImageRepairLogItem('updated', provider, providerId, sourceIndex, `已插入 ${formatCount(Number(imageCount))} 张简介图片。`, Number(imageCount), { title, gameId })];
+  }
+
+  const skippedWithSource = message.match(/^跳过：(.+) \[([^\]]+)\]，([a-zA-Z0-9_-]+)[:\s]+([^\s，,。]+)，(.+?)。?$/);
+  if (skippedWithSource) {
+    const [, title, gameId, provider, providerId, reason] = skippedWithSource;
+    return [descriptionImageRepairLogItem('skipped', provider, providerId, sourceIndex, reason.trim(), null, { title, gameId })];
+  }
+
+  const failedWithSource = message.match(/^失败：(.+) \[([^\]]+)\]，([a-zA-Z0-9_-]+)[:\s]+([^\s，,。]+)，(.+?)。?$/);
+  if (failedWithSource) {
+    const [, title, gameId, provider, providerId, reason] = failedWithSource;
+    return [descriptionImageRepairLogItem('failed', provider, providerId, sourceIndex, reason.trim(), null, { title, gameId })];
+  }
+
   const updated = message.match(/^已修复：([a-zA-Z0-9_-]+)[:\s]+([^\s，,。]+)，插入\s*(\d+)\s*张图片。?$/);
   if (updated) {
     const [, provider, providerId, imageCount] = updated;
@@ -182,7 +206,7 @@ function parseDescriptionImageRepairLog(log: TaskLogEntry, sourceIndex: Map<stri
   return [];
 }
 
-function descriptionImageRepairLogItem(status: DescriptionImageRepairLogStatus, provider: string, providerId: string, sourceIndex: Map<string, Game>, message: string, imageCount: number | null = null): DescriptionImageRepairLogSummary {
+function descriptionImageRepairLogItem(status: DescriptionImageRepairLogStatus, provider: string, providerId: string, sourceIndex: Map<string, Game>, message: string, imageCount: number | null = null, source?: { title: string; gameId?: string | null }): DescriptionImageRepairLogSummary {
   const normalizedProvider = provider.trim().toLowerCase();
   const normalizedProviderId = providerId.trim();
   const game = sourceIndex.get(descriptionSourceKey(normalizedProvider, normalizedProviderId));
@@ -190,11 +214,19 @@ function descriptionImageRepairLogItem(status: DescriptionImageRepairLogStatus, 
     status,
     provider: normalizedProvider,
     providerId: normalizedProviderId,
-    title: game?.title ?? `${providerLabel(normalizedProvider)} ${normalizedProviderId}`,
-    gameId: game?.id ?? null,
+    title: source?.title.trim() || game?.title || `${providerLabel(normalizedProvider)} ${normalizedProviderId}`,
+    gameId: source?.gameId?.trim() || game?.id || null,
     message,
     imageCount,
   };
+}
+
+function isSelfContainedDescriptionImageRepairLog(message: string) {
+  return /^(?:已修复|跳过|失败)：.+ \[[^\]]+\]，[a-zA-Z0-9_-]+[:\s]+[^\s，,。]+，/.test(message);
+}
+
+function isLegacyDescriptionImageRepairLog(message: string) {
+  return /^(?:已修复|跳过|失败)：[a-zA-Z0-9_-]+[:\s]+[^\s，,。]+，/.test(message);
 }
 
 function matchesDescriptionImageRepairLog(item: DescriptionImageRepairLogSummary, query: string, statusFilter: string, providerFilter: string) {

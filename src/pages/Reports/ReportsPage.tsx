@@ -1,5 +1,5 @@
 import { AlertTriangle, BarChart3, CalendarDays, Clock3, Download, History, ImageOff, Link2Off, Wrench } from 'lucide-react';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/notice';
@@ -15,18 +15,26 @@ type TaskMessage = { text: string; taskId?: string | null };
 type GapExample = { id: string; title: string };
 
 export function ReportsPage({ refreshKey, onOpenTask, onOpenLibrary, onOpenGame }: { refreshKey: number; onOpenTask?: (taskId: string) => void; onOpenLibrary?: (preset?: LibraryFilterPreset | null) => void; onOpenGame?: (gameId: string) => void }) {
+  const reportLoadRequestRef = useRef(0);
   const [games, setGames] = useState<Game[]>([]);
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<TaskMessage | null>(null);
 
   useEffect(() => {
-    Promise.all([
-      api.listGames({ sortBy: 'updated_at', sortDirection: 'desc' }).catch(() => []),
-      api.getAppSettings().catch(() => ({})),
-    ]).then(([gameList, nextSettings]) => {
+    const requestId = ++reportLoadRequestRef.current;
+    const loadReportData = async () => {
+      const [gameList, nextSettings] = await Promise.all([
+        api.listGames({ sortBy: 'updated_at', sortDirection: 'desc' }).catch(() => []),
+        api.getAppSettings().catch(() => ({})),
+      ]);
+      if (requestId !== reportLoadRequestRef.current) return;
       setGames(gameList);
       setSettings(nextSettings);
-    });
+    };
+    void loadReportData();
+    return () => {
+      reportLoadRequestRef.current += 1;
+    };
   }, [refreshKey]);
 
   const visibleGames = useMemo(() => settings.privacy_filter_reports === 'false' ? games : games.filter((game) => !game.hidden && game.ageRating !== 'R18'), [games, settings]);
