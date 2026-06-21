@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetState
 import { api } from '@/services/api';
 import type { Game, GameCollection, PlayStatus, UpdateGameInput } from '@/types/game';
 import { errorMessage } from '@/utils/errorMessage';
-import { formatLibraryBulkConfirmation, formatLibraryBulkSelectionConfirmation, libraryBulkSelectionConfirmThreshold } from './libraryPageModel';
+import { formatLibraryBulkConfirmation, formatLibraryBulkSelectionConfirmation, libraryBulkSelectionConfirmThreshold, libraryBulkWriteBatchSize } from './libraryPageModel';
 
 type UseLibraryBulkActionsOptions = {
   onChanged: () => void;
@@ -99,7 +99,7 @@ export function useLibraryBulkActions({ onChanged, refreshKey, setError, setGame
     setError(null);
     setBulkMessage(null);
     try {
-      const updated = await Promise.all(ids.map((id) => api.updateGame(id, input)));
+      const updated = await runLibraryBulkRequests(ids, (id) => api.updateGame(id, input));
       const updatedById = new Map(updated.map((game) => [game.id, game]));
       setGames((current) => current.map((game) => updatedById.get(game.id) ?? game));
       setBulkMessage(`已更新 ${formatCount(updated.length)} 个游戏：${label}。`);
@@ -121,9 +121,9 @@ export function useLibraryBulkActions({ onChanged, refreshKey, setError, setGame
     setBulkMessage(null);
     try {
       if (action === 'add') {
-        await Promise.all(ids.map((id) => api.addGameToCollection(selectedBulkCollection.id, id)));
+        await runLibraryBulkRequests(ids, (id) => api.addGameToCollection(selectedBulkCollection.id, id));
       } else {
-        await Promise.all(ids.map((id) => api.removeGameFromCollection(selectedBulkCollection.id, id)));
+        await runLibraryBulkRequests(ids, (id) => api.removeGameFromCollection(selectedBulkCollection.id, id));
       }
       setBulkMessage(`已将 ${formatCount(ids.length)} 个游戏${action === 'add' ? '加入' : '移出'}合集：${selectedBulkCollection.name}。`);
       setCollections(await api.listCollections());
@@ -143,9 +143,9 @@ export function useLibraryBulkActions({ onChanged, refreshKey, setError, setGame
     setError(null);
     setBulkMessage(null);
     try {
-      const updated = await Promise.all(selectedBulkGames.map((game) => api.updateGame(game.id, {
+      const updated = await runLibraryBulkRequests(selectedBulkGames, (game) => api.updateGame(game.id, {
         tags: action === 'add' ? addTags(game.tags, tags) : removeTags(game.tags, tags),
-      })));
+      }));
       const updatedById = new Map(updated.map((game) => [game.id, game]));
       setGames((current) => current.map((game) => updatedById.get(game.id) ?? game));
       setBulkMessage(`已为 ${formatCount(updated.length)} 个游戏${action === 'add' ? '添加' : '移除'}标签：${tags.join('、')}。`);
@@ -182,6 +182,19 @@ export function useLibraryBulkActions({ onChanged, refreshKey, setError, setGame
     toggleBulkMode,
     toggleBulkSelection,
   };
+}
+
+async function runLibraryBulkRequests<TItem, TResult>(
+  items: TItem[],
+  worker: (item: TItem) => Promise<TResult>,
+  batchSize = libraryBulkWriteBatchSize,
+) {
+  const results: TResult[] = [];
+  for (let index = 0; index < items.length; index += batchSize) {
+    const batch = items.slice(index, index + batchSize);
+    results.push(...await Promise.all(batch.map(worker)));
+  }
+  return results;
 }
 
 function formatCount(value: number) {

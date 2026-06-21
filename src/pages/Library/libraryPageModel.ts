@@ -7,6 +7,7 @@ export const libraryGridInitialRenderCount = 160;
 export const libraryGridRenderBatchSize = 160;
 export const librarySelectedRenderExpansionCap = 960;
 export const libraryBulkSelectionConfirmThreshold = 100;
+export const libraryBulkWriteBatchSize = 24;
 
 export type LibraryGameGroup = {
   id: PlayStatus | 'recent' | 'selected' | 'all';

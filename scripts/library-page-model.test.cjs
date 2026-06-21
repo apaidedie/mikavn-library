@@ -173,6 +173,17 @@ test('library bulk actions require confirmation before database writes', () => {
   assert.match(source, /window\.confirm\(formatLibraryBulkConfirmation\(selectedBulkGames\.length, `\$\{action === 'add' \? '添加' : '移除'\}标签：\$\{tags\.join\('、'\)\}`\)\)/);
 });
 
+test('library bulk writes are batched for large libraries', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Library', 'useLibraryBulkActions.ts'), 'utf8');
+
+  assert.match(source, /libraryBulkWriteBatchSize/);
+  assert.match(source, /runLibraryBulkRequests/);
+  assert.match(source, /for \(let index = 0; index < items\.length; index \+= batchSize\)/);
+  assert.match(source, /items\.slice\(index, index \+ batchSize\)/);
+  assert.doesNotMatch(source, /Promise\.all\(ids\.map/);
+  assert.doesNotMatch(source, /Promise\.all\(selectedBulkGames\.map/);
+});
+
 test('library bulk select-all confirms before selecting a large visible batch', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Library', 'useLibraryBulkActions.ts'), 'utf8');
 
