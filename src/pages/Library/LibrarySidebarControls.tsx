@@ -57,7 +57,7 @@ function LibraryBulkPanel({ bulkActions, gameCount }: { bulkActions: LibraryBulk
       <div className="flex items-center justify-between gap-2 text-xs text-slate-400">
         <span>已选 {formatLibraryCount(bulkActions.bulkSelectedVisibleCount)}</span>
         <div className="flex shrink-0 gap-1">
-          <Button className="h-7 px-2" disabled={bulkActions.bulkBusy || gameCount === 0} size="sm" variant="ghost" onClick={bulkActions.selectVisibleGames}>选中当前</Button>
+          <Button className="h-7 px-2" disabled={bulkActions.bulkBusy || gameCount === 0} size="sm" variant="ghost" onClick={bulkActions.selectVisibleGames}>选中当前 {formatLibraryCount(gameCount)}</Button>
           <Button className="h-7 px-2" disabled={bulkActions.bulkBusy || gameCount === 0} size="sm" variant="ghost" onClick={bulkActions.invertVisibleBulkSelection}>反选当前</Button>
           <Button className="h-7 px-2" disabled={bulkActions.bulkBusy || bulkActions.bulkSelectedVisibleCount === 0} size="sm" variant="ghost" onClick={bulkActions.clearBulkSelection}>清空</Button>
         </div>

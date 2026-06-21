@@ -6,6 +6,7 @@ export const libraryListRenderBatchSize = 240;
 export const libraryGridInitialRenderCount = 160;
 export const libraryGridRenderBatchSize = 160;
 export const librarySelectedRenderExpansionCap = 960;
+export const libraryBulkSelectionConfirmThreshold = 100;
 
 export type LibraryGameGroup = {
   id: PlayStatus | 'recent' | 'selected' | 'all';
@@ -94,6 +95,10 @@ export function formatLibraryLoadMoreLabel(visibleCount: number, totalCount: num
 
 export function formatLibraryBulkConfirmation(count: number, label: string) {
   return `确认对 ${formatLibraryCount(count)} 个游戏执行批量操作：${label}？\n此操作只修改 MikaVN 数据库记录，不会删除真实游戏文件。`;
+}
+
+export function formatLibraryBulkSelectionConfirmation(count: number) {
+  return `确认选中当前筛选出的 ${formatLibraryCount(count)} 个游戏？\n后续批量操作仍会再次确认。建议先缩小筛选范围，避免误操作。`;
 }
 
 export function changedLibraryMetadataFields(game: Game, input: AddGameInput) {

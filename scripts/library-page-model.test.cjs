@@ -154,6 +154,16 @@ test('formatLibraryBulkConfirmation summarizes the selected batch before writing
   );
 });
 
+test('formatLibraryBulkSelectionConfirmation warns before selecting a large visible batch', () => {
+  const { formatLibraryBulkSelectionConfirmation, libraryBulkSelectionConfirmThreshold } = loadLibraryPageModel();
+
+  assert.equal(libraryBulkSelectionConfirmThreshold, 100);
+  assert.equal(
+    formatLibraryBulkSelectionConfirmation(4456),
+    '确认选中当前筛选出的 4,456 个游戏？\n后续批量操作仍会再次确认。建议先缩小筛选范围，避免误操作。',
+  );
+});
+
 test('library bulk actions require confirmation before database writes', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Library', 'useLibraryBulkActions.ts'), 'utf8');
 
@@ -161,6 +171,29 @@ test('library bulk actions require confirmation before database writes', () => {
   assert.match(source, /window\.confirm\(formatLibraryBulkConfirmation\(ids\.length, label\)\)/);
   assert.match(source, /window\.confirm\(formatLibraryBulkConfirmation\(ids\.length, `\$\{action === 'add' \? '加入' : '移出'\}合集：\$\{selectedBulkCollection\.name\}`\)\)/);
   assert.match(source, /window\.confirm\(formatLibraryBulkConfirmation\(selectedBulkGames\.length, `\$\{action === 'add' \? '添加' : '移除'\}标签：\$\{tags\.join\('、'\)\}`\)\)/);
+});
+
+test('library bulk select-all confirms before selecting a large visible batch', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Library', 'useLibraryBulkActions.ts'), 'utf8');
+
+  assert.match(source, /libraryBulkSelectionConfirmThreshold/);
+  assert.match(source, /formatLibraryBulkSelectionConfirmation\(visibleGames\.length\)/);
+  assert.match(source, /visibleGames\.length >= libraryBulkSelectionConfirmThreshold/);
+  assert.match(source, /window\.confirm\(formatLibraryBulkSelectionConfirmation\(visibleGames\.length\)\)/);
+});
+
+test('library bulk invert confirms when it would add a large visible batch', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Library', 'useLibraryBulkActions.ts'), 'utf8');
+
+  assert.match(source, /const visibleUnselectedCount = visibleGames\.filter\(\(game\) => !bulkSelectedIds\.has\(game\.id\)\)\.length/);
+  assert.match(source, /visibleUnselectedCount >= libraryBulkSelectionConfirmThreshold/);
+  assert.match(source, /window\.confirm\(formatLibraryBulkSelectionConfirmation\(visibleUnselectedCount\)\)/);
+});
+
+test('library bulk panel labels select-current with the visible count', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Library', 'LibrarySidebarControls.tsx'), 'utf8');
+
+  assert.match(source, /选中当前 \{formatLibraryCount\(gameCount\)\}/);
 });
 
 test('library render budgets keep large sidebars bounded', () => {

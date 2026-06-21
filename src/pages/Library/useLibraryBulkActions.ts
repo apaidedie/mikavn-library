@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetState
 import { api } from '@/services/api';
 import type { Game, GameCollection, PlayStatus, UpdateGameInput } from '@/types/game';
 import { errorMessage } from '@/utils/errorMessage';
-import { formatLibraryBulkConfirmation } from './libraryPageModel';
+import { formatLibraryBulkConfirmation, formatLibraryBulkSelectionConfirmation, libraryBulkSelectionConfirmThreshold } from './libraryPageModel';
 
 type UseLibraryBulkActionsOptions = {
   onChanged: () => void;
@@ -67,10 +67,13 @@ export function useLibraryBulkActions({ onChanged, refreshKey, setError, setGame
   }, []);
 
   const selectVisibleGames = useCallback(() => {
+    if (visibleGames.length >= libraryBulkSelectionConfirmThreshold && !window.confirm(formatLibraryBulkSelectionConfirmation(visibleGames.length))) return;
     setBulkSelectedIds(new Set(visibleGames.map((game) => game.id)));
   }, [visibleGames]);
 
   const invertVisibleBulkSelection = useCallback(() => {
+    const visibleUnselectedCount = visibleGames.filter((game) => !bulkSelectedIds.has(game.id)).length;
+    if (visibleUnselectedCount >= libraryBulkSelectionConfirmThreshold && !window.confirm(formatLibraryBulkSelectionConfirmation(visibleUnselectedCount))) return;
     setBulkSelectedIds((current) => {
       const visibleIds = new Set(visibleGames.map((game) => game.id));
       const next = new Set(current);
@@ -81,7 +84,7 @@ export function useLibraryBulkActions({ onChanged, refreshKey, setError, setGame
       return next;
     });
     setBulkMessage(null);
-  }, [visibleGames]);
+  }, [bulkSelectedIds, visibleGames]);
 
   const clearBulkSelection = useCallback(() => {
     setBulkSelectedIds(new Set());
