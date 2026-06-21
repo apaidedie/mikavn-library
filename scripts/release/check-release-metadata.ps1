@@ -396,7 +396,9 @@ $requiredCspTokens = @(
   "http://ipc.localhost",
   "img-src",
   "asset:",
-  "http://asset.localhost"
+  "http://asset.localhost",
+  "mikavn-image:",
+  "http://mikavn-image.localhost"
 )
 foreach ($token in $requiredCspTokens) {
   if (!$csp.Contains($token)) {

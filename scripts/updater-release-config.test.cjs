@@ -39,6 +39,21 @@ test('tauri updater config points to public GitHub latest metadata and contains 
   assert.ok(assetScope.includes('$EXE/app-data/images/**'));
 });
 
+test('local image protocol is consistently wired for Windows WebView images', () => {
+  const config = readJson('src-tauri/tauri.conf.json');
+  const lib = read('src-tauri/src/lib.rs');
+  const imageSrc = read('src/utils/imageSrc.ts');
+  const releaseGate = read('scripts/release/check-release-metadata.ps1');
+  const csp = config.app?.security?.csp ?? '';
+
+  assert.match(lib, /register_uri_scheme_protocol\("mikavn-image"/);
+  assert.match(imageSrc, /http:\/\/mikavn-image\.localhost/);
+  assert.match(csp, /mikavn-image:/);
+  assert.match(csp, /http:\/\/mikavn-image\.localhost/);
+  assert.match(releaseGate, /mikavn-image:/);
+  assert.match(releaseGate, /http:\/\/mikavn-image\.localhost/);
+});
+
 test('rust updater plugin is registered and desktop capability allows update and restart', () => {
   const cargo = read('src-tauri/Cargo.toml');
   const lib = read('src-tauri/src/lib.rs');
