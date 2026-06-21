@@ -341,7 +341,7 @@ test('image quarantine completion message includes skipped and refreshed orphan 
     { summary: { orphanFiles: 3 } },
   );
 
-  assert.equal(message, '安全整理完成：已移动 12 个孤儿图片到隔离区；跳过 2 个；复查剩余 3 个孤儿图片。');
+  assert.equal(message, '安全整理完成：已移动 12 个孤儿图片到隔离区；跳过 2 个；复查剩余 3 个孤儿图片。隔离区 manifest.json 可用于按原路径找回。');
 });
 
 test('duplicate content quarantine completion message reports refreshed duplicate groups', () => {
@@ -351,7 +351,7 @@ test('duplicate content quarantine completion message reports refreshed duplicat
     { summary: { duplicateContentGroups: 2 } },
   );
 
-  assert.equal(message, '重复内容整理完成：已移动 8 个未引用副本到隔离区；跳过 1 个；复查剩余 2 组重复内容。');
+  assert.equal(message, '重复内容整理完成：已移动 8 个未引用副本到隔离区；跳过 1 个；复查剩余 2 组重复内容。隔离区 manifest.json 可用于按原路径找回。');
 });
 
 test('invalid image quarantine completion message reports refreshed invalid files', () => {
@@ -361,7 +361,7 @@ test('invalid image quarantine completion message reports refreshed invalid file
     { summary: { invalidImageFiles: 3, invalidImageRefs: 2 } },
   );
 
-  assert.equal(message, '无效图片整理完成：已移动 5 个未引用坏图到隔离区；跳过 1 个；复查剩余 1 个未引用坏图。');
+  assert.equal(message, '无效图片整理完成：已移动 5 个未引用坏图到隔离区；跳过 1 个；复查剩余 1 个未引用坏图。隔离区 manifest.json 可用于按原路径找回。');
 });
 
 test('oversized image quarantine completion message reports refreshed oversized files', () => {
@@ -371,7 +371,7 @@ test('oversized image quarantine completion message reports refreshed oversized 
     { summary: { oversizedFiles: 4 } },
   );
 
-  assert.equal(message, '过大图片整理完成：已移动 7 个未引用大图到隔离区；跳过 1 个；复查剩余 4 个过大图片。');
+  assert.equal(message, '过大图片整理完成：已移动 7 个未引用大图到隔离区；跳过 1 个；复查剩余 4 个过大图片。隔离区 manifest.json 可用于按原路径找回。');
 });
 
 test('content type mismatch quarantine completion message reports refreshed mismatches', () => {
@@ -381,7 +381,7 @@ test('content type mismatch quarantine completion message reports refreshed mism
     { summary: { contentTypeMismatchFiles: 2, contentTypeMismatchRefs: 1 } },
   );
 
-  assert.equal(message, '类型不匹配整理完成：已移动 3 个未引用错配图片到隔离区；跳过 1 个；复查剩余 1 个未引用错配图片。');
+  assert.equal(message, '类型不匹配整理完成：已移动 3 个未引用错配图片到隔离区；跳过 1 个；复查剩余 1 个未引用错配图片。隔离区 manifest.json 可用于按原路径找回。');
 });
 
 test('safe cache batch completion message summarizes moved files and refreshed issues', () => {
@@ -395,7 +395,7 @@ test('safe cache batch completion message summarizes moved files and refreshed i
     { summary: { orphanFiles: 1, duplicateContentGroups: 2, invalidImageFiles: 4, invalidImageRefs: 1, oversizedFiles: 5, contentTypeMismatchFiles: 3, contentTypeMismatchRefs: 1 } },
   );
 
-  assert.equal(message, '批量安全整理完成：已移动 5 个未引用缓存文件到隔离区；跳过 3 个；复查剩余孤儿 1 个、重复内容 2 组、未引用坏图 3 个、过大图片 5 个、未引用类型不匹配 2 个。');
+  assert.equal(message, '批量安全整理完成：已移动 5 个未引用缓存文件到隔离区；跳过 3 个；复查剩余孤儿 1 个、重复内容 2 组、未引用坏图 3 个、过大图片 5 个、未引用类型不匹配 2 个。隔离区 manifest.json 可用于按原路径找回。');
 });
 
 test('image health action hint explains disabled maintenance actions', () => {
