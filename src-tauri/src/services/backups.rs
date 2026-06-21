@@ -371,6 +371,11 @@ fn collect_database_backup_candidates(paths: &AppPaths) -> DbResult<Vec<Database
         &mut candidates,
     )?;
     collect_database_backup_candidates_from_dir(
+        &legacy_database_update_protection_dir(paths),
+        BackupDirKind::LegacyUpdateProtection,
+        &mut candidates,
+    )?;
+    collect_database_backup_candidates_from_dir(
         paths.root(),
         BackupDirKind::Root,
         &mut candidates,
@@ -399,6 +404,7 @@ fn backup_cleanup_roots(paths: &AppPaths) -> DbResult<Vec<PathBuf>> {
     for path in [
         paths.root().to_path_buf(),
         paths.database_backups(),
+        legacy_database_update_protection_dir(paths),
         paths.database_restore_protection(),
         paths.archive_import_protection(),
         paths.database_restore_pending(),
@@ -452,6 +458,7 @@ fn collect_database_backup_candidates_from_dir(
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum BackupDirKind {
     AnyDatabaseBackup,
+    LegacyUpdateProtection,
     Root,
     RestoreProtection,
     ArchiveImportProtection,
@@ -471,11 +478,16 @@ fn is_known_database_backup_name(kind: BackupDirKind, file_name: &str) -> bool {
                 || lower.starts_with("before-import-")
                 || lower.starts_with("rejected-")
         }
+        BackupDirKind::LegacyUpdateProtection => lower.starts_with("before-"),
         BackupDirKind::Root => lower.starts_with("mikavn.before-"),
         BackupDirKind::RestoreProtection => lower.starts_with("before-restore-"),
         BackupDirKind::ArchiveImportProtection => lower.starts_with("before-import-"),
         BackupDirKind::RejectedPendingRestore => lower.starts_with("rejected-"),
     }
+}
+
+fn legacy_database_update_protection_dir(paths: &AppPaths) -> PathBuf {
+    paths.root().join("database-update-protection")
 }
 
 fn canonicalize_existing(path: &Path) -> DbResult<PathBuf> {
@@ -853,6 +865,53 @@ mod tests {
         assert_eq!(report.removed_files, 1);
         assert!(!old_backup.exists());
         assert!(newest_backup.exists());
+        assert!(paths.database().exists());
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn legacy_update_protection_backups_are_listed_and_cleanup_safe() {
+        let root = std::env::temp_dir().join(format!(
+            "mikavn-legacy-update-backup-summary-test-{}",
+            Uuid::new_v4()
+        ));
+        let paths = AppPaths::from_root(root.clone()).unwrap();
+        create_mikavn_db(&paths.database(), "current");
+        let legacy_dir = paths.root().join("database-update-protection");
+        let old_backup = legacy_dir.join("before-manual-install-20260101-000000.db");
+        let newest_backup = legacy_dir.join("before-017-manual-install-20260102-000000.db");
+        let unrelated = legacy_dir.join("manual-copy.db");
+        fs::create_dir_all(&legacy_dir).unwrap();
+        fs::write(&old_backup, b"old").unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        fs::write(&newest_backup, b"new").unwrap();
+        fs::write(&unrelated, b"manual").unwrap();
+
+        let summary = database_backup_summary(&paths).unwrap();
+        assert_eq!(summary.file_count, 2);
+        assert!(summary
+            .files
+            .iter()
+            .any(|file| file.file_name == "before-manual-install-20260101-000000.db"));
+        assert!(summary
+            .files
+            .iter()
+            .any(|file| file.file_name == "before-017-manual-install-20260102-000000.db"));
+
+        let report = cleanup_old_database_backups_with_paths(
+            &paths,
+            DatabaseBackupCleanupPolicy {
+                retain_count: Some(1),
+                retain_days: None,
+            },
+        )
+        .unwrap();
+
+        assert_eq!(report.scanned_files, 2);
+        assert_eq!(report.removed_files, 1);
+        assert!(!old_backup.exists());
+        assert!(newest_backup.exists());
+        assert!(unrelated.exists());
         assert!(paths.database().exists());
         let _ = fs::remove_dir_all(root);
     }
