@@ -25,9 +25,14 @@ export function App() {
     >
       {app.startupDatabaseBackup.startupDatabaseBackupError && (
         <AppStartupDatabaseBackupNotice
+          diagnosticExportLoading={app.startupDatabaseBackupDiagnosticExportLoading}
+          diagnosticExportMessage={app.startupDatabaseBackupDiagnosticExportMessage}
+          diagnosticExportPath={app.startupDatabaseBackupDiagnosticExportPath}
           error={app.startupDatabaseBackup.startupDatabaseBackupError}
           onDismiss={app.startupDatabaseBackup.dismissStartupDatabaseBackupError}
+          onExportDiagnosticPackage={app.exportStartupDatabaseBackupDiagnosticPackage}
           onOpenSettings={() => app.openSettings('local')}
+          onRevealDiagnosticExportPath={app.revealStartupDatabaseBackupDiagnosticExportPath}
         />
       )}
 

@@ -80,3 +80,30 @@ test('global app error boundary can reveal or copy exported diagnostic path', ()
   assert.match(boundary, /打开诊断包位置/);
   assert.match(boundary, /复制诊断包路径/);
 });
+
+test('startup database backup failure notice can export diagnostics and expose the exported path', () => {
+  const app = fs.readFileSync('src/app/App.tsx', 'utf8');
+  const controller = fs.readFileSync('src/app/useAppController.ts', 'utf8');
+  const exportHook = fs.readFileSync('src/app/useStartupDatabaseBackupDiagnosticExport.ts', 'utf8');
+  const notice = fs.readFileSync('src/app/AppStartupDatabaseBackupNotice.tsx', 'utf8');
+  const actions = fs.readFileSync('src/components/diagnostics/DiagnosticExportPathActions.tsx', 'utf8');
+
+  assert.match(controller, /useStartupDatabaseBackupDiagnosticExport/);
+  assert.match(controller, /\.\.\.startupDatabaseBackupDiagnosticExport/);
+  assert.match(exportHook, /startupDatabaseBackupDiagnosticExportLoading/);
+  assert.match(exportHook, /startupDatabaseBackupDiagnosticExportPath/);
+  assert.match(exportHook, /startupDatabaseBackupDiagnosticExportMessage/);
+  assert.match(exportHook, /exportStartupDatabaseBackupDiagnosticPackage/);
+  assert.match(exportHook, /api\.exportDiagnosticPackage\(\)/);
+  assert.match(exportHook, /setStartupDatabaseBackupDiagnosticExportPath\(report\.path\)/);
+  assert.match(exportHook, /api\.revealPath\(startupDatabaseBackupDiagnosticExportPath\)/);
+  assert.match(app, /diagnosticExportLoading=\{app\.startupDatabaseBackupDiagnosticExportLoading\}/);
+  assert.match(app, /diagnosticExportPath=\{app\.startupDatabaseBackupDiagnosticExportPath\}/);
+  assert.match(app, /diagnosticExportMessage=\{app\.startupDatabaseBackupDiagnosticExportMessage\}/);
+  assert.match(app, /onExportDiagnosticPackage=\{app\.exportStartupDatabaseBackupDiagnosticPackage\}/);
+  assert.match(app, /onRevealDiagnosticExportPath=\{app\.revealStartupDatabaseBackupDiagnosticExportPath\}/);
+  assert.match(notice, /DiagnosticExportPathActions/);
+  assert.match(notice, /导出诊断包/);
+  assert.match(actions, /打开诊断包位置/);
+  assert.match(actions, /复制诊断包路径/);
+});

@@ -6,6 +6,7 @@ import { navItems, readInitialView, type View } from './appNavigation';
 import { useAppKeyboardShortcuts } from './useAppKeyboardShortcuts';
 import { useAppThemeSettings } from './useAppThemeSettings';
 import { useStartupDatabaseBackup } from './useStartupDatabaseBackup';
+import { useStartupDatabaseBackupDiagnosticExport } from './useStartupDatabaseBackupDiagnosticExport';
 import { useStartupUpdater } from './useStartupUpdater';
 
 export function useAppController() {
@@ -27,6 +28,7 @@ export function useAppController() {
   const title = useMemo(() => navItems.find((item) => item.id === view)?.label ?? 'MikaVN Library', [view]);
   const { accent, previewAccent, previewTheme, resolvedTheme, toggleTheme } = useAppThemeSettings(refreshKey);
   const startupDatabaseBackup = useStartupDatabaseBackup();
+  const startupDatabaseBackupDiagnosticExport = useStartupDatabaseBackupDiagnosticExport();
   const startupUpdater = useStartupUpdater();
   const startupUpdateNotice = startupUpdater.notice?.kind === 'available' ? startupUpdater.notice : null;
 
@@ -142,6 +144,7 @@ export function useAppController() {
     settingsTabRequest,
     startupUpdateNotice,
     startupDatabaseBackup,
+    ...startupDatabaseBackupDiagnosticExport,
     startupUpdater,
     taskFilterPresetRequest,
     taskFocusRequest,
