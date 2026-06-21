@@ -46,3 +46,11 @@ test('browser mock database backup log mirrors verified backup report', () => {
 
   assert.match(source, /数据库备份报告：目标 \$\{target\}，大小 131072 bytes，quick_check ok。/);
 });
+
+test('local data settings distinguishes external Playnite image refs from migrated cache', () => {
+  const source = read('src/pages/Settings/SettingsLocalDataSection.tsx');
+
+  assert.match(source, /外部 Playnite 引用/);
+  assert.match(source, /不含已迁入 app-data\/images 的旧导入缓存/);
+  assert.doesNotMatch(source, /label="Playnite 图片引用"/);
+});

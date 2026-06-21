@@ -100,13 +100,13 @@ export function SettingsLocalDataSection({
               <Stat label="图片引用缺失" value={formatCount(diagnostics.database.missingImageRefsCount)} tone={diagnostics.database.missingImageRefsCount > 0 ? 'warn' : 'ok'} />
             </div>
           </ConfigItem>
-          <ConfigItem title="图片与备份" description="统计 app-data 下 images、save-backups 和安全数据库备份。">
+          <ConfigItem title="图片与备份" description="统计 app-data 下 images、save-backups 和安全数据库备份；外部 Playnite 引用不含已迁入 app-data/images 的旧导入缓存。">
             <div className="grid w-[min(42rem,calc(100vw-3rem))] gap-2 text-left text-xs sm:grid-cols-2 lg:grid-cols-3">
               <Stat label="图片文件" value={`${formatCount(diagnostics.images.fileCount)} · ${formatBytes(diagnostics.images.totalBytes)}`} />
               <Stat label="旧数据库备份" value={`${formatCount(diagnostics.databaseBackups.fileCount)} · ${formatBytes(diagnostics.databaseBackups.totalBytes)}`} />
               <Stat label="存档备份文件" value={`${formatCount(diagnostics.saveBackups.fileCount)} · ${formatBytes(diagnostics.saveBackups.totalBytes)}`} />
               <Stat label="C 盘图片引用" value={formatCount(diagnostics.database.cDriveImageRefsCount)} tone={diagnostics.database.cDriveImageRefsCount > 0 ? 'warn' : 'ok'} />
-              <Stat label="Playnite 图片引用" value={formatCount(diagnostics.database.playniteImageRefsCount)} tone={diagnostics.database.playniteImageRefsCount > 0 ? 'warn' : 'ok'} />
+              <Stat label="外部 Playnite 引用" value={formatCount(diagnostics.database.playniteImageRefsCount)} tone={diagnostics.database.playniteImageRefsCount > 0 ? 'warn' : 'ok'} />
               <Stat label="日志文件" value={`${formatCount(diagnostics.logs.fileCount)} · ${formatBytes(diagnostics.logs.totalBytes)}`} />
             </div>
           </ConfigItem>
