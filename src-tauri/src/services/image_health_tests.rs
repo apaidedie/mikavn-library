@@ -200,6 +200,46 @@ fn image_health_report_counts_description_image_references() {
     let _ = fs::remove_dir_all(root);
 }
 
+#[test]
+fn duplicate_content_detection_skips_unique_size_files_before_hashing() {
+    let root =
+        std::env::temp_dir().join(format!("mikavn-image-content-prefilter-{}", Uuid::new_v4()));
+    fs::create_dir_all(&root).unwrap();
+    let duplicate_a = root.join("alpha.jpg");
+    let duplicate_b = root.join("beta.webp");
+    let missing_unique = root.join("missing-unique.jpg");
+    fs::write(&duplicate_a, b"same-content").unwrap();
+    fs::write(&duplicate_b, b"same-content").unwrap();
+
+    let groups = duplicate_content_groups_from_candidates(
+        vec![
+            ImageCacheContentCandidate {
+                path: duplicate_a,
+                relative_path: "alpha.jpg".to_string(),
+                size_bytes: 12,
+            },
+            ImageCacheContentCandidate {
+                path: duplicate_b,
+                relative_path: "beta.webp".to_string(),
+                size_bytes: 12,
+            },
+            ImageCacheContentCandidate {
+                path: missing_unique,
+                relative_path: "missing-unique.jpg".to_string(),
+                size_bytes: 1,
+            },
+        ],
+        100,
+    )
+    .unwrap();
+
+    assert_eq!(groups.len(), 1);
+    assert_eq!(groups[0].count, 2);
+    assert!(groups[0].samples.contains(&"alpha.jpg".to_string()));
+    assert!(groups[0].samples.contains(&"beta.webp".to_string()));
+    let _ = fs::remove_dir_all(root);
+}
+
 fn create_health_db(path: &std::path::Path, cover: &str, legacy: &str, missing: &str) {
     let conn = Connection::open(path).unwrap();
     conn.execute_batch(

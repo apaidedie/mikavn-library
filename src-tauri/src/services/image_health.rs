@@ -2,10 +2,8 @@ use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::sync::OnceLock;
 
 use chrono::Utc;
-use regex::Regex;
 use rusqlite::{Connection, OpenFlags};
 use serde::{Deserialize, Serialize};
 use tauri::AppHandle;
@@ -13,6 +11,10 @@ use tauri::AppHandle;
 use crate::db::DbResult;
 use crate::infrastructure::paths::AppPaths;
 use crate::services::images;
+
+mod description;
+
+use description::description_image_sources;
 
 const DEFAULT_OVERSIZED_IMAGE_BYTES: u64 = 5 * 1024 * 1024;
 const DEFAULT_SAMPLE_LIMIT: usize = 100;
@@ -116,6 +118,13 @@ pub struct ImageDuplicateContentGroup {
     pub size_bytes: u64,
     pub count: i64,
     pub samples: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+struct ImageCacheContentCandidate {
+    path: PathBuf,
+    relative_path: String,
+    size_bytes: u64,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -585,7 +594,7 @@ fn scan_image_cache(
         ..ImageCacheHealth::default()
     };
     let mut duplicate_names: HashMap<String, Vec<String>> = HashMap::new();
-    let mut duplicate_contents: HashMap<(u64, u64), Vec<String>> = HashMap::new();
+    let mut content_candidates = Vec::new();
     if !root.exists() {
         return Ok(health);
     }
@@ -597,7 +606,7 @@ fn scan_image_cache(
         oversized_bytes,
         sample_limit,
         &mut duplicate_names,
-        &mut duplicate_contents,
+        &mut content_candidates,
         &mut health,
     )?;
     for (file_name, samples) in duplicate_names {
@@ -612,21 +621,10 @@ fn scan_image_cache(
             }
         }
     }
-    for ((content_hash, size_bytes), samples) in duplicate_contents {
-        if samples.len() > 1 {
-            health.duplicate_content_groups += 1;
-            if health.duplicate_content_samples.len() < sample_limit {
-                health
-                    .duplicate_content_samples
-                    .push(ImageDuplicateContentGroup {
-                        content_hash: format!("{content_hash:016x}"),
-                        size_bytes,
-                        count: samples.len() as i64,
-                        samples: samples.into_iter().take(5).collect(),
-                    });
-            }
-        }
-    }
+    let duplicate_content_groups =
+        duplicate_content_groups_from_candidates(content_candidates, sample_limit)?;
+    health.duplicate_content_groups = duplicate_content_groups.len() as i64;
+    health.duplicate_content_samples = duplicate_content_groups;
     Ok(health)
 }
 
@@ -653,7 +651,7 @@ fn scan_image_dir(
     oversized_bytes: u64,
     sample_limit: usize,
     duplicate_names: &mut HashMap<String, Vec<String>>,
-    duplicate_contents: &mut HashMap<(u64, u64), Vec<String>>,
+    content_candidates: &mut Vec<ImageCacheContentCandidate>,
     health: &mut ImageCacheHealth,
 ) -> DbResult<()> {
     for entry in fs::read_dir(path)? {
@@ -669,7 +667,7 @@ fn scan_image_dir(
                 oversized_bytes,
                 sample_limit,
                 duplicate_names,
-                duplicate_contents,
+                content_candidates,
                 health,
             )?;
             continue;
@@ -703,10 +701,11 @@ fn scan_image_dir(
             )
             .or_default()
             .push(relative_path.clone());
-        duplicate_contents
-            .entry((hash_file_content(&path)?, size_bytes))
-            .or_default()
-            .push(relative_path.clone());
+        content_candidates.push(ImageCacheContentCandidate {
+            path: path.clone(),
+            relative_path: relative_path.clone(),
+            size_bytes,
+        });
 
         let path_key = normalize_path_key(&path.to_string_lossy());
         let is_referenced = referenced_paths.contains(&path_key);
@@ -753,6 +752,48 @@ fn scan_image_dir(
         }
     }
     Ok(())
+}
+
+fn duplicate_content_groups_from_candidates(
+    candidates: Vec<ImageCacheContentCandidate>,
+    sample_limit: usize,
+) -> DbResult<Vec<ImageDuplicateContentGroup>> {
+    let mut by_size: HashMap<u64, Vec<ImageCacheContentCandidate>> = HashMap::new();
+    for candidate in candidates {
+        by_size
+            .entry(candidate.size_bytes)
+            .or_default()
+            .push(candidate);
+    }
+
+    let mut by_content: HashMap<(u64, u64), Vec<String>> = HashMap::new();
+    for (size_bytes, same_size_candidates) in by_size {
+        if same_size_candidates.len() < 2 {
+            continue;
+        }
+        for candidate in same_size_candidates {
+            by_content
+                .entry((hash_file_content(&candidate.path)?, size_bytes))
+                .or_default()
+                .push(candidate.relative_path);
+        }
+    }
+
+    let mut groups = Vec::new();
+    for ((content_hash, size_bytes), samples) in by_content {
+        if samples.len() > 1 {
+            groups.push(ImageDuplicateContentGroup {
+                content_hash: format!("{content_hash:016x}"),
+                size_bytes,
+                count: samples.len() as i64,
+                samples: samples.into_iter().take(5).collect(),
+            });
+        }
+        if groups.len() >= sample_limit {
+            break;
+        }
+    }
+    Ok(groups)
 }
 
 fn image_health_recommendations(summary: &ImageHealthSummary) -> Vec<String> {
@@ -861,80 +902,6 @@ fn image_content_kind(bytes: &[u8]) -> Option<&'static str> {
         return Some("gif");
     }
     None
-}
-
-fn description_image_sources(value: &str) -> Vec<String> {
-    static DESCRIPTION_IMAGE_RE: OnceLock<Regex> = OnceLock::new();
-    let pattern = DESCRIPTION_IMAGE_RE.get_or_init(|| {
-        Regex::new(r#"(?is)!\[[^\]]*\]\(([^)]*?)\)|<img\b[^>]*>|\[img\]([\s\S]*?)\[/img\]|https?://[^\s<>"']+?\.(?:png|jpe?g|webp|gif)(?:\?[^\s<>"']*)?"#)
-            .expect("valid description image regex")
-    });
-
-    pattern
-        .captures_iter(value)
-        .filter_map(|captures| description_image_source_from_match(&captures))
-        .collect()
-}
-
-fn description_image_source_from_match(captures: &regex::Captures<'_>) -> Option<String> {
-    if let Some(source) = captures.get(1) {
-        return clean_description_image_source(source.as_str(), false);
-    }
-    let token = captures.get(0)?.as_str();
-    if token.trim_start().to_lowercase().starts_with("<img") {
-        return read_description_image_attr(token)
-            .and_then(|source| clean_description_image_source(&source, false));
-    }
-    if let Some(source) = captures.get(2) {
-        return clean_description_image_source(source.as_str(), false);
-    }
-    clean_description_image_source(token, true)
-}
-
-fn read_description_image_attr(tag: &str) -> Option<String> {
-    static IMG_SRC_RE: OnceLock<Regex> = OnceLock::new();
-    let pattern = IMG_SRC_RE.get_or_init(|| {
-        Regex::new(r#"(?i)\b(?:src|data-src|data-original|data-lazy-src)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))"#)
-            .expect("valid img src regex")
-    });
-    pattern.captures(tag).and_then(|captures| {
-        captures
-            .get(1)
-            .or_else(|| captures.get(2))
-            .or_else(|| captures.get(3))
-            .map(|value| decode_description_html(value.as_str().trim()))
-    })
-}
-
-fn clean_description_image_source(value: &str, trim_trailing_punctuation: bool) -> Option<String> {
-    let mut clean = decode_description_html(value)
-        .trim()
-        .trim_matches(['\'', '"'])
-        .to_string();
-    if trim_trailing_punctuation {
-        clean = clean
-            .trim_end_matches([')', ',', '，', '。', '.', ';', '；'])
-            .to_string();
-    }
-    if clean.starts_with("//") {
-        clean = format!("https:{clean}");
-    }
-    if clean.is_empty() {
-        None
-    } else {
-        Some(clean)
-    }
-}
-
-fn decode_description_html(value: &str) -> String {
-    value
-        .replace("&amp;", "&")
-        .replace("&quot;", "\"")
-        .replace("&#39;", "'")
-        .replace("&apos;", "'")
-        .replace("&nbsp;", " ")
-        .replace("&lt;", "<")
-        .replace("&gt;", ">")
 }
 
 fn table_exists(conn: &Connection, table: &str) -> DbResult<bool> {
