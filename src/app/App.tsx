@@ -24,14 +24,17 @@ export function App() {
     >
       {app.startupUpdateNotice && (
         <AppUpdateNotice
+          backupActionMessage={app.startupUpdater.backupActionMessage}
           backupInfo={app.startupUpdater.backupInfo}
           error={app.startupUpdater.error}
           installed={app.startupUpdater.installed}
           installing={app.startupUpdater.installing}
           notice={app.startupUpdateNotice}
           progressText={app.startupUpdater.installProgress}
+          onCopyBackupPath={app.startupUpdater.copyStartupBackupPath}
           onDismiss={app.startupUpdater.dismissStartupUpdate}
           onInstall={app.startupUpdater.installStartupUpdate}
+          onRevealBackup={app.startupUpdater.revealStartupBackupPath}
           onRestart={app.startupUpdater.restartStartupUpdate}
         />
       )}

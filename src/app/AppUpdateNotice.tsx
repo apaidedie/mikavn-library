@@ -1,4 +1,4 @@
-import { ClipboardCopy, Download, ExternalLink, RotateCw, X } from 'lucide-react';
+import { ClipboardCopy, Download, ExternalLink, FolderOpen, RotateCw, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { createUpdaterRecoveryHint, updaterFallbackDownloadUrl, type UpdateProtectionBackupInfo, type UpdaterCheckResult } from '@/services/updaterModel';
 
@@ -9,12 +9,28 @@ type AppUpdateNoticeProps = {
   progressText: string | null;
   error: string | null;
   backupInfo: UpdateProtectionBackupInfo | null;
+  backupActionMessage: string | null;
   onDismiss: () => void;
   onInstall: () => void;
+  onCopyBackupPath: () => void;
+  onRevealBackup: () => void;
   onRestart: () => void;
 };
 
-export function AppUpdateNotice({ notice, installing, installed, progressText, error, backupInfo, onDismiss, onInstall, onRestart }: AppUpdateNoticeProps) {
+export function AppUpdateNotice({
+  notice,
+  installing,
+  installed,
+  progressText,
+  error,
+  backupInfo,
+  backupActionMessage,
+  onCopyBackupPath,
+  onDismiss,
+  onInstall,
+  onRevealBackup,
+  onRestart,
+}: AppUpdateNoticeProps) {
   const recoveryHint = createUpdaterRecoveryHint(error);
 
   return (
@@ -24,7 +40,20 @@ export function AppUpdateNotice({ notice, installing, installed, progressText, e
           <p className="font-medium">发现新版本 {notice.version}</p>
           <p className="truncate text-xs text-emerald-100/80">{installed ? '更新已安装，请重启应用。' : notice.notes}</p>
           {progressText && <p className="mt-1 text-xs text-amber-100">{progressText}</p>}
-          {installed && backupInfo && <p className="mt-1 truncate text-xs text-emerald-100/80">更新前数据库备份：{backupInfo.fileName}</p>}
+          {installed && backupInfo && (
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <p className="truncate text-xs text-emerald-100/80">更新前数据库备份：{backupInfo.fileName}</p>
+              <button className="inline-flex items-center gap-1 text-xs text-emerald-50 underline underline-offset-2" type="button" onClick={onRevealBackup}>
+                <FolderOpen className="h-3.5 w-3.5" />
+                打开备份位置
+              </button>
+              <button className="inline-flex items-center gap-1 text-xs text-emerald-50 underline underline-offset-2" type="button" onClick={onCopyBackupPath}>
+                <ClipboardCopy className="h-3.5 w-3.5" />
+                复制备份路径
+              </button>
+            </div>
+          )}
+          {backupActionMessage && <p className="mt-1 text-xs text-emerald-100">{backupActionMessage}</p>}
           {recoveryHint && (
             <div className="mt-1 max-w-[42rem] rounded-md border border-amber-200/20 bg-black/15 px-2 py-1">
               <p className="text-xs font-medium text-amber-50">{recoveryHint?.title}</p>

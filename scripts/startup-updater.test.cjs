@@ -73,3 +73,21 @@ test('startup update notice shows pre-update backup after successful install', (
   assert.match(notice, /backupInfo\.fileName/);
   assert.match(app, /backupInfo=\{app\.startupUpdater\.backupInfo\}/);
 });
+
+test('startup update notice can reveal or copy pre-update backup path', () => {
+  const hook = read('src/app/useStartupUpdater.ts');
+  const notice = read('src/app/AppUpdateNotice.tsx');
+  const app = read('src/app/App.tsx');
+
+  assert.match(hook, /api\.revealPath\(backupInfo\.path\)/);
+  assert.match(hook, /navigator\.clipboard\.writeText\(backupInfo\.path\)/);
+  assert.match(hook, /revealStartupBackupPath/);
+  assert.match(hook, /copyStartupBackupPath/);
+  assert.match(hook, /backupActionMessage/);
+  assert.match(notice, /打开备份位置/);
+  assert.match(notice, /复制备份路径/);
+  assert.match(notice, /backupActionMessage/);
+  assert.match(app, /backupActionMessage=\{app\.startupUpdater\.backupActionMessage\}/);
+  assert.match(app, /onRevealBackup=\{app\.startupUpdater\.revealStartupBackupPath\}/);
+  assert.match(app, /onCopyBackupPath=\{app\.startupUpdater\.copyStartupBackupPath\}/);
+});
