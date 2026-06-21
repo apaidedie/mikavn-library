@@ -1,11 +1,13 @@
 const fs = require('fs');
 const path = require('path');
+const { recordLargeLibrarySmokeHistory } = require('./large-library-report-history.cjs');
 const { resolvePlaywright } = require('./playwright-resolution.cjs');
 
 const baseUrl = process.env.MIKAVN_QA_URL || 'http://127.0.0.1:1420/';
 const repoRoot = path.resolve(__dirname, '..', '..');
 const { chromium } = require(resolvePlaywright(repoRoot));
 const outDir = path.resolve(process.env.MIKAVN_QA_OUT_DIR || path.join(repoRoot, 'output', 'playwright', 'large-library-current'));
+const historyPath = path.resolve(process.env.MIKAVN_LARGE_LIBRARY_HISTORY_PATH || path.join(repoRoot, 'output', 'playwright', 'large-library-history.jsonl'));
 fs.mkdirSync(outDir, { recursive: true });
 
 const now = new Date().toISOString();
@@ -230,6 +232,7 @@ async function main() {
     await browser.close();
   }
 
+  report.history = recordLargeLibrarySmokeHistory(report, { historyPath });
   fs.writeFileSync(path.join(outDir, 'large-library-report.json'), `${JSON.stringify(report, null, 2)}\n`);
 }
 
