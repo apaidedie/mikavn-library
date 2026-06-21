@@ -195,6 +195,13 @@ test('image health service budget keeps tests outside the production scanner mod
   assert.ok(budget.maxLines <= 1000);
 });
 
+test('image health service budget leaves room for repair workflows', () => {
+  const budget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('src-tauri/src/services/image_health.rs'));
+
+  assert.ok(budget);
+  assert.ok(budget.maxLines <= 900);
+});
+
 test('backup service budget keeps data-safety tests outside the production module', () => {
   const budget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('src-tauri/src/services/backups.rs'));
 

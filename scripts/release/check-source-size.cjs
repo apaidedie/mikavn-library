@@ -130,7 +130,7 @@ const DEFAULT_SOURCE_BUDGETS = [
   {
     filePath: path.resolve(__dirname, '..', '..', 'src-tauri', 'src', 'services', 'image_health.rs'),
     maxBytes: 48 * 1024,
-    maxLines: 1000,
+    maxLines: 900,
   },
   {
     filePath: path.resolve(__dirname, '..', '..', 'src-tauri', 'src', 'db', 'game_merge_ext.rs'),
