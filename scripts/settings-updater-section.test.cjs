@@ -61,6 +61,8 @@ test('settings update failure offers public fallback download link', () => {
   assert.match(source, /备用下载页面/);
   assert.match(source, /target="_blank"/);
   assert.match(source, /rel="noreferrer"/);
+  assert.match(source, /复制错误/);
+  assert.match(source, /navigator\.clipboard\.writeText\(error\)/);
 });
 
 test('settings update section keeps a public manual download link visible before failures', () => {

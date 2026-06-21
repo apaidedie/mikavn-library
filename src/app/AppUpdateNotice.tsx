@@ -1,4 +1,4 @@
-import { Download, ExternalLink, RotateCw, X } from 'lucide-react';
+import { ClipboardCopy, Download, ExternalLink, RotateCw, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { updaterFallbackDownloadUrl, type UpdateProtectionBackupInfo, type UpdaterCheckResult } from '@/services/updaterModel';
 
@@ -25,10 +25,16 @@ export function AppUpdateNotice({ notice, installing, installed, progressText, e
           {installed && backupInfo && <p className="mt-1 truncate text-xs text-emerald-100/80">更新前数据库备份：{backupInfo.fileName}</p>}
           {error && <p className="mt-1 select-text text-xs text-rose-100">{error}</p>}
           {error && (
-            <a className="mt-1 inline-flex items-center gap-1 text-xs text-emerald-50 underline underline-offset-2" href={updaterFallbackDownloadUrl} rel="noreferrer" target="_blank">
-              <ExternalLink className="h-3.5 w-3.5" />
-              备用下载页面
-            </a>
+            <div className="mt-1 flex flex-wrap gap-2">
+              <button className="inline-flex items-center gap-1 text-xs text-emerald-50 underline underline-offset-2" type="button" onClick={() => void navigator.clipboard.writeText(error)}>
+                <ClipboardCopy className="h-3.5 w-3.5" />
+                复制错误
+              </button>
+              <a className="inline-flex items-center gap-1 text-xs text-emerald-50 underline underline-offset-2" href={updaterFallbackDownloadUrl} rel="noreferrer" target="_blank">
+                <ExternalLink className="h-3.5 w-3.5" />
+                备用下载页面
+              </a>
+            </div>
           )}
         </div>
         <div className="flex shrink-0 gap-2">

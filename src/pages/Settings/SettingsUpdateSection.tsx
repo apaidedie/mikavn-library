@@ -1,4 +1,4 @@
-import { Download, ExternalLink, FolderOpen, RefreshCw, RotateCcw, RotateCw } from 'lucide-react';
+import { ClipboardCopy, Download, ExternalLink, FolderOpen, RefreshCw, RotateCcw, RotateCw } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ConfigItem, ConfigSection } from '@/components/ui/config-item';
@@ -87,12 +87,18 @@ export function SettingsUpdateSection({ onOpenDatabaseRestore, onRevealBackup }:
           {error && (
             <div className="flex max-w-[42rem] flex-col items-end gap-2">
               <textarea className="min-h-16 w-[min(42rem,calc(100vw-3rem))] rounded-md bg-black/30 p-2 text-xs text-rose-100" readOnly value={error} />
-              <Button asChild size="sm" variant="outline">
-                <a href={updaterFallbackDownloadUrl} rel="noreferrer" target="_blank">
-                  <ExternalLink className="h-4 w-4" />
-                  备用下载页面
-                </a>
-              </Button>
+              <div className="flex flex-wrap justify-end gap-2">
+                <Button size="sm" type="button" variant="ghost" onClick={() => void navigator.clipboard.writeText(error)}>
+                  <ClipboardCopy className="h-4 w-4" />
+                  复制错误
+                </Button>
+                <Button asChild size="sm" variant="outline">
+                  <a href={updaterFallbackDownloadUrl} rel="noreferrer" target="_blank">
+                    <ExternalLink className="h-4 w-4" />
+                    备用下载页面
+                  </a>
+                </Button>
+              </div>
             </div>
           )}
           <div className="flex flex-wrap justify-end gap-2">

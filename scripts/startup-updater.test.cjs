@@ -43,6 +43,8 @@ test('startup update notice exposes fallback download link after install errors'
   assert.match(notice, /备用下载页面/);
   assert.match(notice, /target="_blank"/);
   assert.match(notice, /rel="noreferrer"/);
+  assert.match(notice, /复制错误/);
+  assert.match(notice, /navigator\.clipboard\.writeText\(error\)/);
 });
 
 test('startup update notice shows pre-update backup after successful install', () => {
