@@ -26,7 +26,7 @@ export function useAppController() {
 
   const title = useMemo(() => navItems.find((item) => item.id === view)?.label ?? 'MikaVN Library', [view]);
   const { accent, previewAccent, previewTheme, resolvedTheme, toggleTheme } = useAppThemeSettings(refreshKey);
-  useStartupDatabaseBackup();
+  const startupDatabaseBackup = useStartupDatabaseBackup();
   const startupUpdater = useStartupUpdater();
   const startupUpdateNotice = startupUpdater.notice?.kind === 'available' ? startupUpdater.notice : null;
 
@@ -141,6 +141,7 @@ export function useAppController() {
     setView,
     settingsTabRequest,
     startupUpdateNotice,
+    startupDatabaseBackup,
     startupUpdater,
     taskFilterPresetRequest,
     taskFocusRequest,

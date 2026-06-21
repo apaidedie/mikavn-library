@@ -1,5 +1,6 @@
 import { AppChrome } from './AppChrome';
 import { AppRoutes } from './AppRoutes';
+import { AppStartupDatabaseBackupNotice } from './AppStartupDatabaseBackupNotice';
 import { AppUpdateNotice } from './AppUpdateNotice';
 import { useAppController } from './useAppController';
 
@@ -22,6 +23,14 @@ export function App() {
       topSearchRef={app.topSearchRef}
       view={app.view}
     >
+      {app.startupDatabaseBackup.startupDatabaseBackupError && (
+        <AppStartupDatabaseBackupNotice
+          error={app.startupDatabaseBackup.startupDatabaseBackupError}
+          onDismiss={app.startupDatabaseBackup.dismissStartupDatabaseBackupError}
+          onOpenSettings={() => app.openSettings('local')}
+        />
+      )}
+
       {app.startupUpdateNotice && (
         <AppUpdateNotice
           backupActionMessage={app.startupUpdater.backupActionMessage}

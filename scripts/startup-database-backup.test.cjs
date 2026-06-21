@@ -97,7 +97,28 @@ test('startup database backup hook cleans old backups after a successful auto ba
 
   assert.match(source, /cleanupOldDatabaseBackups/);
   assert.match(source, /startupDatabaseBackupCleanupPolicy/);
-  assert.match(source, /api\.backupDatabase\(plan\.path\)\.then\(\(\) => api\.cleanupOldDatabaseBackups\(startupDatabaseBackupCleanupPolicy\(\)\)\)/);
+  assert.ok(source.indexOf('api.backupDatabase(plan.path)') < source.indexOf('api.cleanupOldDatabaseBackups(startupDatabaseBackupCleanupPolicy())'));
+});
+
+test('startup database backup failures are surfaced in app chrome', () => {
+  const hook = fs.readFileSync(path.join(__dirname, '..', 'src', 'app', 'useStartupDatabaseBackup.ts'), 'utf8');
+  const app = fs.readFileSync(path.join(__dirname, '..', 'src', 'app', 'App.tsx'), 'utf8');
+  const controller = fs.readFileSync(path.join(__dirname, '..', 'src', 'app', 'useAppController.ts'), 'utf8');
+  const notice = fs.readFileSync(path.join(__dirname, '..', 'src', 'app', 'AppStartupDatabaseBackupNotice.tsx'), 'utf8');
+
+  assert.match(hook, /useState/);
+  assert.match(hook, /errorMessage/);
+  assert.match(hook, /startupDatabaseBackupError/);
+  assert.match(hook, /setStartupDatabaseBackupError\(`启动自动数据库备份失败：\$\{errorMessage\(reason\)\}`\)/);
+  assert.match(hook, /dismissStartupDatabaseBackupError/);
+  assert.match(controller, /const startupDatabaseBackup = useStartupDatabaseBackup\(\)/);
+  assert.match(controller, /startupDatabaseBackup/);
+  assert.match(app, /AppStartupDatabaseBackupNotice/);
+  assert.match(app, /startupDatabaseBackup\.startupDatabaseBackupError/);
+  assert.match(app, /onOpenSettings=\{\(\) => app\.openSettings\('local'\)\}/);
+  assert.match(notice, /启动自动备份失败/);
+  assert.match(notice, /打开本地数据设置/);
+  assert.match(notice, /onDismiss/);
 });
 
 test('desktop startup creates automatic backup through Rust while honoring disabled setting', () => {
