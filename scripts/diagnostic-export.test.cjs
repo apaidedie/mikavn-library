@@ -41,4 +41,8 @@ test('global app error boundary exposes diagnostic package export after render c
   assert.match(boundary, /导出诊断包/);
   assert.match(boundary, /api\.exportDiagnosticPackage\(\)/);
   assert.match(boundary, /不包含完整数据库、图片缓存或存档文件/);
+  assert.match(boundary, /componentStack/);
+  assert.match(boundary, /copyErrorSummary/);
+  assert.match(boundary, /复制错误摘要/);
+  assert.match(boundary, /navigator\.clipboard\.writeText/);
 });

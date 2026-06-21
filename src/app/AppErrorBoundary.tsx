@@ -1,5 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
-import { FileArchive, RotateCcw } from 'lucide-react';
+import { ClipboardCopy, FileArchive, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Notice } from '@/components/ui/notice';
 import { api } from '@/services/api';
@@ -7,6 +7,7 @@ import { errorMessage } from '@/utils/errorMessage';
 
 type AppErrorBoundaryState = {
   error: Error | null;
+  componentStack: string | null;
   exporting: boolean;
   exportMessage: string | null;
 };
@@ -14,6 +15,7 @@ type AppErrorBoundaryState = {
 export class AppErrorBoundary extends Component<{ children: ReactNode }, AppErrorBoundaryState> {
   state: AppErrorBoundaryState = {
     error: null,
+    componentStack: null,
     exporting: false,
     exportMessage: null,
   };
@@ -24,7 +26,24 @@ export class AppErrorBoundary extends Component<{ children: ReactNode }, AppErro
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error('MikaVN render failure', error, info.componentStack);
+    this.setState({ componentStack: info.componentStack || null });
   }
+
+  private copyErrorSummary = async () => {
+    const error = this.state.error;
+    const summary = [
+      'MikaVN Library render failure',
+      `Message: ${error?.message || 'unknown error'}`,
+      error?.stack ? `Stack:\n${error.stack}` : '',
+      this.state.componentStack ? `Component stack:\n${this.state.componentStack}` : '',
+    ].filter(Boolean).join('\n\n');
+    try {
+      await navigator.clipboard.writeText(summary);
+      this.setState({ exportMessage: '错误摘要已复制。' });
+    } catch (reason) {
+      this.setState({ exportMessage: `复制错误摘要失败：${errorMessage(reason)}` });
+    }
+  };
 
   private exportDiagnosticPackage = async () => {
     this.setState({ exporting: true, exportMessage: null });
@@ -61,6 +80,10 @@ export class AppErrorBoundary extends Component<{ children: ReactNode }, AppErro
             <Button disabled={this.state.exporting} variant="secondary" onClick={() => void this.exportDiagnosticPackage()}>
               <FileArchive className="h-4 w-4" />
               {this.state.exporting ? '导出中' : '导出诊断包'}
+            </Button>
+            <Button variant="outline" onClick={() => void this.copyErrorSummary()}>
+              <ClipboardCopy className="h-4 w-4" />
+              复制错误摘要
             </Button>
             <Button variant="outline" onClick={() => window.location.reload()}>
               <RotateCcw className="h-4 w-4" />
