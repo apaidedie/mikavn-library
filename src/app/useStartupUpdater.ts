@@ -52,6 +52,7 @@ export function useStartupUpdater() {
       setBackupInfo(result.backup ?? null);
     } else {
       setInstallProgress(null);
+      setBackupInfo(result.backup ?? null);
       setError(result.message);
     }
   };

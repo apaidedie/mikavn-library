@@ -54,7 +54,15 @@ export async function installAppUpdate(update: AppUpdateHandle | null, onProgres
       },
     };
   } catch (error) {
-    return { kind: 'failed', message: formatUpdaterError(error) };
+    return {
+      kind: 'failed',
+      message: formatUpdaterError(error),
+      backup: {
+        fileName: backupReport.fileName,
+        path: backupReport.path,
+        sizeBytes: backupReport.sizeBytes,
+      },
+    };
   }
 }
 

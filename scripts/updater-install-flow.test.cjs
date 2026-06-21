@@ -59,6 +59,20 @@ test('updater install reports backup failure before installing', () => {
   assert.match(source, /backupDatabaseBeforeUpdate/);
 });
 
+test('updater install failure after backup preserves backup recovery information', () => {
+  const updater = read('src/services/updater.ts');
+  const model = read('src/services/updaterModel.ts');
+  const settings = read('src/pages/Settings/SettingsUpdateSection.tsx');
+  const startup = read('src/app/useStartupUpdater.ts');
+
+  assert.match(model, /\{ kind: 'failed'; message: string; backup\?: UpdateProtectionBackupInfo \}/);
+  assert.match(updater, /catch \(error\) \{\s*return \{\s*kind: 'failed',\s*message: formatUpdaterError\(error\),\s*backup:/s);
+  assert.match(updater, /fileName: backupReport\.fileName/);
+  assert.match(settings, /installResult\.kind === 'installed'/);
+  assert.match(settings, /installResult\.backup \? \{ fileName: installResult\.backup\.fileName, path: installResult\.backup\.path \} : null/);
+  assert.match(startup, /setBackupInfo\(result\.backup \?\? null\)/);
+});
+
 test('api exposes backup_database_before_update command', () => {
   const api = read('src/services/api.ts');
   const types = read('src/types/archive.ts');

@@ -57,6 +57,7 @@ export function SettingsUpdateSection({ onOpenDatabaseRestore, onRevealBackup }:
     } else {
       setState('failed');
       setInstallProgress(null);
+      setBackupInfo(installResult.backup ? { fileName: installResult.backup.fileName, path: installResult.backup.path } : null);
       setError(installResult.message);
     }
   };

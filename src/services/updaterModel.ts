@@ -18,7 +18,7 @@ export type UpdaterInstallProgress =
 
 export type UpdaterInstallResult =
   | { kind: 'installed'; message: string; backup?: UpdateProtectionBackupInfo }
-  | { kind: 'failed'; message: string };
+  | { kind: 'failed'; message: string; backup?: UpdateProtectionBackupInfo };
 
 type RawTauriUpdate = {
   version?: string;
