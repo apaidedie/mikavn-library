@@ -54,6 +54,35 @@ function buildLargeLibrarySmokeDelta(current, previous) {
   };
 }
 
+function buildLargeLibrarySmokeWarnings(current, previous, options = {}) {
+  if (!previous) return [];
+  const minDeltaMs = Number(options.minDeltaMs ?? 500);
+  const minRatio = Number(options.minRatio ?? 0.25);
+  const timingMetrics = ['libraryLoadMs', 'detailSwitchMs', 'searchMs'];
+  const warnings = [];
+
+  for (const metric of timingMetrics) {
+    const currentMs = Number(current.timings?.[metric] || 0);
+    const previousMs = Number(previous.timings?.[metric] || 0);
+    if (previousMs <= 0 || currentMs <= 0) continue;
+
+    const deltaMs = currentMs - previousMs;
+    const ratio = deltaMs / previousMs;
+    if (deltaMs >= minDeltaMs && ratio >= minRatio) {
+      warnings.push({
+        metric,
+        previousMs,
+        currentMs,
+        deltaMs,
+        ratio,
+        message: `${metric} regressed by ${deltaMs}ms (${Math.round(ratio * 100)}%) compared with the previous large-library smoke run.`,
+      });
+    }
+  }
+
+  return warnings;
+}
+
 function recordLargeLibrarySmokeHistory(report, options = {}) {
   const historyPath = options.historyPath;
   if (!historyPath) throw new Error('historyPath is required');
@@ -62,13 +91,15 @@ function recordLargeLibrarySmokeHistory(report, options = {}) {
   const previous = readLastHistoryEntry(historyPath);
   const current = compactLargeLibraryReport(report, options.timestamp);
   const delta = buildLargeLibrarySmokeDelta(current, previous);
+  const warnings = buildLargeLibrarySmokeWarnings(current, previous, options.warningThresholds);
 
   fs.appendFileSync(historyPath, `${JSON.stringify(current)}\n`);
-  return { historyPath, current, previous, delta };
+  return { historyPath, current, previous, delta, warnings };
 }
 
 module.exports = {
   buildLargeLibrarySmokeDelta,
+  buildLargeLibrarySmokeWarnings,
   compactLargeLibraryReport,
   readLastHistoryEntry,
   recordLargeLibrarySmokeHistory,

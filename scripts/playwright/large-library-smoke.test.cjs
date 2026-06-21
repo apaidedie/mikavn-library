@@ -55,3 +55,27 @@ test('large library smoke history appends compact performance entries and report
     renderedRows: { initial: 240, afterLoadMore: 480 },
   });
 });
+
+test('large library smoke history flags substantial timing regressions without failing the run', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mikavn-large-history-warn-'));
+  const historyPath = path.join(tempDir, 'large-library-history.jsonl');
+  const baselineReport = {
+    gameCount: 4500,
+    timings: { libraryLoadMs: 1000, detailSwitchMs: 80, searchMs: 800 },
+    renderedRows: { initial: 240, afterLoadMore: 480 },
+  };
+  const slowerReport = {
+    gameCount: 4500,
+    timings: { libraryLoadMs: 1700, detailSwitchMs: 90, searchMs: 1400 },
+    renderedRows: { initial: 240, afterLoadMore: 480 },
+  };
+
+  recordLargeLibrarySmokeHistory(baselineReport, { historyPath, timestamp: '2026-06-21T12:00:00.000Z' });
+  const result = recordLargeLibrarySmokeHistory(slowerReport, { historyPath, timestamp: '2026-06-21T12:10:00.000Z' });
+
+  assert.deepEqual(result.warnings.map((warning) => warning.metric), ['libraryLoadMs', 'searchMs']);
+  assert.equal(result.warnings[0].previousMs, 1000);
+  assert.equal(result.warnings[0].currentMs, 1700);
+  assert.equal(result.warnings[0].deltaMs, 700);
+  assert.match(result.warnings[0].message, /libraryLoadMs regressed by 700ms/);
+});
