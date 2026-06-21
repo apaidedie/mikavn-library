@@ -9,9 +9,9 @@ const outDir = path.resolve(process.env.MIKAVN_QA_OUT_DIR || path.join(repoRoot,
 fs.mkdirSync(outDir, { recursive: true });
 
 const now = new Date().toISOString();
-const gameCount = Number.parseInt(process.env.MIKAVN_LARGE_LIBRARY_COUNT || '1500', 10);
-const libraryLoadBudgetMs = Number.parseInt(process.env.MIKAVN_LARGE_LIBRARY_LOAD_BUDGET_MS || '9000', 10);
-const searchBudgetMs = Number.parseInt(process.env.MIKAVN_LARGE_LIBRARY_SEARCH_BUDGET_MS || '6000', 10);
+const gameCount = Number.parseInt(process.env.MIKAVN_LARGE_LIBRARY_COUNT || '4500', 10);
+const libraryLoadBudgetMs = Number.parseInt(process.env.MIKAVN_LARGE_LIBRARY_LOAD_BUDGET_MS || '12000', 10);
+const searchBudgetMs = Number.parseInt(process.env.MIKAVN_LARGE_LIBRARY_SEARCH_BUDGET_MS || '8000', 10);
 
 const settings = {
   provider_vndb_enabled: 'true',
@@ -95,6 +95,30 @@ function seedData(view, games) {
   };
 }
 
+function hasPerformanceTargetTag(game) {
+  return game.tags.includes('性能目标');
+}
+
+function isLargeSmokeSearchMatch(game) {
+  return hasPerformanceTargetTag(game) && game.rating >= 80;
+}
+
+function countMatchingGames(games, predicate) {
+  return games.reduce((count, game) => count + (predicate(game) ? 1 : 0), 0);
+}
+
+function formatLargeSmokeCount(value) {
+  return new Intl.NumberFormat('zh-CN').format(value);
+}
+
+function formatLargeSmokeGameTotal(value) {
+  return `${formatLargeSmokeCount(value)} 个游戏`;
+}
+
+function formatLargeSmokeSearchTotal(value) {
+  return `${formatLargeSmokeCount(value)} 个匹配条目`;
+}
+
 async function openSeededPage(browser, view, games) {
   const context = await browser.newContext({ viewport: { width: 1440, height: 1050 }, deviceScaleFactor: 1 });
   const page = await context.newPage();
@@ -123,15 +147,17 @@ async function measure(label, budgetMs, action) {
 
 async function main() {
   const games = makeLargeGames(gameCount);
+  const expectedTargetCount = countMatchingGames(games, hasPerformanceTargetTag);
+  const expectedSearchCount = countMatchingGames(games, isLargeSmokeSearchMatch);
   const browser = await chromium.launch({ headless: true });
-  const report = { gameCount, budgets: { libraryLoadBudgetMs, searchBudgetMs }, timings: {} };
+  const report = { gameCount, expected: { targetCount: expectedTargetCount, searchCount: expectedSearchCount }, budgets: { libraryLoadBudgetMs, searchBudgetMs }, timings: {} };
 
   try {
     {
       const { context, page, consoleErrors } = await openSeededPage(browser, 'library', games);
       report.timings.libraryLoadMs = await measure('library load', libraryLoadBudgetMs, async () => {
         await page.goto(baseUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
-        await page.getByText(`${gameCount} games`).first().waitFor({ timeout: libraryLoadBudgetMs });
+        await page.getByText(formatLargeSmokeGameTotal(gameCount)).first().waitFor({ timeout: libraryLoadBudgetMs });
         await page.getByText('大型库性能样本 1 终途').first().waitFor({ timeout: 5000 });
       });
       const visibleRows = await page.locator('.game-nav-row').count();
@@ -145,12 +171,12 @@ async function main() {
       if (expandedRows <= visibleRows) throw new Error(`expected load more to increase row count, got ${visibleRows} -> ${expandedRows}`);
       await page.locator('aside').getByRole('button', { name: /筛选/ }).click();
       await page.getByPlaceholder('标签').fill('性能目标');
-      await page.getByText(/60 games/).first().waitFor({ timeout: 5000 });
+      await page.getByText(formatLargeSmokeGameTotal(expectedTargetCount)).first().waitFor({ timeout: 5000 });
       await page.screenshot({ path: path.join(outDir, 'large-library-list.png'), fullPage: true });
       const importantConsoleErrors = consoleErrors.filter((item) => !/favicon|DevTools/.test(item));
       if (importantConsoleErrors.length) throw new Error(`library console errors: ${importantConsoleErrors.join(' | ')}`);
       await context.close();
-      console.log(`OK large library list ${gameCount} games in ${report.timings.libraryLoadMs}ms`);
+      console.log(`OK large library list ${formatLargeSmokeCount(gameCount)} entries in ${report.timings.libraryLoadMs}ms`);
     }
 
     {
@@ -160,7 +186,7 @@ async function main() {
       report.timings.searchMs = await measure('advanced search', searchBudgetMs, async () => {
         await page.getByPlaceholder(/输入标题|关键词|快捷搜索/).fill('tag:性能目标 rating>=80');
         await page.getByRole('button', { name: /^搜索$/ }).click();
-        await page.getByText(/30 个匹配条目/).first().waitFor({ timeout: searchBudgetMs });
+        await page.getByText(formatLargeSmokeSearchTotal(expectedSearchCount)).first().waitFor({ timeout: searchBudgetMs });
         await page.getByText('大型库性能样本 26 终途').first().waitFor({ timeout: 5000 });
       });
       await page.screenshot({ path: path.join(outDir, 'large-library-search.png'), fullPage: true });

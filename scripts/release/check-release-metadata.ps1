@@ -357,7 +357,7 @@ foreach ($stalePath in @("output/playwright/page-qa-runner.cjs", "output/playwri
     throw "ARCHITECTURE.md must not point to stale smoke runner path '$stalePath'."
   }
 }
-foreach ($token in @("current repository test count", "Rust tests", "get_app_data_diagnostics", "cleanup_old_database_backups", "cargo clippy -- -D warnings", "1500 browser-preview records", "advanced search", "npm run release:check:strict", "npm run release:validate:strict", "npm run release:validate:core", "npm run test:release-scripts", "npm run test:playwright-scripts", "npm run test:diagnostic-export", "npm run smoke:large", "npm run smoke:install", "npm run smoke:portable-data", "npm run tauri:build", "npm run smoke:desktop", "npm run release:handoff:check", "output/desktop-smoke/run-*/isolated-app-data")) {
+foreach ($token in @("current repository test count", "Rust tests", "get_app_data_diagnostics", "cleanup_old_database_backups", "cargo clippy -- -D warnings", "4500 browser-preview records", "advanced search", "npm run release:check:strict", "npm run release:validate:strict", "npm run release:validate:core", "npm run test:release-scripts", "npm run test:playwright-scripts", "npm run test:diagnostic-export", "npm run smoke:large", "npm run smoke:install", "npm run smoke:portable-data", "npm run tauri:build", "npm run smoke:desktop", "npm run release:handoff:check", "output/desktop-smoke/run-*/isolated-app-data")) {
   if (!$readme.Contains($token)) {
     throw "README.md verification snapshot must document '$token'."
   }

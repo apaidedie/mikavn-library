@@ -142,7 +142,7 @@ Latest mature V1 acceptance pass. For the repeatable release checklist, see `REL
 - `npm run test:release-scripts`, `npm run test:playwright-scripts`, `npm run test:updater-release`, and `npm run test:diagnostic-export` cover release handoff, source-size, build-chunk, Playwright module-resolution helpers, updater config, updater UI wiring, diagnostic export wiring, and browser-preview fallback.
 - `npm run build` passes TypeScript and Vite production build checks.
 - `npm run smoke:browser` starts or reuses a local Vite server, then runs page-level Playwright QA plus core workflow smoke.
-- `npm run smoke:large` starts or reuses a local Vite server, seeds 1500 browser-preview records, and verifies library rendering/filtering plus advanced-search timings; latest local run loaded the library in 1472ms and advanced search in 675ms.
+- `npm run smoke:large` starts or reuses a local Vite server, seeds 4500 browser-preview records by default, and verifies library rendering/filtering plus advanced search timings.
 - `npm run tauri:build` produces the Windows release executable and NSIS installer; latest local release/package run rebuilt both artifacts successfully.
 - `npm run smoke:install` silently installs the NSIS package into `output/clean-install-smoke/run-*/install`, launches the installed app with isolated app data, verifies first-run database/window creation, and silently uninstalls it.
 - `npm run smoke:portable-data` silently installs the NSIS package without `MIKAVN_APP_DATA_DIR`, verifies first-run `mikavn.db` plus `.mikavn-portable` are created under executable-adjacent `app-data/`, and fails if a fallback `%APPDATA%` database appears.

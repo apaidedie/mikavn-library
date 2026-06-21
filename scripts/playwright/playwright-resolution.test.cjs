@@ -61,3 +61,30 @@ test('large smoke warmup timeout is configurable and long enough for cold Vite t
   assert.ok(defaultMatch, 'expected a default warmup timeout');
   assert.ok(Number.parseInt(defaultMatch[1], 10) >= 120000);
 });
+
+test('large smoke defaults to a real-library-scale sample size', () => {
+  const source = fs.readFileSync(path.join(__dirname, 'large-library-smoke.cjs'), 'utf8');
+  const defaultMatch = source.match(/MIKAVN_LARGE_LIBRARY_COUNT \|\| '(\d+)'/);
+
+  assert.ok(defaultMatch, 'expected a default large library count');
+  assert.ok(Number.parseInt(defaultMatch[1], 10) >= 4500);
+});
+
+test('large smoke derives expected filtered counts from generated data', () => {
+  const source = fs.readFileSync(path.join(__dirname, 'large-library-smoke.cjs'), 'utf8');
+
+  assert.match(source, /expectedTargetCount/);
+  assert.match(source, /expectedSearchCount/);
+  assert.doesNotMatch(source, /\/60 games\//);
+  assert.doesNotMatch(source, /\/30 个匹配条目\//);
+});
+
+test('large smoke waits for localized formatted library counts', () => {
+  const source = fs.readFileSync(path.join(__dirname, 'large-library-smoke.cjs'), 'utf8');
+
+  assert.match(source, /formatLargeSmokeCount/);
+  assert.match(source, /个游戏/);
+  assert.match(source, /个匹配条目/);
+  assert.doesNotMatch(source, /\$\{gameCount\} games/);
+  assert.doesNotMatch(source, /\$\{expectedTargetCount\} games/);
+});
