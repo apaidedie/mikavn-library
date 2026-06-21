@@ -1,5 +1,6 @@
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, ClipboardCopy, FolderOpen } from 'lucide-react';
 import { DiagnosticExportPathActions } from '@/components/diagnostics/DiagnosticExportPathActions';
+import { Button } from '@/components/ui/button';
 import { Notice } from '@/components/ui/notice';
 import { TaskNotice } from '@/components/ui/task-notice';
 import type { AppDataDiagnostics } from '@/types/archive';
@@ -10,9 +11,12 @@ type MaintenanceStatusNoticesProps = {
   diagnostics: AppDataDiagnostics | null;
   diagnosticExportPath: string | null;
   error: string | null;
+  imageQuarantinePath: { manifestPath: string; quarantineDir: string } | null;
   message: TaskMessage | null;
   onCopyDiagnosticExportPath: () => void;
+  onCopyImageQuarantineManifestPath: () => void;
   onOpenTask?: (taskId?: string | null) => void;
+  onRevealImageQuarantineDir: () => void;
   onRevealDiagnosticExportPath: () => void;
 };
 
@@ -20,9 +24,12 @@ export function MaintenanceStatusNotices({
   diagnostics,
   diagnosticExportPath,
   error,
+  imageQuarantinePath,
   message,
   onCopyDiagnosticExportPath,
+  onCopyImageQuarantineManifestPath,
   onOpenTask,
+  onRevealImageQuarantineDir,
   onRevealDiagnosticExportPath,
 }: MaintenanceStatusNoticesProps) {
   return (
@@ -40,6 +47,18 @@ export function MaintenanceStatusNotices({
                 onCopy={onCopyDiagnosticExportPath}
                 onReveal={onRevealDiagnosticExportPath}
               />
+            </div>
+          )}
+          {message && imageQuarantinePath && (
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="ghost" onClick={onRevealImageQuarantineDir}>
+                <FolderOpen className="h-4 w-4" />
+                打开隔离区
+              </Button>
+              <Button size="sm" variant="ghost" onClick={onCopyImageQuarantineManifestPath}>
+                <ClipboardCopy className="h-4 w-4" />
+                复制隔离清单路径
+              </Button>
             </div>
           )}
         </div>

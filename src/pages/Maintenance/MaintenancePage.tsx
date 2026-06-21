@@ -89,9 +89,12 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
           diagnostics={dataActions.diagnostics}
           diagnosticExportPath={dataActions.diagnosticExportPath}
           error={error}
+          imageQuarantinePath={inspectionActions.imageQuarantinePath}
           message={message}
           onCopyDiagnosticExportPath={dataActions.copyDiagnosticExportPath}
+          onCopyImageQuarantineManifestPath={inspectionActions.copyImageQuarantineManifestPath}
           onOpenTask={onOpenTasks}
+          onRevealImageQuarantineDir={inspectionActions.revealImageQuarantineDir}
           onRevealDiagnosticExportPath={dataActions.revealDiagnosticExportPath}
         />
         <MaintenancePageContent

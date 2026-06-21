@@ -140,6 +140,25 @@ test('maintenance image health ui explains how to recover quarantined images', (
   assert.match(panel, /恢复/);
 });
 
+test('maintenance image quarantine result exposes recovery path actions', () => {
+  const actions = fs.readFileSync('src/pages/Maintenance/useMaintenanceInspectionActions.ts', 'utf8');
+  const status = fs.readFileSync('src/pages/Maintenance/MaintenanceStatusNotices.tsx', 'utf8');
+  const page = fs.readFileSync('src/pages/Maintenance/MaintenancePage.tsx', 'utf8');
+
+  assert.match(actions, /imageQuarantinePath/);
+  assert.match(actions, /setImageQuarantinePath\(\{ quarantineDir: result\.quarantineDir, manifestPath: result\.manifestPath \}\)/);
+  assert.match(actions, /revealImageQuarantineDir/);
+  assert.match(actions, /copyImageQuarantineManifestPath/);
+  assert.match(actions, /api\.revealPath\(imageQuarantinePath\.quarantineDir\)/);
+  assert.match(actions, /navigator\.clipboard\.writeText\(imageQuarantinePath\.manifestPath\)/);
+  assert.match(status, /imageQuarantinePath/);
+  assert.match(status, /打开隔离区/);
+  assert.match(status, /复制隔离清单路径/);
+  assert.match(page, /imageQuarantinePath=\{inspectionActions\.imageQuarantinePath\}/);
+  assert.match(page, /onRevealImageQuarantineDir=\{inspectionActions\.revealImageQuarantineDir\}/);
+  assert.match(page, /onCopyImageQuarantineManifestPath=\{inspectionActions\.copyImageQuarantineManifestPath\}/);
+});
+
 test('maintenance image health ui exposes cache issue samples and reveal actions', () => {
   const panel = fs.readFileSync('src/pages/Maintenance/MaintenanceImageAuditPanel.tsx', 'utf8');
   const types = fs.readFileSync('src/types/archive.ts', 'utf8');

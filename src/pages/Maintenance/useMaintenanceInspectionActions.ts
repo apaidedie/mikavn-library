@@ -13,6 +13,11 @@ type UseMaintenanceInspectionActionsOptions = {
   setMessage: (message: TaskMessage | null) => void;
 };
 
+type ImageQuarantinePath = {
+  manifestPath: string;
+  quarantineDir: string;
+};
+
 export function useMaintenanceInspectionActions({ setError, setMessage }: UseMaintenanceInspectionActionsOptions) {
   const [imageAudit, setImageAudit] = useState<ImageReferenceAudit | null>(null);
   const [imageAuditLoading, setImageAuditLoading] = useState(false);
@@ -24,6 +29,7 @@ export function useMaintenanceInspectionActions({ setError, setMessage }: UseMai
   const [artworkDiagnosisLoading, setArtworkDiagnosisLoading] = useState(false);
   const [artworkDiagnosisQuery, setArtworkDiagnosisQuery] = useState('');
   const [artworkDiagnosisStatusFilter, setArtworkDiagnosisStatusFilter] = useState('all');
+  const [imageQuarantinePath, setImageQuarantinePath] = useState<ImageQuarantinePath | null>(null);
 
   const loadImageAudit = useCallback(async () => {
     setImageAuditLoading(true);
@@ -76,8 +82,10 @@ export function useMaintenanceInspectionActions({ setError, setMessage }: UseMai
 
     setImageHealthLoading(true);
     setError(null);
+    setImageQuarantinePath(null);
     try {
       const result = await api.quarantineOrphanImages({ sampleLimit: 100 });
+      setImageQuarantinePath({ quarantineDir: result.quarantineDir, manifestPath: result.manifestPath });
       const report = await api.getImageHealthReport({ sampleLimit: 100 });
       setImageHealth(report);
       setMessage({ text: formatImageQuarantineCompletionMessage(result, report) });
@@ -97,8 +105,10 @@ export function useMaintenanceInspectionActions({ setError, setMessage }: UseMai
 
     setImageHealthLoading(true);
     setError(null);
+    setImageQuarantinePath(null);
     try {
       const result = await api.quarantineDuplicateContentImages({ sampleLimit: 100 });
+      setImageQuarantinePath({ quarantineDir: result.quarantineDir, manifestPath: result.manifestPath });
       const report = await api.getImageHealthReport({ sampleLimit: 100 });
       setImageHealth(report);
       setMessage({ text: formatImageDuplicateContentQuarantineCompletionMessage(result, report) });
@@ -118,8 +128,10 @@ export function useMaintenanceInspectionActions({ setError, setMessage }: UseMai
 
     setImageHealthLoading(true);
     setError(null);
+    setImageQuarantinePath(null);
     try {
       const result = await api.quarantineInvalidImageCacheFiles({ sampleLimit: 100 });
+      setImageQuarantinePath({ quarantineDir: result.quarantineDir, manifestPath: result.manifestPath });
       const report = await api.getImageHealthReport({ sampleLimit: 100 });
       setImageHealth(report);
       setMessage({ text: formatImageInvalidQuarantineCompletionMessage(result, report) });
@@ -139,8 +151,10 @@ export function useMaintenanceInspectionActions({ setError, setMessage }: UseMai
 
     setImageHealthLoading(true);
     setError(null);
+    setImageQuarantinePath(null);
     try {
       const result = await api.quarantineOversizedImageCacheFiles({ sampleLimit: 100 });
+      setImageQuarantinePath({ quarantineDir: result.quarantineDir, manifestPath: result.manifestPath });
       const report = await api.getImageHealthReport({ sampleLimit: 100 });
       setImageHealth(report);
       setMessage({ text: formatImageOversizedQuarantineCompletionMessage(result, report) });
@@ -160,8 +174,10 @@ export function useMaintenanceInspectionActions({ setError, setMessage }: UseMai
 
     setImageHealthLoading(true);
     setError(null);
+    setImageQuarantinePath(null);
     try {
       const result = await api.quarantineContentTypeMismatchFiles({ sampleLimit: 100 });
+      setImageQuarantinePath({ quarantineDir: result.quarantineDir, manifestPath: result.manifestPath });
       const report = await api.getImageHealthReport({ sampleLimit: 100 });
       setImageHealth(report);
       setMessage({ text: formatImageContentTypeMismatchQuarantineCompletionMessage(result, report) });
@@ -194,13 +210,16 @@ export function useMaintenanceInspectionActions({ setError, setMessage }: UseMai
 
     setImageHealthLoading(true);
     setError(null);
+    setImageQuarantinePath(null);
     try {
-      const results: Pick<ImageQuarantineReport, 'movedFiles' | 'skippedFiles'>[] = [];
+      const results: ImageQuarantineReport[] = [];
       if (orphanCount > 0) results.push(await api.quarantineOrphanImages({ sampleLimit: 100 }));
       if (duplicateGroupCount > 0) results.push(await api.quarantineDuplicateContentImages({ sampleLimit: 100 }));
       if (invalidUnreferencedCount > 0) results.push(await api.quarantineInvalidImageCacheFiles({ sampleLimit: 100 }));
       if (oversizedCount > 0) results.push(await api.quarantineOversizedImageCacheFiles({ sampleLimit: 100 }));
       if (mismatchUnreferencedCount > 0) results.push(await api.quarantineContentTypeMismatchFiles({ sampleLimit: 100 }));
+      const latestResult = results[results.length - 1];
+      if (latestResult) setImageQuarantinePath({ quarantineDir: latestResult.quarantineDir, manifestPath: latestResult.manifestPath });
       const report = await api.getImageHealthReport({ sampleLimit: 100 });
       setImageHealth(report);
       setMessage({ text: formatImageSafeCacheBatchCompletionMessage(results, report) });
@@ -210,6 +229,28 @@ export function useMaintenanceInspectionActions({ setError, setMessage }: UseMai
       setImageHealthLoading(false);
     }
   }, [imageHealth?.summary, setError, setMessage]);
+
+  const revealImageQuarantineDir = useCallback(async () => {
+    if (!imageQuarantinePath) return;
+    setError(null);
+    try {
+      await api.revealPath(imageQuarantinePath.quarantineDir);
+      setMessage({ text: '已打开图片隔离区。' });
+    } catch (reason) {
+      setError(errorMessage(reason));
+    }
+  }, [imageQuarantinePath, setError, setMessage]);
+
+  const copyImageQuarantineManifestPath = useCallback(async () => {
+    if (!imageQuarantinePath) return;
+    setError(null);
+    try {
+      await navigator.clipboard.writeText(imageQuarantinePath.manifestPath);
+      setMessage({ text: '已复制图片隔离清单路径。' });
+    } catch (reason) {
+      setError(errorMessage(reason));
+    }
+  }, [imageQuarantinePath, setError, setMessage]);
 
   const resetImageAuditFilters = useCallback(() => {
     setImageAuditQuery('');
@@ -232,15 +273,18 @@ export function useMaintenanceInspectionActions({ setError, setMessage }: UseMai
     imageAuditQuery,
     imageHealth,
     imageHealthLoading,
+    imageQuarantinePath,
     loadArtworkDiagnosis,
     loadImageAudit,
     loadImageHealth,
+    copyImageQuarantineManifestPath,
     quarantineDuplicateContentImages,
     quarantineContentTypeMismatchFiles,
     quarantineInvalidImageCacheFiles,
     quarantineOrphanImages,
     quarantineOversizedImageCacheFiles,
     quarantineSafeCacheIssues,
+    revealImageQuarantineDir,
     resetArtworkDiagnosisFilters,
     resetImageAuditFilters,
     setArtworkDiagnosisQuery,
