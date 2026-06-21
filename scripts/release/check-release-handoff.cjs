@@ -172,6 +172,24 @@ function manualRiskChecklistSummary(checklist) {
   };
 }
 
+function blockingReleaseRisks({ signingStatus, manualRiskChecklist }) {
+  const risks = [];
+  if (signingStatus === 'documented-unsigned') {
+    risks.push({
+      code: 'unsigned-windows-artifacts',
+      message: 'Windows artifacts are documented as unsigned; public release should use a trusted signing certificate.',
+    });
+  }
+  if (manualRiskChecklist.pending > 0) {
+    risks.push({
+      code: 'manual-risk-checklist-pending',
+      message: `Manual release risk checklist has ${manualRiskChecklist.pending} pending item(s).`,
+      pendingItems: manualRiskChecklist.pendingItems,
+    });
+  }
+  return risks;
+}
+
 function splitManualRiskChecklistItem(value) {
   const trimmed = value.trim();
   const match = /\s+(?:Evidence|证据)\s*[:：]\s*(.+)$/i.exec(trimmed);
@@ -219,6 +237,7 @@ function checkReleaseHandoff(options = {}) {
   const checklist = fs.readFileSync(path.join(releaseDir, 'MANUAL_RISK_PASS_CHECKLIST.md'), 'utf8');
   requireTokens(checklist, REQUIRED_CHECKLIST_TOKENS, 'manual risk checklist');
   const manualRiskChecklist = manualRiskChecklistSummary(checklist);
+  const manualRiskStatus = manualRiskChecklist.pending === 0 ? 'passed' : 'checklist-pending';
 
   return {
     releaseDir,
@@ -227,8 +246,9 @@ function checkReleaseHandoff(options = {}) {
     buildMode,
     signingStatus,
     largeLibraryPerformanceWarnings,
-    manualRiskStatus: manualRiskChecklist.pending === 0 ? 'passed' : 'checklist-pending',
+    manualRiskStatus,
     manualRiskChecklist,
+    blockingReleaseRisks: blockingReleaseRisks({ signingStatus, manualRiskChecklist }),
   };
 }
 
@@ -244,6 +264,7 @@ if (require.main === module) {
       largeLibraryPerformanceWarnings: result.largeLibraryPerformanceWarnings,
       manualRiskStatus: result.manualRiskStatus,
       manualRiskChecklist: result.manualRiskChecklist,
+      blockingReleaseRisks: result.blockingReleaseRisks,
     }, null, 2));
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));

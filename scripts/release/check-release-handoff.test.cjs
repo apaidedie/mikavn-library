@@ -97,6 +97,37 @@ test('checkReleaseHandoff accepts complete artifacts, checksums, reports, and ch
   assert.equal(result.signingStatus, 'documented-unsigned');
   assert.equal(result.buildMode, 'updater-capable');
   assert.equal(result.manualRiskStatus, 'checklist-pending');
+  assert.deepEqual(result.blockingReleaseRisks, [
+    {
+      code: 'unsigned-windows-artifacts',
+      message: 'Windows artifacts are documented as unsigned; public release should use a trusted signing certificate.',
+    },
+    {
+      code: 'manual-risk-checklist-pending',
+      message: 'Manual release risk checklist has 19 pending item(s).',
+      pendingItems: [
+        'Direct executable launch.',
+        '`.lnk` shortcut launch.',
+        'Custom command launch.',
+        'Locale Emulator-style wrapper launch.',
+        'Elevated launch success.',
+        'Elevated launch cancellation.',
+        'Database restore scheduling.',
+        'Safe archive import.',
+        'Full archive restore.',
+        'Save mirror restore.',
+        'Tag deletion.',
+        'Game record deletion.',
+        'Diagnostic log preview.',
+        'Task logs.',
+        'Screenshots/reports.',
+        'Quick title/keyword search.',
+        'Report shortcut search.',
+        'Advanced grammar disclosure.',
+        'Saved search.',
+      ],
+    },
+  ]);
   assert.deepEqual(result.manualRiskChecklist, {
     total: 19,
     checked: 0,
