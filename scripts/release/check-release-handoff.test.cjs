@@ -128,7 +128,12 @@ test('checkReleaseHandoff accepts complete artifacts, checksums, reports, and ch
 test('checkReleaseHandoff marks manual risk checklist passed when all items are checked', () => {
   const { releaseDir } = createHandoff();
   const checklistPath = path.join(releaseDir, 'MANUAL_RISK_PASS_CHECKLIST.md');
-  fs.writeFileSync(checklistPath, fs.readFileSync(checklistPath, 'utf8').replaceAll('- [ ]', '- [x]'));
+  fs.writeFileSync(
+    checklistPath,
+    fs.readFileSync(checklistPath, 'utf8')
+      .replaceAll('- [ ]', '- [x]')
+      .replace(/^(- \[x\] .+?)$/gm, '$1 Evidence: verified during release smoke.'),
+  );
 
   const result = checkReleaseHandoff({ releaseDir });
 
@@ -160,6 +165,18 @@ test('checkReleaseHandoff marks manual risk checklist passed when all items are 
     ],
     pendingItems: [],
   });
+});
+
+test('checkReleaseHandoff rejects checked manual risk items without evidence', () => {
+  const { releaseDir } = createHandoff();
+  const checklistPath = path.join(releaseDir, 'MANUAL_RISK_PASS_CHECKLIST.md');
+  const checklist = fs.readFileSync(checklistPath, 'utf8');
+  fs.writeFileSync(checklistPath, checklist.replace('- [ ] Direct executable launch.', '- [x] Direct executable launch.'));
+
+  assert.throws(
+    () => checkReleaseHandoff({ releaseDir }),
+    /checked manual risk checklist item must include evidence: Direct executable launch\./,
+  );
 });
 
 test('checkReleaseHandoff accepts local unsigned builds that record tauri local build', () => {

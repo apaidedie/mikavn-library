@@ -150,9 +150,15 @@ function manualRiskChecklistSummary(checklist) {
   const checkedItems = [];
   const pendingItems = [];
   for (const match of checkboxMatches) {
-    const item = match[2].trim();
-    if (match[1].toLowerCase() === 'x') checkedItems.push(item);
-    else pendingItems.push(item);
+    const { item, evidence } = splitManualRiskChecklistItem(match[2]);
+    if (match[1].toLowerCase() === 'x') {
+      if (!evidence) {
+        throw new Error(`checked manual risk checklist item must include evidence: ${item}`);
+      }
+      checkedItems.push(item);
+    } else {
+      pendingItems.push(item);
+    }
   }
   const total = checkboxMatches.length;
   const checked = checkedItems.length;
@@ -162,6 +168,16 @@ function manualRiskChecklistSummary(checklist) {
     pending: total - checked,
     checkedItems,
     pendingItems,
+  };
+}
+
+function splitManualRiskChecklistItem(value) {
+  const trimmed = value.trim();
+  const match = /\s+(?:Evidence|证据)\s*[:：]\s*(.+)$/i.exec(trimmed);
+  if (!match) return { item: trimmed, evidence: '' };
+  return {
+    item: trimmed.slice(0, match.index).trim(),
+    evidence: match[1].trim(),
   };
 }
 
