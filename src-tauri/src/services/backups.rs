@@ -77,6 +77,13 @@ struct DatabaseBackupCandidate {
     path: PathBuf,
 }
 
+#[derive(Debug)]
+struct VerifiedDatabaseBackupReport {
+    target_path: PathBuf,
+    size_bytes: u64,
+    quick_check: String,
+}
+
 pub fn enqueue_database_backup_task(
     app: AppHandle,
     db: &Database,
@@ -116,23 +123,24 @@ pub fn enqueue_database_backup_task(
             Some("正在生成 SQLite 一致性备份".to_string()),
             None,
         );
-        match db.backup_to_path(&target) {
-            Ok(()) => {
-                let target_size = fs::metadata(&target)
-                    .map(|metadata| metadata.len())
-                    .unwrap_or(0);
+        match create_verified_database_backup_with_paths(&paths, &target) {
+            Ok(report) => {
                 logger::log_info(
                     &paths,
                     "database.backup",
                     format!(
                         "database backup written to {}",
-                        logger::display_path(&target)
+                        logger::display_path(&report.target_path)
                     ),
                 );
                 let _ = db.append_task_log(
                     &task_id,
                     "info",
-                    &database_backup_report_log(&logger::display_path(&target), target_size),
+                    &database_backup_report_log(
+                        &logger::display_path(&report.target_path),
+                        report.size_bytes,
+                        &report.quick_check,
+                    ),
                 );
                 let _ = tasks::update_task(
                     &app_handle,
@@ -141,8 +149,8 @@ pub fn enqueue_database_backup_task(
                     "completed",
                     1.0,
                     Some(format!(
-                        "数据库备份已写入 {}",
-                        logger::display_path(&target)
+                        "数据库备份已验证并写入 {}",
+                        logger::display_path(&report.target_path)
                     )),
                     None,
                 );
@@ -478,8 +486,8 @@ fn format_system_time(value: SystemTime) -> String {
     DateTime::<Utc>::from(value).to_rfc3339()
 }
 
-fn database_backup_report_log(target: &str, size_bytes: u64) -> String {
-    format!("数据库备份报告：目标 {target}，大小 {size_bytes} bytes。")
+fn database_backup_report_log(target: &str, size_bytes: u64, quick_check: &str) -> String {
+    format!("数据库备份报告：目标 {target}，大小 {size_bytes} bytes，quick_check {quick_check}。")
 }
 
 pub fn apply_pending_database_restore(paths: &AppPaths) -> DbResult<()> {
@@ -559,37 +567,50 @@ fn schedule_pending_restore(
 fn create_update_protection_backup_with_paths(
     paths: &AppPaths,
 ) -> DbResult<DatabaseUpdateProtectionBackupReport> {
-    let database = paths.database();
-    if !database.is_file() {
-        return Err(DbError::path_not_found("current database does not exist"));
-    }
-
     let created_at = Utc::now();
     let target_dir = paths.database_backups().join("update-protection");
     fs::create_dir_all(&target_dir)?;
     let file_name = format!("before-update-{}.db", created_at.format("%Y%m%d-%H%M%S"));
     let target = target_dir.join(&file_name);
 
-    let db = Database::new_from_path(database)?;
-    db.backup_to_path(&target)?;
-    let quick_check = validate_database_backup_file(&target)?;
-    let size_bytes = fs::metadata(&target)?.len();
+    let report = create_verified_database_backup_with_paths(paths, &target)?;
 
     logger::log_warn(
         paths,
         "database.backup",
         format!(
             "update protection backup created: {} ({} bytes)",
-            logger::display_path(&target),
-            size_bytes
+            logger::display_path(&report.target_path),
+            report.size_bytes
         ),
     );
 
     Ok(DatabaseUpdateProtectionBackupReport {
-        path: target.to_string_lossy().to_string(),
+        path: report.target_path.to_string_lossy().to_string(),
         file_name,
-        size_bytes,
+        size_bytes: report.size_bytes,
         created_at: created_at.to_rfc3339(),
+        quick_check: report.quick_check,
+    })
+}
+
+fn create_verified_database_backup_with_paths(
+    paths: &AppPaths,
+    target: &Path,
+) -> DbResult<VerifiedDatabaseBackupReport> {
+    let database = paths.database();
+    if !database.is_file() {
+        return Err(DbError::path_not_found("current database does not exist"));
+    }
+
+    let db = Database::new_from_path(database)?;
+    db.backup_to_path(target)?;
+    let quick_check = validate_database_backup_file(target)?;
+    let size_bytes = fs::metadata(target)?.len();
+
+    Ok(VerifiedDatabaseBackupReport {
+        target_path: target.to_path_buf(),
+        size_bytes,
         quick_check,
     })
 }
@@ -838,12 +859,32 @@ mod tests {
 
     #[test]
     fn database_backup_report_log_describes_target_and_size() {
-        let message = database_backup_report_log("D:\\MikaVN-Backups\\manual.db", 131072);
+        let message = database_backup_report_log("D:\\MikaVN-Backups\\manual.db", 131072, "ok");
 
         assert_eq!(
             message,
-            "数据库备份报告：目标 D:\\MikaVN-Backups\\manual.db，大小 131072 bytes。"
+            "数据库备份报告：目标 D:\\MikaVN-Backups\\manual.db，大小 131072 bytes，quick_check ok。"
         );
+    }
+
+    #[test]
+    fn manual_database_backup_creates_verified_database_copy() {
+        let root =
+            std::env::temp_dir().join(format!("mikavn-manual-backup-test-{}", Uuid::new_v4()));
+        let paths = AppPaths::from_root(root.clone()).unwrap();
+        create_mikavn_db(&paths.database(), "current");
+        let target = paths.database_backups().join("manual").join("manual.db");
+
+        let report = create_verified_database_backup_with_paths(&paths, &target).unwrap();
+
+        assert_eq!(report.quick_check, "ok");
+        assert_eq!(report.target_path, target);
+        assert_eq!(
+            report.size_bytes,
+            fs::metadata(&report.target_path).unwrap().len()
+        );
+        assert_eq!(database_marker(&report.target_path), "current");
+        let _ = fs::remove_dir_all(root);
     }
 
     fn create_mikavn_db(path: &Path, title: &str) {

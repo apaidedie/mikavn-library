@@ -59,7 +59,7 @@ export function createMockStoreReports(readGames: () => Game[]) {
         retryPayload: JSON.stringify({ path }),
         retryable: true,
       });
-      addTaskLog(task.id, 'info', `数据库备份报告：目标 ${target}，大小 131072 bytes。`);
+      addTaskLog(task.id, 'info', `数据库备份报告：目标 ${target}，大小 131072 bytes，quick_check ok。`);
       return Promise.resolve(task);
     },
 

@@ -40,3 +40,9 @@ test('dashboard local safety links to backup and restore settings', () => {
   assert.match(source, /备份与恢复/);
   assert.match(source, /onOpenSettings\?\.\('local'\)/);
 });
+
+test('browser mock database backup log mirrors verified backup report', () => {
+  const source = read('src/services/mockStoreReports.ts');
+
+  assert.match(source, /数据库备份报告：目标 \$\{target\}，大小 131072 bytes，quick_check ok。/);
+});
