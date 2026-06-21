@@ -29,3 +29,16 @@ test('maintenance data panel exposes safe diagnostic export action', () => {
   assert.match(actions, /不包含完整数据库、图片缓存或存档文件/);
   assert.match(content, /onExportDiagnosticPackage=\{dataActions\.exportDiagnosticPackage\}/);
 });
+
+test('global app error boundary exposes diagnostic package export after render crashes', () => {
+  const main = fs.readFileSync('src/main.tsx', 'utf8');
+  const boundary = fs.readFileSync('src/app/AppErrorBoundary.tsx', 'utf8');
+
+  assert.match(main, /AppErrorBoundary/);
+  assert.match(main, /<AppErrorBoundary>\s*<App \/>/s);
+  assert.match(boundary, /componentDidCatch/);
+  assert.match(boundary, /启动或界面渲染失败/);
+  assert.match(boundary, /导出诊断包/);
+  assert.match(boundary, /api\.exportDiagnosticPackage\(\)/);
+  assert.match(boundary, /不包含完整数据库、图片缓存或存档文件/);
+});
