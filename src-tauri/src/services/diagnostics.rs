@@ -1028,6 +1028,11 @@ fn evaluate_image_reference(paths: &AppPaths, value: &str) -> ImageReferenceEval
     let c_drive = looks_like_c_drive_path(clean);
     let playnite = looks_like_playnite_path(clean);
     let resolved_path = resolve_local_image_path(paths, clean);
+    let local_app_data_image = resolved_path
+        .as_deref()
+        .map(|path| is_under_path(Path::new(path), &paths.images()))
+        .unwrap_or(false);
+    let external_playnite = playnite && !local_app_data_image;
     let missing = local && resolved_path.is_none();
     let mut issues = Vec::new();
     if missing {
@@ -1036,7 +1041,7 @@ fn evaluate_image_reference(paths: &AppPaths, value: &str) -> ImageReferenceEval
     if c_drive {
         issues.push("c_drive".to_string());
     }
-    if playnite {
+    if external_playnite {
         issues.push("playnite".to_string());
     }
     let status = if missing {
@@ -1058,7 +1063,7 @@ fn evaluate_image_reference(paths: &AppPaths, value: &str) -> ImageReferenceEval
         remote,
         missing,
         c_drive,
-        playnite,
+        playnite: external_playnite,
     }
 }
 
@@ -1108,6 +1113,16 @@ fn looks_like_playnite_path(value: &str) -> bool {
 
 fn normalize_path(value: &str) -> String {
     value.trim().to_lowercase()
+}
+
+fn is_under_path(path: &Path, root: &Path) -> bool {
+    let Ok(path) = path.canonicalize() else {
+        return false;
+    };
+    let Ok(root) = root.canonicalize() else {
+        return false;
+    };
+    path.starts_with(root)
 }
 
 #[allow(dead_code)]

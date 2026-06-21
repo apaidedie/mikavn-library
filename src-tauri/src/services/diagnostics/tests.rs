@@ -41,6 +41,71 @@ fn diagnostics_counts_missing_and_legacy_image_refs() {
     let _ = fs::remove_dir_all(root);
 }
 
+#[test]
+fn diagnostics_treats_app_data_playnite_image_cache_as_local() {
+    let root = std::env::temp_dir().join(format!(
+        "mikavn-diagnostics-local-playnite-{}",
+        Uuid::new_v4()
+    ));
+    let paths = AppPaths::from_root(root.join("app-data")).unwrap();
+    fs::create_dir_all(paths.images().join("Playnite/cache")).unwrap();
+    let local_playnite_image = paths.images().join("Playnite/cache/cover.jpg");
+    fs::write(&local_playnite_image, b"image").unwrap();
+
+    let conn = Connection::open(paths.database()).unwrap();
+    conn.execute_batch(
+        r#"
+            CREATE TABLE games (
+              id TEXT PRIMARY KEY,
+              title TEXT NOT NULL,
+              cover_image TEXT,
+              banner_image TEXT,
+              background_image TEXT
+            );
+            CREATE TABLE game_assets (
+              id TEXT PRIMARY KEY,
+              game_id TEXT NOT NULL,
+              uri TEXT NOT NULL
+            );
+            "#,
+    )
+    .unwrap();
+    conn.execute(
+        "INSERT INTO games (id, title, cover_image, banner_image, background_image) VALUES ('game', 'VN', ?1, NULL, NULL)",
+        params![local_playnite_image.to_string_lossy().to_string()],
+    )
+    .unwrap();
+
+    let diagnostics = get_app_data_diagnostics_with_paths(&paths, "test".to_string()).unwrap();
+
+    assert_eq!(diagnostics.database.image_refs_count, 1);
+    assert_eq!(diagnostics.database.local_image_refs_count, 1);
+    assert_eq!(diagnostics.database.missing_image_refs_count, 0);
+    assert_eq!(diagnostics.database.playnite_image_refs_count, 0);
+    assert!(!diagnostics
+        .warnings
+        .iter()
+        .any(|warning| warning.contains("Playnite")));
+
+    let audit = audit_image_references_with_paths(
+        &paths,
+        ImageReferenceAuditOptions {
+            limit: Some(10),
+            include_ok: Some(true),
+            game_id: None,
+        },
+    )
+    .unwrap();
+
+    assert_eq!(audit.playnite_count, 0);
+    assert!(!audit.items[0]
+        .issues
+        .iter()
+        .any(|issue| issue == "playnite"));
+
+    let _ = fs::remove_dir_all(root);
+}
+
 use std::io::Read;
 use zip::ZipArchive;
 
