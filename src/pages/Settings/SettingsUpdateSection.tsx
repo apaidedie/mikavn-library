@@ -104,6 +104,12 @@ export function SettingsUpdateSection({ onOpenDatabaseRestore, onRevealBackup }:
               <RotateCw className="h-4 w-4" />
               重启应用
             </Button>
+            <Button asChild type="button" variant="outline">
+              <a href={updaterFallbackDownloadUrl} rel="noreferrer" target="_blank">
+                <ExternalLink className="h-4 w-4" />
+                手动下载最新版
+              </a>
+            </Button>
           </div>
         </div>
       </ConfigItem>

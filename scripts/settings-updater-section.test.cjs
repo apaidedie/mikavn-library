@@ -62,3 +62,14 @@ test('settings update failure offers public fallback download link', () => {
   assert.match(source, /target="_blank"/);
   assert.match(source, /rel="noreferrer"/);
 });
+
+test('settings update section keeps a public manual download link visible before failures', () => {
+  const source = read('src/pages/Settings/SettingsUpdateSection.tsx');
+  const manualDownloadIndex = source.indexOf('手动下载最新版');
+  const errorBlockIndex = source.indexOf('{error &&');
+
+  assert.ok(manualDownloadIndex > -1, 'manual public download link must be visible in the updater section');
+  assert.ok(errorBlockIndex > -1, 'error-specific fallback block should still exist');
+  assert.ok(manualDownloadIndex > errorBlockIndex, 'manual public download link should be rendered outside the error-only fallback block');
+  assert.match(source, /href=\{updaterFallbackDownloadUrl\}/);
+});
