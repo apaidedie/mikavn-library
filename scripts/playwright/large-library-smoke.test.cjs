@@ -13,3 +13,11 @@ test('large library smoke measures detail switching under a dedicated budget', (
   assert.match(source, /report\.timings\.detailSwitchMs/);
   assert.match(source, /large-library-detail\.png/);
 });
+
+test('large library smoke report records rendered row counts', () => {
+  const source = fs.readFileSync(sourcePath, 'utf8');
+
+  assert.match(source, /renderedRows: \{\}/);
+  assert.match(source, /report\.renderedRows\.initial = visibleRows/);
+  assert.match(source, /report\.renderedRows\.afterLoadMore = expandedRows/);
+});
