@@ -18,6 +18,7 @@ export function SettingsUpdateSection({ onOpenDatabaseRestore, onRevealBackup }:
   const [update, setUpdate] = useState<AppUpdateHandle | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [backupInfo, setBackupInfo] = useState<{ fileName: string; path: string } | null>(null);
+  const [backupActionMessage, setBackupActionMessage] = useState<string | null>(null);
   const [installProgress, setInstallProgress] = useState<string | null>(null);
   const recoveryHint = createUpdaterRecoveryHint(error);
 
@@ -25,6 +26,7 @@ export function SettingsUpdateSection({ onOpenDatabaseRestore, onRevealBackup }:
     setState('checking');
     setError(null);
     setBackupInfo(null);
+    setBackupActionMessage(null);
     setInstallProgress(null);
     try {
       const response = await checkForAppUpdate();
@@ -43,6 +45,7 @@ export function SettingsUpdateSection({ onOpenDatabaseRestore, onRevealBackup }:
     setState('installing');
     setError(null);
     setBackupInfo(null);
+    setBackupActionMessage(null);
     setInstallProgress(null);
     const installResult = await installAppUpdate(update, (progress) => setInstallProgress(formatUpdaterInstallProgress(progress)));
     if (installResult.kind === 'installed') {
@@ -72,6 +75,18 @@ export function SettingsUpdateSection({ onOpenDatabaseRestore, onRevealBackup }:
     }
   };
 
+  const copyBackupPath = async () => {
+    if (!backupInfo) return;
+    setError(null);
+    setBackupActionMessage(null);
+    try {
+      await navigator.clipboard.writeText(backupInfo.path);
+      setBackupActionMessage('已复制更新前数据库备份路径。');
+    } catch (error) {
+      setError(`复制备份路径失败：${formatUpdaterError(error).replace(/^更新失败：/, '')}`);
+    }
+  };
+
   return (
     <ConfigSection title="应用更新">
       <ConfigItem title="Windows 更新" description="通过公开 GitHub Releases 检查并安装已签名的 Windows 更新。">
@@ -89,8 +104,10 @@ export function SettingsUpdateSection({ onOpenDatabaseRestore, onRevealBackup }:
               <div className="text-xs text-slate-500">如果更新后数据异常，可以从本地数据页安排恢复；恢复前会再次创建保护备份。</div>
               <div className="flex flex-wrap justify-end gap-2">
                 <Button size="sm" type="button" variant="ghost" onClick={() => void onRevealBackup?.(backupInfo.path)}><FolderOpen className="h-4 w-4" />打开备份位置</Button>
+                <Button size="sm" type="button" variant="ghost" onClick={() => void copyBackupPath()}><ClipboardCopy className="h-4 w-4" />复制备份路径</Button>
                 <Button size="sm" type="button" variant="outline" onClick={() => void onOpenDatabaseRestore?.()}><RotateCcw className="h-4 w-4" />去恢复数据库</Button>
               </div>
+              {backupActionMessage && <div className="text-xs text-emerald-200">{backupActionMessage}</div>}
             </div>
           )}
           {result?.kind === 'available' && <div className="max-w-[42rem] text-right text-xs text-slate-400">发布说明：{result.notes}</div>}

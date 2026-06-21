@@ -46,6 +46,9 @@ test('settings update section links update backups to restore workflow', () => {
   const localData = read('src/pages/Settings/SettingsLocalDataSection.tsx');
 
   assert.match(section, /打开备份位置/);
+  assert.match(section, /复制备份路径/);
+  assert.match(section, /navigator\.clipboard\.writeText\(backupInfo\.path\)/);
+  assert.match(section, /backupActionMessage/);
   assert.match(section, /去恢复数据库/);
   assert.match(section, /onRevealBackup/);
   assert.match(section, /onOpenDatabaseRestore/);
