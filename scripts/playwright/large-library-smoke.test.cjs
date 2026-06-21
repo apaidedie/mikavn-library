@@ -4,7 +4,7 @@ const path = require('node:path');
 const os = require('node:os');
 const test = require('node:test');
 
-const { recordLargeLibrarySmokeHistory } = require('./large-library-report-history.cjs');
+const { formatLargeLibrarySmokeWarnings, recordLargeLibrarySmokeHistory } = require('./large-library-report-history.cjs');
 
 const sourcePath = path.join(__dirname, 'large-library-smoke.cjs');
 
@@ -78,4 +78,19 @@ test('large library smoke history flags substantial timing regressions without f
   assert.equal(result.warnings[0].currentMs, 1700);
   assert.equal(result.warnings[0].deltaMs, 700);
   assert.match(result.warnings[0].message, /libraryLoadMs regressed by 700ms/);
+});
+
+test('large library smoke prints timing regression warnings for release logs', () => {
+  const warnings = [
+    { metric: 'libraryLoadMs', previousMs: 1000, currentMs: 1700, deltaMs: 700, ratio: 0.7 },
+    { metric: 'searchMs', previousMs: 800, currentMs: 1400, deltaMs: 600, ratio: 0.75 },
+  ];
+  const source = fs.readFileSync(sourcePath, 'utf8');
+
+  assert.deepEqual(formatLargeLibrarySmokeWarnings(warnings), [
+    'WARN large library performance regression: libraryLoadMs 1000ms -> 1700ms (+700ms, +70%)',
+    'WARN large library performance regression: searchMs 800ms -> 1400ms (+600ms, +75%)',
+  ]);
+  assert.match(source, /formatLargeLibrarySmokeWarnings/);
+  assert.match(source, /console\.warn/);
 });

@@ -83,6 +83,13 @@ function buildLargeLibrarySmokeWarnings(current, previous, options = {}) {
   return warnings;
 }
 
+function formatLargeLibrarySmokeWarnings(warnings = []) {
+  return warnings.map((warning) => {
+    const ratioPercent = Math.round(Number(warning.ratio || 0) * 100);
+    return `WARN large library performance regression: ${warning.metric} ${warning.previousMs}ms -> ${warning.currentMs}ms (+${warning.deltaMs}ms, +${ratioPercent}%)`;
+  });
+}
+
 function recordLargeLibrarySmokeHistory(report, options = {}) {
   const historyPath = options.historyPath;
   if (!historyPath) throw new Error('historyPath is required');
@@ -101,6 +108,7 @@ module.exports = {
   buildLargeLibrarySmokeDelta,
   buildLargeLibrarySmokeWarnings,
   compactLargeLibraryReport,
+  formatLargeLibrarySmokeWarnings,
   readLastHistoryEntry,
   recordLargeLibrarySmokeHistory,
 };

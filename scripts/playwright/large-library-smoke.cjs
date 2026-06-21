@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { recordLargeLibrarySmokeHistory } = require('./large-library-report-history.cjs');
+const { formatLargeLibrarySmokeWarnings, recordLargeLibrarySmokeHistory } = require('./large-library-report-history.cjs');
 const { resolvePlaywright } = require('./playwright-resolution.cjs');
 
 const baseUrl = process.env.MIKAVN_QA_URL || 'http://127.0.0.1:1420/';
@@ -233,6 +233,9 @@ async function main() {
   }
 
   report.history = recordLargeLibrarySmokeHistory(report, { historyPath });
+  for (const warning of formatLargeLibrarySmokeWarnings(report.history.warnings)) {
+    console.warn(warning);
+  }
   fs.writeFileSync(path.join(outDir, 'large-library-report.json'), `${JSON.stringify(report, null, 2)}\n`);
 }
 
