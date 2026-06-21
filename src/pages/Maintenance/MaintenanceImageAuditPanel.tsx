@@ -154,7 +154,7 @@ function ImageHealthSummaryPanel({
         <ImageHealthStat label="失效引用" tone={(summary?.invalidImageRefs ?? 0) > 0 ? 'warn' : 'ok'} value={summary?.invalidImageRefs ?? 0} />
         <ImageHealthStat label="缺封面" tone={(summary?.missingCoverGames ?? 0) > 0 ? 'warn' : 'ok'} value={summary?.missingCoverGames ?? 0} />
         <ImageHealthStat label="媒体图不完整" tone={(summary?.missingArtworkGames ?? 0) > 0 ? 'warn' : 'ok'} value={summary?.missingArtworkGames ?? 0} />
-        <ImageHealthStat label="Playnite 旧导入" tone={(summary?.legacyAppDataImportRefs ?? 0) > 0 ? 'warn' : 'ok'} value={summary?.legacyAppDataImportRefs ?? 0} />
+        <ImageHealthStat label="旧导入缓存" value={summary?.legacyAppDataImportRefs ?? 0} />
         <ImageHealthStat label="重复文件名" tone={(summary?.duplicateFileNameGroups ?? 0) > 0 ? 'warn' : 'ok'} value={summary?.duplicateFileNameGroups ?? 0} />
         <ImageHealthStat label="过大图片" tone={(summary?.oversizedFiles ?? 0) > 0 ? 'warn' : 'ok'} value={summary?.oversizedFiles ?? 0} />
         <ImageHealthStat label="无效图片" tone={(summary?.invalidImageFiles ?? 0) > 0 ? 'warn' : 'ok'} value={summary?.invalidImageFiles ?? 0} />
@@ -166,7 +166,8 @@ function ImageHealthSummaryPanel({
           ))}
         </div>
       ) : <div className="text-xs text-slate-600">未检查前不会修改任何文件。</div>}
-      {canInspectBrokenRefs ? <div className="text-xs text-slate-500">缺失引用、失效引用和旧导入路径需要进入明细审计逐条确认。</div> : null}
+      {(summary?.legacyAppDataImportRefs ?? 0) > 0 ? <div className="text-xs text-slate-600">旧导入缓存仍位于 app-data/images 内，当前不计入失效引用；后续可按需做便携路径规范化。</div> : null}
+      {canInspectBrokenRefs ? <div className="text-xs text-slate-500">缺失引用、失效引用和外部旧路径需要进入明细审计逐条确认。</div> : null}
       {cache ? (
         <div className="space-y-2">
           <div className="text-[11px] font-medium text-slate-400">图片样本</div>

@@ -147,7 +147,7 @@ test('maintenance image health ui links broken image references to audit details
 
   assert.match(panel, /canInspectBrokenRefs/);
   assert.match(panel, /查看失效引用/);
-  assert.match(panel, /缺失引用、失效引用和旧导入路径需要进入明细审计逐条确认/);
+  assert.match(panel, /缺失引用、失效引用和外部旧路径需要进入明细审计逐条确认/);
   assert.match(panel, /onLoadAudit/);
 });
 
@@ -162,6 +162,14 @@ test('maintenance image health ui exposes one-click safe cleanup wording', () =>
   assert.match(panel, /onQuarantineOrphans/);
   assert.match(actions, /安全整理完成/);
   assert.doesNotMatch(panel, /一键永久删除/);
+});
+
+test('maintenance image health ui treats app-data legacy imports as informational', () => {
+  const panel = fs.readFileSync('src/pages/Maintenance/MaintenanceImageAuditPanel.tsx', 'utf8');
+
+  assert.match(panel, /旧导入缓存/);
+  assert.match(panel, /当前不计入失效引用/);
+  assert.doesNotMatch(panel, /label="Playnite 旧导入" tone=\{\(summary\?\.legacyAppDataImportRefs \?\? 0\) > 0 \? 'warn' : 'ok'\}/);
 });
 
 test('maintenance image health ui shows every health recommendation', () => {
