@@ -117,6 +117,14 @@ test('maintenance image health ui explains safe quarantine workflow', () => {
   assert.doesNotMatch(panel, /永久删除孤儿图片/);
 });
 
+test('maintenance image health ui explains how to recover quarantined images', () => {
+  const panel = fs.readFileSync('src/pages/Maintenance/MaintenanceImageAuditPanel.tsx', 'utf8');
+
+  assert.match(panel, /manifest\.json/);
+  assert.match(panel, /按清单找回/);
+  assert.match(panel, /恢复/);
+});
+
 test('maintenance image health ui exposes cache issue samples and reveal actions', () => {
   const panel = fs.readFileSync('src/pages/Maintenance/MaintenanceImageAuditPanel.tsx', 'utf8');
   const types = fs.readFileSync('src/types/archive.ts', 'utf8');
