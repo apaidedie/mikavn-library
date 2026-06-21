@@ -44,3 +44,16 @@ test('startup update notice exposes fallback download link after install errors'
   assert.match(notice, /target="_blank"/);
   assert.match(notice, /rel="noreferrer"/);
 });
+
+test('startup update notice shows pre-update backup after successful install', () => {
+  const hook = read('src/app/useStartupUpdater.ts');
+  const notice = read('src/app/AppUpdateNotice.tsx');
+  const app = read('src/app/App.tsx');
+
+  assert.match(hook, /backupInfo/);
+  assert.match(hook, /result\.backup/);
+  assert.match(notice, /backupInfo/);
+  assert.match(notice, /更新前数据库备份/);
+  assert.match(notice, /backupInfo\.fileName/);
+  assert.match(app, /backupInfo=\{app\.startupUpdater\.backupInfo\}/);
+});

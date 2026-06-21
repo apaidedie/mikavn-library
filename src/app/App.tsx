@@ -24,6 +24,7 @@ export function App() {
     >
       {app.startupUpdateNotice && (
         <AppUpdateNotice
+          backupInfo={app.startupUpdater.backupInfo}
           error={app.startupUpdater.error}
           installed={app.startupUpdater.installed}
           installing={app.startupUpdater.installing}
