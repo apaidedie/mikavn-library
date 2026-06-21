@@ -68,6 +68,12 @@ export function useMaintenanceInspectionActions({ setError, setMessage }: UseMai
   }, [setError, setMessage]);
 
   const quarantineOrphanImages = useCallback(async () => {
+    const orphanCount = imageHealth?.summary.orphanFiles ?? 0;
+    const confirmed = window.confirm(
+      `将把 ${formatCount(orphanCount)} 个未被数据库引用的孤儿图片移动到隔离区。\n\n不会永久删除文件；隔离区会写入 manifest.json，必要时可以按清单找回原路径。确认继续？`,
+    );
+    if (!confirmed) return;
+
     setImageHealthLoading(true);
     setError(null);
     try {
@@ -80,7 +86,7 @@ export function useMaintenanceInspectionActions({ setError, setMessage }: UseMai
     } finally {
       setImageHealthLoading(false);
     }
-  }, [setError, setMessage]);
+  }, [imageHealth?.summary.orphanFiles, setError, setMessage]);
 
   const resetImageAuditFilters = useCallback(() => {
     setImageAuditQuery('');

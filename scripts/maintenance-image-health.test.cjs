@@ -196,6 +196,20 @@ test('maintenance image health ui exposes one-click safe cleanup wording', () =>
   assert.doesNotMatch(panel, /一键永久删除/);
 });
 
+test('maintenance image health quarantine requires explicit confirmation before moving files', () => {
+  const actions = fs.readFileSync('src/pages/Maintenance/useMaintenanceInspectionActions.ts', 'utf8');
+  const confirmIndex = actions.indexOf('window.confirm');
+  const quarantineIndex = actions.indexOf('api.quarantineOrphanImages');
+
+  assert.ok(confirmIndex > -1, 'quarantine action must ask for confirmation first');
+  assert.ok(quarantineIndex > -1, 'quarantine action must still call the quarantine api');
+  assert.ok(confirmIndex < quarantineIndex, 'confirmation must happen before files are moved');
+  assert.match(actions, /移动到隔离区/);
+  assert.match(actions, /不会永久删除/);
+  assert.match(actions, /manifest\.json/);
+  assert.match(actions, /if \(!confirmed\) return/);
+});
+
 test('maintenance image health ui treats app-data legacy imports as informational', () => {
   const panel = fs.readFileSync('src/pages/Maintenance/MaintenanceImageAuditPanel.tsx', 'utf8');
 
