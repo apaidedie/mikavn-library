@@ -773,6 +773,68 @@ mod tests {
     }
 
     #[test]
+    fn deleting_game_record_removes_database_associations_only() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch("PRAGMA foreign_keys = ON;").unwrap();
+        let db = Database { conn };
+        db.migrate().unwrap();
+
+        let game = db
+            .add_game(AddGameInput {
+                title: "Delete Safety VN".to_string(),
+                install_path: "D:\\Games\\Delete Safety VN".to_string(),
+                tags: Some(vec!["delete-safe".to_string()]),
+                cover_image: Some("cover.jpg".to_string()),
+                vndb_id: Some("v-delete-safe".to_string()),
+                ..empty_game_input()
+            })
+            .unwrap();
+        let collection = db
+            .create_collection(CollectionInput {
+                name: "Delete Safety".to_string(),
+                description: None,
+                color: None,
+            })
+            .unwrap();
+        db.add_game_to_collection(collection.id, game.id.clone())
+            .unwrap();
+        db.create_launch_profile(CreateLaunchProfileInput {
+            game_id: game.id.clone(),
+            name: "Default".to_string(),
+            executable_path: "D:\\Games\\Delete Safety VN\\game.exe".to_string(),
+            working_directory: Some("D:\\Games\\Delete Safety VN".to_string()),
+            arguments: None,
+            environment_variables: None,
+            runner_type: None,
+            locale_emulator_path: None,
+            pre_launch_command: None,
+            post_launch_command: None,
+            run_as_admin: None,
+            is_default: Some(true),
+            compatibility_notes: None,
+        })
+        .unwrap();
+        db.create_play_session(game.id.clone(), None).unwrap();
+        db.set_field_lock(game.id.clone(), "description".to_string(), true)
+            .unwrap();
+
+        db.delete_game_record(game.id.clone()).unwrap();
+
+        assert_eq!(table_count(&db, "games", &game.id), 0);
+        for table in [
+            "game_assets",
+            "game_tags",
+            "collection_games",
+            "launch_profiles",
+            "play_sessions",
+            "external_ids",
+            "field_locks",
+        ] {
+            assert_eq!(table_count(&db, table, &game.id), 0, "{table}");
+        }
+    }
+
+    #[test]
     fn tag_maintenance_renames_merges_and_deletes_normalized_tags() {
         let conn = Connection::open_in_memory().unwrap();
         conn.execute_batch("PRAGMA foreign_keys = ON;").unwrap();
@@ -1021,5 +1083,16 @@ mod tests {
             fanza_id: None,
             ymgal_id: None,
         }
+    }
+
+    fn table_count(db: &Database, table: &str, game_id: &str) -> i64 {
+        let column = if table == "games" { "id" } else { "game_id" };
+        db.conn
+            .query_row(
+                &format!("SELECT COUNT(*) FROM {table} WHERE {column} = ?1"),
+                params![game_id],
+                |row| row.get(0),
+            )
+            .unwrap()
     }
 }
