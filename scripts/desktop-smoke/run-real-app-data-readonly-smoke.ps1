@@ -7,6 +7,7 @@ param(
   [int]$MaxUnsupportedLocalAssetImages = 0,
   [int]$MaxBackupQuickCheckFiles = 3,
   [int]$MaxImageHeaderQuickCheckFiles = 25,
+  [int]$MaxReferencedImageHeaderQuickCheckFiles = 250,
   [switch]$NoReport
 )
 
@@ -174,6 +175,44 @@ function Test-ImageHeaderQuickChecks([object]$Summary, [int]$Limit) {
   }
 }
 
+function Test-ReferencedImageHeaderQuickChecks([object]$Database, [int]$Limit) {
+  $assetSummary = $Database.assetSummary
+  if (!$assetSummary -or !$assetSummary.existingReferencedLocalPaths -or $Limit -le 0) {
+    return [ordered]@{
+      checkedCount = 0
+      totalReferencedLocalPathCount = if ($assetSummary) { $assetSummary.existingReferencedLocalPathCount } else { 0 }
+      allOk = $true
+      unsupportedReferencedImageSamples = @()
+      referencedImageKindCounts = [ordered]@{}
+      files = @()
+    }
+  }
+
+  $referencedPaths = @($assetSummary.existingReferencedLocalPaths | Select-Object -First $Limit)
+  $imageJson = $imageHeaderQuickCheckCode | python - @referencedPaths
+  if ($LASTEXITCODE -ne 0) {
+    throw "Referenced image header quick check failed while reading database image references."
+  }
+  $check = $imageJson | ConvertFrom-Json
+  foreach ($file in @($check.files)) {
+    if ($file.error) {
+      throw "Referenced image header quick check failed for $($file.path): $($file.error)"
+    }
+    if ($file.kind -eq "unsupported" -or $file.kind -eq "unreadable") {
+      throw "Referenced image header quick check failed for $($file.path): unsupported image header"
+    }
+  }
+
+  [ordered]@{
+    checkedCount = $check.checkedCount
+    totalReferencedLocalPathCount = $assetSummary.existingReferencedLocalPathCount
+    allOk = $true
+    unsupportedReferencedImageSamples = $check.unsupportedImageFileSamples
+    referencedImageKindCounts = $check.imageFileKindCounts
+    files = @($check.files | Select-Object -First 25)
+  }
+}
+
 $resolvedAppRoot = (Resolve-Path -LiteralPath $AppRoot).Path
 $appDataRoot = Assert-UnderRoot $resolvedAppRoot (Join-Path $resolvedAppRoot "app-data") "app-data"
 $databasePath = Assert-UnderRoot $appDataRoot (Join-Path $appDataRoot "mikavn.db") "database"
@@ -192,6 +231,7 @@ import sys
 from collections import Counter
 
 db_path = sys.argv[1]
+referenced_sample_limit = int(sys.argv[2]) if len(sys.argv) > 2 else 250
 conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
 conn.row_factory = sqlite3.Row
 
@@ -245,6 +285,8 @@ if table_exists("game_assets"):
         "unsupportedLocalImageCount": len(unsupported_local_images),
         "unsupportedLocalImageSamples": unsupported_local_images[:10],
         "localImageKindCounts": dict(sorted(kind_counts.items())),
+        "existingReferencedLocalPathCount": len(existing_local_paths),
+        "existingReferencedLocalPaths": existing_local_paths[:referenced_sample_limit],
     }
 
 result = {
@@ -335,7 +377,7 @@ print(json.dumps({
 }, ensure_ascii=False))
 '@
 
-$dbJson = $pythonCode | python - $databasePath
+$dbJson = $pythonCode | python - $databasePath $MaxReferencedImageHeaderQuickCheckFiles
 if ($LASTEXITCODE -ne 0) {
   throw "SQLite readonly smoke failed while reading $databasePath"
 }
@@ -343,6 +385,10 @@ $database = $dbJson | ConvertFrom-Json
 
 $images = Get-DirectorySummary $appDataRoot "images"
 $imageHeaderQuickChecks = Test-ImageHeaderQuickChecks $images $MaxImageHeaderQuickCheckFiles
+$referencedImageHeaderQuickChecks = Test-ReferencedImageHeaderQuickChecks $database $MaxReferencedImageHeaderQuickCheckFiles
+if ($database.assetSummary -and $database.assetSummary.existingReferencedLocalPaths) {
+  $database.assetSummary.PSObject.Properties.Remove("existingReferencedLocalPaths")
+}
 $databaseBackups = Get-DirectorySummary $appDataRoot "database-backups"
 $updateProtection = Get-OptionalDirectorySummary $appDataRoot "database-backups" "update-protection"
 $legacyUpdateProtection = Get-OptionalDirectorySummary $appDataRoot "database-update-protection"
@@ -383,6 +429,7 @@ $report = [ordered]@{
   database = $database
   images = $images
   imageHeaderQuickChecks = $imageHeaderQuickChecks
+  referencedImageHeaderQuickChecks = $referencedImageHeaderQuickChecks
   databaseBackups = $databaseBackups
   databaseUpdateProtection = $updateProtection
   legacyDatabaseUpdateProtection = $legacyUpdateProtection
