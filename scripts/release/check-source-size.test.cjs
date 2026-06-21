@@ -46,6 +46,7 @@ test('default source budgets cover frontend, Rust service, and smoke runner hot 
   for (const expectedPath of [
     'src/app/App.tsx',
     'src/app/AppChrome.tsx',
+    'src/app/AppErrorBoundary.tsx',
     'src/app/AppRoutes.tsx',
     'src/app/appNavigation.ts',
     'src/app/useAppController.ts',
@@ -91,6 +92,7 @@ test('app shell budget keeps entry routing outside the main shell', () => {
 test('app companion budgets keep entry chrome, routes, and hooks small', () => {
   for (const [fileName, maxLines] of [
     ['AppChrome.tsx', 160],
+    ['AppErrorBoundary.tsx', 120],
     ['AppRoutes.tsx', 120],
     ['appNavigation.ts', 80],
     ['useAppController.ts', 180],

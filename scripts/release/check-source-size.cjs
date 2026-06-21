@@ -13,6 +13,11 @@ const DEFAULT_SOURCE_BUDGETS = [
     maxLines: 160,
   },
   {
+    filePath: path.resolve(__dirname, '..', '..', 'src', 'app', 'AppErrorBoundary.tsx'),
+    maxBytes: 16 * 1024,
+    maxLines: 120,
+  },
+  {
     filePath: path.resolve(__dirname, '..', '..', 'src', 'app', 'AppRoutes.tsx'),
     maxBytes: 32 * 1024,
     maxLines: 120,
