@@ -37,6 +37,7 @@ function createHandoff(overrides = {}) {
     '- `npm run tauri:build`: passed.',
     '- `npm run smoke:install`: passed.',
     '- `npm run smoke:portable-data`: passed.',
+    '- `npm run smoke:real-data:readonly`: passed. `quick_check` ok; image header samples ok.',
     '- `npm run smoke:desktop`: passed.',
     '- `npm run release:handoff:check`: passed.',
     '## Signing Status',
@@ -121,5 +122,17 @@ test('checkReleaseHandoff requires the handoff check to be recorded in the valid
   assert.throws(
     () => checkReleaseHandoff({ releaseDir }),
     /release validation report is missing required token: .*npm run release:handoff:check/,
+  );
+});
+
+test('checkReleaseHandoff requires real data readonly smoke evidence in the validation report', () => {
+  const { releaseDir } = createHandoff();
+  const reportPath = path.join(releaseDir, 'RELEASE_VALIDATION_REPORT.md');
+  const report = fs.readFileSync(reportPath, 'utf8');
+  fs.writeFileSync(reportPath, report.replace('- `npm run smoke:real-data:readonly`: passed. `quick_check` ok; image header samples ok.\n', ''));
+
+  assert.throws(
+    () => checkReleaseHandoff({ releaseDir }),
+    /release validation report is missing required token: .*npm run smoke:real-data:readonly/,
   );
 });

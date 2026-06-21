@@ -17,6 +17,7 @@ const REQUIRED_REPORT_TOKENS = [
   'npm run tauri:build',
   'npm run smoke:install',
   'npm run smoke:portable-data',
+  'npm run smoke:real-data:readonly',
   'npm run smoke:desktop',
   'npm run release:handoff:check',
   'npm run release:signing:check',
