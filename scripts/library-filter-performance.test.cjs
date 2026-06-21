@@ -14,6 +14,16 @@ test('library filters debounce text inputs before building api filters', () => {
   assert.match(source, /developer: debouncedDeveloper\.trim\(\) \|\| undefined/);
 });
 
+test('library page data ignores stale async results while filters change quickly', () => {
+  const source = fs.readFileSync('src/pages/Library/useLibraryPageData.ts', 'utf8');
+
+  assert.match(source, /let cancelled = false/);
+  assert.match(source, /if \(cancelled\) return/);
+  assert.match(source, /return \(\) => \{\s*cancelled = true;\s*\}/s);
+  assert.match(source, /setGames\(items\)/);
+  assert.match(source, /setLoading\(false\)/);
+});
+
 test('game repository pushes common library filters into sqlite before mapping rows', () => {
   const source = fs.readFileSync('src-tauri/src/repositories/games.rs', 'utf8');
   const listStart = source.indexOf('pub fn list(');

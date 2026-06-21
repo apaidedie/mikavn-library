@@ -28,19 +28,47 @@ export function useLibraryPageData({ filterPreset, filterToggleKey, refreshKey, 
   const filters = useLibraryFilters({ filterPreset, filterToggleKey, games, settings, toolbarQuery });
 
   useEffect(() => {
+    let cancelled = false;
+
     setLoading(true);
     api
       .listGames(filters.filter)
       .then((items) => {
+        if (cancelled) return;
         setGames(items);
         setError(null);
       })
-      .catch((reason: unknown) => setError(errorMessage(reason)))
-      .finally(() => setLoading(false));
+      .catch((reason: unknown) => {
+        if (cancelled) return;
+        setError(errorMessage(reason));
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [filters.filter, refreshKey]);
 
   useEffect(() => {
-    api.getAppSettings().then(setSettings).catch(() => setSettings({}));
+    let cancelled = false;
+
+    api
+      .getAppSettings()
+      .then((nextSettings) => {
+        if (cancelled) return;
+        setSettings(nextSettings);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setSettings({});
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [refreshKey]);
 
   return { error, filters, loading, setError, setGames, settings };
