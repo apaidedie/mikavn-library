@@ -146,13 +146,22 @@ function largeLibraryWarningCountFromReport(report) {
 }
 
 function manualRiskChecklistSummary(checklist) {
-  const checkboxMatches = [...checklist.matchAll(/^\s*-\s*\[( |x|X)\]\s+/gm)];
+  const checkboxMatches = [...checklist.matchAll(/^\s*-\s*\[( |x|X)\]\s+(.+?)\s*$/gm)];
+  const checkedItems = [];
+  const pendingItems = [];
+  for (const match of checkboxMatches) {
+    const item = match[2].trim();
+    if (match[1].toLowerCase() === 'x') checkedItems.push(item);
+    else pendingItems.push(item);
+  }
   const total = checkboxMatches.length;
-  const checked = checkboxMatches.filter((match) => match[1].toLowerCase() === 'x').length;
+  const checked = checkedItems.length;
   return {
     total,
     checked,
     pending: total - checked,
+    checkedItems,
+    pendingItems,
   };
 }
 
