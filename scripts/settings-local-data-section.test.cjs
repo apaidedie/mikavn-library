@@ -93,3 +93,12 @@ test('tray settings explain how to fully exit when close hides to tray', () => {
   assert.match(parts, /系统托盘菜单选择“退出”/);
   assert.match(parts, /关闭主窗口会直接退出应用/);
 });
+
+test('tag deletion confirmation explains affected games and record-only impact', () => {
+  const source = read('src/pages/Settings/useSettingsPageActions.ts');
+
+  assert.match(source, /删除标签“\$\{tag\.name\}”/);
+  assert.match(source, /\$\{tag\.gameCount\} 个游戏/);
+  assert.match(source, /只会修改 MikaVN 标签关系/);
+  assert.match(source, /不会删除真实游戏文件/);
+});

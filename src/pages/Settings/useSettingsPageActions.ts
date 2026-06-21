@@ -159,7 +159,7 @@ export function useSettingsPageActions({ tabRequest, onAccentPreview, onThemePre
     try {
       const tag = tags.find((item) => item.id === selectedTagId);
       if (!tag) return;
-      if (!window.confirm(`从所有游戏移除标签“${tag.name}”？不会删除游戏条目。`)) return;
+      if (!window.confirm(`删除标签“${tag.name}”？\n\n将从 ${tag.gameCount} 个游戏中移除此标签。\n只会修改 MikaVN 标签关系，不会删除真实游戏文件或游戏记录。确认继续？`)) return;
       await api.deleteTag(tag.id);
       setMessage({ text: `标签已删除：${tag.name}` });
       setSelectedTagId('');
