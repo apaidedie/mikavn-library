@@ -144,9 +144,15 @@ export function AssetGallery({ game, blurCover, onChanged, onMessage }: { game: 
     setBusy('cleanup');
     onMessage(null);
     try {
+      const preview = await api.previewAssetCacheCleanup();
+      if (preview.removedFiles === 0) {
+        onMessage(`缓存清理预览完成：扫描 ${formatAssetCount(preview.scannedFiles)} 个文件，没有发现可清理缓存。`);
+        return;
+      }
+      if (!window.confirm(`清理 ${formatAssetCount(preview.removedFiles)} 个未引用图片缓存文件，预计释放 ${formatBytes(preview.removedBytes)}？\n\n只会删除 app-data/images 中未引用的缓存文件。\n不会删除真实游戏文件或仍在图库、主图、简介中引用的图片。`)) return;
       const result = await api.cleanupAssetCache();
       await refreshAssets();
-      onMessage(`缓存清理完成：扫描 ${result.scannedFiles} 个，删除 ${result.removedFiles} 个，保留 ${result.keptFiles} 个，释放 ${formatBytes(result.removedBytes)}。`);
+      onMessage(`缓存清理完成：扫描 ${formatAssetCount(result.scannedFiles)} 个，删除 ${formatAssetCount(result.removedFiles)} 个，保留 ${formatAssetCount(result.keptFiles)} 个，释放 ${formatBytes(result.removedBytes)}。`);
     } catch (reason) {
       onMessage(errorMessage(reason));
     } finally {
@@ -176,4 +182,8 @@ function AssetCard({ asset, blurCover, busy, onPrimary, onRemove }: { asset: Gam
       </div>
     </div>
   );
+}
+
+function formatAssetCount(value: number) {
+  return value.toLocaleString('zh-CN');
 }
