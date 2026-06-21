@@ -106,7 +106,9 @@ impl<'a> GameRepository<'a> {
             }
             query_clauses.push(format!(
                 "id IN ({})",
-                std::iter::repeat_n("?", ids.len()).collect::<Vec<_>>().join(", ")
+                std::iter::repeat_n("?", ids.len())
+                    .collect::<Vec<_>>()
+                    .join(", ")
             ));
             for id in ids {
                 query_params.push(Value::Text(id.clone()));

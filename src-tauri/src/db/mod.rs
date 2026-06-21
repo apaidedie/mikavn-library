@@ -624,7 +624,10 @@ mod tests {
             .unwrap();
 
         assert_eq!(
-            games.iter().map(|game| game.title.as_str()).collect::<Vec<_>>(),
+            games
+                .iter()
+                .map(|game| game.title.as_str())
+                .collect::<Vec<_>>(),
             vec!["Alpha VN", "Beta VN"]
         );
     }
