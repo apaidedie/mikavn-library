@@ -39,10 +39,16 @@ export function AppUpdateNotice({ notice, installing, installed, progressText, e
                 复制错误
               </button>
               {recoveryHint?.showFallbackDownload && (
-                <a className="inline-flex items-center gap-1 text-xs text-emerald-50 underline underline-offset-2" href={updaterFallbackDownloadUrl} rel="noreferrer" target="_blank">
-                  <ExternalLink className="h-3.5 w-3.5" />
-                  备用下载页面
-                </a>
+                <>
+                  <button className="inline-flex items-center gap-1 text-xs text-emerald-50 underline underline-offset-2" type="button" onClick={() => void navigator.clipboard.writeText(updaterFallbackDownloadUrl)}>
+                    <ClipboardCopy className="h-3.5 w-3.5" />
+                    复制备用链接
+                  </button>
+                  <a className="inline-flex items-center gap-1 text-xs text-emerald-50 underline underline-offset-2" href={updaterFallbackDownloadUrl} rel="noreferrer" target="_blank">
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    备用下载页面
+                  </a>
+                </>
               )}
             </div>
           )}

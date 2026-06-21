@@ -41,10 +41,12 @@ test('startup update notice exposes fallback download link after install errors'
 
   assert.match(notice, /updaterFallbackDownloadUrl/);
   assert.match(notice, /备用下载页面/);
+  assert.match(notice, /复制备用链接/);
   assert.match(notice, /target="_blank"/);
   assert.match(notice, /rel="noreferrer"/);
   assert.match(notice, /复制错误/);
   assert.match(notice, /navigator\.clipboard\.writeText\(error\)/);
+  assert.match(notice, /navigator\.clipboard\.writeText\(updaterFallbackDownloadUrl\)/);
 });
 
 test('startup update notice uses recovery hints and reports restart failures', () => {

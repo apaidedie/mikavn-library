@@ -59,10 +59,12 @@ test('settings update failure offers public fallback download link', () => {
 
   assert.match(source, /updaterFallbackDownloadUrl/);
   assert.match(source, /备用下载页面/);
+  assert.match(source, /复制备用链接/);
   assert.match(source, /target="_blank"/);
   assert.match(source, /rel="noreferrer"/);
   assert.match(source, /复制错误/);
   assert.match(source, /navigator\.clipboard\.writeText\(error\)/);
+  assert.match(source, /navigator\.clipboard\.writeText\(updaterFallbackDownloadUrl\)/);
 });
 
 test('settings update failure shows recovery guidance and handles restart errors', () => {

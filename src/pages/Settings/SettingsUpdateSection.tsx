@@ -110,12 +110,18 @@ export function SettingsUpdateSection({ onOpenDatabaseRestore, onRevealBackup }:
                   复制错误
                 </Button>
                 {recoveryHint?.showFallbackDownload && (
-                  <Button asChild size="sm" variant="outline">
-                    <a href={updaterFallbackDownloadUrl} rel="noreferrer" target="_blank">
-                      <ExternalLink className="h-4 w-4" />
-                      备用下载页面
-                    </a>
-                  </Button>
+                  <>
+                    <Button size="sm" type="button" variant="ghost" onClick={() => void navigator.clipboard.writeText(updaterFallbackDownloadUrl)}>
+                      <ClipboardCopy className="h-4 w-4" />
+                      复制备用链接
+                    </Button>
+                    <Button asChild size="sm" variant="outline">
+                      <a href={updaterFallbackDownloadUrl} rel="noreferrer" target="_blank">
+                        <ExternalLink className="h-4 w-4" />
+                        备用下载页面
+                      </a>
+                    </Button>
+                  </>
                 )}
               </div>
             </div>
