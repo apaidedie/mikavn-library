@@ -3,6 +3,7 @@ import { api } from '@/services/api';
 import { chooseArchiveDirectory, chooseArchivePath, chooseDatabaseBackupPath, chooseDatabaseRestorePath } from '@/services/dialog';
 import type { AppDataDiagnostics, LibraryArchivePreview } from '@/types/archive';
 import { errorMessage } from '@/utils/errorMessage';
+import { databaseBackupCleanupPolicy, formatDatabaseBackupCleanupPolicy } from './settingsBackupCleanupPolicy';
 import { formatBytes, getDirectoryLocations, type DirectoryLocationItem } from './SettingsPageParts';
 
 type TaskMessage = { text: string; taskId?: string | null };
@@ -41,11 +42,12 @@ export function useSettingsLocalDataActions({ onSaved, setError, setMessage }: U
   async function cleanupDatabaseBackups() {
     setError(null);
     setMessage(null);
-    const ok = window.confirm('按安全规则清理旧数据库备份？会保留最近 10 个和 30 天内备份，不会删除当前 mikavn.db。');
+    const cleanupPolicyText = formatDatabaseBackupCleanupPolicy(databaseBackupCleanupPolicy);
+    const ok = window.confirm(`按安全规则清理旧数据库备份？${cleanupPolicyText}；只清理应用管理的旧数据库备份，不会删除当前 mikavn.db。`);
     if (!ok) return;
     setCleanupLoading(true);
     try {
-      const report = await api.cleanupOldDatabaseBackups({ retainCount: 10, retainDays: 30 });
+      const report = await api.cleanupOldDatabaseBackups(databaseBackupCleanupPolicy);
       setMessage({ text: report.removedFiles > 0 ? `已清理 ${report.removedFiles} 个旧数据库备份，释放 ${formatBytes(report.removedBytes)}。` : '没有需要清理的旧数据库备份。' });
       await loadDiagnostics();
     } catch (reason) {

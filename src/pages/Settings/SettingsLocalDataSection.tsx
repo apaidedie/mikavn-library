@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { ConfigItem, ConfigSection } from '@/components/ui/config-item';
 import { Input } from '@/components/ui/input';
 import type { AppDataDiagnostics, LibraryArchivePreview } from '@/types/archive';
+import { databaseBackupCleanupPolicy, formatDatabaseBackupCleanupPolicy } from './settingsBackupCleanupPolicy';
 import { SettingFlag } from './SettingFlag';
 import { DirectoryLocation, Stat, dataDirSourceLabel, formatBytes, formatCount, type DirectoryLocationItem } from './SettingsPageParts';
 
@@ -68,14 +69,20 @@ export function SettingsLocalDataSection({
   onRevealPath,
 }: SettingsLocalDataSectionProps) {
   const latestBackup = diagnostics?.databaseBackups.files[0] ?? null;
+  const cleanupPolicyText = formatDatabaseBackupCleanupPolicy(databaseBackupCleanupPolicy);
 
   return (
     <ConfigSection title="本地数据">
       <ConfigItem title="数据目录自检" description="读取当前应用数据目录、数据库完整性、图片引用和备份文件状态。">
-        <div className="flex flex-wrap justify-end gap-2">
-          <Button disabled={diagnosticsLoading} variant="outline" onClick={onLoadDiagnostics}><RefreshCw className="h-4 w-4" />{diagnosticsLoading ? '检查中' : '刷新自检'}</Button>
-          <Button disabled={diagnosticExportLoading} variant="outline" onClick={onExportDiagnosticPackage}><FileArchive className="h-4 w-4" />{diagnosticExportLoading ? '导出中' : '导出诊断包'}</Button>
-          <Button disabled={cleanupLoading || !diagnostics?.databaseBackups.fileCount} variant="ghost" onClick={onCleanupDatabaseBackups}><Trash2 className="h-4 w-4" />{cleanupLoading ? '清理中' : '清理旧备份'}</Button>
+        <div className="flex max-w-[42rem] flex-col items-end gap-2 text-right">
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button disabled={diagnosticsLoading} variant="outline" onClick={onLoadDiagnostics}><RefreshCw className="h-4 w-4" />{diagnosticsLoading ? '检查中' : '刷新自检'}</Button>
+            <Button disabled={diagnosticExportLoading} variant="outline" onClick={onExportDiagnosticPackage}><FileArchive className="h-4 w-4" />{diagnosticExportLoading ? '导出中' : '导出诊断包'}</Button>
+            <Button disabled={cleanupLoading || !diagnostics?.databaseBackups.fileCount} variant="ghost" onClick={onCleanupDatabaseBackups}><Trash2 className="h-4 w-4" />{cleanupLoading ? '清理中' : '清理旧备份'}</Button>
+          </div>
+          <div className="text-xs text-slate-500">
+            备份清理策略：{cleanupPolicyText}；只清理应用管理的旧数据库备份，不会删除当前 mikavn.db。
+          </div>
         </div>
       </ConfigItem>
       {diagnostics ? (

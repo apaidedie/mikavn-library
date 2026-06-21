@@ -19,6 +19,24 @@ test('local data settings exposes clear backup and restore entry', () => {
   assert.match(source, /保护备份/);
 });
 
+test('database backup cleanup policy is centralized and visible before cleanup', () => {
+  const policy = read('src/pages/Settings/settingsBackupCleanupPolicy.ts');
+  const section = read('src/pages/Settings/SettingsLocalDataSection.tsx');
+  const actions = read('src/pages/Settings/useSettingsLocalDataActions.ts');
+
+  assert.match(policy, /databaseBackupCleanupPolicy/);
+  assert.match(policy, /retainCount:\s*10/);
+  assert.match(policy, /retainDays:\s*30/);
+  assert.match(policy, /formatDatabaseBackupCleanupPolicy/);
+  assert.match(policy, /保留最新/);
+  assert.match(section, /formatDatabaseBackupCleanupPolicy\(databaseBackupCleanupPolicy\)/);
+  assert.match(section, /只清理应用管理的旧数据库备份/);
+  assert.match(section, /不会删除当前 mikavn\.db/);
+  assert.match(actions, /databaseBackupCleanupPolicy/);
+  assert.match(actions, /formatDatabaseBackupCleanupPolicy\(databaseBackupCleanupPolicy\)/);
+  assert.match(actions, /cleanupOldDatabaseBackups\(databaseBackupCleanupPolicy\)/);
+});
+
 test('settings top-level local tab advertises backup access', () => {
   const source = read('src/pages/Settings/SettingsPage.tsx');
 
