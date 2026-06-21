@@ -83,6 +83,7 @@ fn local_image_content_type(path: &Path) -> Option<&'static str> {
         "png" => Some("image/png"),
         "webp" => Some("image/webp"),
         "gif" => Some("image/gif"),
+        "ico" => Some("image/x-icon"),
         _ => None,
     }
 }
@@ -129,6 +130,14 @@ mod tests {
 
         assert!(resolve_local_image_path(&root, &protocol_path_for(&traversal)).is_err());
         let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn supports_icon_cover_images() {
+        assert_eq!(
+            local_image_content_type(Path::new("cover.ico")),
+            Some("image/x-icon")
+        );
     }
 
     fn protocol_path_for(path: &Path) -> String {
