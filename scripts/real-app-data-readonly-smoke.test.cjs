@@ -11,8 +11,13 @@ test('real app-data readonly smoke is exposed and cannot mutate the live library
   assert.match(script, /mode=ro/);
   assert.match(script, /PRAGMA quick_check/);
   assert.match(script, /MaxBackupQuickCheckFiles/);
+  assert.match(script, /MaxImageHeaderQuickCheckFiles/);
   assert.match(script, /Test-DatabaseBackupQuickChecks/);
+  assert.match(script, /Test-ImageHeaderQuickChecks/);
   assert.match(script, /backupQuickChecks/);
+  assert.match(script, /imageHeaderQuickChecks/);
+  assert.match(script, /unsupportedImageFileSamples/);
+  assert.match(script, /imageFileKindCounts/);
   assert.match(script, /hasGamesTable/);
   assert.match(script, /does not look like a MikaVN database backup/);
   assert.match(script, /database-backups["'`]\s+["'`]update-protection/);

@@ -6,6 +6,7 @@ param(
   [int]$MaxMissingLocalAssetPaths = 0,
   [int]$MaxUnsupportedLocalAssetImages = 0,
   [int]$MaxBackupQuickCheckFiles = 3,
+  [int]$MaxImageHeaderQuickCheckFiles = 25,
   [switch]$NoReport
 )
 
@@ -119,6 +120,60 @@ function Test-DatabaseBackupQuickChecks([object]$Summary, [string]$Description, 
   }
 }
 
+function Test-ImageHeaderQuickChecks([object]$Summary, [int]$Limit) {
+  $path = $Summary.path
+  if (!$path -or !(Test-Path -LiteralPath $path -PathType Container) -or $Limit -le 0) {
+    return [ordered]@{
+      path = $path
+      checkedCount = 0
+      allOk = $true
+      unsupportedImageFileSamples = @()
+      imageFileKindCounts = [ordered]@{}
+      files = @()
+    }
+  }
+
+  $imageExtensions = @(".jpg", ".jpeg", ".png", ".webp", ".gif", ".ico")
+  $files = @(Get-ChildItem -LiteralPath $path -Recurse -File -ErrorAction SilentlyContinue |
+    Where-Object { $imageExtensions -contains $_.Extension.ToLowerInvariant() } |
+    Sort-Object LastWriteTime -Descending |
+    Select-Object -First $Limit)
+  if ($files.Count -eq 0) {
+    return [ordered]@{
+      path = $path
+      checkedCount = 0
+      allOk = $true
+      unsupportedImageFileSamples = @()
+      imageFileKindCounts = [ordered]@{}
+      files = @()
+    }
+  }
+
+  $imagePaths = @($files | ForEach-Object { $_.FullName })
+  $imageJson = $imageHeaderQuickCheckCode | python - @imagePaths
+  if ($LASTEXITCODE -ne 0) {
+    throw "Image header quick check failed while reading image cache under $path"
+  }
+  $check = $imageJson | ConvertFrom-Json
+  foreach ($file in @($check.files)) {
+    if ($file.error) {
+      throw "Image header quick check failed for $($file.path): $($file.error)"
+    }
+    if ($file.kind -eq "unsupported" -or $file.kind -eq "unreadable") {
+      throw "Image header quick check failed for $($file.path): unsupported image header"
+    }
+  }
+
+  [ordered]@{
+    path = $path
+    checkedCount = $check.checkedCount
+    allOk = $true
+    unsupportedImageFileSamples = $check.unsupportedImageFileSamples
+    imageFileKindCounts = $check.imageFileKindCounts
+    files = $check.files
+  }
+}
+
 $resolvedAppRoot = (Resolve-Path -LiteralPath $AppRoot).Path
 $appDataRoot = Assert-UnderRoot $resolvedAppRoot (Join-Path $resolvedAppRoot "app-data") "app-data"
 $databasePath = Assert-UnderRoot $appDataRoot (Join-Path $appDataRoot "mikavn.db") "database"
@@ -223,6 +278,63 @@ for path in sys.argv[1:]:
 print(json.dumps({"checkedCount": len(files), "files": files}, ensure_ascii=False))
 '@
 
+$imageHeaderQuickCheckCode = @'
+import json
+import os
+import sys
+from collections import Counter
+
+def sniff_image_kind(path):
+    try:
+        with open(path, "rb") as file:
+            header = file.read(16)
+    except OSError:
+        return "unreadable"
+    if len(header) >= 3 and header[:3] == b"\xff\xd8\xff":
+        return "jpeg"
+    if header.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "png"
+    if len(header) >= 12 and header.startswith(b"RIFF") and header[8:12] == b"WEBP":
+        return "webp"
+    if header.startswith(b"GIF87a") or header.startswith(b"GIF89a"):
+        return "gif"
+    if header.startswith(b"\x00\x00\x01\x00") or header.startswith(b"\x00\x00\x02\x00"):
+        return "ico"
+    return "unsupported"
+
+files = []
+for path in sys.argv[1:]:
+    item = {
+        "path": path,
+        "extension": os.path.splitext(path)[1].lower(),
+        "sizeBytes": None,
+        "kind": None,
+        "error": None,
+    }
+    try:
+        item["sizeBytes"] = os.path.getsize(path)
+        item["kind"] = sniff_image_kind(path)
+    except Exception as error:
+        item["kind"] = "unreadable"
+        item["error"] = str(error)
+    files.append(item)
+
+kind_counts = Counter(item["kind"] for item in files)
+unsupported = [
+    item["path"]
+    for item in files
+    if item["kind"] in {"unsupported", "unreadable"} or item["error"]
+]
+
+print(json.dumps({
+    "checkedCount": len(files),
+    "allOk": len(unsupported) == 0,
+    "unsupportedImageFileSamples": unsupported[:10],
+    "imageFileKindCounts": dict(sorted(kind_counts.items())),
+    "files": files,
+}, ensure_ascii=False))
+'@
+
 $dbJson = $pythonCode | python - $databasePath
 if ($LASTEXITCODE -ne 0) {
   throw "SQLite readonly smoke failed while reading $databasePath"
@@ -230,6 +342,7 @@ if ($LASTEXITCODE -ne 0) {
 $database = $dbJson | ConvertFrom-Json
 
 $images = Get-DirectorySummary $appDataRoot "images"
+$imageHeaderQuickChecks = Test-ImageHeaderQuickChecks $images $MaxImageHeaderQuickCheckFiles
 $databaseBackups = Get-DirectorySummary $appDataRoot "database-backups"
 $updateProtection = Get-OptionalDirectorySummary $appDataRoot "database-backups" "update-protection"
 $legacyUpdateProtection = Get-OptionalDirectorySummary $appDataRoot "database-update-protection"
@@ -269,6 +382,7 @@ $report = [ordered]@{
   databaseBytes = (Get-Item -LiteralPath $databasePath).Length
   database = $database
   images = $images
+  imageHeaderQuickChecks = $imageHeaderQuickChecks
   databaseBackups = $databaseBackups
   databaseUpdateProtection = $updateProtection
   legacyDatabaseUpdateProtection = $legacyUpdateProtection
