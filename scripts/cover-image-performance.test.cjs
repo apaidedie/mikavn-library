@@ -11,6 +11,17 @@ test('CoverImage defaults to native lazy loading and async decoding', () => {
   assert.match(source, /decoding=\{decoding\}/);
 });
 
+test('CoverImage falls back to the placeholder after image load failures', () => {
+  const source = fs.readFileSync('src/components/ui/cover.tsx', 'utf8');
+
+  assert.match(source, /useEffect/);
+  assert.match(source, /useState/);
+  assert.match(source, /failedSrc/);
+  assert.match(source, /setFailedSrc\(null\)/);
+  assert.match(source, /onError=\{\(\) => setFailedSrc\(resolved\)\}/);
+  assert.match(source, /resolved && failedSrc !== resolved/);
+});
+
 test('library detail hero decodes images asynchronously', () => {
   const source = fs.readFileSync('src/pages/Library/GameDetailHero.tsx', 'utf8');
 
