@@ -146,6 +146,46 @@ fn quarantine_duplicate_content_images_keeps_referenced_and_one_unreferenced_cop
 }
 
 #[test]
+fn quarantine_invalid_image_cache_files_moves_only_unreferenced_invalid_files() {
+    let root = std::env::temp_dir().join(format!(
+        "mikavn-image-invalid-quarantine-{}",
+        Uuid::new_v4()
+    ));
+    let paths = AppPaths::from_root(root.clone()).unwrap();
+    fs::create_dir_all(paths.images().join("invalid")).unwrap();
+    let referenced_invalid = paths.images().join("invalid/referenced.jpg");
+    let unreferenced_invalid = paths.images().join("invalid/orphan.webp");
+    let valid_orphan = paths.images().join("valid-orphan.jpg");
+    fs::write(&referenced_invalid, b"").unwrap();
+    fs::write(&unreferenced_invalid, b"").unwrap();
+    fs::write(&valid_orphan, b"\xFF\xD8\xFFvalid").unwrap();
+    create_health_db(
+        &paths.database(),
+        &referenced_invalid.to_string_lossy(),
+        "",
+        "",
+    );
+
+    let report = quarantine_invalid_image_cache_files_with_paths(
+        &paths,
+        ImageHealthReportOptions::default(),
+    )
+    .unwrap();
+
+    assert_eq!(report.moved_files, 1);
+    assert_eq!(report.skipped_files, 0);
+    assert!(referenced_invalid.is_file());
+    assert!(!unreferenced_invalid.exists());
+    assert!(valid_orphan.is_file());
+    let manifest = fs::read_to_string(&report.manifest_path).unwrap();
+    assert!(manifest.contains("invalid unreferenced image cache file"));
+    assert!(manifest.contains("orphan.webp"));
+    assert!(!manifest.contains("referenced.jpg"));
+
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
 fn image_health_report_counts_invalid_image_cache_files() {
     let root = std::env::temp_dir().join(format!("mikavn-image-invalid-{}", Uuid::new_v4()));
     let paths = AppPaths::from_root(root.clone()).unwrap();

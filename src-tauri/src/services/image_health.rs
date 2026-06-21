@@ -16,10 +16,14 @@ mod quarantine;
 mod types;
 
 use description::description_image_sources;
-pub use quarantine::{quarantine_duplicate_content_images, quarantine_orphan_images};
+pub use quarantine::{
+    quarantine_duplicate_content_images, quarantine_invalid_image_cache_files,
+    quarantine_orphan_images,
+};
 #[cfg(test)]
 pub(crate) use quarantine::{
-    quarantine_duplicate_content_images_with_paths, quarantine_orphan_images_with_paths,
+    quarantine_duplicate_content_images_with_paths,
+    quarantine_invalid_image_cache_files_with_paths, quarantine_orphan_images_with_paths,
 };
 use types::{
     ImageCacheContentCandidate, ImageDuplicateContentGroups, ImageDuplicateNameGroups,

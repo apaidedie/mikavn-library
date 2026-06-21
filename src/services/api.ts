@@ -187,6 +187,10 @@ export const api = {
     return command<ImageQuarantineReport>('quarantine_duplicate_content_images', { options }, () => mockStore.quarantineDuplicateContentImages(options));
   },
 
+  quarantineInvalidImageCacheFiles(options: ImageHealthReportOptions = {}) {
+    return command<ImageQuarantineReport>('quarantine_invalid_image_cache_files', { options }, () => mockStore.quarantineInvalidImageCacheFiles(options));
+  },
+
   cleanupOldDatabaseBackups(policy: DatabaseBackupCleanupPolicy = {}) {
     return command<DatabaseBackupCleanupReport>('cleanup_old_database_backups', { policy }, () => mockStore.cleanupOldDatabaseBackups(policy));
   },

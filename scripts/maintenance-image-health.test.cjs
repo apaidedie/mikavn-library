@@ -87,12 +87,15 @@ test('image health commands are registered and exposed through api', () => {
   assert.match(lib, /commands::diagnostics::get_image_health_report/);
   assert.match(lib, /commands::diagnostics::quarantine_orphan_images/);
   assert.match(lib, /commands::diagnostics::quarantine_duplicate_content_images/);
+  assert.match(lib, /commands::diagnostics::quarantine_invalid_image_cache_files/);
   assert.match(commands, /pub fn get_image_health_report/);
   assert.match(commands, /pub fn quarantine_orphan_images/);
   assert.match(commands, /pub fn quarantine_duplicate_content_images/);
+  assert.match(commands, /pub fn quarantine_invalid_image_cache_files/);
   assert.match(api, /getImageHealthReport/);
   assert.match(api, /quarantineOrphanImages/);
   assert.match(api, /quarantineDuplicateContentImages/);
+  assert.match(api, /quarantineInvalidImageCacheFiles/);
   assert.match(types, /export type ImageHealthReport/);
   assert.match(types, /export type ImageQuarantineReport/);
   assert.match(types, /invalidImageFiles/);
@@ -199,13 +202,17 @@ test('maintenance image health ui exposes one-click safe cleanup wording', () =>
 
   assert.match(panel, /一键安全整理/);
   assert.match(panel, /整理重复内容/);
+  assert.match(panel, /整理无效图片/);
   assert.match(panel, /只处理未被数据库引用的孤儿缓存/);
   assert.match(panel, /只隔离重复内容中的未引用副本/);
+  assert.match(panel, /只隔离未被数据库引用的无效图片/);
   assert.match(panel, /缺封面和失效引用会保留给补图或明细审计/);
   assert.match(panel, /canSafeCleanup/);
   assert.match(panel, /canCleanupDuplicateContent/);
+  assert.match(panel, /canCleanupInvalidImages/);
   assert.match(panel, /onQuarantineOrphans/);
   assert.match(panel, /onQuarantineDuplicateContent/);
+  assert.match(panel, /onQuarantineInvalidImages/);
   assert.match(actions, /formatImageQuarantineCompletionMessage/);
   assert.doesNotMatch(panel, /一键永久删除/);
 });
@@ -234,6 +241,17 @@ test('maintenance duplicate content quarantine requires explicit confirmation be
   assert.ok(confirmIndex < quarantineIndex, 'confirmation copy must appear before files are moved');
   assert.match(actions, /保留被数据库引用的图片/);
   assert.match(actions, /至少保留一个未引用副本/);
+});
+
+test('maintenance invalid image quarantine requires explicit confirmation before moving files', () => {
+  const actions = fs.readFileSync('src/pages/Maintenance/useMaintenanceInspectionActions.ts', 'utf8');
+  const confirmIndex = actions.indexOf('未被数据库引用的无效图片');
+  const quarantineIndex = actions.indexOf('api.quarantineInvalidImageCacheFiles');
+
+  assert.ok(confirmIndex > -1, 'invalid cleanup action must explain unreferenced invalid files first');
+  assert.ok(quarantineIndex > -1, 'invalid cleanup action must call the invalid quarantine api');
+  assert.ok(confirmIndex < quarantineIndex, 'confirmation copy must appear before files are moved');
+  assert.match(actions, /仍被引用的无效图片会保留/);
 });
 
 test('maintenance image health ui treats app-data legacy imports as informational', () => {
@@ -270,6 +288,16 @@ test('duplicate content quarantine completion message reports refreshed duplicat
   );
 
   assert.equal(message, '重复内容整理完成：已移动 8 个未引用副本到隔离区；跳过 1 个；复查剩余 2 组重复内容。');
+});
+
+test('invalid image quarantine completion message reports refreshed invalid files', () => {
+  const { formatImageInvalidQuarantineCompletionMessage } = loadMaintenanceImageHealthModel();
+  const message = formatImageInvalidQuarantineCompletionMessage(
+    { movedFiles: 5, skippedFiles: 1 },
+    { summary: { invalidImageFiles: 3, invalidImageRefs: 2 } },
+  );
+
+  assert.equal(message, '无效图片整理完成：已移动 5 个未引用坏图到隔离区；跳过 1 个；复查剩余 1 个未引用坏图。');
 });
 
 test('image health action hint explains disabled maintenance actions', () => {
