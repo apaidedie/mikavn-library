@@ -56,6 +56,35 @@ test('copyable failure message keeps useful error text', () => {
   assert.equal(formatUpdaterError({ message: 'download failed' }), '更新失败：download failed');
 });
 
+test('updater recovery hints explain backup, signature, download, and restart failures', () => {
+  const { createUpdaterRecoveryHint } = loadModel();
+
+  assert.deepEqual(createUpdaterRecoveryHint('更新前数据库备份失败，已取消安装。'), {
+    kind: 'backup_failed',
+    title: '更新已取消，数据库没有被替换。',
+    guidance: '先到本地数据页确认数据库备份目录可写，再重新检查并安装更新。',
+    showFallbackDownload: false,
+  });
+  assert.deepEqual(createUpdaterRecoveryHint('更新失败：signature verification failed'), {
+    kind: 'signature_failed',
+    title: '签名验证失败，已阻止安装。',
+    guidance: '不要继续安装这个更新包；只从官方 GitHub Release 页面重新下载。',
+    showFallbackDownload: true,
+  });
+  assert.deepEqual(createUpdaterRecoveryHint('更新失败：download failed'), {
+    kind: 'download_or_install_failed',
+    title: '下载或安装没有完成。',
+    guidance: '已创建的更新前备份会保留；可以重试，或打开备用下载页面手动安装。',
+    showFallbackDownload: true,
+  });
+  assert.deepEqual(createUpdaterRecoveryHint('重启应用失败：permission denied'), {
+    kind: 'restart_failed',
+    title: '更新已安装，但自动重启失败。',
+    guidance: '请手动关闭 MikaVN Library 后重新打开，更新会在下次启动后生效。',
+    showFallbackDownload: false,
+  });
+});
+
 test('install progress formatter reports backup, download percent, and install phases', () => {
   const { formatUpdaterInstallProgress } = loadModel();
 

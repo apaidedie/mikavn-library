@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { checkForAppUpdate, installAppUpdate, restartAfterUpdate, type AppUpdateHandle } from '@/services/updater';
-import { formatUpdaterInstallProgress, type UpdateProtectionBackupInfo, type UpdaterCheckResult } from '@/services/updaterModel';
+import { formatUpdaterError, formatUpdaterInstallProgress, type UpdateProtectionBackupInfo, type UpdaterCheckResult } from '@/services/updaterModel';
 
 export function useStartupUpdater() {
   const [notice, setNotice] = useState<UpdaterCheckResult | null>(null);
@@ -58,7 +58,12 @@ export function useStartupUpdater() {
   };
 
   const restartStartupUpdate = async () => {
-    await restartAfterUpdate();
+    setError(null);
+    try {
+      await restartAfterUpdate();
+    } catch (error) {
+      setError(`重启应用失败：${formatUpdaterError(error).replace(/^更新失败：/, '')}`);
+    }
   };
 
   return { notice, installing, installed, installProgress, error, backupInfo, dismissStartupUpdate, installStartupUpdate, restartStartupUpdate };

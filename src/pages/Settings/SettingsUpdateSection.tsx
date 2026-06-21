@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ConfigItem, ConfigSection } from '@/components/ui/config-item';
 import { checkForAppUpdate, installAppUpdate, restartAfterUpdate, type AppUpdateHandle } from '@/services/updater';
-import { formatUpdaterError, formatUpdaterInstallProgress, updaterFallbackDownloadUrl, type UpdaterCheckResult } from '@/services/updaterModel';
+import { createUpdaterRecoveryHint, formatUpdaterError, formatUpdaterInstallProgress, updaterFallbackDownloadUrl, type UpdaterCheckResult } from '@/services/updaterModel';
 
 type InstallState = 'idle' | 'checking' | 'available' | 'up_to_date' | 'installing' | 'installed' | 'failed' | 'unavailable';
 
@@ -19,6 +19,7 @@ export function SettingsUpdateSection({ onOpenDatabaseRestore, onRevealBackup }:
   const [error, setError] = useState<string | null>(null);
   const [backupInfo, setBackupInfo] = useState<{ fileName: string; path: string } | null>(null);
   const [installProgress, setInstallProgress] = useState<string | null>(null);
+  const recoveryHint = createUpdaterRecoveryHint(error);
 
   const checkUpdates = async () => {
     setState('checking');
@@ -62,6 +63,15 @@ export function SettingsUpdateSection({ onOpenDatabaseRestore, onRevealBackup }:
     }
   };
 
+  const restartUpdate = async () => {
+    setError(null);
+    try {
+      await restartAfterUpdate();
+    } catch (error) {
+      setError(`重启应用失败：${formatUpdaterError(error).replace(/^更新失败：/, '')}`);
+    }
+  };
+
   return (
     <ConfigSection title="应用更新">
       <ConfigItem title="Windows 更新" description="通过公开 GitHub Releases 检查并安装已签名的 Windows 更新。">
@@ -87,18 +97,26 @@ export function SettingsUpdateSection({ onOpenDatabaseRestore, onRevealBackup }:
           {result?.kind === 'unavailable' && <div className="max-w-[42rem] text-right text-xs text-amber-200">浏览器预览不会下载或安装更新。</div>}
           {error && (
             <div className="flex max-w-[42rem] flex-col items-end gap-2">
+              {recoveryHint && (
+                <div className="max-w-[42rem] rounded-md border border-amber-300/20 bg-amber-400/10 px-3 py-2 text-right">
+                  <div className="text-xs font-medium text-amber-100">{recoveryHint?.title}</div>
+                  <div className="mt-1 text-xs text-slate-300">{recoveryHint?.guidance}</div>
+                </div>
+              )}
               <textarea className="min-h-16 w-[min(42rem,calc(100vw-3rem))] rounded-md bg-black/30 p-2 text-xs text-rose-100" readOnly value={error} />
               <div className="flex flex-wrap justify-end gap-2">
                 <Button size="sm" type="button" variant="ghost" onClick={() => void navigator.clipboard.writeText(error)}>
                   <ClipboardCopy className="h-4 w-4" />
                   复制错误
                 </Button>
-                <Button asChild size="sm" variant="outline">
-                  <a href={updaterFallbackDownloadUrl} rel="noreferrer" target="_blank">
-                    <ExternalLink className="h-4 w-4" />
-                    备用下载页面
-                  </a>
-                </Button>
+                {recoveryHint?.showFallbackDownload && (
+                  <Button asChild size="sm" variant="outline">
+                    <a href={updaterFallbackDownloadUrl} rel="noreferrer" target="_blank">
+                      <ExternalLink className="h-4 w-4" />
+                      备用下载页面
+                    </a>
+                  </Button>
+                )}
               </div>
             </div>
           )}
@@ -107,7 +125,7 @@ export function SettingsUpdateSection({ onOpenDatabaseRestore, onRevealBackup }:
               <Download className="h-4 w-4" />
               下载并安装
             </Button>
-            <Button disabled={state !== 'installed'} onClick={() => void restartAfterUpdate()} type="button" variant="secondary">
+            <Button disabled={state !== 'installed'} onClick={() => void restartUpdate()} type="button" variant="secondary">
               <RotateCw className="h-4 w-4" />
               重启应用
             </Button>

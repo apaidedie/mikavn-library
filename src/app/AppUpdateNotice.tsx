@@ -1,6 +1,6 @@
 import { ClipboardCopy, Download, ExternalLink, RotateCw, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { updaterFallbackDownloadUrl, type UpdateProtectionBackupInfo, type UpdaterCheckResult } from '@/services/updaterModel';
+import { createUpdaterRecoveryHint, updaterFallbackDownloadUrl, type UpdateProtectionBackupInfo, type UpdaterCheckResult } from '@/services/updaterModel';
 
 type AppUpdateNoticeProps = {
   notice: Extract<UpdaterCheckResult, { kind: 'available' }>;
@@ -15,6 +15,8 @@ type AppUpdateNoticeProps = {
 };
 
 export function AppUpdateNotice({ notice, installing, installed, progressText, error, backupInfo, onDismiss, onInstall, onRestart }: AppUpdateNoticeProps) {
+  const recoveryHint = createUpdaterRecoveryHint(error);
+
   return (
     <div className="border-b border-emerald-300/20 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-50">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -23,6 +25,12 @@ export function AppUpdateNotice({ notice, installing, installed, progressText, e
           <p className="truncate text-xs text-emerald-100/80">{installed ? '更新已安装，请重启应用。' : notice.notes}</p>
           {progressText && <p className="mt-1 text-xs text-amber-100">{progressText}</p>}
           {installed && backupInfo && <p className="mt-1 truncate text-xs text-emerald-100/80">更新前数据库备份：{backupInfo.fileName}</p>}
+          {recoveryHint && (
+            <div className="mt-1 max-w-[42rem] rounded-md border border-amber-200/20 bg-black/15 px-2 py-1">
+              <p className="text-xs font-medium text-amber-50">{recoveryHint?.title}</p>
+              <p className="text-xs text-emerald-100/80">{recoveryHint?.guidance}</p>
+            </div>
+          )}
           {error && <p className="mt-1 select-text text-xs text-rose-100">{error}</p>}
           {error && (
             <div className="mt-1 flex flex-wrap gap-2">
@@ -30,10 +38,12 @@ export function AppUpdateNotice({ notice, installing, installed, progressText, e
                 <ClipboardCopy className="h-3.5 w-3.5" />
                 复制错误
               </button>
-              <a className="inline-flex items-center gap-1 text-xs text-emerald-50 underline underline-offset-2" href={updaterFallbackDownloadUrl} rel="noreferrer" target="_blank">
-                <ExternalLink className="h-3.5 w-3.5" />
-                备用下载页面
-              </a>
+              {recoveryHint?.showFallbackDownload && (
+                <a className="inline-flex items-center gap-1 text-xs text-emerald-50 underline underline-offset-2" href={updaterFallbackDownloadUrl} rel="noreferrer" target="_blank">
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  备用下载页面
+                </a>
+              )}
             </div>
           )}
         </div>

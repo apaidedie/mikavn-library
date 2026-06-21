@@ -20,6 +20,13 @@ export type UpdaterInstallResult =
   | { kind: 'installed'; message: string; backup?: UpdateProtectionBackupInfo }
   | { kind: 'failed'; message: string; backup?: UpdateProtectionBackupInfo };
 
+export type UpdaterRecoveryHint = {
+  kind: 'backup_failed' | 'signature_failed' | 'download_or_install_failed' | 'restart_failed';
+  title: string;
+  guidance: string;
+  showFallbackDownload: boolean;
+};
+
 type RawTauriUpdate = {
   version?: string;
   currentVersion?: string;
@@ -74,6 +81,45 @@ export function formatUpdaterError(error: unknown): string {
     return `更新失败：${error.message}`;
   }
   return '更新失败：未知错误';
+}
+
+export function createUpdaterRecoveryHint(errorText: string | null | undefined): UpdaterRecoveryHint | null {
+  const text = String(errorText ?? '').trim();
+  if (!text) return null;
+
+  if (/更新前数据库备份失败|备份失败|backup/i.test(text)) {
+    return {
+      kind: 'backup_failed',
+      title: '更新已取消，数据库没有被替换。',
+      guidance: '先到本地数据页确认数据库备份目录可写，再重新检查并安装更新。',
+      showFallbackDownload: false,
+    };
+  }
+
+  if (/signature|签名|verification|verify/i.test(text)) {
+    return {
+      kind: 'signature_failed',
+      title: '签名验证失败，已阻止安装。',
+      guidance: '不要继续安装这个更新包；只从官方 GitHub Release 页面重新下载。',
+      showFallbackDownload: true,
+    };
+  }
+
+  if (/重启应用失败|restart|relaunch/i.test(text)) {
+    return {
+      kind: 'restart_failed',
+      title: '更新已安装，但自动重启失败。',
+      guidance: '请手动关闭 MikaVN Library 后重新打开，更新会在下次启动后生效。',
+      showFallbackDownload: false,
+    };
+  }
+
+  return {
+    kind: 'download_or_install_failed',
+    title: '下载或安装没有完成。',
+    guidance: '已创建的更新前备份会保留；可以重试，或打开备用下载页面手动安装。',
+    showFallbackDownload: true,
+  };
 }
 
 export function formatUpdaterInstallProgress(progress: UpdaterInstallProgress | null): string | null {

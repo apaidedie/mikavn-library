@@ -65,6 +65,18 @@ test('settings update failure offers public fallback download link', () => {
   assert.match(source, /navigator\.clipboard\.writeText\(error\)/);
 });
 
+test('settings update failure shows recovery guidance and handles restart errors', () => {
+  const source = read('src/pages/Settings/SettingsUpdateSection.tsx');
+
+  assert.match(source, /createUpdaterRecoveryHint/);
+  assert.match(source, /recoveryHint\?\.title/);
+  assert.match(source, /recoveryHint\?\.guidance/);
+  assert.match(source, /showFallbackDownload/);
+  assert.match(source, /restartUpdate/);
+  assert.match(source, /重启应用失败/);
+  assert.match(source, /restartAfterUpdate\(\)/);
+});
+
 test('settings update section keeps a public manual download link visible before failures', () => {
   const source = read('src/pages/Settings/SettingsUpdateSection.tsx');
   const manualDownloadIndex = source.indexOf('手动下载最新版');

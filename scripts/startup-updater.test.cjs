@@ -47,6 +47,18 @@ test('startup update notice exposes fallback download link after install errors'
   assert.match(notice, /navigator\.clipboard\.writeText\(error\)/);
 });
 
+test('startup update notice uses recovery hints and reports restart failures', () => {
+  const hook = read('src/app/useStartupUpdater.ts');
+  const notice = read('src/app/AppUpdateNotice.tsx');
+
+  assert.match(hook, /formatUpdaterError/);
+  assert.match(hook, /重启应用失败/);
+  assert.match(notice, /createUpdaterRecoveryHint/);
+  assert.match(notice, /recoveryHint\?\.title/);
+  assert.match(notice, /recoveryHint\?\.guidance/);
+  assert.match(notice, /showFallbackDownload/);
+});
+
 test('startup update notice shows pre-update backup after successful install', () => {
   const hook = read('src/app/useStartupUpdater.ts');
   const notice = read('src/app/AppUpdateNotice.tsx');
