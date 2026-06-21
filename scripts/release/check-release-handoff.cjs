@@ -23,6 +23,7 @@ const REQUIRED_REPORT_TOKENS = [
 ];
 
 const REQUIRED_CHECKLIST_TOKENS = [
+  'Evidence:',
   'Direct executable launch',
   '.lnk',
   'Custom command launch',

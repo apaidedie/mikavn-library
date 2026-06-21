@@ -57,6 +57,7 @@ function createHandoff(overrides = {}) {
   writeFile(path.join(releaseDir, 'RELEASE_VALIDATION_REPORT.md'), reportLines.join('\n'));
   writeFile(path.join(releaseDir, 'MANUAL_RISK_PASS_CHECKLIST.md'), [
     '# MikaVN Library 0.1.1 Manual Risk Pass Checklist',
+    'When checking an item, append `Evidence:` or `证据：` with the command, screenshot path, log path, or exact manual observation.',
     '## Launch Profiles',
     '- [ ] Direct executable launch.',
     '- [ ] `.lnk` shortcut launch.',
@@ -176,6 +177,18 @@ test('checkReleaseHandoff rejects checked manual risk items without evidence', (
   assert.throws(
     () => checkReleaseHandoff({ releaseDir }),
     /checked manual risk checklist item must include evidence: Direct executable launch\./,
+  );
+});
+
+test('checkReleaseHandoff requires manual checklist evidence instructions', () => {
+  const { releaseDir } = createHandoff();
+  const checklistPath = path.join(releaseDir, 'MANUAL_RISK_PASS_CHECKLIST.md');
+  const checklist = fs.readFileSync(checklistPath, 'utf8');
+  fs.writeFileSync(checklistPath, checklist.replace('When checking an item, append `Evidence:` or `证据：` with the command, screenshot path, log path, or exact manual observation.\n', ''));
+
+  assert.throws(
+    () => checkReleaseHandoff({ releaseDir }),
+    /manual risk checklist is missing required token: .*Evidence:/,
   );
 });
 
