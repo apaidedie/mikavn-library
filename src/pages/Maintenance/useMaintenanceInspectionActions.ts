@@ -1,10 +1,10 @@
 import { useCallback, useState } from 'react';
 import { api } from '@/services/api';
-import type { ImageHealthReport, ImageReferenceAudit } from '@/types/archive';
+import type { ImageHealthReport, ImageQuarantineReport, ImageReferenceAudit } from '@/types/archive';
 import type { ArtworkRepairDiagnosis } from '@/types/metadata';
 import { errorMessage } from '@/utils/errorMessage';
 import { formatCount } from './MaintenancePageParts';
-import { formatImageContentTypeMismatchQuarantineCompletionMessage, formatImageDuplicateContentQuarantineCompletionMessage, formatImageInvalidQuarantineCompletionMessage, formatImageOversizedQuarantineCompletionMessage, formatImageQuarantineCompletionMessage } from './maintenanceImageHealthModel';
+import { formatImageContentTypeMismatchQuarantineCompletionMessage, formatImageDuplicateContentQuarantineCompletionMessage, formatImageInvalidQuarantineCompletionMessage, formatImageOversizedQuarantineCompletionMessage, formatImageQuarantineCompletionMessage, formatImageSafeCacheBatchCompletionMessage } from './maintenanceImageHealthModel';
 
 type TaskMessage = { text: string; taskId?: string | null };
 
@@ -172,6 +172,45 @@ export function useMaintenanceInspectionActions({ setError, setMessage }: UseMai
     }
   }, [imageHealth?.summary.contentTypeMismatchFiles, imageHealth?.summary.contentTypeMismatchRefs, setError, setMessage]);
 
+  const quarantineSafeCacheIssues = useCallback(async () => {
+    const summary = imageHealth?.summary;
+    if (!summary) return;
+    const orphanCount = summary.orphanFiles;
+    const duplicateGroupCount = summary.duplicateContentGroups;
+    const invalidUnreferencedCount = Math.max(0, summary.invalidImageFiles - summary.invalidImageRefs);
+    const oversizedCount = summary.oversizedFiles;
+    const mismatchUnreferencedCount = Math.max(0, summary.contentTypeMismatchFiles - summary.contentTypeMismatchRefs);
+    const totalIssueKinds = [
+      orphanCount,
+      duplicateGroupCount,
+      invalidUnreferencedCount,
+      oversizedCount,
+      mismatchUnreferencedCount,
+    ].filter((count) => count > 0).length;
+    const confirmed = window.confirm(
+      `将批量整理 ${formatCount(totalIssueKinds)} 类未被数据库引用的图片缓存问题。\n\n包含孤儿图片、重复内容中的未引用副本、未引用无效图片、未引用过大图片和未引用类型不匹配图片。仍被数据库引用的图片、缺封面和失效引用不会被移动。隔离区会写入 manifest.json，必要时可以按清单找回原路径。确认继续？`,
+    );
+    if (!confirmed) return;
+
+    setImageHealthLoading(true);
+    setError(null);
+    try {
+      const results: Pick<ImageQuarantineReport, 'movedFiles' | 'skippedFiles'>[] = [];
+      if (orphanCount > 0) results.push(await api.quarantineOrphanImages({ sampleLimit: 100 }));
+      if (duplicateGroupCount > 0) results.push(await api.quarantineDuplicateContentImages({ sampleLimit: 100 }));
+      if (invalidUnreferencedCount > 0) results.push(await api.quarantineInvalidImageCacheFiles({ sampleLimit: 100 }));
+      if (oversizedCount > 0) results.push(await api.quarantineOversizedImageCacheFiles({ sampleLimit: 100 }));
+      if (mismatchUnreferencedCount > 0) results.push(await api.quarantineContentTypeMismatchFiles({ sampleLimit: 100 }));
+      const report = await api.getImageHealthReport({ sampleLimit: 100 });
+      setImageHealth(report);
+      setMessage({ text: formatImageSafeCacheBatchCompletionMessage(results, report) });
+    } catch (reason) {
+      setError(errorMessage(reason));
+    } finally {
+      setImageHealthLoading(false);
+    }
+  }, [imageHealth?.summary, setError, setMessage]);
+
   const resetImageAuditFilters = useCallback(() => {
     setImageAuditQuery('');
     setImageAuditIssueFilter('all');
@@ -201,6 +240,7 @@ export function useMaintenanceInspectionActions({ setError, setMessage }: UseMai
     quarantineInvalidImageCacheFiles,
     quarantineOrphanImages,
     quarantineOversizedImageCacheFiles,
+    quarantineSafeCacheIssues,
     resetArtworkDiagnosisFilters,
     resetImageAuditFilters,
     setArtworkDiagnosisQuery,

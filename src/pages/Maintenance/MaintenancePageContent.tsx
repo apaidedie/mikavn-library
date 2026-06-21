@@ -167,6 +167,7 @@ export function MaintenancePageContent({ dataActions, duplicateMergeActions, his
         onQuarantineInvalidImages={inspectionActions.quarantineInvalidImageCacheFiles}
         onQuarantineOrphans={inspectionActions.quarantineOrphanImages}
         onQuarantineOversizedImages={inspectionActions.quarantineOversizedImageCacheFiles}
+        onQuarantineSafeCacheIssues={inspectionActions.quarantineSafeCacheIssues}
         onQueryChange={inspectionActions.setImageAuditQuery}
         onResetFilters={inspectionActions.resetImageAuditFilters}
         onRevealPath={(path) => void dataActions.revealPath(path)}

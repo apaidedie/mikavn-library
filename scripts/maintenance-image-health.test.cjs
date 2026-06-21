@@ -205,12 +205,15 @@ test('maintenance image health ui links broken image references to audit details
 test('maintenance image health ui exposes one-click safe cleanup wording', () => {
   const panel = fs.readFileSync('src/pages/Maintenance/MaintenanceImageAuditPanel.tsx', 'utf8');
   const actions = fs.readFileSync('src/pages/Maintenance/useMaintenanceInspectionActions.ts', 'utf8');
+  const content = fs.readFileSync('src/pages/Maintenance/MaintenancePageContent.tsx', 'utf8');
 
   assert.match(panel, /一键安全整理/);
+  assert.match(panel, /整理孤儿图片/);
   assert.match(panel, /整理重复内容/);
   assert.match(panel, /整理无效图片/);
   assert.match(panel, /整理过大图片/);
   assert.match(panel, /整理类型不匹配/);
+  assert.match(panel, /整理全部安全项/);
   assert.match(panel, /只处理未被数据库引用的孤儿缓存/);
   assert.match(panel, /只隔离重复内容中的未引用副本/);
   assert.match(panel, /只隔离未被数据库引用的无效图片/);
@@ -222,13 +225,38 @@ test('maintenance image health ui exposes one-click safe cleanup wording', () =>
   assert.match(panel, /canCleanupInvalidImages/);
   assert.match(panel, /canCleanupOversizedImages/);
   assert.match(panel, /canCleanupContentTypeMismatch/);
+  assert.match(panel, /canCleanupSafeCacheIssues/);
   assert.match(panel, /onQuarantineOrphans/);
   assert.match(panel, /onQuarantineDuplicateContent/);
   assert.match(panel, /onQuarantineInvalidImages/);
   assert.match(panel, /onQuarantineOversizedImages/);
   assert.match(panel, /onQuarantineContentTypeMismatch/);
+  assert.match(panel, /onQuarantineSafeCacheIssues/);
+  assert.match(actions, /quarantineSafeCacheIssues/);
+  assert.match(content, /onQuarantineSafeCacheIssues=\{inspectionActions\.quarantineSafeCacheIssues\}/);
   assert.match(actions, /formatImageQuarantineCompletionMessage/);
   assert.doesNotMatch(panel, /一键永久删除/);
+});
+
+test('maintenance image health batch cleanup confirms once and calls only safe cache quarantine APIs', () => {
+  const actions = fs.readFileSync('src/pages/Maintenance/useMaintenanceInspectionActions.ts', 'utf8');
+  const batchStart = actions.indexOf('const quarantineSafeCacheIssues');
+  const batchEnd = actions.indexOf('const resetImageAuditFilters');
+  const batchSource = actions.slice(batchStart, batchEnd);
+
+  assert.ok(batchStart > -1, 'batch safe cleanup action must exist');
+  assert.match(batchSource, /window\.confirm/);
+  assert.match(batchSource, /if \(!confirmed\) return/);
+  assert.match(batchSource, /未被数据库引用/);
+  assert.match(batchSource, /api\.quarantineOrphanImages/);
+  assert.match(batchSource, /api\.quarantineDuplicateContentImages/);
+  assert.match(batchSource, /api\.quarantineInvalidImageCacheFiles/);
+  assert.match(batchSource, /api\.quarantineOversizedImageCacheFiles/);
+  assert.match(batchSource, /api\.quarantineContentTypeMismatchFiles/);
+  assert.match(batchSource, /api\.getImageHealthReport\(\{ sampleLimit: 100 \}\)/);
+  assert.match(batchSource, /formatImageSafeCacheBatchCompletionMessage/);
+  assert.doesNotMatch(batchSource, /repairArtwork/);
+  assert.doesNotMatch(batchSource, /repairDescriptionImages/);
 });
 
 test('maintenance image health quarantine requires explicit confirmation before moving files', () => {
@@ -354,6 +382,20 @@ test('content type mismatch quarantine completion message reports refreshed mism
   );
 
   assert.equal(message, '类型不匹配整理完成：已移动 3 个未引用错配图片到隔离区；跳过 1 个；复查剩余 1 个未引用错配图片。');
+});
+
+test('safe cache batch completion message summarizes moved files and refreshed issues', () => {
+  const { formatImageSafeCacheBatchCompletionMessage } = loadMaintenanceImageHealthModel();
+  const message = formatImageSafeCacheBatchCompletionMessage(
+    [
+      { movedFiles: 2, skippedFiles: 0 },
+      { movedFiles: 3, skippedFiles: 1 },
+      { movedFiles: 0, skippedFiles: 2 },
+    ],
+    { summary: { orphanFiles: 1, duplicateContentGroups: 2, invalidImageFiles: 4, invalidImageRefs: 1, oversizedFiles: 5, contentTypeMismatchFiles: 3, contentTypeMismatchRefs: 1 } },
+  );
+
+  assert.equal(message, '批量安全整理完成：已移动 5 个未引用缓存文件到隔离区；跳过 3 个；复查剩余孤儿 1 个、重复内容 2 组、未引用坏图 3 个、过大图片 5 个、未引用类型不匹配 2 个。');
 });
 
 test('image health action hint explains disabled maintenance actions', () => {

@@ -61,6 +61,18 @@ export function formatImageContentTypeMismatchQuarantineCompletionMessage(
   return `类型不匹配整理完成：已移动 ${formatCount(result.movedFiles)} 个未引用错配图片到隔离区${skipped}；复查剩余 ${formatCount(remainingUnreferenced)} 个未引用错配图片。`;
 }
 
+export function formatImageSafeCacheBatchCompletionMessage(
+  results: Pick<ImageQuarantineReport, 'movedFiles' | 'skippedFiles'>[],
+  report: Pick<ImageHealthReport, 'summary'>,
+) {
+  const moved = results.reduce((sum, result) => sum + result.movedFiles, 0);
+  const skippedCount = results.reduce((sum, result) => sum + result.skippedFiles, 0);
+  const skipped = skippedCount > 0 ? `；跳过 ${formatCount(skippedCount)} 个` : '';
+  const remainingInvalid = Math.max(0, report.summary.invalidImageFiles - report.summary.invalidImageRefs);
+  const remainingMismatch = Math.max(0, report.summary.contentTypeMismatchFiles - report.summary.contentTypeMismatchRefs);
+  return `批量安全整理完成：已移动 ${formatCount(moved)} 个未引用缓存文件到隔离区${skipped}；复查剩余孤儿 ${formatCount(report.summary.orphanFiles)} 个、重复内容 ${formatCount(report.summary.duplicateContentGroups)} 组、未引用坏图 ${formatCount(remainingInvalid)} 个、过大图片 ${formatCount(report.summary.oversizedFiles)} 个、未引用类型不匹配 ${formatCount(remainingMismatch)} 个。`;
+}
+
 export function getImageHealthActionHint({ report, loading }: { report: ImageHealthActionHintReport | null; loading: boolean }) {
   if (loading) return '正在检查图片健康，完成后会更新可用操作。';
   if (!report) return '先检查图片健康后，再查看失效引用、诊断缺图或安全整理孤儿图片。';
