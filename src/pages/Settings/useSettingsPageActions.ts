@@ -5,14 +5,14 @@ import type { TagRecord } from '@/types/game';
 import type { MetadataSourceRecord } from '@/types/metadata';
 import { errorMessage } from '@/utils/errorMessage';
 import { DEFAULT_SETTINGS_FORM, settingsFormToAiConnectionRecord, settingsFormToRecord, settingsRecordToForm } from './settingsFormMapping';
-import type { SettingsForm, SettingsTab } from './settingsTypes';
+import type { SettingsForm, SettingsSection, SettingsTab } from './settingsTypes';
 import { useSettingsLibraryRoots } from './useSettingsLibraryRoots';
 import { useSettingsLocalDataActions } from './useSettingsLocalDataActions';
 
 export type TaskMessage = { text: string; taskId?: string | null };
 
 type UseSettingsPageActionsOptions = {
-  tabRequest?: { tab: SettingsTab; key: number } | null;
+  tabRequest?: { tab: SettingsTab; section?: SettingsSection | null; key: number } | null;
   onAccentPreview?: (uiAccentColor: string) => void;
   onThemePreview?: (uiThemeMode: string) => void;
   onSaved?: () => void;

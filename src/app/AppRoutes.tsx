@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import type { SettingsTab } from '@/pages/Settings/SettingsPage';
+import type { SettingsSection, SettingsTab } from '@/pages/Settings/SettingsPage';
 import type { LibraryFilterPreset } from '@/types/game';
 import type { TaskFilterPreset } from '@/types/task';
 import type { View } from './appNavigation';
@@ -32,14 +32,14 @@ type AppRoutesProps = {
   onOpenMetadata: (preset?: { query?: string; missingProvider?: string } | null) => void;
   onOpenSaves: () => void;
   onOpenScanner: () => void;
-  onOpenSettings: (tab?: SettingsTab) => void;
+  onOpenSettings: (tab?: SettingsTab, section?: SettingsSection | null) => void;
   onOpenTasks: (taskId?: string | null, preset?: TaskFilterPreset | null) => void;
   onThemePreview: (uiThemeMode: string) => void;
   onAddRequestConsumed: () => void;
   refreshKey: number;
   selectedGameId: string | null;
   setSelectedGameId: (id: string | null) => void;
-  settingsTabRequest: { tab: SettingsTab; key: number } | null;
+  settingsTabRequest: { tab: SettingsTab; section?: SettingsSection | null; key: number } | null;
   taskFilterPresetRequest: (TaskFilterPreset & { key: number }) | null;
   taskFocusRequest: { id: string | null; key: number };
   view: View;

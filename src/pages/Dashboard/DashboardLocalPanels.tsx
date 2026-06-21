@@ -3,7 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/notice';
 import { Panel, PanelContent, PanelHeader, SoftRow } from '@/components/ui/page';
-import type { SettingsTab } from '@/pages/Settings/SettingsPage';
+import type { SettingsSection, SettingsTab } from '@/pages/Settings/SettingsPage';
 import type { AppDataDiagnostics } from '@/types/archive';
 import type { LibraryFilterPreset } from '@/types/game';
 import type { TaskFilterPreset } from '@/types/task';
@@ -16,7 +16,7 @@ type DashboardPanelActions = {
   onOpenMaintenance?: (section?: string | null) => void;
   onOpenMetadata?: (preset?: { query?: string; missingProvider?: string } | null) => void;
   onOpenSaves?: () => void;
-  onOpenSettings?: (tab?: SettingsTab) => void;
+  onOpenSettings?: (tab?: SettingsTab, section?: SettingsSection | null) => void;
   onOpenTasks?: (taskId?: string | null, preset?: TaskFilterPreset | null) => void;
 };
 
@@ -66,8 +66,8 @@ export function LocalSafetyPanel({ diagnostics, onOpenSaves, onOpenSettings, onO
               <div className="mt-1 text-xs text-slate-600">恢复前自动保护备份，恢复会安排到下次启动应用。</div>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button size="sm" variant="outline" onClick={() => onOpenSettings?.('local')}>备份与恢复</Button>
-              <Button size="sm" variant="secondary" onClick={() => onOpenSettings?.('local')}><RotateCcw className="h-4 w-4" />恢复数据库</Button>
+              <Button size="sm" variant="outline" onClick={() => onOpenSettings?.('local', 'database-restore')}>备份与恢复</Button>
+              <Button size="sm" variant="secondary" onClick={() => onOpenSettings?.('local', 'database-restore')}><RotateCcw className="h-4 w-4" />恢复数据库</Button>
             </div>
           </SoftRow>
           <SoftRow className="flex flex-col justify-between gap-3">
@@ -128,7 +128,7 @@ function openAttentionItem(item: DashboardAttentionItem, actions: DashboardPanel
       actions.onOpenMetadata?.({ missingProvider: 'all' });
       break;
     case 'settings_local':
-      actions.onOpenSettings?.('local');
+      actions.onOpenSettings?.('local', item.kind === 'database_backup' ? 'database-restore' : null);
       break;
   }
 }

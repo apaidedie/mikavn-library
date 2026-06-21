@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { EmptyState } from '@/components/ui/notice';
 import { PageFrame, PageShell } from '@/components/ui/page';
 import { api } from '@/services/api';
-import type { SettingsTab } from '@/pages/Settings/SettingsPage';
+import type { SettingsSection, SettingsTab } from '@/pages/Settings/SettingsPage';
 import type { AppDataDiagnostics } from '@/types/archive';
 import type { DashboardData, Game, LibraryFilterPreset } from '@/types/game';
 import type { TaskFilterPreset, TaskRecord } from '@/types/task';
@@ -22,7 +22,7 @@ type DashboardPageProps = {
   onOpenMaintenance?: (section?: string | null) => void;
   onOpenMetadata?: (preset?: { query?: string; missingProvider?: string } | null) => void;
   onOpenSaves?: () => void;
-  onOpenSettings?: (tab?: SettingsTab) => void;
+  onOpenSettings?: (tab?: SettingsTab, section?: SettingsSection | null) => void;
   onOpenTasks?: (taskId?: string | null, preset?: TaskFilterPreset | null) => void;
 };
 

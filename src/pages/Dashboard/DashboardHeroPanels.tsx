@@ -4,13 +4,13 @@ import { Button } from '@/components/ui/button';
 import { CoverImage } from '@/components/ui/cover';
 import { EmptyState } from '@/components/ui/notice';
 import { MetricTile, Panel, PanelContent, PanelHeader } from '@/components/ui/page';
-import type { SettingsTab } from '@/pages/Settings/SettingsPage';
+import type { SettingsSection, SettingsTab } from '@/pages/Settings/SettingsPage';
 import type { DashboardData, Game } from '@/types/game';
 import { PLAY_STATUS_LABEL } from '@/types/game';
 import type { TaskFilterPreset } from '@/types/task';
 import { formatDateTime, formatPlayTime } from '@/utils/time';
 
-export function TodayStrip({ data, attentionCount, runningCount, onAddGame, onOpenMaintenance, onOpenScanner, onOpenSettings, onOpenTasks }: { data: DashboardData; attentionCount: number; runningCount: number; onAddGame?: () => void; onOpenMaintenance?: (section?: string | null) => void; onOpenScanner?: () => void; onOpenSettings?: (tab?: SettingsTab) => void; onOpenTasks?: (taskId?: string | null, preset?: TaskFilterPreset | null) => void }) {
+export function TodayStrip({ data, attentionCount, runningCount, onAddGame, onOpenMaintenance, onOpenScanner, onOpenSettings, onOpenTasks }: { data: DashboardData; attentionCount: number; runningCount: number; onAddGame?: () => void; onOpenMaintenance?: (section?: string | null) => void; onOpenScanner?: () => void; onOpenSettings?: (tab?: SettingsTab, section?: SettingsSection | null) => void; onOpenTasks?: (taskId?: string | null, preset?: TaskFilterPreset | null) => void }) {
   return (
     <Panel>
       <PanelContent className="space-y-3">

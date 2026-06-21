@@ -7,13 +7,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AppearanceSettings } from './AppearanceSettings';
 import { MetadataAiSettings } from './MetadataAiSettings';
 import { SettingsLocalTabContent } from './SettingsLocalTabContent';
-import type { SettingsTab } from './settingsTypes';
+import type { SettingsSection, SettingsTab } from './settingsTypes';
 import { useSettingsPageActions } from './useSettingsPageActions';
 
-export type { SettingsTab } from './settingsTypes';
+export type { SettingsSection, SettingsTab } from './settingsTypes';
 
 type SettingsPageProps = {
-  tabRequest?: { tab: SettingsTab; key: number } | null;
+  tabRequest?: { tab: SettingsTab; section?: SettingsSection | null; key: number } | null;
   onAccentPreview?: (uiAccentColor: string) => void;
   onThemePreview?: (uiThemeMode: string) => void;
   onSaved?: () => void;
@@ -65,6 +65,7 @@ export function SettingsPage({ tabRequest, onAccentPreview, onThemePreview, onSa
               form={settings.form}
               libraryRoots={settings.libraryRoots}
               localData={settings.localData}
+              restoreFocusKey={tabRequest?.section === 'database-restore' ? tabRequest.key : 0}
               settings={settings}
             />
           </TabsContent>

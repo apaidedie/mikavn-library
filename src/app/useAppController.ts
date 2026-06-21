@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { SettingsTab } from '@/pages/Settings/SettingsPage';
+import type { SettingsSection, SettingsTab } from '@/pages/Settings/SettingsPage';
 import type { LibraryFilterPreset } from '@/types/game';
 import type { TaskFilterPreset } from '@/types/task';
 import { navItems, readInitialView, type View } from './appNavigation';
@@ -22,7 +22,7 @@ export function useAppController() {
   const [maintenanceFocusRequest, setMaintenanceFocusRequest] = useState<{ section: string | null; key: number }>({ section: null, key: 0 });
   const [libraryFilterPresetRequest, setLibraryFilterPresetRequest] = useState<(LibraryFilterPreset & { key: number }) | null>(null);
   const [metadataQueuePresetRequest, setMetadataQueuePresetRequest] = useState<{ key: number; query?: string; missingProvider?: string }>({ key: 0 });
-  const [settingsTabRequest, setSettingsTabRequest] = useState<{ tab: SettingsTab; key: number } | null>(null);
+  const [settingsTabRequest, setSettingsTabRequest] = useState<{ tab: SettingsTab; section?: SettingsSection | null; key: number } | null>(null);
 
   const title = useMemo(() => navItems.find((item) => item.id === view)?.label ?? 'MikaVN Library', [view]);
   const { accent, previewAccent, previewTheme, resolvedTheme, toggleTheme } = useAppThemeSettings(refreshKey);
@@ -100,9 +100,10 @@ export function useAppController() {
   const openScanner = useCallback(() => setView('scanner'), []);
   const openSaves = useCallback(() => setView('saves'), []);
 
-  const openSettings = useCallback((tab?: SettingsTab) => {
-    if (tab) {
-      setSettingsTabRequest((current) => ({ tab, key: (current?.key ?? 0) + 1 }));
+  const openSettings = useCallback((tab?: SettingsTab, section?: SettingsSection | null) => {
+    const targetTab = tab ?? (section ? 'local' : undefined);
+    if (targetTab) {
+      setSettingsTabRequest((current) => ({ tab: targetTab, section: section ?? null, key: (current?.key ?? 0) + 1 }));
     }
     setView('settings');
   }, []);

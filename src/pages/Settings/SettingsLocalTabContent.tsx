@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import type { SettingsForm } from './settingsTypes';
 import { SettingsDiagnosticLogsSection } from './SettingsDiagnosticLogsSection';
 import { SettingsLibraryRootsSection } from './SettingsLibraryRootsSection';
@@ -14,14 +15,20 @@ type SettingsLocalTabContentProps = {
   form: SettingsForm;
   libraryRoots: ReturnType<typeof useSettingsLibraryRoots>;
   localData: ReturnType<typeof useSettingsLocalDataActions>;
+  restoreFocusKey?: number;
   settings: ReturnType<typeof useSettingsPageActions>;
 };
 
-export function SettingsLocalTabContent({ form, libraryRoots, localData, settings }: SettingsLocalTabContentProps) {
+export function SettingsLocalTabContent({ form, libraryRoots, localData, restoreFocusKey = 0, settings }: SettingsLocalTabContentProps) {
   const actions = settings.actions;
   const scrollToDatabaseRestore = () => {
     document.getElementById('database-restore-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
+
+  useEffect(() => {
+    if (!restoreFocusKey) return;
+    window.requestAnimationFrame(scrollToDatabaseRestore);
+  }, [restoreFocusKey]);
 
   return (
     <>
