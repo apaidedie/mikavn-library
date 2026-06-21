@@ -75,7 +75,7 @@ export function useGameDetailActions({ game, onChanged, onDeleted }: UseGameDeta
   };
 
   const remove = async () => {
-    if (!game || !window.confirm('只删除数据库记录，不会删除真实游戏文件。确认删除吗？')) return;
+    if (!game || !window.confirm(`删除游戏记录「${game.title}」？\n\n只会删除 MikaVN 数据库记录，不会删除真实游戏文件。\n会移除应用内的启动记录、存档路径、图库引用和合集关系。确认继续？`)) return;
     await api.deleteGameRecord(game.id);
     onDeleted();
   };
