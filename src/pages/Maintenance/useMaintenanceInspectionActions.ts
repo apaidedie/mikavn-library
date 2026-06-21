@@ -4,6 +4,7 @@ import type { ImageHealthReport, ImageReferenceAudit } from '@/types/archive';
 import type { ArtworkRepairDiagnosis } from '@/types/metadata';
 import { errorMessage } from '@/utils/errorMessage';
 import { formatCount } from './MaintenancePageParts';
+import { formatImageQuarantineCompletionMessage } from './maintenanceImageHealthModel';
 
 type TaskMessage = { text: string; taskId?: string | null };
 
@@ -73,7 +74,7 @@ export function useMaintenanceInspectionActions({ setError, setMessage }: UseMai
       const result = await api.quarantineOrphanImages({ sampleLimit: 100 });
       const report = await api.getImageHealthReport({ sampleLimit: 100 });
       setImageHealth(report);
-      setMessage({ text: `安全整理完成：已移动 ${formatCount(result.movedFiles)} 个孤儿图片到隔离区。` });
+      setMessage({ text: formatImageQuarantineCompletionMessage(result, report) });
     } catch (reason) {
       setError(errorMessage(reason));
     } finally {

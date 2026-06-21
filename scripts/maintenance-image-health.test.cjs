@@ -37,6 +37,23 @@ function loadDescriptionImageRepairResultPanel() {
   return module.exports;
 }
 
+function loadMaintenanceImageHealthModel() {
+  const sourcePath = path.join(__dirname, '..', 'src', 'pages', 'Maintenance', 'maintenanceImageHealthModel.ts');
+  const source = fs.readFileSync(sourcePath, 'utf8');
+  const transpiled = ts.transpileModule(source, {
+    compilerOptions: {
+      esModuleInterop: true,
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2022,
+    },
+  }).outputText;
+
+  const module = { exports: {} };
+  const fn = new Function('module', 'exports', transpiled);
+  fn(module, module.exports);
+  return module.exports;
+}
+
 function taskDetail(logMessages) {
   return {
     task: {
@@ -160,7 +177,7 @@ test('maintenance image health ui exposes one-click safe cleanup wording', () =>
   assert.match(panel, /缺封面和失效引用会保留给补图或明细审计/);
   assert.match(panel, /canSafeCleanup/);
   assert.match(panel, /onQuarantineOrphans/);
-  assert.match(actions, /安全整理完成/);
+  assert.match(actions, /formatImageQuarantineCompletionMessage/);
   assert.doesNotMatch(panel, /一键永久删除/);
 });
 
@@ -178,6 +195,16 @@ test('maintenance image health ui shows every health recommendation', () => {
   assert.match(panel, /report\.recommendations\.map/);
   assert.match(panel, /health-recommendation/);
   assert.doesNotMatch(panel, /report\.recommendations\[0\]/);
+});
+
+test('image quarantine completion message includes skipped and refreshed orphan counts', () => {
+  const { formatImageQuarantineCompletionMessage } = loadMaintenanceImageHealthModel();
+  const message = formatImageQuarantineCompletionMessage(
+    { movedFiles: 12, skippedFiles: 2 },
+    { summary: { orphanFiles: 3 } },
+  );
+
+  assert.equal(message, '安全整理完成：已移动 12 个孤儿图片到隔离区；跳过 2 个；复查剩余 3 个孤儿图片。');
 });
 
 test('description image repair history parses self-contained logs without a game index', () => {
