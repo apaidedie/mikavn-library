@@ -12,6 +12,7 @@ import type { Game } from '@/types/game';
 import type { AdvancedSearchResult, SavedSearch, SearchQueryValidation } from '@/types/metadata';
 import { errorMessage } from '@/utils/errorMessage';
 import { formatPlayTime } from '@/utils/time';
+import { formatAdvancedSearchResultDescription } from './advancedSearchPageModel';
 
 const quickSearches = [
   { label: '高分作品', description: '评分 80 以上', query: 'rating>=80' },
@@ -42,6 +43,10 @@ export function AdvancedSearchPage({ refreshKey, onOpenGame }: { refreshKey: num
   const valid = validation?.valid ?? true;
   const canSave = valid && query.trim().length > 0;
   const activeSaved = useMemo(() => saved.find((item) => item.query === query.trim()), [query, saved]);
+  const resultDescription = formatAdvancedSearchResultDescription(result ? {
+    total: result.total,
+    visible: resultGames.length,
+  } : null);
 
   useEffect(() => {
     void loadSavedSearches();
@@ -223,7 +228,7 @@ export function AdvancedSearchPage({ refreshKey, onOpenGame }: { refreshKey: num
           </Panel>
 
           <Panel>
-            <PanelHeader title="搜索结果" description={result ? `${result.total} 个匹配条目` : '尚未搜索'} />
+            <PanelHeader title="搜索结果" description={resultDescription} />
             <PanelContent className="space-y-3">
               {!result ? (
                 <EmptyState className="flex min-h-[24rem] items-center justify-center">输入关键词，或选择左侧快捷搜索。</EmptyState>
