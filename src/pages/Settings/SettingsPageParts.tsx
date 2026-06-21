@@ -56,10 +56,15 @@ export function DirectoryLocation({ detail, label, onCopy, onReveal, path }: { d
 export function TrayStatusPanel({ status }: { status: TrayStatus }) {
   const menuLabels = status.menuItems.map((item) => item.label).join(' / ');
   return (
-    <div className="grid w-[min(42rem,calc(100vw-3rem))] gap-2 text-left text-xs sm:grid-cols-3">
-      <Stat label="托盘状态" value={status.enabled ? '托盘图标已启用' : '托盘图标未启用'} tone={status.enabled ? 'ok' : 'warn'} />
-      <Stat label="关闭行为" value={trayCloseBehaviorLabel(status.closeBehavior)} tone={status.closeBehavior === 'hide_to_tray' ? 'ok' : 'neutral'} />
-      <Stat label="托盘菜单" value={menuLabels || '无菜单'} />
+    <div className="w-[min(42rem,calc(100vw-3rem))] space-y-2 text-left text-xs">
+      <div className="grid gap-2 sm:grid-cols-3">
+        <Stat label="托盘状态" value={status.enabled ? '托盘图标已启用' : '托盘图标未启用'} tone={status.enabled ? 'ok' : 'warn'} />
+        <Stat label="关闭行为" value={trayCloseBehaviorLabel(status.closeBehavior)} tone={status.closeBehavior === 'hide_to_tray' ? 'ok' : 'neutral'} />
+        <Stat label="托盘菜单" value={menuLabels || '无菜单'} />
+      </div>
+      <div className="rounded-md border border-white/10 bg-black/[0.10] px-3 py-2 text-slate-400">
+        {trayExitGuidance(status)}
+      </div>
     </div>
   );
 }
@@ -95,4 +100,11 @@ function trayCloseBehaviorLabel(value: string) {
   if (value === 'hide_to_tray') return '关闭主窗口时隐藏到托盘';
   if (value === 'close') return '关闭主窗口时直接退出';
   return value || '未知';
+}
+
+function trayExitGuidance(status: TrayStatus) {
+  if (status.closeBehavior === 'hide_to_tray') {
+    return '关闭主窗口只会隐藏到托盘；要完全退出应用，请在系统托盘菜单选择“退出”。';
+  }
+  return '托盘图标未启用时，关闭主窗口会直接退出应用。';
 }

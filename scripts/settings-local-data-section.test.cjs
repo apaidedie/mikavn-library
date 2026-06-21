@@ -83,3 +83,13 @@ test('local data settings exposes a diagnostic package export action', () => {
   assert.match(actions, /api\.exportDiagnosticPackage\(\)/);
   assert.match(content, /onExportDiagnosticPackage=\{localData\.exportDiagnosticPackage\}/);
 });
+
+test('tray settings explain how to fully exit when close hides to tray', () => {
+  const section = read('src/pages/Settings/SettingsTraySection.tsx');
+  const parts = read('src/pages/Settings/SettingsPageParts.tsx');
+
+  assert.match(section, /真正退出应用/);
+  assert.match(parts, /关闭主窗口只会隐藏到托盘/);
+  assert.match(parts, /系统托盘菜单选择“退出”/);
+  assert.match(parts, /关闭主窗口会直接退出应用/);
+});
