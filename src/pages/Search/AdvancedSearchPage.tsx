@@ -1,5 +1,5 @@
 import { Bookmark, CheckCircle2, PlayCircle, Save, Search, SlidersHorizontal, Trash2 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CoverImage } from '@/components/ui/cover';
@@ -34,6 +34,8 @@ export function AdvancedSearchPage({ refreshKey, onOpenGame }: { refreshKey: num
   const [saved, setSaved] = useState<SavedSearch[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const validationRequestRef = useRef(0);
+  const searchRequestRef = useRef(0);
 
   const resultGames = result?.games ?? [];
   const clauses = validation?.clauses ?? result?.clauses ?? [];
@@ -46,18 +48,24 @@ export function AdvancedSearchPage({ refreshKey, onOpenGame }: { refreshKey: num
   }, [refreshKey]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => void validate(), 250);
+    const nextQuery = query;
+    const timer = window.setTimeout(() => void validate(nextQuery), 250);
     return () => window.clearTimeout(timer);
   }, [query]);
 
-  async function validate() {
-    if (!query.trim()) {
+  async function validate(nextQuery = query) {
+    const requestId = ++validationRequestRef.current;
+
+    if (!nextQuery.trim()) {
       setValidation({ valid: true, errors: [], clauses: [] });
       return;
     }
     try {
-      setValidation(await api.validateSearchQuery(query));
+      const nextValidation = await api.validateSearchQuery(nextQuery);
+      if (requestId !== validationRequestRef.current) return;
+      setValidation(nextValidation);
     } catch (reason) {
+      if (requestId !== validationRequestRef.current) return;
       setValidation({ valid: false, errors: [errorMessage(reason)], clauses: [] });
     }
   }
@@ -71,15 +79,22 @@ export function AdvancedSearchPage({ refreshKey, onOpenGame }: { refreshKey: num
   }
 
   async function runSearch(nextQuery = query) {
+    const nextSortBy = sortBy;
+    const nextSortDirection = sortDirection;
+    const requestId = ++searchRequestRef.current;
+
     setLoading(true);
     setError(null);
     try {
-      const next = await api.searchGamesAdvanced({ query: nextQuery, sortBy, sortDirection, limit: 200 });
+      const next = await api.searchGamesAdvanced({ query: nextQuery, sortBy: nextSortBy, sortDirection: nextSortDirection, limit: 200 });
+      if (requestId !== searchRequestRef.current) return;
       setResult(next);
       setValidation({ valid: next.errors.length === 0, errors: next.errors, clauses: next.clauses });
     } catch (reason) {
+      if (requestId !== searchRequestRef.current) return;
       setError(errorMessage(reason));
     } finally {
+      if (requestId !== searchRequestRef.current) return;
       setLoading(false);
     }
   }
