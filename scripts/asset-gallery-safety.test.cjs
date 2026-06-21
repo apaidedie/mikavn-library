@@ -12,3 +12,12 @@ test('asset gallery cache cleanup previews removable files before deleting cache
   assert.match(source, /不会删除真实游戏文件或仍在图库、主图、简介中引用的图片/);
   assert.match(source, /api\.cleanupAssetCache\(\)/);
 });
+
+test('asset gallery ignores stale asset loads after switching games', () => {
+  const source = fs.readFileSync('src/pages/Library/AssetGallery.tsx', 'utf8');
+
+  assert.match(source, /let active = true/);
+  assert.match(source, /if \(active\) setAssets\(nextAssets\)/);
+  assert.match(source, /if \(active\) onMessage\(errorMessage\(reason\)\)/);
+  assert.match(source, /return \(\) => \{\s*active = false;\s*\}/);
+});

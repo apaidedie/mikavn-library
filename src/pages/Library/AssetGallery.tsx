@@ -19,7 +19,21 @@ export function AssetGallery({ game, blurCover, onChanged, onMessage }: { game: 
   const [busy, setBusy] = useState<string | null>(null);
 
   useEffect(() => {
-    void refreshAssets();
+    let active = true;
+
+    async function loadAssets() {
+      try {
+        const nextAssets = await api.listGameAssets(game.id);
+        if (active) setAssets(nextAssets);
+      } catch (reason) {
+        if (active) onMessage(errorMessage(reason));
+      }
+    }
+
+    void loadAssets();
+    return () => {
+      active = false;
+    };
   }, [game.id, game.coverImage, game.bannerImage, game.backgroundImage]);
 
   const grouped = useMemo(() => assets.reduce<Record<string, GameAsset[]>>((result, asset) => {
