@@ -61,3 +61,15 @@ test('local data settings labels the backup total as all database backups', () =
   assert.match(source, /label="数据库备份"/);
   assert.doesNotMatch(source, /label="旧数据库备份"/);
 });
+
+test('local data settings exposes a diagnostic package export action', () => {
+  const section = read('src/pages/Settings/SettingsLocalDataSection.tsx');
+  const actions = read('src/pages/Settings/useSettingsLocalDataActions.ts');
+  const content = read('src/pages/Settings/SettingsLocalTabContent.tsx');
+
+  assert.match(section, /导出诊断包/);
+  assert.match(section, /diagnosticExportLoading/);
+  assert.match(actions, /exportDiagnosticPackage/);
+  assert.match(actions, /api\.exportDiagnosticPackage\(\)/);
+  assert.match(content, /onExportDiagnosticPackage=\{localData\.exportDiagnosticPackage\}/);
+});

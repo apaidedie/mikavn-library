@@ -48,6 +48,7 @@ export function SettingsLocalTabContent({ form, libraryRoots, localData, setting
         archivePreview={localData.archivePreview}
         cleanupLoading={localData.cleanupLoading}
         databasePath={localData.databasePath}
+        diagnosticExportLoading={localData.diagnosticExportLoading}
         diagnostics={localData.diagnostics}
         diagnosticsLoading={localData.diagnosticsLoading}
         directoryLocations={localData.directoryLocations}
@@ -60,6 +61,7 @@ export function SettingsLocalTabContent({ form, libraryRoots, localData, setting
         onCopyDirectoryPath={localData.copyDirectoryPath}
         onExportArchive={localData.exportArchive}
         onExportArchiveZip={localData.exportArchiveZip}
+        onExportDiagnosticPackage={localData.exportDiagnosticPackage}
         onImportArchive={localData.importArchive}
         onIncludeImagesChange={localData.setIncludeImages}
         onIncludeSaveBackupsChange={localData.setIncludeSaveBackups}

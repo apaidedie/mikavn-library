@@ -1,4 +1,4 @@
-import { Copy, Download, Folder, RefreshCw, RotateCcw, Trash2 } from 'lucide-react';
+import { Copy, Download, FileArchive, Folder, RefreshCw, RotateCcw, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ConfigItem, ConfigSection } from '@/components/ui/config-item';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,7 @@ type SettingsLocalDataSectionProps = {
   archivePreview: LibraryArchivePreview | null;
   cleanupLoading: boolean;
   databasePath: string;
+  diagnosticExportLoading: boolean;
   diagnostics: AppDataDiagnostics | null;
   diagnosticsLoading: boolean;
   directoryLocations: DirectoryLocationItem[];
@@ -23,6 +24,7 @@ type SettingsLocalDataSectionProps = {
   onCopyDirectoryPath: (label: string, path: string) => void | Promise<void>;
   onExportArchive: () => void | Promise<void>;
   onExportArchiveZip: () => void | Promise<void>;
+  onExportDiagnosticPackage: () => void | Promise<void>;
   onImportArchive: () => void | Promise<void>;
   onIncludeImagesChange: (value: boolean) => void;
   onIncludeSaveBackupsChange: (value: boolean) => void;
@@ -40,6 +42,7 @@ export function SettingsLocalDataSection({
   archivePreview,
   cleanupLoading,
   databasePath,
+  diagnosticExportLoading,
   diagnostics,
   diagnosticsLoading,
   directoryLocations,
@@ -52,6 +55,7 @@ export function SettingsLocalDataSection({
   onCopyDirectoryPath,
   onExportArchive,
   onExportArchiveZip,
+  onExportDiagnosticPackage,
   onImportArchive,
   onIncludeImagesChange,
   onIncludeSaveBackupsChange,
@@ -70,6 +74,7 @@ export function SettingsLocalDataSection({
       <ConfigItem title="数据目录自检" description="读取当前应用数据目录、数据库完整性、图片引用和备份文件状态。">
         <div className="flex flex-wrap justify-end gap-2">
           <Button disabled={diagnosticsLoading} variant="outline" onClick={onLoadDiagnostics}><RefreshCw className="h-4 w-4" />{diagnosticsLoading ? '检查中' : '刷新自检'}</Button>
+          <Button disabled={diagnosticExportLoading} variant="outline" onClick={onExportDiagnosticPackage}><FileArchive className="h-4 w-4" />{diagnosticExportLoading ? '导出中' : '导出诊断包'}</Button>
           <Button disabled={cleanupLoading || !diagnostics?.databaseBackups.fileCount} variant="ghost" onClick={onCleanupDatabaseBackups}><Trash2 className="h-4 w-4" />{cleanupLoading ? '清理中' : '清理旧备份'}</Button>
         </div>
       </ConfigItem>
