@@ -599,6 +599,37 @@ mod tests {
     }
 
     #[test]
+    fn game_filter_limit_bounds_list_results_after_sorting() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch("PRAGMA foreign_keys = ON;").unwrap();
+        let db = Database { conn };
+        db.migrate().unwrap();
+
+        for title in ["Alpha VN", "Beta VN", "Gamma VN"] {
+            db.add_game(AddGameInput {
+                title: title.to_string(),
+                install_path: format!("D:\\Games\\{title}"),
+                ..empty_game_input()
+            })
+            .unwrap();
+        }
+
+        let games = db
+            .list_games(GameFilter {
+                sort_by: Some("title".to_string()),
+                sort_direction: Some("asc".to_string()),
+                limit: Some(2),
+                ..Default::default()
+            })
+            .unwrap();
+
+        assert_eq!(
+            games.iter().map(|game| game.title.as_str()).collect::<Vec<_>>(),
+            vec!["Alpha VN", "Beta VN"]
+        );
+    }
+
+    #[test]
     fn game_notes_persist_and_update_without_metadata_fields() {
         let conn = Connection::open_in_memory().unwrap();
         conn.execute_batch("PRAGMA foreign_keys = ON;").unwrap();

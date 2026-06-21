@@ -122,6 +122,7 @@ pub struct GameFilter {
     pub collection_id: Option<String>,
     pub sort_by: Option<String>,
     pub sort_direction: Option<String>,
+    pub limit: Option<i64>,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]

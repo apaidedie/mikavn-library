@@ -133,6 +133,7 @@ export const mockStore = {
     const collectionGameIds = filter.collectionId ? new Set(readCollectionLinks().filter((link) => link.collectionId === filter.collectionId).map((link) => link.gameId)) : null;
     const sortBy = filter.sortBy ?? 'updated_at';
     const sortDirection = filter.sortDirection ?? 'desc';
+    const limit = filter.limit == null ? null : Math.min(500, Math.max(1, Math.trunc(filter.limit)));
 
     const games = readGames()
       .map(ensureGameDefaults)
@@ -178,7 +179,7 @@ export const mockStore = {
         return sortDirection === 'asc' ? result : -result;
       });
 
-    return Promise.resolve(games);
+    return Promise.resolve(limit == null ? games : games.slice(0, limit));
   },
 
   getGame: getMockGame,

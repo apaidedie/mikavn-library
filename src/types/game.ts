@@ -50,6 +50,7 @@ export type GameFilter = {
   collectionId?: string;
   sortBy?: 'title' | 'created_at' | 'updated_at' | 'last_played_at' | 'release_date' | 'rating';
   sortDirection?: 'asc' | 'desc';
+  limit?: number;
 };
 
 export type LibraryFilterPreset = Partial<Pick<

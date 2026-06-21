@@ -47,7 +47,23 @@ export function CollectionsPage({ refreshKey, onOpenGame, onChanged }: Collectio
       setGames([]);
       return;
     }
-    api.listCollectionGames(selected.id).then(setGames).catch((reason) => setError(errorMessage(reason)));
+
+    let cancelled = false;
+    api
+      .listCollectionGames(selected.id)
+      .then((items) => {
+        if (cancelled) return;
+        setGames(items);
+        setError(null);
+      })
+      .catch((reason) => {
+        if (cancelled) return;
+        setError(errorMessage(reason));
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [selected?.id, refreshKey]);
 
   useEffect(() => {
@@ -213,9 +229,22 @@ function AddGamesPanel({ collection, linkedIds, onAdded }: { collection: GameCol
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api.listGames({ query, sortBy: 'updated_at', sortDirection: 'desc' })
-      .then((items) => setGames(items.filter((game) => !linkedIds.has(game.id)).slice(0, 8)))
-      .catch((reason) => setError(errorMessage(reason)));
+    let cancelled = false;
+
+    api.listGames({ query, sortBy: 'updated_at', sortDirection: 'desc', limit: 40 })
+      .then((items) => {
+        if (cancelled) return;
+        setGames(items.filter((game) => !linkedIds.has(game.id)).slice(0, 8));
+        setError(null);
+      })
+      .catch((reason) => {
+        if (cancelled) return;
+        setError(errorMessage(reason));
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [query, linkedIds]);
 
   const add = async (gameId: string) => {

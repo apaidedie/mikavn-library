@@ -37,6 +37,12 @@ impl<'a> GameRepository<'a> {
         let metadata_status = trim_optional(filter.metadata_status);
         let sort_by = filter.sort_by.unwrap_or_else(|| "updated_at".to_string());
         let desc = filter.sort_direction.unwrap_or_else(|| "desc".to_string()) != "asc";
+        let limit = filter.limit.map(|value| value.clamp(1, 500));
+        let sql_limit = if tag.is_none() && metadata_status.is_none() {
+            limit
+        } else {
+            None
+        };
         let mut query_clauses: Vec<String> = Vec::new();
         let mut query_params: Vec<Value> = Vec::new();
 
@@ -116,6 +122,10 @@ impl<'a> GameRepository<'a> {
         sql.push_str(sql_sort_column(&sort_by));
         sql.push(' ');
         sql.push_str(if desc { "DESC" } else { "ASC" });
+        if let Some(limit) = sql_limit {
+            sql.push_str(" LIMIT ?");
+            query_params.push(Value::Integer(limit));
+        }
 
         let mut stmt = self.conn.prepare(&sql)?;
         let rows = stmt.query_map(params_from_iter(query_params.iter()), game_from_row)?;
@@ -133,6 +143,10 @@ impl<'a> GameRepository<'a> {
 
         if let Some(metadata_status) = metadata_status {
             games.retain(|game| metadata_status_matches(game, &metadata_status));
+        }
+
+        if let Some(limit) = limit {
+            games.truncate(limit as usize);
         }
 
         Ok(games)
