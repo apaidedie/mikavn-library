@@ -48,11 +48,14 @@ test('default source budgets cover frontend, Rust service, and smoke runner hot 
     'src/app/AppChrome.tsx',
     'src/app/AppRoutes.tsx',
     'src/app/appNavigation.ts',
+    'src/app/useAppController.ts',
     'src/app/useAppKeyboardShortcuts.ts',
     'src/app/useAppThemeSettings.ts',
     'src/services/mockStore.ts',
     'src/pages/Dashboard/DashboardPage.tsx',
     'src/pages/Library/LibraryPage.tsx',
+    'src/pages/Library/LibrarySidebar.tsx',
+    'src/pages/Library/LibraryResizeHandle.tsx',
     'src/pages/Library/GameForm.tsx',
     'src/pages/Library/GameDetailMedia.tsx',
     'src/pages/Tasks/TasksPage.tsx',
@@ -88,6 +91,7 @@ test('app companion budgets keep entry chrome, routes, and hooks small', () => {
     ['AppChrome.tsx', 160],
     ['AppRoutes.tsx', 120],
     ['appNavigation.ts', 80],
+    ['useAppController.ts', 180],
     ['useAppKeyboardShortcuts.ts', 80],
     ['useAppThemeSettings.ts', 120],
   ]) {
@@ -103,6 +107,18 @@ test('library page budget keeps library orchestration small', () => {
 
   assert.ok(budget);
   assert.ok(budget.maxLines <= 120);
+});
+
+test('library companion budgets keep sidebar rendering outside the page shell', () => {
+  for (const [fileName, maxLines] of [
+    ['LibrarySidebar.tsx', 120],
+    ['LibraryResizeHandle.tsx', 80],
+  ]) {
+    const budget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith(`src/pages/Library/${fileName}`));
+
+    assert.ok(budget, fileName);
+    assert.ok(budget.maxLines <= maxLines, fileName);
+  }
 });
 
 test('dashboard page budget keeps personal dashboard orchestration small', () => {

@@ -33,6 +33,11 @@ const DEFAULT_SOURCE_BUDGETS = [
     maxLines: 120,
   },
   {
+    filePath: path.resolve(__dirname, '..', '..', 'src', 'app', 'useAppController.ts'),
+    maxBytes: 32 * 1024,
+    maxLines: 180,
+  },
+  {
     filePath: path.resolve(__dirname, '..', '..', 'src', 'services', 'mockStore.ts'),
     maxBytes: 108 * 1024,
     maxLines: 2250,
@@ -56,6 +61,16 @@ const DEFAULT_SOURCE_BUDGETS = [
     filePath: path.resolve(__dirname, '..', '..', 'src', 'pages', 'Library', 'LibraryPage.tsx'),
     maxBytes: 44 * 1024,
     maxLines: 120,
+  },
+  {
+    filePath: path.resolve(__dirname, '..', '..', 'src', 'pages', 'Library', 'LibrarySidebar.tsx'),
+    maxBytes: 32 * 1024,
+    maxLines: 120,
+  },
+  {
+    filePath: path.resolve(__dirname, '..', '..', 'src', 'pages', 'Library', 'LibraryResizeHandle.tsx'),
+    maxBytes: 16 * 1024,
+    maxLines: 80,
   },
   {
     filePath: path.resolve(__dirname, '..', '..', 'src', 'pages', 'Library', 'GameForm.tsx'),

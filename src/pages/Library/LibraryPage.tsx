@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { EmptyState, Notice } from '@/components/ui/notice';
 import { api } from '@/services/api';
 import type { Game, LibraryFilterPreset } from '@/types/game';
-import { cn } from '@/utils/cn';
 import { GameDetail } from './GameDetail';
 import { LibraryGameDialog } from './LibraryGameDialog';
-import { GameGrid, GameList } from './LibraryGameNav';
-import { LibrarySidebarControls, type LibraryViewMode } from './LibrarySidebarControls';
+import { LibraryResizeHandle } from './LibraryResizeHandle';
+import { LibrarySidebar } from './LibrarySidebar';
+import type { LibraryViewMode } from './LibrarySidebarControls';
 import { buildLibraryGameLookup, changedLibraryMetadataFields } from './libraryPageModel';
 import { useLibraryBulkActions } from './useLibraryBulkActions';
 import { useLibraryPageData } from './useLibraryPageData';
@@ -89,25 +88,22 @@ export function LibraryPage({ refreshKey, selectedGameId, onSelectedGameChange, 
 
   return (
     <div className="animate-view-in flex h-full min-h-0 overflow-hidden">
-      <aside className="flex shrink-0 flex-col bg-[rgb(var(--librarybar-rgb)/0.46)]" style={{ width: libraryPanelWidth }}>
-        <LibrarySidebarControls bulkActions={bulkActions} filters={filters} gameCount={visibleGames.length} onAdd={openAdd} onViewModeChange={setViewMode} viewMode={viewMode} />
+      <LibrarySidebar
+        blurCovers={blurCovers}
+        bulkActions={bulkActions}
+        error={error}
+        filters={filters}
+        loading={loading}
+        selectedGameId={selectedGameId}
+        viewMode={viewMode}
+        visibleGames={visibleGames}
+        width={libraryPanelWidth}
+        onAdd={openAdd}
+        onSelectedGameChange={onSelectedGameChange}
+        onViewModeChange={setViewMode}
+      />
 
-        <div className="min-h-0 flex-1 overflow-auto p-1">
-          {error && <Notice className="mb-2" tone="error">{error}</Notice>}
-          {bulkActions.bulkMessage && <Notice className="mb-2 py-2">{bulkActions.bulkMessage}</Notice>}
-          {loading ? <EmptyState className="py-8">正在读取游戏列表...</EmptyState> : viewMode === 'list' ? <GameList games={visibleGames} selectedId={selectedGameId} onSelect={onSelectedGameChange} blurCovers={blurCovers} bulkMode={bulkActions.bulkMode} selectedIds={bulkActions.bulkSelectedIds} onToggleSelection={bulkActions.toggleBulkSelection} /> : <GameGrid games={visibleGames} selectedId={selectedGameId} onSelect={onSelectedGameChange} blurCovers={blurCovers} bulkMode={bulkActions.bulkMode} selectedIds={bulkActions.bulkSelectedIds} onToggleSelection={bulkActions.toggleBulkSelection} />}
-        </div>
-      </aside>
-
-      <div
-        aria-label="调整游戏库侧栏宽度"
-        className={cn('library-resizer group relative z-10 h-full w-1 shrink-0 cursor-ew-resize', draggingPanel && 'is-dragging')}
-        onDoubleClick={resetLibraryPanelWidth}
-        onPointerDown={startPanelResize}
-        role="separator"
-      >
-        <div className="absolute inset-y-0 left-0 w-px bg-white/10 transition-all duration-100 group-hover:w-1 group-hover:bg-[rgb(var(--accent-rgb)/0.72)]" />
-      </div>
+      <LibraryResizeHandle dragging={draggingPanel} onReset={resetLibraryPanelWidth} onStartResize={startPanelResize} />
 
       <section className="min-w-0 flex-1 overflow-hidden">
         <GameDetail game={selectedGame} blurCover={blurCovers} onEdit={(game) => { setEditingGame(game); setDialogOpen(true); }} onDeleted={deleted} onChanged={() => onChanged()} onOpenMaintenance={onOpenMaintenance} onOpenTasks={onOpenTasks} />
