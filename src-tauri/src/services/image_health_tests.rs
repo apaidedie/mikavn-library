@@ -233,10 +233,39 @@ fn duplicate_content_detection_skips_unique_size_files_before_hashing() {
     )
     .unwrap();
 
-    assert_eq!(groups.len(), 1);
-    assert_eq!(groups[0].count, 2);
-    assert!(groups[0].samples.contains(&"alpha.jpg".to_string()));
-    assert!(groups[0].samples.contains(&"beta.webp".to_string()));
+    assert_eq!(groups.total_groups, 1);
+    assert_eq!(groups.samples.len(), 1);
+    assert_eq!(groups.samples[0].count, 2);
+    assert!(groups.samples[0].samples.contains(&"alpha.jpg".to_string()));
+    assert!(groups.samples[0].samples.contains(&"beta.webp".to_string()));
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn duplicate_content_group_count_is_not_limited_by_sample_limit() {
+    let root = std::env::temp_dir().join(format!(
+        "mikavn-image-content-count-limit-{}",
+        Uuid::new_v4()
+    ));
+    let paths = AppPaths::from_root(root.clone()).unwrap();
+    fs::create_dir_all(paths.images()).unwrap();
+    fs::write(paths.images().join("one-a.jpg"), b"content-one").unwrap();
+    fs::write(paths.images().join("one-b.webp"), b"content-one").unwrap();
+    fs::write(paths.images().join("two-a.png"), b"content-two").unwrap();
+    fs::write(paths.images().join("two-b.gif"), b"content-two").unwrap();
+
+    let report = get_image_health_report_with_paths(
+        &paths,
+        ImageHealthReportOptions {
+            oversized_bytes: None,
+            sample_limit: Some(1),
+        },
+    )
+    .unwrap();
+
+    assert_eq!(report.summary.duplicate_content_groups, 2);
+    assert_eq!(report.cache.duplicate_content_groups, 2);
+    assert_eq!(report.cache.duplicate_content_samples.len(), 1);
     let _ = fs::remove_dir_all(root);
 }
 

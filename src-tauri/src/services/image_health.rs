@@ -127,6 +127,12 @@ struct ImageCacheContentCandidate {
     size_bytes: u64,
 }
 
+#[derive(Debug, Clone, Default)]
+struct ImageDuplicateContentGroups {
+    total_groups: i64,
+    samples: Vec<ImageDuplicateContentGroup>,
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ImageQuarantineReport {
@@ -623,8 +629,8 @@ fn scan_image_cache(
     }
     let duplicate_content_groups =
         duplicate_content_groups_from_candidates(content_candidates, sample_limit)?;
-    health.duplicate_content_groups = duplicate_content_groups.len() as i64;
-    health.duplicate_content_samples = duplicate_content_groups;
+    health.duplicate_content_groups = duplicate_content_groups.total_groups;
+    health.duplicate_content_samples = duplicate_content_groups.samples;
     Ok(health)
 }
 
@@ -757,7 +763,7 @@ fn scan_image_dir(
 fn duplicate_content_groups_from_candidates(
     candidates: Vec<ImageCacheContentCandidate>,
     sample_limit: usize,
-) -> DbResult<Vec<ImageDuplicateContentGroup>> {
+) -> DbResult<ImageDuplicateContentGroups> {
     let mut by_size: HashMap<u64, Vec<ImageCacheContentCandidate>> = HashMap::new();
     for candidate in candidates {
         by_size
@@ -779,18 +785,18 @@ fn duplicate_content_groups_from_candidates(
         }
     }
 
-    let mut groups = Vec::new();
+    let mut groups = ImageDuplicateContentGroups::default();
     for ((content_hash, size_bytes), samples) in by_content {
         if samples.len() > 1 {
-            groups.push(ImageDuplicateContentGroup {
-                content_hash: format!("{content_hash:016x}"),
-                size_bytes,
-                count: samples.len() as i64,
-                samples: samples.into_iter().take(5).collect(),
-            });
-        }
-        if groups.len() >= sample_limit {
-            break;
+            groups.total_groups += 1;
+            if groups.samples.len() < sample_limit {
+                groups.samples.push(ImageDuplicateContentGroup {
+                    content_hash: format!("{content_hash:016x}"),
+                    size_bytes,
+                    count: samples.len() as i64,
+                    samples: samples.into_iter().take(5).collect(),
+                });
+            }
         }
     }
     Ok(groups)
