@@ -66,7 +66,7 @@ if ($package.private -ne $true) {
   throw "package.json should remain private=true; GitHub release publishes the desktop installer, not an npm package."
 }
 
-$requiredScripts = @("build", "typecheck", "test:release-scripts", "test:playwright-scripts", "test:updater-release", "test:diagnostic-export", "release:check", "release:check:strict", "release:signing:check", "release:signing:require", "release:sign", "release:handoff:check", "release:validate", "release:validate:strict", "release:validate:core", "smoke:browser", "smoke:large", "smoke:install", "smoke:portable-data", "smoke:real-data:readonly", "tauri:build", "smoke:desktop")
+$requiredScripts = @("build", "typecheck", "test:release-scripts", "test:playwright-scripts", "test:updater-release", "test:diagnostic-export", "release:check", "release:check:strict", "release:signing:check", "release:signing:require", "release:sign", "release:handoff:check", "release:validate", "release:validate:strict", "release:validate:core", "smoke:browser", "smoke:large", "smoke:install", "smoke:portable-data", "smoke:real-data:readonly", "smoke:elevated-launch", "tauri:build", "smoke:desktop")
 foreach ($scriptName in $requiredScripts) {
   if ($null -eq $package.scripts.$scriptName -or [string]::IsNullOrWhiteSpace([string]$package.scripts.$scriptName)) {
     throw "package.json is missing required script '$scriptName'."
@@ -159,6 +159,13 @@ foreach ($token in @("scripts/desktop-smoke/run-real-app-data-readonly-smoke.ps1
   }
 }
 
+foreach ($token in @("scripts/desktop-smoke/run-elevated-launch-smoke.ps1")) {
+  $scriptText = [string]$package.scripts.'smoke:elevated-launch'
+  if (!$scriptText.Contains($token)) {
+    throw "package.json smoke:elevated-launch must include token '$token'."
+  }
+}
+
 $requiredScriptFiles = @(
   "scripts\playwright\page-qa-runner.cjs",
   "scripts\playwright\core-workflow-smoke.cjs",
@@ -168,6 +175,7 @@ $requiredScriptFiles = @(
   "scripts\desktop-smoke\run-clean-install-smoke.ps1",
   "scripts\desktop-smoke\run-portable-app-data-smoke.ps1",
   "scripts\desktop-smoke\run-real-app-data-readonly-smoke.ps1",
+  "scripts\desktop-smoke\run-elevated-launch-smoke.ps1",
   "scripts\release\check-windows-signing.ps1",
   "scripts\release\sign-windows-release.ps1",
   "scripts\release\run-release-validation.ps1",
@@ -322,7 +330,7 @@ foreach ($token in @("browser", "Vite", "desktop smoke artifacts")) {
     throw "Release notes template must document CI artifact coverage token '$token'."
   }
 }
-foreach ($token in @("npm run release:check:strict", "npm run release:validate:strict", "npm run release:validate:core", "npm run test:release-scripts", "npm run test:playwright-scripts", "npm run smoke:large", "npm run smoke:install", "npm run smoke:portable-data", "npm run smoke:real-data:readonly", "npm run release:handoff:check", "RELEASE_VALIDATION_REPORT.md", "MANUAL_RISK_PASS_CHECKLIST.md", "output/desktop-smoke/run-*/isolated-app-data", "docs/CODE_SIGNING.md")) {
+foreach ($token in @("npm run release:check:strict", "npm run release:validate:strict", "npm run release:validate:core", "npm run test:release-scripts", "npm run test:playwright-scripts", "npm run smoke:large", "npm run smoke:install", "npm run smoke:portable-data", "npm run smoke:real-data:readonly", "npm run smoke:elevated-launch -- success 60", "npm run smoke:elevated-launch -- cancel 60", "no marker", "npm run release:handoff:check", "RELEASE_VALIDATION_REPORT.md", "MANUAL_RISK_PASS_CHECKLIST.md", "output/desktop-smoke/run-*/isolated-app-data", "docs/CODE_SIGNING.md")) {
   if (!$releaseChecklist.Contains($token)) {
     throw "RELEASE_CHECKLIST.md must document release gate token '$token'."
   }

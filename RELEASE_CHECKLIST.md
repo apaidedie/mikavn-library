@@ -78,6 +78,9 @@ After copying the release executable, installer, `SHA256SUMS.txt`, `RELEASE_VALI
 ## 5. Manual Risk Pass
 
 - Launch profiles: direct executable, `.lnk`, custom command, Locale Emulator-style wrapper, and elevated launch cancellation/success where practical.
+  - For elevated success, run `npm run smoke:elevated-launch -- success 60`, approve the Windows UAC prompt, and record the generated `elevated-launch-smoke-report.json` path when it reports `status: completed` and `succeeded: true`.
+  - For elevated cancellation, run `npm run smoke:elevated-launch -- cancel 60`, choose No/Cancel in the Windows UAC prompt, and record the report path only when it reports `status: cancelled`, `succeeded: true`, and no marker was written.
+  - If the cancellation run reports `status: approved`, the UAC prompt was approved and the item is still not passed; rerun the cancellation smoke and choose No/Cancel.
 - Destructive-adjacent flows: database restore scheduling, safe archive import, save mirror restore, tag deletion, and game record deletion. Each flow should require explicit confirmation and avoid deleting real game installations.
 - Privacy: diagnostic log previews and task messages should keep the tested redaction baseline for API-like keys/tokens/passwords and Windows user profile names.
 - Search UX: quick searches should work without knowing the DSL; advanced grammar should remain available for power users.
