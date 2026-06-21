@@ -12,18 +12,23 @@ fn image_health_report_counts_reference_and_cache_issues() {
     fs::create_dir_all(paths.images().join("playnite-import/game")).unwrap();
     fs::create_dir_all(paths.images().join("dupes/a")).unwrap();
     fs::create_dir_all(paths.images().join("dupes/b")).unwrap();
+    fs::create_dir_all(paths.images().join("content-dupes")).unwrap();
 
     let cover = paths.images().join("cover.jpg");
     let legacy = paths.images().join("playnite-import/game/cover.jpg");
     let orphan = paths.images().join("orphan.webp");
     let duplicate_a = paths.images().join("dupes/a/same.png");
     let duplicate_b = paths.images().join("dupes/b/same.png");
+    let content_duplicate_a = paths.images().join("content-dupes/alpha.jpg");
+    let content_duplicate_b = paths.images().join("content-dupes/beta.webp");
     let oversized = paths.images().join("large.jpg");
     fs::write(&cover, b"\xFF\xD8\xFFcover").unwrap();
     fs::write(&legacy, b"\xFF\xD8\xFFlegacy").unwrap();
     fs::write(&orphan, b"orphan").unwrap();
     fs::write(&duplicate_a, b"a").unwrap();
     fs::write(&duplicate_b, b"b").unwrap();
+    fs::write(&content_duplicate_a, b"\xFF\xD8\xFFsame-content").unwrap();
+    fs::write(&content_duplicate_b, b"\xFF\xD8\xFFsame-content").unwrap();
     fs::write(&oversized, vec![1u8; 6 * 1024 * 1024]).unwrap();
 
     create_health_db(
@@ -42,9 +47,20 @@ fn image_health_report_counts_reference_and_cache_issues() {
     assert_eq!(report.summary.playnite_refs, 1);
     assert_eq!(report.summary.legacy_app_data_import_refs, 1);
     assert_eq!(report.summary.issue_image_refs, 1);
-    assert_eq!(report.cache.file_count, 6);
-    assert_eq!(report.cache.orphan_file_count, 4);
+    assert_eq!(report.cache.file_count, 8);
+    assert_eq!(report.cache.orphan_file_count, 6);
     assert_eq!(report.cache.duplicate_file_name_groups, 1);
+    assert_eq!(report.summary.duplicate_content_groups, 1);
+    assert_eq!(report.cache.duplicate_content_groups, 1);
+    assert!(report
+        .cache
+        .duplicate_content_samples
+        .iter()
+        .any(|group| group
+            .samples
+            .iter()
+            .any(|sample| sample.ends_with("content-dupes\\alpha.jpg")
+                || sample.ends_with("content-dupes/alpha.jpg"))));
     assert_eq!(report.cache.oversized_file_count, 1);
     assert!(report
         .cache
@@ -54,7 +70,7 @@ fn image_health_report_counts_reference_and_cache_issues() {
     assert!(report
         .recommendations
         .iter()
-        .any(|item| item.contains("重复文件名")));
+        .any(|item| item.contains("重复内容")));
     assert!(report
         .recommendations
         .iter()

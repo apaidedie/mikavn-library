@@ -97,6 +97,9 @@ test('image health commands are registered and exposed through api', () => {
   assert.match(types, /invalidImageSamples/);
   assert.match(types, /referenceSamples/);
   assert.match(types, /ImageCacheReferenceSample/);
+  assert.match(types, /duplicateContentGroups/);
+  assert.match(types, /duplicateContentSamples/);
+  assert.match(types, /ImageDuplicateContentGroup/);
 });
 
 test('maintenance image health ui explains safe quarantine workflow', () => {
@@ -156,6 +159,10 @@ test('maintenance image health ui can reveal duplicate cache samples', () => {
   assert.match(panel, /onRevealPath=\{onRevealPath\}/);
   assert.match(panel, /定位重复/);
   assert.match(panel, /重复文件名需要人工确认内容是否相同/);
+  assert.match(panel, /重复内容/);
+  assert.match(panel, /duplicateContentSamples/);
+  assert.match(panel, /contentHash/);
+  assert.match(panel, /内容相同/);
 });
 
 test('maintenance image health ui links missing artwork findings to repair actions', () => {
@@ -260,6 +267,18 @@ test('image health action hint explains disabled maintenance actions', () => {
       missingArtworkGames: 0,
     },
   };
+  const duplicateOnlyReport = {
+    summary: {
+      orphanFiles: 0,
+      missingLocalRefs: 0,
+      invalidImageRefs: 0,
+      cDriveRefs: 0,
+      playniteRefs: 0,
+      externalLegacyRefs: 0,
+      missingArtworkGames: 0,
+      duplicateContentGroups: 2,
+    },
+  };
 
   assert.equal(
     getImageHealthActionHint({ report: null, loading: false }),
@@ -272,6 +291,10 @@ test('image health action hint explains disabled maintenance actions', () => {
   assert.equal(
     getImageHealthActionHint({ report: brokenOnlyReport, loading: false }),
     '没有可补全的媒体缺图；没有可整理的孤儿图片。',
+  );
+  assert.equal(
+    getImageHealthActionHint({ report: duplicateOnlyReport, loading: false }),
+    '重复内容缓存需要先查看样本并确认引用；没有需要逐条审计的失效引用；没有可补全的媒体缺图；没有可整理的孤儿图片。',
   );
 });
 

@@ -46,6 +46,7 @@ pub struct ImageHealthSummary {
     pub image_files: i64,
     pub orphan_files: i64,
     pub duplicate_file_name_groups: i64,
+    pub duplicate_content_groups: i64,
     pub oversized_files: i64,
     pub invalid_image_files: i64,
     pub invalid_image_refs: i64,
@@ -65,6 +66,7 @@ pub struct ImageCacheHealth {
     pub orphan_file_count: i64,
     pub orphan_bytes: u64,
     pub duplicate_file_name_groups: i64,
+    pub duplicate_content_groups: i64,
     pub oversized_file_count: i64,
     pub oversized_bytes: u64,
     pub invalid_image_file_count: i64,
@@ -75,6 +77,7 @@ pub struct ImageCacheHealth {
     pub content_type_mismatch_bytes: u64,
     pub orphan_samples: Vec<ImageCacheFileIssue>,
     pub duplicate_name_samples: Vec<ImageDuplicateNameGroup>,
+    pub duplicate_content_samples: Vec<ImageDuplicateContentGroup>,
     pub oversized_samples: Vec<ImageCacheFileIssue>,
     pub invalid_image_samples: Vec<ImageCacheFileIssue>,
     pub content_type_mismatch_samples: Vec<ImageCacheFileIssue>,
@@ -102,6 +105,15 @@ pub struct ImageCacheReferenceSample {
 #[serde(rename_all = "camelCase")]
 pub struct ImageDuplicateNameGroup {
     pub file_name: String,
+    pub count: i64,
+    pub samples: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImageDuplicateContentGroup {
+    pub content_hash: String,
+    pub size_bytes: u64,
     pub count: i64,
     pub samples: Vec<String>,
 }
@@ -180,6 +192,7 @@ pub(crate) fn get_image_health_report_with_paths(
     summary.image_files = cache.file_count;
     summary.orphan_files = cache.orphan_file_count;
     summary.duplicate_file_name_groups = cache.duplicate_file_name_groups;
+    summary.duplicate_content_groups = cache.duplicate_content_groups;
     summary.oversized_files = cache.oversized_file_count;
     summary.invalid_image_files = cache.invalid_image_file_count;
     summary.invalid_image_refs = cache.invalid_referenced_file_count;
@@ -572,6 +585,7 @@ fn scan_image_cache(
         ..ImageCacheHealth::default()
     };
     let mut duplicate_names: HashMap<String, Vec<String>> = HashMap::new();
+    let mut duplicate_contents: HashMap<(u64, u64), Vec<String>> = HashMap::new();
     if !root.exists() {
         return Ok(health);
     }
@@ -583,6 +597,7 @@ fn scan_image_cache(
         oversized_bytes,
         sample_limit,
         &mut duplicate_names,
+        &mut duplicate_contents,
         &mut health,
     )?;
     for (file_name, samples) in duplicate_names {
@@ -594,6 +609,21 @@ fn scan_image_cache(
                     count: samples.len() as i64,
                     samples: samples.into_iter().take(5).collect(),
                 });
+            }
+        }
+    }
+    for ((content_hash, size_bytes), samples) in duplicate_contents {
+        if samples.len() > 1 {
+            health.duplicate_content_groups += 1;
+            if health.duplicate_content_samples.len() < sample_limit {
+                health
+                    .duplicate_content_samples
+                    .push(ImageDuplicateContentGroup {
+                        content_hash: format!("{content_hash:016x}"),
+                        size_bytes,
+                        count: samples.len() as i64,
+                        samples: samples.into_iter().take(5).collect(),
+                    });
             }
         }
     }
@@ -623,6 +653,7 @@ fn scan_image_dir(
     oversized_bytes: u64,
     sample_limit: usize,
     duplicate_names: &mut HashMap<String, Vec<String>>,
+    duplicate_contents: &mut HashMap<(u64, u64), Vec<String>>,
     health: &mut ImageCacheHealth,
 ) -> DbResult<()> {
     for entry in fs::read_dir(path)? {
@@ -638,6 +669,7 @@ fn scan_image_dir(
                 oversized_bytes,
                 sample_limit,
                 duplicate_names,
+                duplicate_contents,
                 health,
             )?;
             continue;
@@ -670,7 +702,11 @@ fn scan_image_dir(
                     .unwrap_or_default(),
             )
             .or_default()
-            .push(relative_path);
+            .push(relative_path.clone());
+        duplicate_contents
+            .entry((hash_file_content(&path)?, size_bytes))
+            .or_default()
+            .push(relative_path.clone());
 
         let path_key = normalize_path_key(&path.to_string_lossy());
         let is_referenced = referenced_paths.contains(&path_key);
@@ -740,6 +776,9 @@ fn image_health_recommendations(summary: &ImageHealthSummary) -> Vec<String> {
     if summary.duplicate_file_name_groups > 0 {
         recommendations.push("重复文件名需要人工定位样本并确认内容是否相同。".to_string());
     }
+    if summary.duplicate_content_groups > 0 {
+        recommendations.push("发现重复内容缓存；确认引用后可优先隔离未引用副本。".to_string());
+    }
     if summary.oversized_files > 0 {
         recommendations.push("过大图片建议先定位样本，确认后再压缩或重新抓取。".to_string());
     }
@@ -752,6 +791,23 @@ fn image_health_recommendations(summary: &ImageHealthSummary) -> Vec<String> {
         recommendations.push("图片缓存和引用未发现需要立即处理的问题。".to_string());
     }
     recommendations
+}
+
+fn hash_file_content(path: &Path) -> DbResult<u64> {
+    let mut file = fs::File::open(path)?;
+    let mut hash = 0xcbf29ce484222325u64;
+    let mut buffer = [0u8; 8192];
+    loop {
+        let read = file.read(&mut buffer)?;
+        if read == 0 {
+            break;
+        }
+        for byte in &buffer[..read] {
+            hash ^= u64::from(*byte);
+            hash = hash.wrapping_mul(0x100000001b3);
+        }
+    }
+    Ok(hash)
 }
 
 enum ImageCacheContentIssue {

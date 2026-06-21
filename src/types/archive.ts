@@ -236,6 +236,13 @@ export type ImageDuplicateNameGroup = {
   samples: string[];
 };
 
+export type ImageDuplicateContentGroup = {
+  contentHash: string;
+  sizeBytes: number;
+  count: number;
+  samples: string[];
+};
+
 export type ImageCacheHealth = {
   rootPath: string;
   fileCount: number;
@@ -244,6 +251,7 @@ export type ImageCacheHealth = {
   orphanFileCount: number;
   orphanBytes: number;
   duplicateFileNameGroups: number;
+  duplicateContentGroups: number;
   oversizedFileCount: number;
   oversizedBytes: number;
   invalidImageFileCount: number;
@@ -254,6 +262,7 @@ export type ImageCacheHealth = {
   contentTypeMismatchBytes: number;
   orphanSamples: ImageCacheFileIssue[];
   duplicateNameSamples: ImageDuplicateNameGroup[];
+  duplicateContentSamples: ImageDuplicateContentGroup[];
   oversizedSamples: ImageCacheFileIssue[];
   invalidImageSamples: ImageCacheFileIssue[];
   contentTypeMismatchSamples: ImageCacheFileIssue[];
@@ -270,6 +279,7 @@ export type ImageHealthSummary = {
   imageFiles: number;
   orphanFiles: number;
   duplicateFileNameGroups: number;
+  duplicateContentGroups: number;
   oversizedFiles: number;
   invalidImageFiles: number;
   invalidImageRefs: number;

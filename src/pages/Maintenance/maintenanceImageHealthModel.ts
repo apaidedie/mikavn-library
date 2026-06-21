@@ -10,6 +10,8 @@ type ImageHealthActionHintReport = {
     | 'playniteRefs'
     | 'externalLegacyRefs'
     | 'missingArtworkGames'
+    | 'duplicateContentGroups'
+    | 'duplicateFileNameGroups'
   >>;
 };
 
@@ -28,6 +30,7 @@ export function getImageHealthActionHint({ report, loading }: { report: ImageHea
   const summary = report.summary;
   const hasOrphans = (summary.orphanFiles ?? 0) > 0;
   const hasArtworkGaps = (summary.missingArtworkGames ?? 0) > 0;
+  const hasDuplicateCache = (summary.duplicateContentGroups ?? 0) > 0 || (summary.duplicateFileNameGroups ?? 0) > 0;
   const hasBrokenRefs = [
     summary.missingLocalRefs,
     summary.invalidImageRefs,
@@ -36,9 +39,10 @@ export function getImageHealthActionHint({ report, loading }: { report: ImageHea
     summary.externalLegacyRefs,
   ].some((value) => (value ?? 0) > 0);
 
-  if (!hasOrphans && !hasArtworkGaps && !hasBrokenRefs) return '当前图片健康检查没有发现需要处理的图片问题。';
+  if (!hasOrphans && !hasArtworkGaps && !hasBrokenRefs && !hasDuplicateCache) return '当前图片健康检查没有发现需要处理的图片问题。';
 
   const disabledReasons = [];
+  if (hasDuplicateCache) disabledReasons.push('重复内容缓存需要先查看样本并确认引用');
   if (!hasBrokenRefs) disabledReasons.push('没有需要逐条审计的失效引用');
   if (!hasArtworkGaps) disabledReasons.push('没有可补全的媒体缺图');
   if (!hasOrphans) disabledReasons.push('没有可整理的孤儿图片');
