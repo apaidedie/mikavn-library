@@ -3,6 +3,7 @@ import type { TaskRecord } from '@/types/task';
 import { addTaskLog, makeTask, reportGapExamplesLog, reportGapSummaryLog } from './mockStoreTasks';
 
 export function createMockStoreReports(readGames: () => Game[]) {
+  const backupSize = formatMockBytes(131072);
   const exportReportMarkdown = (path: string, content: string) => {
     const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -59,7 +60,7 @@ export function createMockStoreReports(readGames: () => Game[]) {
         retryPayload: JSON.stringify({ path }),
         retryable: true,
       });
-      addTaskLog(task.id, 'info', `数据库备份报告：目标 ${target}，大小 131072 bytes，quick_check ok。`);
+      addTaskLog(task.id, 'info', `数据库备份报告：目标 ${target}，大小 ${backupSize}，quick_check ok。`);
       return Promise.resolve(task);
     },
 
@@ -70,14 +71,20 @@ export function createMockStoreReports(readGames: () => Game[]) {
         taskType: 'database.restore',
         status: 'completed',
         progress: 1,
-        message: `浏览器预览已模拟安排下次启动恢复 ${pending}（131072 bytes）`,
+        message: `浏览器预览已模拟安排下次启动恢复 ${pending}（${backupSize}）`,
         error: null,
         retryPayload: JSON.stringify({ path }),
         retryable: false,
       });
-      addTaskLog(task.id, 'info', `数据库恢复来源：${source}（131072 bytes）`);
-      addTaskLog(task.id, 'info', `数据库恢复待应用：${pending}（131072 bytes）`);
+      addTaskLog(task.id, 'info', `数据库恢复来源：${source}（${backupSize}）`);
+      addTaskLog(task.id, 'info', `数据库恢复待应用：${pending}（${backupSize}）`);
       return Promise.resolve(task);
     },
   };
+}
+
+function formatMockBytes(value: number) {
+  if (value >= 1024 * 1024) return `${(value / 1024 / 1024).toFixed(1)} MB`;
+  if (value >= 1024) return `${(value / 1024).toFixed(0)} KB`;
+  return `${Math.max(0, Math.round(value))} B`;
 }

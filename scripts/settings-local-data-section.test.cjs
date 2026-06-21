@@ -51,7 +51,10 @@ test('dashboard local safety links to backup and restore settings', () => {
 test('browser mock database backup log mirrors verified backup report', () => {
   const source = read('src/services/mockStoreReports.ts');
 
-  assert.match(source, /数据库备份报告：目标 \$\{target\}，大小 131072 bytes，quick_check ok。/);
+  assert.match(source, /formatMockBytes\(131072\)/);
+  assert.match(source, /数据库备份报告：目标 \$\{target\}，大小 \$\{backupSize\}，quick_check ok。/);
+  assert.match(source, /浏览器预览已模拟安排下次启动恢复 \$\{pending\}（\$\{backupSize\}）/);
+  assert.doesNotMatch(source, /131072 bytes/);
 });
 
 test('local data settings distinguishes external Playnite image refs from migrated cache', () => {
