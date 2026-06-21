@@ -28,3 +28,16 @@ test('dashboard diagnostic export action is available for hard and partial start
   assert.match(source, /onExportDiagnosticPackage=\{exportDiagnosticPackage\}/);
   assert.match(source, /api\.exportDiagnosticPackage\(\)/);
 });
+
+test('dashboard diagnostic export notice can reveal or copy exported path', () => {
+  const pageSource = read('src/pages/Dashboard/DashboardPage.tsx');
+  const noticeSource = read('src/pages/Dashboard/DashboardErrorNotice.tsx');
+
+  assert.match(pageSource, /diagnosticExportPath/);
+  assert.match(pageSource, /setDiagnosticExportPath\(report\.path\)/);
+  assert.match(pageSource, /api\.revealPath\(diagnosticExportPath\)/);
+  assert.match(noticeSource, /diagnosticExportPath/);
+  assert.match(noticeSource, /打开诊断包位置/);
+  assert.match(noticeSource, /复制诊断包路径/);
+  assert.match(noticeSource, /navigator\.clipboard\.writeText\(diagnosticExportPath\)/);
+});

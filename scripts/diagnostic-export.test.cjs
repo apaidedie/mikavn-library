@@ -46,3 +46,14 @@ test('global app error boundary exposes diagnostic package export after render c
   assert.match(boundary, /复制错误摘要/);
   assert.match(boundary, /navigator\.clipboard\.writeText/);
 });
+
+test('global app error boundary can reveal or copy exported diagnostic path', () => {
+  const boundary = fs.readFileSync('src/app/AppErrorBoundary.tsx', 'utf8');
+
+  assert.match(boundary, /exportPath/);
+  assert.match(boundary, /report\.path/);
+  assert.match(boundary, /api\.revealPath\(this\.state\.exportPath\)/);
+  assert.match(boundary, /navigator\.clipboard\.writeText\(this\.state\.exportPath\)/);
+  assert.match(boundary, /打开诊断包位置/);
+  assert.match(boundary, /复制诊断包路径/);
+});

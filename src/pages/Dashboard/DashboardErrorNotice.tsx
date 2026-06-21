@@ -1,19 +1,23 @@
-import { FileArchive } from 'lucide-react';
+import { ClipboardCopy, FileArchive, FolderOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Notice } from '@/components/ui/notice';
 
 export function DashboardErrorNotice({
   diagnosticExportLoading,
   diagnosticExportMessage,
+  diagnosticExportPath,
   message,
   tone,
   onExportDiagnosticPackage,
+  onRevealDiagnosticExportPath,
 }: {
   diagnosticExportLoading: boolean;
   diagnosticExportMessage: string | null;
+  diagnosticExportPath: string | null;
   message: string;
   tone: 'error' | 'warning';
   onExportDiagnosticPackage: () => void;
+  onRevealDiagnosticExportPath: () => void;
 }) {
   return (
     <Notice tone={tone}>
@@ -27,6 +31,18 @@ export function DashboardErrorNotice({
           <FileArchive className="h-4 w-4" />
           {diagnosticExportLoading ? '导出中' : '导出诊断包'}
         </Button>
+        {diagnosticExportPath && (
+          <>
+            <Button size="sm" variant="ghost" onClick={onRevealDiagnosticExportPath}>
+              <FolderOpen className="h-4 w-4" />
+              打开诊断包位置
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => void navigator.clipboard.writeText(diagnosticExportPath)}>
+              <ClipboardCopy className="h-4 w-4" />
+              复制诊断包路径
+            </Button>
+          </>
+        )}
       </div>
     </Notice>
   );

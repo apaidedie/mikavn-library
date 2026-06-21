@@ -36,6 +36,7 @@ export function DashboardPage({ refreshKey, onOpenGame, onAddGame, onOpenScanner
   const [sectionErrors, setSectionErrors] = useState<string[]>([]);
   const [diagnosticExportLoading, setDiagnosticExportLoading] = useState(false);
   const [diagnosticExportMessage, setDiagnosticExportMessage] = useState<string | null>(null);
+  const [diagnosticExportPath, setDiagnosticExportPath] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -82,13 +83,24 @@ export function DashboardPage({ refreshKey, onOpenGame, onAddGame, onOpenScanner
   const exportDiagnosticPackage = async () => {
     setDiagnosticExportLoading(true);
     setDiagnosticExportMessage(null);
+    setDiagnosticExportPath(null);
     try {
       const report = await api.exportDiagnosticPackage();
+      setDiagnosticExportPath(report.path);
       setDiagnosticExportMessage(`诊断包已导出：${report.fileName}。不包含完整数据库、图片缓存或存档文件。`);
     } catch (reason) {
       setDiagnosticExportMessage(`诊断包导出失败：${errorMessage(reason)}`);
     } finally {
       setDiagnosticExportLoading(false);
+    }
+  };
+
+  const revealDiagnosticExportPath = async () => {
+    if (!diagnosticExportPath) return;
+    try {
+      await api.revealPath(diagnosticExportPath);
+    } catch (reason) {
+      setDiagnosticExportMessage(`打开诊断包位置失败：${errorMessage(reason)}`);
     }
   };
 
@@ -98,9 +110,11 @@ export function DashboardPage({ refreshKey, onOpenGame, onAddGame, onOpenScanner
         <DashboardErrorNotice
           diagnosticExportLoading={diagnosticExportLoading}
           diagnosticExportMessage={diagnosticExportMessage}
+          diagnosticExportPath={diagnosticExportPath}
           message={error}
           tone="error"
           onExportDiagnosticPackage={exportDiagnosticPackage}
+          onRevealDiagnosticExportPath={revealDiagnosticExportPath}
         />
       </div>
     );
@@ -120,10 +134,12 @@ export function DashboardPage({ refreshKey, onOpenGame, onAddGame, onOpenScanner
               <DashboardErrorNotice
                 diagnosticExportLoading={diagnosticExportLoading}
                 diagnosticExportMessage={diagnosticExportMessage}
+                diagnosticExportPath={diagnosticExportPath}
                 key={item}
                 message={item}
                 tone="warning"
                 onExportDiagnosticPackage={exportDiagnosticPackage}
+                onRevealDiagnosticExportPath={revealDiagnosticExportPath}
               />
             ))}
           </div>
