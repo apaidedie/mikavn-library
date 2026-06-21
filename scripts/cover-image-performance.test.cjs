@@ -17,3 +17,10 @@ test('library detail hero decodes images asynchronously', () => {
   assert.match(source, /decoding="async"/);
   assert.match(source, /loading="eager"/);
 });
+
+test('library description images lazy load and decode asynchronously', () => {
+  const source = fs.readFileSync('src/pages/Library/GameDetailMedia.tsx', 'utf8');
+
+  assert.match(source, /loading="lazy"/);
+  assert.match(source, /decoding="async"/);
+});

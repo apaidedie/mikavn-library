@@ -35,7 +35,7 @@ export function DescriptionRichText({ value }: { value?: string | null }) {
         const src = imageSrc(part.src) ?? part.src;
         return (
           <figure className="overflow-hidden rounded-md border border-white/10 bg-black/[0.16]" key={`${index}-${part.src}`}>
-            <img alt={part.alt || '简介图片'} className="mx-auto max-h-[460px] w-auto max-w-full object-contain" loading="lazy" src={src} />
+            <img alt={part.alt || '简介图片'} className="mx-auto max-h-[460px] w-auto max-w-full object-contain" decoding="async" loading="lazy" src={src} />
           </figure>
         );
       })}
