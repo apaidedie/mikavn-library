@@ -64,6 +64,7 @@ test('default source budgets cover frontend, Rust service, and smoke runner hot 
     'src/pages/Saves/SavesPage.tsx',
     'src-tauri/src/services/archives.rs',
     'src-tauri/src/services/diagnostics.rs',
+    'src-tauri/src/services/image_health.rs',
     'src-tauri/src/db/game_merge_ext.rs',
     'scripts/playwright/page-qa-runner.cjs',
     'scripts/playwright/page-qa-fixtures.cjs',
@@ -182,4 +183,11 @@ test('settings page budget keeps local data actions outside page component', () 
 
   assert.ok(budget);
   assert.ok(budget.maxLines <= 180);
+});
+
+test('image health service budget keeps tests outside the production scanner module', () => {
+  const budget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('src-tauri/src/services/image_health.rs'));
+
+  assert.ok(budget);
+  assert.ok(budget.maxLines <= 1000);
 });
