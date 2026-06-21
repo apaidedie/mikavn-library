@@ -49,6 +49,8 @@ pub struct ImageHealthSummary {
     pub oversized_files: i64,
     pub invalid_image_files: i64,
     pub invalid_image_refs: i64,
+    pub content_type_mismatch_files: i64,
+    pub content_type_mismatch_refs: i64,
     pub missing_cover_games: i64,
     pub missing_artwork_games: i64,
 }
@@ -68,10 +70,14 @@ pub struct ImageCacheHealth {
     pub invalid_image_file_count: i64,
     pub invalid_referenced_file_count: i64,
     pub invalid_image_bytes: u64,
+    pub content_type_mismatch_file_count: i64,
+    pub content_type_mismatch_referenced_file_count: i64,
+    pub content_type_mismatch_bytes: u64,
     pub orphan_samples: Vec<ImageCacheFileIssue>,
     pub duplicate_name_samples: Vec<ImageDuplicateNameGroup>,
     pub oversized_samples: Vec<ImageCacheFileIssue>,
     pub invalid_image_samples: Vec<ImageCacheFileIssue>,
+    pub content_type_mismatch_samples: Vec<ImageCacheFileIssue>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -177,6 +183,8 @@ pub(crate) fn get_image_health_report_with_paths(
     summary.oversized_files = cache.oversized_file_count;
     summary.invalid_image_files = cache.invalid_image_file_count;
     summary.invalid_image_refs = cache.invalid_referenced_file_count;
+    summary.content_type_mismatch_files = cache.content_type_mismatch_file_count;
+    summary.content_type_mismatch_refs = cache.content_type_mismatch_referenced_file_count;
     summary.issue_image_refs += cache.invalid_referenced_file_count;
     let recommendations = image_health_recommendations(&summary);
 
@@ -684,15 +692,28 @@ fn scan_image_dir(
             }
         }
 
-        if is_invalid_image_cache_file(&path)? {
-            health.invalid_image_file_count += 1;
-            health.invalid_image_bytes += size_bytes;
-            if is_referenced {
-                health.invalid_referenced_file_count += 1;
+        match classify_image_cache_content(&path)? {
+            Some(ImageCacheContentIssue::Invalid) => {
+                health.invalid_image_file_count += 1;
+                health.invalid_image_bytes += size_bytes;
+                if is_referenced {
+                    health.invalid_referenced_file_count += 1;
+                }
+                if health.invalid_image_samples.len() < sample_limit {
+                    health.invalid_image_samples.push(issue);
+                }
             }
-            if health.invalid_image_samples.len() < sample_limit {
-                health.invalid_image_samples.push(issue);
+            Some(ImageCacheContentIssue::ContentTypeMismatch) => {
+                health.content_type_mismatch_file_count += 1;
+                health.content_type_mismatch_bytes += size_bytes;
+                if is_referenced {
+                    health.content_type_mismatch_referenced_file_count += 1;
+                }
+                if health.content_type_mismatch_samples.len() < sample_limit {
+                    health.content_type_mismatch_samples.push(issue);
+                }
             }
+            None => {}
         }
     }
     Ok(())
@@ -706,6 +727,12 @@ fn image_health_recommendations(summary: &ImageHealthSummary) -> Vec<String> {
     if summary.invalid_image_files > 0 {
         recommendations
             .push("发现空文件或损坏的图片缓存；建议重新抓取对应封面或媒体图。".to_string());
+    }
+    if summary.content_type_mismatch_files > 0 {
+        recommendations.push(
+            "发现扩展名和真实图片格式不一致的缓存；应用会按文件头显示，后续可做路径规范化。"
+                .to_string(),
+        );
     }
     if summary.missing_local_refs > 0 {
         recommendations.push("先修复缺失图片引用，再运行缓存隔离。".to_string());
@@ -727,33 +754,57 @@ fn image_health_recommendations(summary: &ImageHealthSummary) -> Vec<String> {
     recommendations
 }
 
-fn is_invalid_image_cache_file(path: &Path) -> DbResult<bool> {
+enum ImageCacheContentIssue {
+    Invalid,
+    ContentTypeMismatch,
+}
+
+fn classify_image_cache_content(path: &Path) -> DbResult<Option<ImageCacheContentIssue>> {
     let Some(extension) = path.extension().and_then(|value| value.to_str()) else {
-        return Ok(false);
+        return Ok(None);
     };
     let extension = extension.to_ascii_lowercase();
     if !matches!(extension.as_str(), "jpg" | "jpeg" | "png" | "webp" | "gif") {
-        return Ok(false);
+        return Ok(None);
     }
 
     let mut file = fs::File::open(path)?;
     let mut header = [0u8; 16];
     let read = file.read(&mut header)?;
     if read == 0 {
-        return Ok(true);
+        return Ok(Some(ImageCacheContentIssue::Invalid));
     }
 
     let bytes = &header[..read];
-    let valid = match extension.as_str() {
-        "jpg" | "jpeg" => {
-            bytes.len() >= 3 && bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF
-        }
-        "png" => bytes.starts_with(b"\x89PNG\r\n\x1A\n"),
-        "webp" => bytes.len() >= 12 && bytes.starts_with(b"RIFF") && &bytes[8..12] == b"WEBP",
-        "gif" => bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a"),
-        _ => true,
+    let expected = if extension == "jpeg" {
+        "jpg"
+    } else {
+        extension.as_str()
     };
-    Ok(!valid)
+    let Some(actual) = image_content_kind(bytes) else {
+        return Ok(Some(ImageCacheContentIssue::Invalid));
+    };
+    if actual == expected {
+        Ok(None)
+    } else {
+        Ok(Some(ImageCacheContentIssue::ContentTypeMismatch))
+    }
+}
+
+fn image_content_kind(bytes: &[u8]) -> Option<&'static str> {
+    if bytes.len() >= 3 && bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF {
+        return Some("jpg");
+    }
+    if bytes.starts_with(b"\x89PNG\r\n\x1A\n") {
+        return Some("png");
+    }
+    if bytes.len() >= 12 && bytes.starts_with(b"RIFF") && &bytes[8..12] == b"WEBP" {
+        return Some("webp");
+    }
+    if bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a") {
+        return Some("gif");
+    }
+    None
 }
 
 fn description_image_sources(value: &str) -> Vec<String> {
@@ -1002,6 +1053,35 @@ mod tests {
             sample.reference_samples[0].field_name.as_deref(),
             Some("cover_image")
         );
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn image_health_report_counts_content_type_mismatches_separately() {
+        let root = std::env::temp_dir().join(format!("mikavn-image-mismatch-{}", Uuid::new_v4()));
+        let paths = AppPaths::from_root(root.clone()).unwrap();
+        fs::create_dir_all(paths.images()).unwrap();
+        let mislabeled = paths.images().join("cover.jpg");
+        fs::write(&mislabeled, b"\x89PNG\r\n\x1A\npng-body").unwrap();
+        create_health_db(&paths.database(), &mislabeled.to_string_lossy(), "", "");
+
+        let report =
+            get_image_health_report_with_paths(&paths, ImageHealthReportOptions::default())
+                .unwrap();
+
+        assert_eq!(report.summary.invalid_image_files, 0);
+        assert_eq!(report.summary.invalid_image_refs, 0);
+        assert_eq!(report.summary.content_type_mismatch_files, 1);
+        assert_eq!(report.summary.content_type_mismatch_refs, 1);
+        assert_eq!(report.cache.invalid_image_file_count, 0);
+        assert_eq!(report.cache.content_type_mismatch_file_count, 1);
+        assert_eq!(report.cache.content_type_mismatch_referenced_file_count, 1);
+        assert_eq!(report.cache.content_type_mismatch_samples.len(), 1);
+        assert!(report
+            .recommendations
+            .iter()
+            .any(|item| item.contains("扩展名")));
 
         let _ = fs::remove_dir_all(root);
     }

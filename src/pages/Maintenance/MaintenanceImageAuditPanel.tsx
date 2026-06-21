@@ -136,7 +136,7 @@ function ImageHealthSummaryPanel({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2 text-sm font-medium text-slate-100"><ShieldCheck className="h-4 w-4 text-emerald-200" />图片健康</div>
-          <div className="mt-1 text-xs text-slate-500">检查图片引用和缓存文件；无效图片表示空文件或损坏文件。一键安全整理只处理未被数据库引用的孤儿缓存，移动到隔离区，不会永久删除文件。</div>
+          <div className="mt-1 text-xs text-slate-500">检查图片引用和缓存文件；无效图片表示空文件或损坏文件，类型不匹配表示扩展名和真实格式不同。一键安全整理只处理未被数据库引用的孤儿缓存，移动到隔离区，不会永久删除文件。</div>
           <div className="mt-1 text-xs text-slate-600">缺封面和失效引用会保留给补图或明细审计，避免误改仍在使用的图片。</div>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
@@ -147,7 +147,7 @@ function ImageHealthSummaryPanel({
           <Button disabled={!canSafeCleanup} size="sm" variant="secondary" onClick={onQuarantineOrphans}>一键安全整理</Button>
         </div>
       </div>
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5 xl:grid-cols-10">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5 xl:grid-cols-11">
         <ImageHealthStat label="缓存图片" value={summary?.imageFiles ?? report?.cache.fileCount ?? 0} />
         <ImageHealthStat label="孤儿图片" tone={(summary?.orphanFiles ?? 0) > 0 ? 'warn' : 'ok'} value={summary?.orphanFiles ?? 0} />
         <ImageHealthStat label="缺失引用" tone={(summary?.missingLocalRefs ?? 0) > 0 ? 'warn' : 'ok'} value={summary?.missingLocalRefs ?? 0} />
@@ -158,6 +158,7 @@ function ImageHealthSummaryPanel({
         <ImageHealthStat label="重复文件名" tone={(summary?.duplicateFileNameGroups ?? 0) > 0 ? 'warn' : 'ok'} value={summary?.duplicateFileNameGroups ?? 0} />
         <ImageHealthStat label="过大图片" tone={(summary?.oversizedFiles ?? 0) > 0 ? 'warn' : 'ok'} value={summary?.oversizedFiles ?? 0} />
         <ImageHealthStat label="无效图片" tone={(summary?.invalidImageFiles ?? 0) > 0 ? 'warn' : 'ok'} value={summary?.invalidImageFiles ?? 0} />
+        <ImageHealthStat label="类型不匹配" tone={(summary?.contentTypeMismatchFiles ?? 0) > 0 ? 'warn' : 'ok'} value={summary?.contentTypeMismatchFiles ?? 0} />
       </div>
       {report?.recommendations.length ? (
         <div className="space-y-1">
@@ -173,6 +174,7 @@ function ImageHealthSummaryPanel({
           <div className="text-[11px] font-medium text-slate-400">图片样本</div>
           <div className="grid gap-2 lg:grid-cols-2">
             <ImageHealthFileSamples title="无效图片" samples={cache.invalidImageSamples} onOpenGame={onOpenGame} onRevealPath={onRevealPath} />
+            <ImageHealthFileSamples title="类型不匹配" samples={cache.contentTypeMismatchSamples} onOpenGame={onOpenGame} onRevealPath={onRevealPath} />
             <ImageHealthFileSamples title="孤儿图片" samples={cache.orphanSamples} onOpenGame={onOpenGame} onRevealPath={onRevealPath} />
             <ImageHealthFileSamples title="过大图片" samples={cache.oversizedSamples} onOpenGame={onOpenGame} onRevealPath={onRevealPath} />
             <ImageHealthDuplicateSamples rootPath={cache.rootPath} samples={cache.duplicateNameSamples} onRevealPath={onRevealPath} />

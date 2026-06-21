@@ -5,7 +5,7 @@
 - Adds a Maintenance `导出诊断包` action for startup, update, image, and metadata issue investigation.
 - Diagnostic packages include generated summaries, app-data health, environment metadata, and redacted log previews.
 - Large-library behavior remains tuned for 4000+ game libraries through smaller render windows, lazy cover loading, async image decoding, and debounced text filters.
-- Image health maintenance reports missing references, orphan cache files, duplicate names, oversized files, and legacy Playnite-style cache paths in one place.
+- Image health maintenance reports missing references, orphan cache files, duplicate names, oversized files, content-type mismatches, and legacy Playnite-style cache paths in one place.
 
 ## Install
 

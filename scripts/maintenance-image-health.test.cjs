@@ -119,8 +119,15 @@ test('maintenance image health ui explains safe quarantine workflow', () => {
 
 test('maintenance image health ui exposes cache issue samples and reveal actions', () => {
   const panel = fs.readFileSync('src/pages/Maintenance/MaintenanceImageAuditPanel.tsx', 'utf8');
+  const types = fs.readFileSync('src/types/archive.ts', 'utf8');
+  const mock = fs.readFileSync('src/services/mockStoreDiagnostics.ts', 'utf8');
 
   assert.match(panel, /invalidImageSamples/);
+  assert.match(panel, /contentTypeMismatchSamples/);
+  assert.match(panel, /类型不匹配/);
+  assert.match(types, /contentTypeMismatchFiles/);
+  assert.match(types, /contentTypeMismatchSamples/);
+  assert.match(mock, /contentTypeMismatchFileCount/);
   assert.match(panel, /referenceSamples/);
   assert.match(panel, /orphanSamples/);
   assert.match(panel, /oversizedSamples/);

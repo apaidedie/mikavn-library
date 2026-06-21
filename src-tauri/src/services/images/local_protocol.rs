@@ -1,4 +1,5 @@
 use std::fs;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use percent_encoding::percent_decode;
@@ -73,6 +74,9 @@ fn resolve_local_image_path(app_data_root: &Path, protocol_path: &str) -> DbResu
 }
 
 fn local_image_content_type(path: &Path) -> Option<&'static str> {
+    if let Some(content_type) = sniff_image_content_type(path) {
+        return Some(content_type);
+    }
     match path
         .extension()?
         .to_string_lossy()
@@ -86,6 +90,26 @@ fn local_image_content_type(path: &Path) -> Option<&'static str> {
         "ico" => Some("image/x-icon"),
         _ => None,
     }
+}
+
+fn sniff_image_content_type(path: &Path) -> Option<&'static str> {
+    let mut file = fs::File::open(path).ok()?;
+    let mut header = [0u8; 16];
+    let read = file.read(&mut header).ok()?;
+    let bytes = &header[..read];
+    if bytes.len() >= 3 && bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF {
+        return Some("image/jpeg");
+    }
+    if bytes.starts_with(b"\x89PNG\r\n\x1A\n") {
+        return Some("image/png");
+    }
+    if bytes.len() >= 12 && bytes.starts_with(b"RIFF") && &bytes[8..12] == b"WEBP" {
+        return Some("image/webp");
+    }
+    if bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a") {
+        return Some("image/gif");
+    }
+    None
 }
 
 fn response(status: StatusCode, content_type: &'static str, body: Vec<u8>) -> Response<Vec<u8>> {
@@ -138,6 +162,18 @@ mod tests {
             local_image_content_type(Path::new("cover.ico")),
             Some("image/x-icon")
         );
+    }
+
+    #[test]
+    fn detects_png_content_even_when_cache_extension_is_jpg() {
+        let root =
+            std::env::temp_dir().join(format!("mikavn-image-protocol-mime-{}", std::process::id()));
+        fs::create_dir_all(&root).unwrap();
+        let mislabeled = root.join("cover.jpg");
+        fs::write(&mislabeled, b"\x89PNG\r\n\x1A\npng-body").unwrap();
+
+        assert_eq!(local_image_content_type(&mislabeled), Some("image/png"));
+        let _ = fs::remove_dir_all(root);
     }
 
     fn protocol_path_for(path: &Path) -> String {
