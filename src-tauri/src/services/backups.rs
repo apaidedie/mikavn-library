@@ -15,6 +15,8 @@ use crate::infrastructure::logger;
 use crate::infrastructure::paths::AppPaths;
 use crate::services::tasks;
 
+const STARTUP_AUTO_BACKUP_MIN_INTERVAL_HOURS: i64 = 24;
+
 #[derive(Debug)]
 struct DatabaseRestoreScheduleReport {
     pending_path: PathBuf,
@@ -63,6 +65,16 @@ pub struct DatabaseBackupCleanupReport {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DatabaseUpdateProtectionBackupReport {
+    pub path: String,
+    pub file_name: String,
+    pub size_bytes: u64,
+    pub created_at: String,
+    pub quick_check: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DatabaseStartupAutomaticBackupReport {
     pub path: String,
     pub file_name: String,
     pub size_bytes: u64,
@@ -310,6 +322,12 @@ pub fn create_update_protection_backup(
     create_update_protection_backup_with_paths(&paths)
 }
 
+pub fn create_startup_automatic_backup_if_needed(
+    paths: &AppPaths,
+) -> DbResult<Option<DatabaseStartupAutomaticBackupReport>> {
+    create_startup_automatic_backup_if_needed_with_paths(paths)
+}
+
 fn cleanup_old_database_backups_with_paths(
     paths: &AppPaths,
     policy: DatabaseBackupCleanupPolicy,
@@ -474,6 +492,7 @@ fn is_known_database_backup_name(kind: BackupDirKind, file_name: &str) -> bool {
         BackupDirKind::AnyDatabaseBackup => {
             lower.starts_with("mikavn.before-")
                 || lower.starts_with("before-update-")
+                || lower.starts_with("startup-auto-")
                 || lower.starts_with("before-restore-")
                 || lower.starts_with("before-import-")
                 || lower.starts_with("rejected-")
@@ -574,6 +593,62 @@ fn schedule_pending_restore(
         source_size_bytes,
         pending_size_bytes,
     })
+}
+
+fn create_startup_automatic_backup_if_needed_with_paths(
+    paths: &AppPaths,
+) -> DbResult<Option<DatabaseStartupAutomaticBackupReport>> {
+    if !paths.database().is_file() {
+        return Ok(None);
+    }
+    if has_recent_database_backup(paths, STARTUP_AUTO_BACKUP_MIN_INTERVAL_HOURS)? {
+        return Ok(None);
+    }
+
+    let created_at = Utc::now();
+    let target_dir = paths.database_backups().join("auto");
+    fs::create_dir_all(&target_dir)?;
+    let file_name = format!("startup-auto-{}.db", created_at.format("%Y%m%d-%H%M%S"));
+    let target = target_dir.join(&file_name);
+    let report = create_verified_database_backup_with_paths(paths, &target)?;
+
+    logger::log_warn(
+        paths,
+        "database.backup",
+        format!(
+            "startup automatic backup created: {} ({} bytes)",
+            logger::display_path(&report.target_path),
+            report.size_bytes
+        ),
+    );
+    if let Err(error) = cleanup_old_database_backups_with_paths(
+        paths,
+        DatabaseBackupCleanupPolicy {
+            retain_count: Some(30),
+            retain_days: Some(90),
+        },
+    ) {
+        logger::log_error(
+            paths,
+            "database.backup",
+            format!("startup automatic backup cleanup failed: {error}"),
+        );
+    }
+
+    Ok(Some(DatabaseStartupAutomaticBackupReport {
+        path: report.target_path.to_string_lossy().to_string(),
+        file_name,
+        size_bytes: report.size_bytes,
+        created_at: created_at.to_rfc3339(),
+        quick_check: report.quick_check,
+    }))
+}
+
+fn has_recent_database_backup(paths: &AppPaths, min_interval_hours: i64) -> DbResult<bool> {
+    let cutoff = Utc::now() - Duration::hours(min_interval_hours);
+    Ok(collect_database_backup_candidates(paths)?
+        .into_iter()
+        .any(|candidate| DateTime::<Utc>::from(candidate.modified) >= cutoff))
 }
 
 fn create_update_protection_backup_with_paths(
@@ -913,6 +988,51 @@ mod tests {
         assert!(newest_backup.exists());
         assert!(unrelated.exists());
         assert!(paths.database().exists());
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn startup_automatic_backup_creates_when_no_recent_backup_exists() {
+        let root = std::env::temp_dir().join(format!(
+            "mikavn-startup-auto-backup-test-{}",
+            Uuid::new_v4()
+        ));
+        let paths = AppPaths::from_root(root.clone()).unwrap();
+        create_mikavn_db(&paths.database(), "current");
+
+        let report = create_startup_automatic_backup_if_needed_with_paths(&paths).unwrap();
+
+        let report = report.expect("startup auto backup should be created");
+        assert_eq!(report.quick_check, "ok");
+        assert!(report.file_name.starts_with("startup-auto-"));
+        assert!(report.file_name.ends_with(".db"));
+        assert!(report.path.contains("database-backups"));
+        assert!(report.path.contains("auto"));
+        assert!(Path::new(&report.path).is_file());
+        assert_eq!(database_marker(Path::new(&report.path)), "current");
+
+        let summary = database_backup_summary(&paths).unwrap();
+        assert_eq!(summary.file_count, 1);
+        assert_eq!(summary.files[0].file_name, report.file_name);
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn startup_automatic_backup_skips_when_recent_backup_exists() {
+        let root = std::env::temp_dir().join(format!(
+            "mikavn-startup-auto-backup-skip-test-{}",
+            Uuid::new_v4()
+        ));
+        let paths = AppPaths::from_root(root.clone()).unwrap();
+        create_mikavn_db(&paths.database(), "current");
+
+        let first = create_startup_automatic_backup_if_needed_with_paths(&paths).unwrap();
+        let second = create_startup_automatic_backup_if_needed_with_paths(&paths).unwrap();
+
+        assert!(first.is_some());
+        assert!(second.is_none());
+        let summary = database_backup_summary(&paths).unwrap();
+        assert_eq!(summary.file_count, 1);
         let _ = fs::remove_dir_all(root);
     }
 

@@ -36,6 +36,21 @@ pub fn run() {
             let paths = infrastructure::paths::AppPaths::from_app(app.handle())?;
             services::backups::apply_pending_database_restore(&paths)?;
             let db = Database::new(app.handle())?;
+            let auto_backup_setting = db
+                .get_setting("database_auto_backup_on_startup")
+                .ok()
+                .flatten();
+            if auto_backup_setting.as_deref() != Some("false") {
+                if let Err(error) =
+                    services::backups::create_startup_automatic_backup_if_needed(&paths)
+                {
+                    infrastructure::logger::log_error(
+                        &paths,
+                        "database.backup",
+                        format!("startup automatic backup failed: {error}"),
+                    );
+                }
+            }
             services::tray::apply_tray_setting(app.handle(), &db)?;
             app.manage(AppState { db: Mutex::new(db) });
             Ok(())

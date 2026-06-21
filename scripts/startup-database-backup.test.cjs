@@ -99,3 +99,17 @@ test('startup database backup hook cleans old backups after a successful auto ba
   assert.match(source, /startupDatabaseBackupCleanupPolicy/);
   assert.match(source, /api\.backupDatabase\(plan\.path\)\.then\(\(\) => api\.cleanupOldDatabaseBackups\(startupDatabaseBackupCleanupPolicy\(\)\)\)/);
 });
+
+test('desktop startup creates automatic backup through Rust while honoring disabled setting', () => {
+  const lib = fs.readFileSync(path.join(__dirname, '..', 'src-tauri', 'src', 'lib.rs'), 'utf8');
+  const backups = fs.readFileSync(path.join(__dirname, '..', 'src-tauri', 'src', 'services', 'backups.rs'), 'utf8');
+
+  assert.match(lib, /database_auto_backup_on_startup/);
+  assert.match(lib, /create_startup_automatic_backup_if_needed/);
+  assert.match(lib, /as_deref\(\) != Some\("false"\)/);
+  assert.match(backups, /startup-auto-/);
+  assert.match(backups, /STARTUP_AUTO_BACKUP_MIN_INTERVAL_HOURS/);
+  assert.match(backups, /cleanup_old_database_backups_with_paths/);
+  assert.match(backups, /retain_count: Some\(30\)/);
+  assert.match(backups, /retain_days: Some\(90\)/);
+});
