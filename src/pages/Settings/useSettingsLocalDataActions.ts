@@ -204,7 +204,7 @@ export function useSettingsLocalDataActions({ onSaved, setError, setMessage }: U
     try {
       const targetDir = archivePreview?.archiveDir || archiveDir.trim() || await chooseArchiveDirectory(archiveDir);
       if (!targetDir) return;
-      if (!window.confirm('安全导入会先备份当前数据库，然后只合并不冲突的新记录。继续？')) return;
+      if (!window.confirm('安全导入会先备份当前数据库，然后只合并不冲突的新记录；不会覆盖或删除现有游戏记录，也不会触碰真实游戏安装目录。继续？')) return;
       setArchiveDir(targetDir);
       const task = await api.importLibraryArchive({ archiveDir: targetDir, includeImages, includeSaveBackups });
       setMessage({ text: `库归档安全导入任务已创建：${task.id}`, taskId: task.id });
@@ -224,7 +224,7 @@ export function useSettingsLocalDataActions({ onSaved, setError, setMessage }: U
         setError('请先预览包含 mikavn.db 的有效库归档。');
         return;
       }
-      const ok = window.confirm('完整恢复会在下次启动前用归档数据库替换当前数据库，并按当前勾选项镜像恢复图片/存档缓存。应用会先创建保护备份。确认安排完整恢复吗？');
+      const ok = window.confirm('完整恢复会在下次启动前用归档数据库替换当前数据库，图片/存档缓存会按当前勾选项镜像恢复。应用会先创建保护备份，不会触碰真实游戏安装目录。确认安排完整恢复吗？');
       if (!ok) return;
       setArchiveDir(targetDir);
       const task = await api.restoreLibraryArchive({ archiveDir: targetDir, restoreImages: includeImages, restoreSaveBackups: includeSaveBackups });
