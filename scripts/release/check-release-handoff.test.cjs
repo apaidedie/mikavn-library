@@ -66,6 +66,9 @@ function createHandoff(overrides = {}) {
     '- Real installed exe: `E:\\MikaVN Library\\mikavn-library.exe`.',
     '- `npm run smoke:desktop`: passed.',
     '- `npm run release:handoff:check`: passed.',
+    '## Signing Certificate Preflight',
+    '- `npm run release:signing:certificate:check`: passed.',
+    ...(overrides.certificatePreflightLines || ['- Public release certificate candidates: 1.']),
     '## Signing Status',
     '- `npm run release:signing:check`: artifacts are `NotSigned`.',
     '- `npm run release:signing:require`: failed as expected because the artifacts are not signed with a valid trusted certificate.',
@@ -328,6 +331,45 @@ test('checkReleaseHandoff treats local-only builds as public release blockers ev
   assert.throws(
     () => checkReleaseHandoff({ releaseDir, requirePublicReady: true }),
     /release handoff has blocking public release risk\(s\): not-updater-capable/,
+  );
+});
+
+test('checkReleaseHandoff treats missing trusted signing certificate as a public release blocker', () => {
+  const { releaseDir } = createHandoff({
+    reportLines: [
+      '- `npm run release:signing:require`: passed.',
+    ],
+    certificatePreflightLines: [
+      '- Signing certificate preflight risks: no-usable-code-signing-certificate, no-trusted-code-signing-certificate.',
+    ],
+  });
+  const reportPath = path.join(releaseDir, 'RELEASE_VALIDATION_REPORT.md');
+  fs.writeFileSync(
+    reportPath,
+    fs.readFileSync(reportPath, 'utf8')
+      .replace('- `npm run release:signing:check`: artifacts are `NotSigned`.', '- `npm run release:signing:check`: signed true.')
+      .replace('- `npm run release:signing:require`: failed as expected because the artifacts are not signed with a valid trusted certificate.', '- `npm run release:signing:require`: passed.'),
+  );
+  const checklistPath = path.join(releaseDir, 'MANUAL_RISK_PASS_CHECKLIST.md');
+  fs.writeFileSync(
+    checklistPath,
+    fs.readFileSync(checklistPath, 'utf8')
+      .replaceAll('- [ ]', '- [x]')
+      .replace(/^(- \[x\] .+?)$/gm, '$1 Evidence: verified during release smoke.'),
+  );
+
+  const reportOnly = checkReleaseHandoff({ releaseDir });
+  assert.deepEqual(reportOnly.blockingReleaseRisks, [
+    {
+      code: 'no-trusted-code-signing-certificate',
+      message: 'Signing certificate preflight did not find a trusted public release code-signing certificate candidate.',
+      preflightRisks: ['no-usable-code-signing-certificate', 'no-trusted-code-signing-certificate'],
+    },
+  ]);
+
+  assert.throws(
+    () => checkReleaseHandoff({ releaseDir, requirePublicReady: true }),
+    /release handoff has blocking public release risk\(s\): no-trusted-code-signing-certificate/,
   );
 });
 

@@ -129,6 +129,7 @@ test('release handoff prepare script is wired into package and metadata gates', 
 test('release signing certificate preflight is wired into package and metadata gates', () => {
   const pkg = readJson('package.json');
   const gate = read('scripts/release/check-release-metadata.ps1');
+  const releaseValidation = read('scripts/release/run-release-validation.ps1');
 
   assert.equal(pkg.scripts['release:signing:certificate:check'], 'node scripts/release/check-signing-certificate.cjs');
   assert.equal(pkg.scripts['release:signing:certificate:require'], 'node scripts/release/check-signing-certificate.cjs --require-certificate');
@@ -136,6 +137,7 @@ test('release signing certificate preflight is wired into package and metadata g
   assert.match(gate, /release:signing:certificate:check/);
   assert.match(gate, /release:signing:certificate:require/);
   assert.match(gate, /check-signing-certificate\.test\.cjs/);
+  assert.match(releaseValidation, /npm run release:signing:certificate:check/);
 });
 
 test('ci and local release validation run updater-specific tests', () => {

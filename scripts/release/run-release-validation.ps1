@@ -25,6 +25,7 @@ try {
   }
 
   Invoke-Step "Release metadata" { pwsh @releaseCheckArgs }
+  Invoke-Step "Signing certificate preflight" { npm run release:signing:certificate:check }
   Invoke-Step "Script unit tests" {
     npm run test:release-scripts
     npm run test:playwright-scripts

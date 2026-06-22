@@ -20,6 +20,8 @@ const REQUIRED_REPORT_TOKENS = [
   'Real installed exe',
   'npm run smoke:desktop',
   'npm run release:handoff:check',
+  'Signing Certificate Preflight',
+  'npm run release:signing:certificate:check',
   'npm run release:signing:check',
   'npm run release:signing:require',
   'MANUAL_RISK_PASS_CHECKLIST.md',
@@ -64,6 +66,7 @@ const REQUIRED_PASSED_COMMANDS = [
   'npm run smoke:real-install:update',
   'npm run smoke:desktop',
   'npm run release:handoff:check',
+  'npm run release:signing:certificate:check',
 ];
 
 function defaultReleaseDir() {
@@ -174,6 +177,39 @@ function largeLibraryWarningCountFromReport(report) {
   return Number(match[1]);
 }
 
+function cleanRiskCode(value) {
+  return value
+    .trim()
+    .replace(/^`+|`+$/g, '')
+    .replace(/[.;]+$/g, '')
+    .trim();
+}
+
+function signingCertificatePreflightFromReport(report) {
+  const riskMatch = /Signing certificate preflight risks:\s*([^\r\n]+)/i.exec(report);
+  if (riskMatch) {
+    const preflightRisks = riskMatch[1]
+      .split(',')
+      .map(cleanRiskCode)
+      .filter(Boolean);
+    return {
+      publicReleaseCertificateCandidates: preflightRisks.includes('no-trusted-code-signing-certificate') ? 0 : null,
+      preflightRisks,
+    };
+  }
+
+  const candidatesMatch = /Public release certificate candidates:\s*(\d+)\b/i.exec(report);
+  if (candidatesMatch) {
+    const publicReleaseCertificateCandidates = Number(candidatesMatch[1]);
+    return {
+      publicReleaseCertificateCandidates,
+      preflightRisks: publicReleaseCertificateCandidates > 0 ? [] : ['no-trusted-code-signing-certificate'],
+    };
+  }
+
+  throw new Error('release validation report must record signing certificate preflight risks or a public release certificate candidate count');
+}
+
 function manualRiskChecklistSummary(checklist) {
   const checkboxMatches = [...checklist.matchAll(/^\s*-\s*\[( |x|X)\]\s+(.+?)\s*$/gm)];
   const checkedItems = [];
@@ -200,7 +236,13 @@ function manualRiskChecklistSummary(checklist) {
   };
 }
 
-function blockingReleaseRisks({ signingStatus, manualRiskChecklist, buildMode, largeLibraryPerformanceWarnings = 0 }) {
+function blockingReleaseRisks({
+  signingStatus,
+  signingCertificatePreflight,
+  manualRiskChecklist,
+  buildMode,
+  largeLibraryPerformanceWarnings = 0,
+}) {
   const risks = [];
   if (buildMode !== 'updater-capable') {
     risks.push({
@@ -213,6 +255,16 @@ function blockingReleaseRisks({ signingStatus, manualRiskChecklist, buildMode, l
     risks.push({
       code: 'unsigned-windows-artifacts',
       message: 'Windows artifacts are documented as unsigned; public release should use a trusted signing certificate.',
+    });
+  }
+  if (
+    signingCertificatePreflight.preflightRisks.includes('no-trusted-code-signing-certificate')
+    || signingCertificatePreflight.publicReleaseCertificateCandidates === 0
+  ) {
+    risks.push({
+      code: 'no-trusted-code-signing-certificate',
+      message: 'Signing certificate preflight did not find a trusted public release code-signing certificate candidate.',
+      preflightRisks: signingCertificatePreflight.preflightRisks,
     });
   }
   if (largeLibraryPerformanceWarnings > 0) {
@@ -299,6 +351,7 @@ function checkReleaseHandoff(options = {}) {
   requirePassedCommands(report);
   const buildMode = buildModeFromReport(report);
   const signingStatus = signingStatusFromReport(report);
+  const signingCertificatePreflight = signingCertificatePreflightFromReport(report);
   const largeLibraryPerformanceWarnings = largeLibraryWarningCountFromReport(report);
   const installerArtifact = artifacts.find((artifact) => artifact.fileName.endsWith('_x64-setup.exe'));
   const updaterArtifacts = buildMode === 'updater-capable'
@@ -313,7 +366,13 @@ function checkReleaseHandoff(options = {}) {
   requireTokens(checklist, REQUIRED_CHECKLIST_TOKENS, 'manual risk checklist');
   const manualRiskChecklist = manualRiskChecklistSummary(checklist);
   const manualRiskStatus = manualRiskChecklist.pending === 0 ? 'passed' : 'checklist-pending';
-  const blockingRisks = blockingReleaseRisks({ signingStatus, manualRiskChecklist, buildMode, largeLibraryPerformanceWarnings });
+  const blockingRisks = blockingReleaseRisks({
+    signingStatus,
+    signingCertificatePreflight,
+    manualRiskChecklist,
+    buildMode,
+    largeLibraryPerformanceWarnings,
+  });
   if (options.requirePublicReady) requireNoBlockingReleaseRisks(blockingRisks);
 
   return {
@@ -323,6 +382,7 @@ function checkReleaseHandoff(options = {}) {
     requiredFiles,
     buildMode,
     signingStatus,
+    signingCertificatePreflight,
     largeLibraryPerformanceWarnings,
     manualRiskStatus,
     manualRiskChecklist,
@@ -342,6 +402,7 @@ if (require.main === module) {
       requiredFiles: result.requiredFiles.length,
       buildMode: result.buildMode,
       signingStatus: result.signingStatus,
+      signingCertificatePreflight: result.signingCertificatePreflight,
       largeLibraryPerformanceWarnings: result.largeLibraryPerformanceWarnings,
       manualRiskStatus: result.manualRiskStatus,
       manualRiskChecklist: result.manualRiskChecklist,
