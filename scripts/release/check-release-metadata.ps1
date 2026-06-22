@@ -248,7 +248,7 @@ foreach ($token in @("/S", "/D=", "uninstall.exe", "MIKAVN_APP_DATA_DIR", "clean
     throw "Clean install smoke must keep installer lifecycle token '$token'."
   }
 }
-foreach ($token in @("/S", "/D=", "uninstall.exe", "app-data", ".mikavn-portable", "MIKAVN_APP_DATA_DIR", "Portable app-data smoke", "portable-app-data-smoke-report.json", "appDataPersistsAfterUninstall")) {
+foreach ($token in @("/S", "/D=", "uninstall.exe", "app-data", ".mikavn-portable", "MIKAVN_APP_DATA_DIR", "Portable app-data smoke", "portable-app-data-smoke-report.json", "appDataPersistsAfterUninstall", "defaultAppDataMigration", "sourceDatabaseExists", "databaseCopiedFromDefault")) {
   if (!$portableAppDataSmokeScript.Contains($token)) {
     throw "Portable app-data smoke must keep executable-adjacent app-data lifecycle token '$token'."
   }

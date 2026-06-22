@@ -49,6 +49,14 @@ if (!(Test-Path -LiteralPath $resolvedInstaller -PathType Leaf)) {
   throw "NSIS installer not found: $resolvedInstaller"
 }
 
+$tauriConfig = Get-Content -LiteralPath (Join-Path $repoRoot "src-tauri\tauri.conf.json") -Raw | ConvertFrom-Json
+$defaultAppDataBase = if (![string]::IsNullOrWhiteSpace($env:APPDATA)) { $env:APPDATA } else { [Environment]::GetFolderPath([Environment+SpecialFolder]::ApplicationData) }
+$defaultAppDataRoot = Join-Path $defaultAppDataBase $tauriConfig.identifier
+$defaultDatabase = Join-Path $defaultAppDataRoot "mikavn.db"
+$sourceDatabaseExists = Test-Path -LiteralPath $defaultDatabase -PathType Leaf
+$sourceDatabaseBytes = if ($sourceDatabaseExists) { (Get-Item -LiteralPath $defaultDatabase).Length } else { $null }
+$sourceDatabaseSha256 = if ($sourceDatabaseExists) { (Get-FileHash -Algorithm SHA256 -LiteralPath $defaultDatabase).Hash } else { $null }
+
 $stamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $runRoot = Join-Path (Join-Path $repoRoot "output\portable-app-data-smoke") "run-$stamp"
 $installDir = Join-Path $runRoot "MikaVN Library"
@@ -170,6 +178,9 @@ if (!(Test-Path -LiteralPath $marker -PathType Leaf)) {
   throw "Portable app-data smoke failed: .mikavn-portable marker was not written under $portableAppRoot"
 }
 
+$targetDatabaseSha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $resolvedDbPath).Hash
+$databaseCopiedFromDefault = $sourceDatabaseExists -and $sourceDatabaseSha256 -and ($sourceDatabaseSha256 -eq $targetDatabaseSha256)
+
 if (!$windowDetected) {
   throw "Portable app-data smoke failed: installed app did not expose a main window before timeout. ProcessExited=$($process.HasExited) ExitCode=$(if ($process.HasExited) { $process.ExitCode } else { 'running' })"
 }
@@ -210,6 +221,15 @@ $report = [ordered]@{
   marker = $marker
   database = $dbPath
   databaseBytes = (Get-Item -LiteralPath $dbPath).Length
+  defaultAppDataMigration = [ordered]@{
+    sourceRoot = $defaultAppDataRoot
+    sourceDatabase = $defaultDatabase
+    sourceDatabaseExists = $sourceDatabaseExists
+    sourceDatabaseBytes = $sourceDatabaseBytes
+    sourceDatabaseSha256 = $sourceDatabaseSha256
+    targetDatabaseSha256 = $targetDatabaseSha256
+    databaseCopiedFromDefault = $databaseCopiedFromDefault
+  }
   uninstallExitCode = $uninstallExitCode
   appDataPersistsAfterUninstall = $appDataPersistsAfterUninstall
   runRoot = $runRoot
