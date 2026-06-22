@@ -253,6 +253,7 @@ export type ImageCacheHealth = {
   duplicateFileNameGroups: number;
   duplicateContentGroups: number;
   oversizedFileCount: number;
+  oversizedReferencedFileCount: number;
   oversizedBytes: number;
   invalidImageFileCount: number;
   invalidReferencedFileCount: number;
@@ -281,6 +282,7 @@ export type ImageHealthSummary = {
   duplicateFileNameGroups: number;
   duplicateContentGroups: number;
   oversizedFiles: number;
+  oversizedImageRefs: number;
   invalidImageFiles: number;
   invalidImageRefs: number;
   contentTypeMismatchFiles: number;

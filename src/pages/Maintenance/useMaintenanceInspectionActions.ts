@@ -143,9 +143,9 @@ export function useMaintenanceInspectionActions({ setError, setMessage }: UseMai
   }, [imageHealth?.summary.invalidImageFiles, imageHealth?.summary.invalidImageRefs, setError, setMessage]);
 
   const quarantineOversizedImageCacheFiles = useCallback(async () => {
-    const oversizedCount = imageHealth?.summary.oversizedFiles ?? 0;
+    const oversizedUnreferencedCount = Math.max(0, (imageHealth?.summary.oversizedFiles ?? 0) - (imageHealth?.summary.oversizedImageRefs ?? 0));
     const confirmed = window.confirm(
-      `将整理 ${formatCount(oversizedCount)} 个过大图片样本。\n\n只会移动未被数据库引用的过大图片；仍被引用的过大图片会保留给压缩、重新抓取或人工确认。隔离区会写入 manifest.json，必要时可以按清单找回原路径。确认继续？`,
+      `将把 ${formatCount(oversizedUnreferencedCount)} 个未被数据库引用的过大图片移动到隔离区。\n\n仍被引用的过大图片会保留给压缩、重新抓取或人工确认。隔离区会写入 manifest.json，必要时可以按清单找回原路径。确认继续？`,
     );
     if (!confirmed) return;
 
@@ -163,7 +163,7 @@ export function useMaintenanceInspectionActions({ setError, setMessage }: UseMai
     } finally {
       setImageHealthLoading(false);
     }
-  }, [imageHealth?.summary.oversizedFiles, setError, setMessage]);
+  }, [imageHealth?.summary.oversizedFiles, imageHealth?.summary.oversizedImageRefs, setError, setMessage]);
 
   const quarantineContentTypeMismatchFiles = useCallback(async () => {
     const mismatchUnreferencedCount = Math.max(0, (imageHealth?.summary.contentTypeMismatchFiles ?? 0) - (imageHealth?.summary.contentTypeMismatchRefs ?? 0));
@@ -194,13 +194,13 @@ export function useMaintenanceInspectionActions({ setError, setMessage }: UseMai
     const orphanCount = summary.orphanFiles;
     const duplicateGroupCount = summary.duplicateContentGroups;
     const invalidUnreferencedCount = Math.max(0, summary.invalidImageFiles - summary.invalidImageRefs);
-    const oversizedCount = summary.oversizedFiles;
+    const oversizedUnreferencedCount = Math.max(0, summary.oversizedFiles - summary.oversizedImageRefs);
     const mismatchUnreferencedCount = Math.max(0, summary.contentTypeMismatchFiles - summary.contentTypeMismatchRefs);
     const totalIssueKinds = [
       orphanCount,
       duplicateGroupCount,
       invalidUnreferencedCount,
-      oversizedCount,
+      oversizedUnreferencedCount,
       mismatchUnreferencedCount,
     ].filter((count) => count > 0).length;
     const confirmed = window.confirm(
@@ -216,7 +216,7 @@ export function useMaintenanceInspectionActions({ setError, setMessage }: UseMai
       if (orphanCount > 0) results.push(await api.quarantineOrphanImages({ sampleLimit: 100 }));
       if (duplicateGroupCount > 0) results.push(await api.quarantineDuplicateContentImages({ sampleLimit: 100 }));
       if (invalidUnreferencedCount > 0) results.push(await api.quarantineInvalidImageCacheFiles({ sampleLimit: 100 }));
-      if (oversizedCount > 0) results.push(await api.quarantineOversizedImageCacheFiles({ sampleLimit: 100 }));
+      if (oversizedUnreferencedCount > 0) results.push(await api.quarantineOversizedImageCacheFiles({ sampleLimit: 100 }));
       if (mismatchUnreferencedCount > 0) results.push(await api.quarantineContentTypeMismatchFiles({ sampleLimit: 100 }));
       const latestResult = results[results.length - 1];
       if (latestResult) setImageQuarantinePath({ quarantineDir: latestResult.quarantineDir, manifestPath: latestResult.manifestPath });

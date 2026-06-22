@@ -112,6 +112,8 @@ test('image health commands are registered and exposed through api', () => {
   assert.match(types, /duplicateContentGroups/);
   assert.match(types, /duplicateContentSamples/);
   assert.match(types, /ImageDuplicateContentGroup/);
+  assert.match(types, /oversizedImageRefs/);
+  assert.match(types, /oversizedReferencedFileCount/);
 });
 
 test('maintenance image health ui explains safe quarantine workflow', () => {
@@ -243,6 +245,7 @@ test('maintenance image health ui exposes one-click safe cleanup wording', () =>
   assert.match(panel, /canCleanupDuplicateContent/);
   assert.match(panel, /canCleanupInvalidImages/);
   assert.match(panel, /canCleanupOversizedImages/);
+  assert.match(panel, /Math\.max\(0, summary\.oversizedFiles - summary\.oversizedImageRefs\) > 0/);
   assert.match(panel, /canCleanupContentTypeMismatch/);
   assert.match(panel, /canCleanupSafeCacheIssues/);
   assert.match(panel, /onQuarantineOrphans/);
@@ -324,6 +327,8 @@ test('maintenance oversized image quarantine requires explicit confirmation befo
   assert.ok(quarantineIndex > -1, 'oversized cleanup action must call the oversized quarantine api');
   assert.ok(confirmIndex < quarantineIndex, 'confirmation copy must appear before files are moved');
   assert.match(actions, /仍被引用的过大图片会保留/);
+  assert.match(actions, /const oversizedUnreferencedCount = Math\.max\(0, \(imageHealth\?\.summary\.oversizedFiles \?\? 0\) - \(imageHealth\?\.summary\.oversizedImageRefs \?\? 0\)\)/);
+  assert.match(actions, /formatCount\(oversizedUnreferencedCount\)/);
 });
 
 test('maintenance content type mismatch quarantine requires explicit confirmation before moving files', () => {
@@ -387,10 +392,10 @@ test('oversized image quarantine completion message reports refreshed oversized 
   const { formatImageOversizedQuarantineCompletionMessage } = loadMaintenanceImageHealthModel();
   const message = formatImageOversizedQuarantineCompletionMessage(
     { movedFiles: 7, skippedFiles: 1 },
-    { summary: { oversizedFiles: 4 } },
+    { summary: { oversizedFiles: 4, oversizedImageRefs: 3 } },
   );
 
-  assert.equal(message, '过大图片整理完成：已移动 7 个未引用大图到隔离区；跳过 1 个；复查剩余 4 个过大图片。隔离区 manifest.json 可用于按原路径找回。');
+  assert.equal(message, '过大图片整理完成：已移动 7 个未引用大图到隔离区；跳过 1 个；复查剩余 1 个未引用大图。隔离区 manifest.json 可用于按原路径找回。');
 });
 
 test('content type mismatch quarantine completion message reports refreshed mismatches', () => {
@@ -411,10 +416,10 @@ test('safe cache batch completion message summarizes moved files and refreshed i
       { movedFiles: 3, skippedFiles: 1 },
       { movedFiles: 0, skippedFiles: 2 },
     ],
-    { summary: { orphanFiles: 1, duplicateContentGroups: 2, invalidImageFiles: 4, invalidImageRefs: 1, oversizedFiles: 5, contentTypeMismatchFiles: 3, contentTypeMismatchRefs: 1 } },
+    { summary: { orphanFiles: 1, duplicateContentGroups: 2, invalidImageFiles: 4, invalidImageRefs: 1, oversizedFiles: 5, oversizedImageRefs: 4, contentTypeMismatchFiles: 3, contentTypeMismatchRefs: 1 } },
   );
 
-  assert.equal(message, '批量安全整理完成：已移动 5 个未引用缓存文件到隔离区；跳过 3 个；复查剩余孤儿 1 个、重复内容 2 组、未引用坏图 3 个、过大图片 5 个、未引用类型不匹配 2 个。隔离区 manifest.json 可用于按原路径找回。');
+  assert.equal(message, '批量安全整理完成：已移动 5 个未引用缓存文件到隔离区；跳过 3 个；复查剩余孤儿 1 个、重复内容 2 组、未引用坏图 3 个、未引用大图 1 个、未引用类型不匹配 2 个。隔离区 manifest.json 可用于按原路径找回。');
 });
 
 test('image health action hint explains disabled maintenance actions', () => {
@@ -453,6 +458,19 @@ test('image health action hint explains disabled maintenance actions', () => {
       duplicateContentGroups: 2,
     },
   };
+  const referencedOversizedOnlyReport = {
+    summary: {
+      orphanFiles: 0,
+      missingLocalRefs: 0,
+      invalidImageRefs: 0,
+      cDriveRefs: 0,
+      playniteRefs: 0,
+      externalLegacyRefs: 0,
+      missingArtworkGames: 0,
+      oversizedFiles: 2,
+      oversizedImageRefs: 2,
+    },
+  };
 
   assert.equal(
     getImageHealthActionHint({ report: null, loading: false }),
@@ -469,6 +487,10 @@ test('image health action hint explains disabled maintenance actions', () => {
   assert.equal(
     getImageHealthActionHint({ report: duplicateOnlyReport, loading: false }),
     '可整理重复内容中的未引用副本；没有需要逐条审计的失效引用；没有可补全的媒体缺图；没有可整理的孤儿图片。',
+  );
+  assert.equal(
+    getImageHealthActionHint({ report: referencedOversizedOnlyReport, loading: false }),
+    '过大图片仍被数据库引用，需压缩、重新抓取或人工确认；没有需要逐条审计的失效引用；没有可补全的媒体缺图；没有可整理的孤儿图片。',
   );
 });
 

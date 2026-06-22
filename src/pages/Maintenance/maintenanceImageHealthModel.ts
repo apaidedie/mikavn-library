@@ -16,6 +16,7 @@ type ImageHealthActionHintReport = {
     | 'duplicateContentGroups'
     | 'duplicateFileNameGroups'
     | 'oversizedFiles'
+    | 'oversizedImageRefs'
     | 'contentTypeMismatchFiles'
     | 'contentTypeMismatchRefs'
   >>;
@@ -51,7 +52,8 @@ export function formatImageOversizedQuarantineCompletionMessage(
   report: Pick<ImageHealthReport, 'summary'>,
 ) {
   const skipped = result.skippedFiles > 0 ? `；跳过 ${formatCount(result.skippedFiles)} 个` : '';
-  return `过大图片整理完成：已移动 ${formatCount(result.movedFiles)} 个未引用大图到隔离区${skipped}；复查剩余 ${formatCount(report.summary.oversizedFiles)} 个过大图片。${quarantineRecoveryHint}`;
+  const remainingUnreferenced = Math.max(0, report.summary.oversizedFiles - report.summary.oversizedImageRefs);
+  return `过大图片整理完成：已移动 ${formatCount(result.movedFiles)} 个未引用大图到隔离区${skipped}；复查剩余 ${formatCount(remainingUnreferenced)} 个未引用大图。${quarantineRecoveryHint}`;
 }
 
 export function formatImageContentTypeMismatchQuarantineCompletionMessage(
@@ -72,7 +74,8 @@ export function formatImageSafeCacheBatchCompletionMessage(
   const skipped = skippedCount > 0 ? `；跳过 ${formatCount(skippedCount)} 个` : '';
   const remainingInvalid = Math.max(0, report.summary.invalidImageFiles - report.summary.invalidImageRefs);
   const remainingMismatch = Math.max(0, report.summary.contentTypeMismatchFiles - report.summary.contentTypeMismatchRefs);
-  return `批量安全整理完成：已移动 ${formatCount(moved)} 个未引用缓存文件到隔离区${skipped}；复查剩余孤儿 ${formatCount(report.summary.orphanFiles)} 个、重复内容 ${formatCount(report.summary.duplicateContentGroups)} 组、未引用坏图 ${formatCount(remainingInvalid)} 个、过大图片 ${formatCount(report.summary.oversizedFiles)} 个、未引用类型不匹配 ${formatCount(remainingMismatch)} 个。${quarantineRecoveryHint}`;
+  const remainingOversized = Math.max(0, report.summary.oversizedFiles - report.summary.oversizedImageRefs);
+  return `批量安全整理完成：已移动 ${formatCount(moved)} 个未引用缓存文件到隔离区${skipped}；复查剩余孤儿 ${formatCount(report.summary.orphanFiles)} 个、重复内容 ${formatCount(report.summary.duplicateContentGroups)} 组、未引用坏图 ${formatCount(remainingInvalid)} 个、未引用大图 ${formatCount(remainingOversized)} 个、未引用类型不匹配 ${formatCount(remainingMismatch)} 个。${quarantineRecoveryHint}`;
 }
 
 export function getImageHealthActionHint({ report, loading }: { report: ImageHealthActionHintReport | null; loading: boolean }) {
@@ -85,7 +88,9 @@ export function getImageHealthActionHint({ report, loading }: { report: ImageHea
   const hasDuplicateContent = (summary.duplicateContentGroups ?? 0) > 0;
   const hasDuplicateFileNames = (summary.duplicateFileNameGroups ?? 0) > 0;
   const hasDuplicateCache = hasDuplicateContent || hasDuplicateFileNames;
+  const oversizedUnreferenced = Math.max(0, (summary.oversizedFiles ?? 0) - (summary.oversizedImageRefs ?? 0));
   const hasOversizedImages = (summary.oversizedFiles ?? 0) > 0;
+  const hasOversizedUnreferencedImages = oversizedUnreferenced > 0;
   const hasInvalidUnreferencedImages = Math.max(0, (summary.invalidImageFiles ?? 0) - (summary.invalidImageRefs ?? 0)) > 0;
   const hasContentTypeMismatchUnreferenced = Math.max(0, (summary.contentTypeMismatchFiles ?? 0) - (summary.contentTypeMismatchRefs ?? 0)) > 0;
   const hasBrokenRefs = [
@@ -101,7 +106,8 @@ export function getImageHealthActionHint({ report, loading }: { report: ImageHea
   const disabledReasons = [];
   if (hasDuplicateContent) disabledReasons.push('可整理重复内容中的未引用副本');
   if (hasInvalidUnreferencedImages) disabledReasons.push('可整理未引用的无效图片');
-  if (hasOversizedImages) disabledReasons.push('可整理未引用的过大图片');
+  if (hasOversizedUnreferencedImages) disabledReasons.push('可整理未引用的过大图片');
+  if (hasOversizedImages && !hasOversizedUnreferencedImages) disabledReasons.push('过大图片仍被数据库引用，需压缩、重新抓取或人工确认');
   if (hasContentTypeMismatchUnreferenced) disabledReasons.push('可整理未引用的类型不匹配图片');
   if (hasDuplicateFileNames) disabledReasons.push('重复文件名需要人工确认内容是否相同');
   if (!hasBrokenRefs) disabledReasons.push('没有需要逐条审计的失效引用');

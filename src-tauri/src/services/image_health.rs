@@ -74,6 +74,7 @@ pub(crate) fn get_image_health_report_with_paths(
     summary.duplicate_file_name_groups = cache.duplicate_file_name_groups;
     summary.duplicate_content_groups = cache.duplicate_content_groups;
     summary.oversized_files = cache.oversized_file_count;
+    summary.oversized_image_refs = cache.oversized_referenced_file_count;
     summary.invalid_image_files = cache.invalid_image_file_count;
     summary.invalid_image_refs = cache.invalid_referenced_file_count;
     summary.content_type_mismatch_files = cache.content_type_mismatch_file_count;
@@ -510,6 +511,9 @@ fn scan_image_dir(
         if size_bytes > oversized_bytes {
             health.oversized_file_count += 1;
             health.oversized_bytes += size_bytes;
+            if is_referenced {
+                health.oversized_referenced_file_count += 1;
+            }
             if health.oversized_samples.len() < sample_limit {
                 health.oversized_samples.push(issue.clone());
             }

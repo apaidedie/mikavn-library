@@ -149,7 +149,7 @@ function ImageHealthSummaryPanel({
   const canSafeCleanup = Boolean(report && summary && summary.orphanFiles > 0 && !loading);
   const canCleanupDuplicateContent = Boolean(report && summary && summary.duplicateContentGroups > 0 && !loading);
   const canCleanupInvalidImages = Boolean(report && summary && Math.max(0, summary.invalidImageFiles - summary.invalidImageRefs) > 0 && !loading);
-  const canCleanupOversizedImages = Boolean(report && summary && summary.oversizedFiles > 0 && !loading);
+  const canCleanupOversizedImages = Boolean(report && summary && Math.max(0, summary.oversizedFiles - summary.oversizedImageRefs) > 0 && !loading);
   const canCleanupContentTypeMismatch = Boolean(report && summary && Math.max(0, summary.contentTypeMismatchFiles - summary.contentTypeMismatchRefs) > 0 && !loading);
   const canCleanupSafeCacheIssues = canSafeCleanup || canCleanupDuplicateContent || canCleanupInvalidImages || canCleanupOversizedImages || canCleanupContentTypeMismatch;
   const canDiagnoseArtwork = Boolean(report && summary && summary.missingArtworkGames > 0 && !loading && !artworkDiagnosisLoading);
