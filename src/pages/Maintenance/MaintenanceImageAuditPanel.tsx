@@ -1,5 +1,5 @@
 import { forwardRef, useMemo } from 'react';
-import { Image, ListChecks, ShieldCheck } from 'lucide-react';
+import { Copy, Image, ListChecks, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Panel, PanelContent, PanelHeader, SoftRow } from '@/components/ui/page';
 import type { ImageCacheFileIssue, ImageDuplicateContentGroup, ImageDuplicateNameGroup, ImageHealthReport, ImageReferenceAudit } from '@/types/archive';
@@ -17,6 +17,7 @@ export const MaintenanceImageAuditPanel = forwardRef<HTMLElement, {
   loading: boolean;
   query: string;
   onDiagnoseArtwork: () => void;
+  onCopyImageHealthSummary: () => void;
   onLoadImageHealth: () => void;
   onQuarantineContentTypeMismatch: () => void;
   onQuarantineDuplicateContent: () => void;
@@ -42,6 +43,7 @@ export const MaintenanceImageAuditPanel = forwardRef<HTMLElement, {
   loading,
   query,
   onDiagnoseArtwork,
+  onCopyImageHealthSummary,
   onLoadImageHealth,
   onQuarantineContentTypeMismatch,
   onQuarantineDuplicateContent,
@@ -75,6 +77,7 @@ export const MaintenanceImageAuditPanel = forwardRef<HTMLElement, {
           loading={imageHealthLoading}
           report={imageHealth}
           onDiagnoseArtwork={onDiagnoseArtwork}
+          onCopyImageHealthSummary={onCopyImageHealthSummary}
           onLoad={onLoadImageHealth}
           onLoadAudit={onLoadAudit}
           onQuarantineContentTypeMismatch={onQuarantineContentTypeMismatch}
@@ -116,6 +119,7 @@ function ImageHealthSummaryPanel({
   loading,
   report,
   onDiagnoseArtwork,
+  onCopyImageHealthSummary,
   onLoad,
   onLoadAudit,
   onQuarantineContentTypeMismatch,
@@ -133,6 +137,7 @@ function ImageHealthSummaryPanel({
   loading: boolean;
   report: ImageHealthReport | null;
   onDiagnoseArtwork: () => void;
+  onCopyImageHealthSummary: () => void;
   onLoad: () => void;
   onLoadAudit: () => void;
   onQuarantineContentTypeMismatch: () => void;
@@ -152,6 +157,7 @@ function ImageHealthSummaryPanel({
   const canCleanupOversizedImages = Boolean(report && summary && Math.max(0, summary.oversizedFiles - summary.oversizedImageRefs) > 0 && !loading);
   const canCleanupContentTypeMismatch = Boolean(report && summary && Math.max(0, summary.contentTypeMismatchFiles - summary.contentTypeMismatchRefs) > 0 && !loading);
   const canCleanupSafeCacheIssues = canSafeCleanup || canCleanupDuplicateContent || canCleanupInvalidImages || canCleanupOversizedImages || canCleanupContentTypeMismatch;
+  const canCopyHealthSummary = Boolean(report && summary && !loading);
   const canDiagnoseArtwork = Boolean(report && summary && summary.missingArtworkGames > 0 && !loading && !artworkDiagnosisLoading);
   const canStartArtworkRepair = Boolean(report && summary && summary.missingArtworkGames > 0 && !loading && !artworkRepairLoading);
   const canInspectBrokenRefs = Boolean(report && summary && !loading && (
@@ -174,6 +180,7 @@ function ImageHealthSummaryPanel({
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
           <Button disabled={loading} size="sm" variant="outline" onClick={onLoad}><ListChecks className="h-4 w-4" />{loading ? '检查中' : '检查图片健康'}</Button>
+          <Button disabled={!canCopyHealthSummary} size="sm" variant="ghost" onClick={onCopyImageHealthSummary}><Copy className="h-4 w-4" />复制健康摘要</Button>
           <Button disabled={!canInspectBrokenRefs} size="sm" variant="outline" onClick={onLoadAudit}>查看失效引用</Button>
           <Button disabled={!canDiagnoseArtwork} size="sm" variant="outline" onClick={onDiagnoseArtwork}>{artworkDiagnosisLoading ? '诊断中' : '诊断缺图'}</Button>
           <Button disabled={!canStartArtworkRepair} size="sm" variant="secondary" onClick={onStartArtworkRepair}>{artworkRepairLoading ? '创建中' : '开始补图'}</Button>

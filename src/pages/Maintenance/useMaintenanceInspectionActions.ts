@@ -4,7 +4,7 @@ import type { ImageHealthReport, ImageQuarantineReport, ImageReferenceAudit } fr
 import type { ArtworkRepairDiagnosis } from '@/types/metadata';
 import { errorMessage } from '@/utils/errorMessage';
 import { formatCount } from './MaintenancePageParts';
-import { formatImageContentTypeMismatchQuarantineCompletionMessage, formatImageDuplicateContentQuarantineCompletionMessage, formatImageInvalidQuarantineCompletionMessage, formatImageOversizedQuarantineCompletionMessage, formatImageQuarantineCompletionMessage, formatImageSafeCacheBatchCompletionMessage } from './maintenanceImageHealthModel';
+import { formatImageContentTypeMismatchQuarantineCompletionMessage, formatImageDuplicateContentQuarantineCompletionMessage, formatImageHealthSummaryMarkdown, formatImageInvalidQuarantineCompletionMessage, formatImageOversizedQuarantineCompletionMessage, formatImageQuarantineCompletionMessage, formatImageSafeCacheBatchCompletionMessage } from './maintenanceImageHealthModel';
 
 type TaskMessage = { text: string; taskId?: string | null };
 
@@ -72,6 +72,17 @@ export function useMaintenanceInspectionActions({ setError, setMessage }: UseMai
       setImageHealthLoading(false);
     }
   }, [setError, setMessage]);
+
+  const copyImageHealthSummary = useCallback(async () => {
+    if (!imageHealth) return;
+    setError(null);
+    try {
+      await navigator.clipboard.writeText(formatImageHealthSummaryMarkdown(imageHealth));
+      setMessage({ text: '已复制图片健康摘要。' });
+    } catch (reason) {
+      setError(errorMessage(reason));
+    }
+  }, [imageHealth, setError, setMessage]);
 
   const quarantineOrphanImages = useCallback(async () => {
     const orphanCount = imageHealth?.summary.orphanFiles ?? 0;
@@ -277,6 +288,7 @@ export function useMaintenanceInspectionActions({ setError, setMessage }: UseMai
     loadArtworkDiagnosis,
     loadImageAudit,
     loadImageHealth,
+    copyImageHealthSummary,
     copyImageQuarantineManifestPath,
     quarantineDuplicateContentImages,
     quarantineContentTypeMismatchFiles,

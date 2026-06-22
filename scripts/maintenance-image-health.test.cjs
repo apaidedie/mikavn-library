@@ -260,6 +260,66 @@ test('maintenance image health ui exposes one-click safe cleanup wording', () =>
   assert.doesNotMatch(panel, /一键永久删除/);
 });
 
+test('image health summary can be copied as a compact diagnostic text', () => {
+  const { formatImageHealthSummaryMarkdown } = loadMaintenanceImageHealthModel();
+  const message = formatImageHealthSummaryMarkdown({
+    generatedAt: '2026-06-22T12:00:00.000Z',
+    summary: {
+      totalImageRefs: 25,
+      issueImageRefs: 4,
+      missingLocalRefs: 2,
+      cDriveRefs: 1,
+      playniteRefs: 1,
+      legacyAppDataImportRefs: 3,
+      externalLegacyRefs: 1,
+      imageFiles: 100,
+      orphanFiles: 7,
+      duplicateFileNameGroups: 2,
+      duplicateContentGroups: 3,
+      oversizedFiles: 5,
+      oversizedImageRefs: 2,
+      invalidImageFiles: 4,
+      invalidImageRefs: 1,
+      contentTypeMismatchFiles: 6,
+      contentTypeMismatchRefs: 2,
+      missingCoverGames: 8,
+      missingArtworkGames: 9,
+    },
+    cache: { rootPath: 'E:\\MikaVN Library\\app-data\\images' },
+    recommendations: ['先查看失效引用。', '再整理未引用缓存。'],
+  });
+
+  assert.match(message, /MikaVN 图片健康摘要/);
+  assert.match(message, /生成时间：2026-06-22T12:00:00.000Z/);
+  assert.match(message, /缓存目录：E:\\MikaVN Library\\app-data\\images/);
+  assert.match(message, /图片引用：25 条，问题 4 条/);
+  assert.match(message, /缺失引用：2/);
+  assert.match(message, /孤儿图片：7/);
+  assert.match(message, /重复内容：3 组/);
+  assert.match(message, /过大图片：5 个，其中仍被引用 2 个/);
+  assert.match(message, /无效图片：4 个，其中仍被引用 1 个/);
+  assert.match(message, /类型不匹配：6 个，其中仍被引用 2 个/);
+  assert.match(message, /缺封面游戏：8/);
+  assert.match(message, /媒体图不完整游戏：9/);
+  assert.match(message, /1\. 先查看失效引用。/);
+  assert.match(message, /2\. 再整理未引用缓存。/);
+});
+
+test('maintenance image health ui can copy the current health summary', () => {
+  const panel = fs.readFileSync('src/pages/Maintenance/MaintenanceImageAuditPanel.tsx', 'utf8');
+  const actions = fs.readFileSync('src/pages/Maintenance/useMaintenanceInspectionActions.ts', 'utf8');
+  const content = fs.readFileSync('src/pages/Maintenance/MaintenancePageContent.tsx', 'utf8');
+
+  assert.match(panel, /复制健康摘要/);
+  assert.match(panel, /onCopyImageHealthSummary/);
+  assert.match(panel, /disabled=\{!canCopyHealthSummary\}/);
+  assert.match(actions, /copyImageHealthSummary/);
+  assert.match(actions, /formatImageHealthSummaryMarkdown\(imageHealth\)/);
+  assert.match(actions, /navigator\.clipboard\.writeText/);
+  assert.match(actions, /已复制图片健康摘要。/);
+  assert.match(content, /onCopyImageHealthSummary=\{inspectionActions\.copyImageHealthSummary\}/);
+});
+
 test('maintenance image health batch cleanup confirms once and calls only safe cache quarantine APIs', () => {
   const actions = fs.readFileSync('src/pages/Maintenance/useMaintenanceInspectionActions.ts', 'utf8');
   const batchStart = actions.indexOf('const quarantineSafeCacheIssues');

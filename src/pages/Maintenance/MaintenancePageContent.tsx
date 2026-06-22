@@ -158,6 +158,7 @@ export function MaintenancePageContent({ dataActions, duplicateMergeActions, his
         loading={inspectionActions.imageAuditLoading}
         query={inspectionActions.imageAuditQuery}
         onDiagnoseArtwork={inspectionActions.loadArtworkDiagnosis}
+        onCopyImageHealthSummary={inspectionActions.copyImageHealthSummary}
         onIssueFilterChange={inspectionActions.setImageAuditIssueFilter}
         onLoadAudit={inspectionActions.loadImageAudit}
         onLoadImageHealth={inspectionActions.loadImageHealth}

@@ -78,6 +78,42 @@ export function formatImageSafeCacheBatchCompletionMessage(
   return `批量安全整理完成：已移动 ${formatCount(moved)} 个未引用缓存文件到隔离区${skipped}；复查剩余孤儿 ${formatCount(report.summary.orphanFiles)} 个、重复内容 ${formatCount(report.summary.duplicateContentGroups)} 组、未引用坏图 ${formatCount(remainingInvalid)} 个、未引用大图 ${formatCount(remainingOversized)} 个、未引用类型不匹配 ${formatCount(remainingMismatch)} 个。${quarantineRecoveryHint}`;
 }
 
+export function formatImageHealthSummaryMarkdown(report: Pick<ImageHealthReport, 'generatedAt' | 'recommendations' | 'summary'> & { cache?: Pick<ImageHealthReport['cache'], 'rootPath'> | null }) {
+  const summary = report.summary;
+  const lines = [
+    '# MikaVN 图片健康摘要',
+    '',
+    `生成时间：${report.generatedAt}`,
+    `缓存目录：${report.cache?.rootPath ?? '(未知)'}`,
+    '',
+    `图片引用：${formatCount(summary.totalImageRefs)} 条，问题 ${formatCount(summary.issueImageRefs)} 条`,
+    `缺失引用：${formatCount(summary.missingLocalRefs)}`,
+    `C 盘引用：${formatCount(summary.cDriveRefs)}`,
+    `Playnite 引用：${formatCount(summary.playniteRefs)}`,
+    `外部旧路径：${formatCount(summary.externalLegacyRefs)}`,
+    '',
+    `缓存图片：${formatCount(summary.imageFiles)} 个`,
+    `孤儿图片：${formatCount(summary.orphanFiles)}`,
+    `重复文件名：${formatCount(summary.duplicateFileNameGroups)} 组`,
+    `重复内容：${formatCount(summary.duplicateContentGroups)} 组`,
+    `过大图片：${formatCount(summary.oversizedFiles)} 个，其中仍被引用 ${formatCount(summary.oversizedImageRefs)} 个`,
+    `无效图片：${formatCount(summary.invalidImageFiles)} 个，其中仍被引用 ${formatCount(summary.invalidImageRefs)} 个`,
+    `类型不匹配：${formatCount(summary.contentTypeMismatchFiles)} 个，其中仍被引用 ${formatCount(summary.contentTypeMismatchRefs)} 个`,
+    '',
+    `缺封面游戏：${formatCount(summary.missingCoverGames)}`,
+    `媒体图不完整游戏：${formatCount(summary.missingArtworkGames)}`,
+  ];
+
+  if (report.recommendations.length > 0) {
+    lines.push('', '## 建议');
+    report.recommendations.forEach((recommendation, index) => {
+      lines.push(`${index + 1}. ${recommendation}`);
+    });
+  }
+
+  return lines.join('\n');
+}
+
 export function getImageHealthActionHint({ report, loading }: { report: ImageHealthActionHintReport | null; loading: boolean }) {
   if (loading) return '正在检查图片健康，完成后会更新可用操作。';
   if (!report) return '先检查图片健康后，再查看失效引用、诊断缺图或安全整理孤儿图片。';
