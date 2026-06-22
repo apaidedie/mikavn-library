@@ -116,6 +116,16 @@ test('release metadata gate knows about updater release checks', () => {
   assert.match(gate, /TAURI_SIGNING_PRIVATE_KEY/);
 });
 
+test('release handoff prepare script is wired into package and metadata gates', () => {
+  const pkg = readJson('package.json');
+  const gate = read('scripts/release/check-release-metadata.ps1');
+
+  assert.equal(pkg.scripts['release:handoff:prepare-updater'], 'node scripts/release/prepare-updater-handoff.cjs');
+  assert.match(pkg.scripts['test:release-scripts'], /prepare-updater-handoff\.test\.cjs/);
+  assert.match(gate, /release:handoff:prepare-updater/);
+  assert.match(gate, /prepare-updater-handoff\.test\.cjs/);
+});
+
 test('ci and local release validation run updater-specific tests', () => {
   const ciWorkflow = read('.github/workflows/ci.yml');
   const releaseValidation = read('scripts/release/run-release-validation.ps1');
