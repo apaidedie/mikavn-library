@@ -40,6 +40,16 @@ test('imageSrc uses MikaVN image protocol for local Windows app-data images in T
   );
 });
 
+test('imageSrc uses MikaVN image protocol for cache-relative image paths in Tauri', () => {
+  const { imageSrc } = loadImageSrc();
+
+  assert.equal(
+    imageSrc('images/roundtrip-cover.webp'),
+    'http://mikavn-image.localhost/images%2Froundtrip-cover.webp',
+  );
+  assert.equal(imageSrc('cover.jpg'), 'http://mikavn-image.localhost/cover.jpg');
+});
+
 test('imageSrc lets Tauri asset protocol handle external local image paths', () => {
   const { imageSrc } = loadImageSrc();
 

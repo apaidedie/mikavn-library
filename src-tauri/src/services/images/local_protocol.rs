@@ -60,17 +60,35 @@ fn resolve_local_image_path(app_data_root: &Path, protocol_path: &str) -> DbResu
     let decoded = percent_decode(encoded.as_bytes())
         .decode_utf8()
         .map_err(|_| DbError::validation("image path is not valid UTF-8"))?;
+    let images_root = app_data_root.join("images").canonicalize()?;
     let requested = PathBuf::from(decoded.as_ref());
-    if !requested.is_absolute() {
-        return Err(DbError::validation("image path must be absolute"));
+    if requested.is_absolute() {
+        return resolve_absolute_image_path(&images_root, &requested);
     }
 
-    let images_root = app_data_root.join("images").canonicalize()?;
+    resolve_cache_relative_image_path(&images_root, decoded.as_ref())
+}
+
+fn resolve_absolute_image_path(images_root: &Path, requested: &Path) -> DbResult<PathBuf> {
     let requested = requested.canonicalize()?;
-    if !requested.is_file() || !requested.starts_with(&images_root) {
+    if !requested.is_file() || !requested.starts_with(images_root) {
         return Err(DbError::validation("image path is outside the image cache"));
     }
     Ok(requested)
+}
+
+fn resolve_cache_relative_image_path(images_root: &Path, value: &str) -> DbResult<PathBuf> {
+    let normalized = value.replace('\\', "/");
+    let relative = normalized.strip_prefix("images/").unwrap_or(&normalized);
+    if relative.is_empty()
+        || relative
+            .split('/')
+            .any(|part| part.is_empty() || part == "." || part == "..")
+    {
+        return Err(DbError::validation("image path is outside the image cache"));
+    }
+
+    resolve_absolute_image_path(images_root, &images_root.join(relative))
 }
 
 fn local_image_content_type(path: &Path) -> Option<&'static str> {
@@ -153,6 +171,23 @@ mod tests {
         let traversal = images.join("..").join("mikavn.db");
 
         assert!(resolve_local_image_path(&root, &protocol_path_for(&traversal)).is_err());
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn resolves_cache_relative_image_paths_under_app_data_images() {
+        let root = std::env::temp_dir().join(format!(
+            "mikavn-image-protocol-relative-{}",
+            std::process::id()
+        ));
+        let images = root.join("images");
+        fs::create_dir_all(&images).unwrap();
+        let cover = images.join("roundtrip-cover.webp");
+        fs::write(&cover, b"webp").unwrap();
+
+        let resolved = resolve_local_image_path(&root, "/images%2Froundtrip-cover.webp").unwrap();
+
+        assert_eq!(resolved, cover.canonicalize().unwrap());
         let _ = fs::remove_dir_all(root);
     }
 
