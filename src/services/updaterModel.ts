@@ -126,10 +126,13 @@ export function formatUpdaterInstallProgress(progress: UpdaterInstallProgress | 
   if (!progress) return null;
   if (progress.phase === 'backing_up') return '正在创建更新前数据库备份...';
   if (progress.phase === 'installing') return '正在安装更新...';
+  const downloaded = formatDownloadBytes(progress.downloadedBytes);
+  const total = typeof progress.totalBytes === 'number' && progress.totalBytes > 0 ? formatDownloadBytes(progress.totalBytes) : null;
   if (typeof progress.percent === 'number') {
-    return `正在下载更新：${Math.max(0, Math.min(100, Math.round(progress.percent)))}%`;
+    const percentText = `${Math.max(0, Math.min(100, Math.round(progress.percent)))}%`;
+    return total ? `正在下载更新：${percentText}（${downloaded} / ${total}）` : `正在下载更新：${percentText}`;
   }
-  return `正在下载更新：已下载 ${formatDownloadBytes(progress.downloadedBytes)}`;
+  return total ? `正在下载更新：已下载 ${downloaded} / ${total}` : `正在下载更新：已下载 ${downloaded}`;
 }
 
 function formatDownloadBytes(value: number) {
