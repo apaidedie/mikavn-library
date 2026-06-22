@@ -36,6 +36,20 @@ test('library description images lazy load and decode asynchronously', () => {
   assert.match(source, /decoding="async"/);
 });
 
+test('library description images render in an initial batch with opt-in expansion', () => {
+  const source = fs.readFileSync('src/pages/Library/GameDetailMedia.tsx', 'utf8');
+  const model = fs.readFileSync('src/pages/Library/gameDetailMediaModel.ts', 'utf8');
+
+  assert.match(model, /descriptionImageInitialRenderLimit = 12/);
+  assert.match(model, /getVisibleDescriptionParts/);
+  assert.match(source, /expandedDescriptionImages/);
+  assert.match(source, /setExpandedDescriptionImages/);
+  assert.match(source, /getVisibleDescriptionParts\(parts, expandedDescriptionImages \? Number\.POSITIVE_INFINITY : descriptionImageInitialRenderLimit\)/);
+  assert.match(source, /hiddenImageCount/);
+  assert.match(source, /显示全部简介图片/);
+  assert.match(source, /收起简介图片/);
+});
+
 test('asset gallery limits per-type render count while keeping primary assets visible', () => {
   const source = fs.readFileSync('src/pages/Library/AssetGallery.tsx', 'utf8');
 

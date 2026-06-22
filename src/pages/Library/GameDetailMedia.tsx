@@ -1,6 +1,6 @@
 import { AlertTriangle, CheckCircle2, Copy, RefreshCw, Wrench } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { ImageReferenceAudit } from '@/types/archive';
@@ -10,6 +10,8 @@ import {
   imageAuditBadgeClass,
   imageAuditFieldLabel,
   imageAuditIssueLabel,
+  descriptionImageInitialRenderLimit,
+  getVisibleDescriptionParts,
   parseDescriptionParts,
   type MediaAuditItem,
   type MediaHealthItem,
@@ -19,7 +21,16 @@ export { formatGameImageDiagnostic, summarizeMediaHealth } from './gameDetailMed
 export { AssetGallery } from './AssetGallery';
 
 export function DescriptionRichText({ value }: { value?: string | null }) {
+  const [expandedDescriptionImages, setExpandedDescriptionImages] = useState(false);
   const parts = useMemo(() => parseDescriptionParts(value ?? ''), [value]);
+  const { hiddenImageCount, totalImageCount, visibleParts } = useMemo(
+    () => getVisibleDescriptionParts(parts, expandedDescriptionImages ? Number.POSITIVE_INFINITY : descriptionImageInitialRenderLimit),
+    [expandedDescriptionImages, parts],
+  );
+
+  useEffect(() => {
+    setExpandedDescriptionImages(false);
+  }, [value]);
 
   if (parts.length === 0) {
     return <p className="text-sm leading-7 text-slate-500">暂无简介。可通过 VNDB / DLsite / FANZA 元数据补全。</p>;
@@ -27,7 +38,7 @@ export function DescriptionRichText({ value }: { value?: string | null }) {
 
   return (
     <div className="space-y-4 text-sm leading-7 text-slate-300">
-      {parts.map((part, index) => {
+      {visibleParts.map((part, index) => {
         if (part.type === 'text') {
           return <p className="whitespace-pre-wrap break-words" key={`${index}-text`}>{part.value}</p>;
         }
@@ -39,6 +50,14 @@ export function DescriptionRichText({ value }: { value?: string | null }) {
           </figure>
         );
       })}
+      {totalImageCount > descriptionImageInitialRenderLimit && (
+        <div className="rounded-md border border-white/10 bg-black/[0.14] px-3 py-2 text-xs text-slate-400">
+          {hiddenImageCount > 0 ? `已先渲染前 ${descriptionImageInitialRenderLimit} 张简介图片，还有 ${hiddenImageCount} 张未渲染。` : `已显示全部 ${totalImageCount} 张简介图片。`}
+          <Button className="ml-2 h-7 px-2" size="sm" variant="ghost" onClick={() => setExpandedDescriptionImages((expanded) => !expanded)}>
+            {expandedDescriptionImages ? '收起简介图片' : '显示全部简介图片'}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

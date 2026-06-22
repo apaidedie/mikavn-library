@@ -15,6 +15,7 @@ export type MediaHealthItem = {
 const descriptionImageTokenPattern = /!\[([^\]]*)\]\(([^)]*?)\)|<img\b[^>]*>|\[img\]([\s\S]*?)\[\/img\]|https?:\/\/[^\s<>"']+?\.(?:png|jpe?g|webp|gif)(?:\?[^\s<>"']*)?/gi;
 
 export const assetTypeOrder = ['cover', 'banner', 'background', 'screenshot', 'other'];
+export const descriptionImageInitialRenderLimit = 12;
 
 export function parseDescriptionParts(value: string): DescriptionPart[] {
   const parts: DescriptionPart[] = [];
@@ -34,6 +35,29 @@ export function parseDescriptionParts(value: string): DescriptionPart[] {
 
   pushDescriptionText(parts, value.slice(lastIndex));
   return parts;
+}
+
+export function getVisibleDescriptionParts(parts: DescriptionPart[], imageLimit: number) {
+  const limit = Number.isFinite(imageLimit) ? Math.max(0, Math.floor(imageLimit)) : Number.POSITIVE_INFINITY;
+  const visibleParts: DescriptionPart[] = [];
+  let renderedImageCount = 0;
+  let totalImageCount = 0;
+
+  for (const part of parts) {
+    if (part.type === 'image') {
+      totalImageCount += 1;
+      if (renderedImageCount >= limit) continue;
+      renderedImageCount += 1;
+    }
+    visibleParts.push(part);
+  }
+
+  return {
+    hiddenImageCount: totalImageCount - renderedImageCount,
+    renderedImageCount,
+    totalImageCount,
+    visibleParts,
+  };
 }
 
 function pushDescriptionText(parts: DescriptionPart[], value: string) {

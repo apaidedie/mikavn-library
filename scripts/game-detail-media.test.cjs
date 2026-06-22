@@ -114,6 +114,46 @@ test('game image diagnostic text captures fields audit counts and samples', () =
   assert.match(text, /维护入口：维护中心 -> 图片健康 \/ 图片引用审计/);
 });
 
+test('description image rendering keeps text while limiting initial image nodes', () => {
+  const { getVisibleDescriptionParts } = loadGameDetailMediaModel();
+  const parts = [
+    { type: 'text', value: '开头' },
+    { type: 'image', src: 'one.jpg' },
+    { type: 'text', value: '中间' },
+    { type: 'image', src: 'two.jpg' },
+    { type: 'image', src: 'three.jpg' },
+    { type: 'text', value: '结尾' },
+  ];
+
+  const result = getVisibleDescriptionParts(parts, 2);
+
+  assert.deepEqual(result.visibleParts, [
+    { type: 'text', value: '开头' },
+    { type: 'image', src: 'one.jpg' },
+    { type: 'text', value: '中间' },
+    { type: 'image', src: 'two.jpg' },
+    { type: 'text', value: '结尾' },
+  ]);
+  assert.equal(result.renderedImageCount, 2);
+  assert.equal(result.hiddenImageCount, 1);
+  assert.equal(result.totalImageCount, 3);
+});
+
+test('description image rendering can opt in to all images', () => {
+  const { getVisibleDescriptionParts } = loadGameDetailMediaModel();
+  const parts = [
+    { type: 'image', src: 'one.jpg' },
+    { type: 'image', src: 'two.jpg' },
+  ];
+
+  const result = getVisibleDescriptionParts(parts, Number.POSITIVE_INFINITY);
+
+  assert.equal(result.visibleParts.length, 2);
+  assert.equal(result.renderedImageCount, 2);
+  assert.equal(result.hiddenImageCount, 0);
+  assert.equal(result.totalImageCount, 2);
+});
+
 test('game detail media UI exposes copyable image diagnostics', () => {
   const media = fs.readFileSync('src/pages/Library/GameDetailMedia.tsx', 'utf8');
   const overview = fs.readFileSync('src/pages/Library/GameDetailOverview.tsx', 'utf8');
