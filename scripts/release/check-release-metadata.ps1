@@ -66,7 +66,7 @@ if ($package.private -ne $true) {
   throw "package.json should remain private=true; GitHub release publishes the desktop installer, not an npm package."
 }
 
-$requiredScripts = @("build", "typecheck", "test:release-scripts", "test:playwright-scripts", "test:updater-release", "test:diagnostic-export", "release:check", "release:check:strict", "release:signing:check", "release:signing:require", "release:sign", "release:handoff:check", "release:validate", "release:validate:strict", "release:validate:core", "smoke:browser", "smoke:large", "smoke:install", "smoke:portable-data", "smoke:real-data:readonly", "smoke:elevated-launch", "tauri:build", "smoke:desktop")
+$requiredScripts = @("build", "typecheck", "test:release-scripts", "test:playwright-scripts", "test:updater-release", "test:diagnostic-export", "release:check", "release:check:strict", "release:signing:check", "release:signing:require", "release:sign", "release:handoff:check", "release:validate", "release:validate:strict", "release:validate:core", "smoke:browser", "smoke:large", "smoke:install", "smoke:portable-data", "smoke:real-data:readonly", "smoke:real-install:update", "smoke:elevated-launch", "tauri:build", "smoke:desktop")
 foreach ($scriptName in $requiredScripts) {
   if ($null -eq $package.scripts.$scriptName -or [string]::IsNullOrWhiteSpace([string]$package.scripts.$scriptName)) {
     throw "package.json is missing required script '$scriptName'."
@@ -156,6 +156,13 @@ foreach ($token in @("scripts/desktop-smoke/run-real-app-data-readonly-smoke.ps1
   $scriptText = [string]$package.scripts.'smoke:real-data:readonly'
   if (!$scriptText.Contains($token)) {
     throw "package.json smoke:real-data:readonly must include token '$token'."
+  }
+}
+
+foreach ($token in @("scripts/desktop-smoke/run-real-install-update-smoke.ps1")) {
+  $scriptText = [string]$package.scripts.'smoke:real-install:update'
+  if (!$scriptText.Contains($token)) {
+    throw "package.json smoke:real-install:update must include token '$token'."
   }
 }
 
@@ -376,6 +383,14 @@ foreach ($stalePath in @("output/playwright/page-qa-runner.cjs", "output/playwri
 foreach ($token in @("current repository test count", "Rust tests", "get_app_data_diagnostics", "cleanup_old_database_backups", "cargo clippy -- -D warnings", "4500 browser-preview records", "advanced search", "npm run release:check:strict", "npm run release:validate:strict", "npm run release:validate:core", "npm run test:release-scripts", "npm run test:playwright-scripts", "npm run test:diagnostic-export", "npm run smoke:large", "npm run smoke:install", "npm run smoke:portable-data", "npm run smoke:real-data:readonly", "npm run tauri:build", "npm run smoke:desktop", "npm run release:handoff:check", "output/desktop-smoke/run-*/isolated-app-data")) {
   if (!$readme.Contains($token)) {
     throw "README.md verification snapshot must document '$token'."
+  }
+}
+foreach ($token in @("npm run smoke:real-install:update", "manual-install-smoke", "verified database backup")) {
+  if (!$readme.Contains($token)) {
+    throw "README real install update smoke documentation is missing required token: $token"
+  }
+  if (!$releaseChecklist.Contains($token)) {
+    throw "Release checklist real install update smoke documentation is missing required token: $token"
   }
 }
 

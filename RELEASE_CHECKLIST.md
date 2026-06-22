@@ -63,6 +63,7 @@ After a release build exists, run:
 npm run smoke:install
 npm run smoke:portable-data
 npm run smoke:real-data:readonly
+npm run smoke:real-install:update
 npm run smoke:desktop
 npm run release:handoff:check
 ```
@@ -70,6 +71,8 @@ npm run release:handoff:check
 `npm run smoke:install` silently installs the NSIS package into `output/clean-install-smoke/run-*/install`, launches the installed app with isolated app data, verifies first-run database/window creation, and silently uninstalls it. `npm run smoke:portable-data` installs without `MIKAVN_APP_DATA_DIR`, verifies executable-adjacent `app-data/` plus `.mikavn-portable`, and fails if `%APPDATA%` receives `mikavn.db`.
 
 `npm run smoke:real-data:readonly` checks the real `E:\MikaVN Library` install without mutation. It verifies SQLite `quick_check`, database backup samples, update-protection backups, local image references, and sampled image-cache headers before a local release candidate is considered safe for your existing library.
+
+`npm run smoke:real-install:update` is the explicit real installed-app overwrite check. It refuses to run while MikaVN is active, creates a verified database backup under `E:\MikaVN Library\app-data\database-backups\manual-install-smoke`, runs the NSIS installer against `E:\MikaVN Library`, launches the app, and verifies game, asset, and image counts are preserved. Run it only when you intend to update the real local install.
 
 The smoke should start `src-tauri/target/release/mikavn-library.exe`, detect that the main window was exposed, and create or open `mikavn.db` only under `output/desktop-smoke/run-*/isolated-app-data`. The report records `mainWindowDetected`, `mainWindowHandle`, and `mainWindowTitle` when available. The script sets `MIKAVN_APP_DATA_DIR` for the launched process and must fail if the database appears outside that isolated root; desktop smoke must not read from or write to the real `%APPDATA%\dev.mikavn.library` profile.
 
