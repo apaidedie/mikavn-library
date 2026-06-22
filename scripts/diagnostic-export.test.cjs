@@ -139,8 +139,11 @@ test('startup self-check warning notice can open maintenance and export diagnost
   assert.match(app, /AppStartupSelfCheckNotice/);
   assert.match(app, /startupSelfCheckWarnings=\{app\.startupSelfCheckWarnings\}/);
   assert.match(app, /onOpenMaintenance=\{\(\) => app\.openMaintenance\(\)\}/);
+  assert.match(app, /onOpenLocalData=\{\(\) => app\.openSettings\('local', 'database-restore'\)\}/);
   assert.match(notice, /启动自检发现问题/);
   assert.match(notice, /打开维护中心/);
+  assert.match(notice, /打开本地数据/);
+  assert.match(notice, /onOpenLocalData/);
   assert.match(notice, /导出诊断包/);
   assert.match(notice, /DiagnosticExportPathActions/);
   assert.match(notice, /navigator\.clipboard\.writeText\(diagnosticExportPath\)/);

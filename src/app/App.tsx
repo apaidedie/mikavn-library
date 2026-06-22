@@ -33,6 +33,7 @@ export function App() {
           startupSelfCheckWarnings={app.startupSelfCheckWarnings}
           onDismiss={app.dismissStartupSelfCheck}
           onExportDiagnosticPackage={app.exportStartupSelfCheckDiagnosticPackage}
+          onOpenLocalData={() => app.openSettings('local', 'database-restore')}
           onOpenMaintenance={() => app.openMaintenance()}
           onRevealDiagnosticExportPath={app.revealStartupSelfCheckDiagnosticExportPath}
         />

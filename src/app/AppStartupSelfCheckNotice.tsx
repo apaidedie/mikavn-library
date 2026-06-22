@@ -1,4 +1,4 @@
-import { AlertTriangle, ClipboardCopy, FileArchive, Wrench, X } from 'lucide-react';
+import { AlertTriangle, ClipboardCopy, Database, FileArchive, Wrench, X } from 'lucide-react';
 import { useState } from 'react';
 import { DiagnosticExportPathActions } from '@/components/diagnostics/DiagnosticExportPathActions';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ type AppStartupSelfCheckNoticeProps = {
   error: string | null;
   onDismiss: () => void;
   onExportDiagnosticPackage: () => void;
+  onOpenLocalData: () => void;
   onOpenMaintenance: () => void;
   onRevealDiagnosticExportPath: () => void;
   startupSelfCheckWarnings: string[];
@@ -24,6 +25,7 @@ export function AppStartupSelfCheckNotice({
   error,
   onDismiss,
   onExportDiagnosticPackage,
+  onOpenLocalData,
   onOpenMaintenance,
   onRevealDiagnosticExportPath,
   startupSelfCheckWarnings,
@@ -70,7 +72,7 @@ export function AppStartupSelfCheckNotice({
               {startupSelfCheckWarnings.length > warningPreview.length && <div>还有 {startupSelfCheckWarnings.length - warningPreview.length} 条警告。</div>}
             </div>
           )}
-          <div className="mt-1 text-xs opacity-80">建议先打开维护中心查看数据目录、数据库和图片健康；需要反馈问题时先导出诊断包。</div>
+          <div className="mt-1 text-xs opacity-80">建议先打开本地数据或维护中心查看数据目录、数据库、备份和图片健康；需要反馈问题时先导出诊断包。</div>
           {diagnosticExportMessage && <div className="mt-1 break-all text-xs opacity-90">{diagnosticExportMessage}</div>}
           {diagnosticExportPath && (
             <div className="mt-2 flex flex-wrap gap-2">
@@ -93,6 +95,10 @@ export function AppStartupSelfCheckNotice({
           <Button disabled={diagnosticExportLoading} size="sm" variant="outline" onClick={onExportDiagnosticPackage}>
             <FileArchive className="h-4 w-4" />
             {diagnosticExportLoading ? '导出中' : '导出诊断包'}
+          </Button>
+          <Button size="sm" variant="outline" onClick={onOpenLocalData}>
+            <Database className="h-4 w-4" />
+            打开本地数据
           </Button>
           <Button size="sm" variant="outline" onClick={onOpenMaintenance}>
             <Wrench className="h-4 w-4" />
