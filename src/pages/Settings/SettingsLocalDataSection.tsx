@@ -83,6 +83,9 @@ export function SettingsLocalDataSection({
           <div className="text-xs text-slate-500">
             备份清理策略：{cleanupPolicyText}；只清理应用管理的旧数据库备份，不会删除当前 mikavn.db。
           </div>
+          <div className="text-xs text-slate-500">
+            旧版更新保护备份 database-update-protection 也会计入数据库备份统计；清理仍只作用于应用管理的备份文件。
+          </div>
         </div>
       </ConfigItem>
       {diagnostics ? (

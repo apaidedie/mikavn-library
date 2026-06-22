@@ -107,6 +107,15 @@ test('local data settings labels the backup total as all database backups', () =
   assert.doesNotMatch(source, /label="旧数据库备份"/);
 });
 
+test('local data settings explains legacy update protection backups are included safely', () => {
+  const source = read('src/pages/Settings/SettingsLocalDataSection.tsx');
+
+  assert.match(source, /旧版更新保护备份/);
+  assert.match(source, /database-update-protection/);
+  assert.match(source, /也会计入数据库备份统计/);
+  assert.match(source, /清理仍只作用于应用管理的备份文件/);
+});
+
 test('local data settings exposes a diagnostic package export action', () => {
   const section = read('src/pages/Settings/SettingsLocalDataSection.tsx');
   const actions = read('src/pages/Settings/useSettingsLocalDataActions.ts');
