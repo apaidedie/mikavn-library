@@ -146,3 +146,15 @@ test('startup self-check warning notice can open maintenance and export diagnost
   assert.match(notice, /navigator\.clipboard\.writeText\(diagnosticExportPath\)/);
   assert.match(notice, /role="status"/);
 });
+
+test('startup self-check warning notice can copy a concise diagnostic summary', () => {
+  const notice = fs.readFileSync('src/app/AppStartupSelfCheckNotice.tsx', 'utf8');
+
+  assert.match(notice, /copyStartupSelfCheckSummary/);
+  assert.match(notice, /MikaVN 启动自检摘要/);
+  assert.match(notice, /startupSelfCheckWarnings\.join\('\\n'\)/);
+  assert.match(notice, /navigator\.clipboard\.writeText\(summary\)/);
+  assert.match(notice, /复制自检摘要/);
+  assert.match(notice, /自检摘要已复制。/);
+  assert.match(notice, /复制自检摘要失败/);
+});

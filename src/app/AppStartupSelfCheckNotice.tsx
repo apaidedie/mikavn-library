@@ -1,4 +1,4 @@
-import { AlertTriangle, FileArchive, Wrench, X } from 'lucide-react';
+import { AlertTriangle, ClipboardCopy, FileArchive, Wrench, X } from 'lucide-react';
 import { useState } from 'react';
 import { DiagnosticExportPathActions } from '@/components/diagnostics/DiagnosticExportPathActions';
 import { Button } from '@/components/ui/button';
@@ -42,6 +42,20 @@ export function AppStartupSelfCheckNotice({
     }
   };
 
+  const copyStartupSelfCheckSummary = async () => {
+    setDiagnosticCopyMessage(null);
+    const summary = [
+      'MikaVN 启动自检摘要',
+      error ? `错误：${error}` : startupSelfCheckWarnings.join('\n'),
+    ].filter(Boolean).join('\n');
+    try {
+      await navigator.clipboard.writeText(summary);
+      setDiagnosticCopyMessage('自检摘要已复制。');
+    } catch (reason) {
+      setDiagnosticCopyMessage(`复制自检摘要失败：${errorMessage(reason)}`);
+    }
+  };
+
   return (
     <Notice className="mx-3 mt-3" tone="warning">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -72,6 +86,10 @@ export function AppStartupSelfCheckNotice({
           {diagnosticCopyMessage && <div className="mt-1 break-all text-xs opacity-90" role="status">{diagnosticCopyMessage}</div>}
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
+          <Button size="sm" variant="ghost" onClick={() => void copyStartupSelfCheckSummary()}>
+            <ClipboardCopy className="h-4 w-4" />
+            复制自检摘要
+          </Button>
           <Button disabled={diagnosticExportLoading} size="sm" variant="outline" onClick={onExportDiagnosticPackage}>
             <FileArchive className="h-4 w-4" />
             {diagnosticExportLoading ? '导出中' : '导出诊断包'}
