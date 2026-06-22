@@ -1,5 +1,6 @@
 use crate::db::models::{
-    BatchMatchJob, BatchMatchStatus, ExternalIdRecord, FieldLock, Game, MetadataSourceRecord,
+    BatchMatchJob, BatchMatchStatus, DuplicateExternalIdAuditRow, ExternalIdRecord, FieldLock,
+    Game, MetadataSourceRecord,
 };
 use crate::db::{Database, DbResult};
 use crate::repositories::metadata_matches::InsertMatchResultInput;
@@ -115,6 +116,59 @@ impl Database {
     pub fn list_external_ids(&self, game_id: String) -> DbResult<Vec<ExternalIdRecord>> {
         self.get_game(game_id.clone())?;
         self.metadata_id_repository().list_external_ids(game_id)
+    }
+
+    pub fn list_duplicate_external_id_audit_rows(
+        &self,
+    ) -> DbResult<Vec<DuplicateExternalIdAuditRow>> {
+        let mut stmt = self.conn.prepare(
+            r#"
+            SELECT provider, external_id, game_id, title, install_path, source
+            FROM (
+              SELECT 'vndb' AS provider, vndb_id AS external_id, id AS game_id, title, install_path, 'games.vndb_id' AS source
+              FROM games
+              UNION ALL
+              SELECT 'bangumi' AS provider, bangumi_id AS external_id, id AS game_id, title, install_path, 'games.bangumi_id' AS source
+              FROM games
+              UNION ALL
+              SELECT 'dlsite' AS provider, dlsite_id AS external_id, id AS game_id, title, install_path, 'games.dlsite_id' AS source
+              FROM games
+              UNION ALL
+              SELECT 'fanza' AS provider, fanza_id AS external_id, id AS game_id, title, install_path, 'games.fanza_id' AS source
+              FROM games
+              UNION ALL
+              SELECT 'ymgal' AS provider, ymgal_id AS external_id, id AS game_id, title, install_path, 'games.ymgal_id' AS source
+              FROM games
+              UNION ALL
+              SELECT
+                e.provider,
+                e.external_id,
+                g.id AS game_id,
+                g.title,
+                g.install_path,
+                CASE
+                  WHEN TRIM(COALESCE(e.source, '')) <> '' THEN 'external_ids:' || e.source
+                  ELSE 'external_ids'
+                END AS source
+              FROM external_ids e
+              INNER JOIN games g ON g.id = e.game_id
+            )
+            WHERE TRIM(COALESCE(provider, '')) <> ''
+              AND TRIM(COALESCE(external_id, '')) <> ''
+            ORDER BY title ASC, game_id ASC, provider ASC, source ASC
+            "#,
+        )?;
+        let rows = stmt.query_map([], |row| {
+            Ok(DuplicateExternalIdAuditRow {
+                provider: row.get(0)?,
+                external_id: row.get(1)?,
+                game_id: row.get(2)?,
+                title: row.get(3)?,
+                install_path: row.get(4)?,
+                source: row.get(5)?,
+            })
+        })?;
+        Ok(rows.collect::<Result<Vec<_>, _>>()?)
     }
 
     pub fn upsert_external_id(

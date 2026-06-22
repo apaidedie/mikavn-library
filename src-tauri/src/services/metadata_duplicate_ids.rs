@@ -4,7 +4,7 @@ use std::thread;
 
 use tauri::AppHandle;
 
-use crate::db::models::{Game, GameFilter, TaskRecord};
+use crate::db::models::{DuplicateExternalIdAuditRow, TaskRecord};
 use crate::db::{Database, DbError, DbResult};
 use crate::infrastructure::logger;
 use crate::infrastructure::paths::AppPaths;
@@ -255,112 +255,32 @@ fn collect_external_id_entries(
     db: &Database,
     options: &AuditRunOptions,
 ) -> DbResult<Vec<ExternalIdEntry>> {
-    let games = db.list_games(GameFilter {
-        sort_by: Some("title".to_string()),
-        sort_direction: Some("asc".to_string()),
-        ..GameFilter::default()
-    })?;
-    let mut entries = Vec::new();
-    for game in games {
-        push_game_field(
-            &mut entries,
-            &game,
-            "vndb",
-            game.vndb_id.as_deref(),
-            "vndb_id",
-            options,
-        );
-        push_game_field(
-            &mut entries,
-            &game,
-            "bangumi",
-            game.bangumi_id.as_deref(),
-            "bangumi_id",
-            options,
-        );
-        push_game_field(
-            &mut entries,
-            &game,
-            "dlsite",
-            game.dlsite_id.as_deref(),
-            "dlsite_id",
-            options,
-        );
-        push_game_field(
-            &mut entries,
-            &game,
-            "fanza",
-            game.fanza_id.as_deref(),
-            "fanza_id",
-            options,
-        );
-        push_game_field(
-            &mut entries,
-            &game,
-            "ymgal",
-            game.ymgal_id.as_deref(),
-            "ymgal_id",
-            options,
-        );
-
-        for record in db.list_external_ids(game.id.clone())? {
-            let provider = record.provider.trim().to_lowercase();
+    Ok(db
+        .list_duplicate_external_id_audit_rows()?
+        .into_iter()
+        .filter_map(|row| {
+            let provider = row.provider.trim().to_lowercase();
             if !provider_allowed(&provider, options) {
-                continue;
+                return None;
             }
-            if let Some(entry) = external_id_entry(
-                &game,
-                &provider,
-                &record.external_id,
-                &record
-                    .source
-                    .as_deref()
-                    .map(|source| format!("external_ids:{source}"))
-                    .unwrap_or_else(|| "external_ids".to_string()),
-            ) {
-                entries.push(entry);
-            }
-        }
-    }
-    Ok(entries)
+            external_id_entry(row, &provider)
+        })
+        .collect())
 }
 
-fn push_game_field(
-    entries: &mut Vec<ExternalIdEntry>,
-    game: &Game,
-    provider: &str,
-    external_id: Option<&str>,
-    field_name: &str,
-    options: &AuditRunOptions,
-) {
-    if !provider_allowed(provider, options) {
-        return;
-    }
-    if let Some(entry) = external_id
-        .and_then(|id| external_id_entry(game, provider, id, &format!("games.{field_name}")))
-    {
-        entries.push(entry);
-    }
-}
-
-fn external_id_entry(
-    game: &Game,
-    provider: &str,
-    external_id: &str,
-    source: &str,
-) -> Option<ExternalIdEntry> {
-    let external_id = external_id.trim();
+fn external_id_entry(row: DuplicateExternalIdAuditRow, provider: &str) -> Option<ExternalIdEntry> {
+    let external_id = row.external_id.trim().to_string();
     if provider.trim().is_empty() || external_id.is_empty() {
         return None;
     }
     Some(ExternalIdEntry {
         provider: provider.trim().to_lowercase(),
-        external_id: external_id.to_string(),
+        external_id: external_id.clone(),
         normalized_external_id: external_id.to_lowercase(),
-        game_id: game.id.clone(),
-        title: game.title.clone(),
-        install_path: game.install_path.clone(),
-        source: source.to_string(),
+        game_id: row.game_id,
+        title: row.title,
+        install_path: row.install_path,
+        source: row.source,
     })
 }
 
@@ -459,6 +379,55 @@ fn normalize_options(options: DuplicateExternalIdAuditOptions) -> DbResult<Audit
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::db::models::Game;
+
+    fn test_db() -> Database {
+        let path = std::env::temp_dir().join(format!(
+            "mikavn-duplicate-id-test-{}.db",
+            uuid::Uuid::new_v4()
+        ));
+        Database::new_from_path(path).unwrap()
+    }
+
+    fn game(id: &str, title: &str, install_path: &str, vndb_id: Option<&str>) -> Game {
+        Game {
+            id: id.to_string(),
+            title: title.to_string(),
+            original_title: None,
+            aliases: Vec::new(),
+            developer: None,
+            publisher: None,
+            brand: None,
+            release_date: None,
+            description: None,
+            notes: None,
+            tags: Vec::new(),
+            genres: Vec::new(),
+            rating: None,
+            age_rating: None,
+            play_status: "planned".to_string(),
+            favorite: false,
+            hidden: false,
+            install_path: install_path.to_string(),
+            executable_path: None,
+            working_directory: None,
+            launch_args: None,
+            path_status: "unknown".to_string(),
+            last_path_checked_at: None,
+            cover_image: None,
+            banner_image: None,
+            background_image: None,
+            vndb_id: vndb_id.map(ToString::to_string),
+            bangumi_id: None,
+            dlsite_id: None,
+            fanza_id: None,
+            ymgal_id: None,
+            total_play_seconds: 0,
+            last_played_at: None,
+            created_at: String::new(),
+            updated_at: String::new(),
+        }
+    }
 
     fn entry(provider: &str, external_id: &str, game_id: &str, title: &str) -> ExternalIdEntry {
         ExternalIdEntry {
@@ -505,5 +474,39 @@ mod tests {
 
         assert_eq!(preview.total_groups, 2);
         assert_eq!(preview.groups.len(), 1);
+    }
+
+    #[test]
+    fn duplicate_preview_reads_legacy_and_normalized_external_ids_from_lightweight_rows() {
+        let db = test_db();
+        db.insert_imported_game_record(game("g1", "One", "D:\\Games\\One", Some("v123")))
+            .unwrap();
+        db.insert_imported_game_record(game("g2", "Two", "D:\\Games\\Two", None))
+            .unwrap();
+        db.upsert_external_id("g2", "vndb", "V123", Some("manual"), None)
+            .unwrap();
+
+        let preview = preview_duplicate_external_ids(
+            &db,
+            DuplicateExternalIdAuditOptions {
+                providers: Some(vec!["vndb".to_string()]),
+                limit: Some(10),
+                retry_attempted: None,
+            },
+        )
+        .unwrap();
+
+        assert_eq!(preview.total_groups, 1);
+        assert_eq!(preview.total_games, 2);
+        assert_eq!(preview.groups[0].provider, "vndb");
+        assert_eq!(preview.groups[0].external_id, "v123");
+        assert!(preview.groups[0]
+            .games
+            .iter()
+            .any(|game| game.game_id == "g1" && game.sources == vec!["games.vndb_id"]));
+        assert!(preview.groups[0]
+            .games
+            .iter()
+            .any(|game| { game.game_id == "g2" && game.sources == vec!["external_ids:manual"] }));
     }
 }

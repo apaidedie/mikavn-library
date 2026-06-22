@@ -330,6 +330,16 @@ pub struct ExternalIdRecord {
     pub updated_at: String,
 }
 
+#[derive(Debug, Clone)]
+pub struct DuplicateExternalIdAuditRow {
+    pub provider: String,
+    pub external_id: String,
+    pub game_id: String,
+    pub title: String,
+    pub install_path: String,
+    pub source: String,
+}
+
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DuplicateGameMergeOptions {

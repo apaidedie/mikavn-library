@@ -16,3 +16,16 @@ test('maintenance metadata repair starts from backend-selected candidates', () =
   assert.match(commands, /pub fn batch_match_missing_metadata/);
   assert.match(lib, /commands::metadata::batch_match_missing_metadata/);
 });
+
+test('duplicate external id audit uses a single lightweight backend row query', () => {
+  const service = fs.readFileSync(path.join(__dirname, '..', 'src-tauri', 'src', 'services', 'metadata_duplicate_ids.rs'), 'utf8');
+  const metadataDb = fs.readFileSync(path.join(__dirname, '..', 'src-tauri', 'src', 'db', 'metadata_ext.rs'), 'utf8');
+
+  assert.doesNotMatch(service, /db\.list_games\(GameFilter/);
+  assert.doesNotMatch(service, /db\.list_external_ids\(game\.id\.clone\(\)\)/);
+  assert.match(service, /DuplicateExternalIdAuditRow/);
+  assert.match(service, /list_duplicate_external_id_audit_rows/);
+  assert.match(metadataDb, /pub fn list_duplicate_external_id_audit_rows/);
+  assert.match(metadataDb, /UNION ALL/);
+  assert.match(metadataDb, /FROM external_ids/);
+});
