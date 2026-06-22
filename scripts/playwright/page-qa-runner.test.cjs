@@ -32,3 +32,10 @@ test('library detail QA verifies copyable image diagnostics', () => {
   assert.match(source, /维护入口：维护中心 -> 图片健康 \/ 图片引用审计/);
   assert.match(source, /已复制图片诊断信息/);
 });
+
+test('page QA returns from image health with an exact library nav locator', () => {
+  const source = fs.readFileSync(sourcePath, 'utf8');
+
+  assert.match(source, /getByLabel\('游戏库', \{ exact: true \}\)\.click\(\)/);
+  assert.doesNotMatch(source, /getByLabel\('游戏库'\)\.click\(\)/);
+});

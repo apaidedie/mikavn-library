@@ -317,7 +317,7 @@ async function main() {
         if (removedAssetRecords.some((asset) => asset.id === 'qa-asset-shot')) throw new Error('asset gallery remove action did not delete the screenshot asset record');
         await page.getByRole('button', { name: /图片健康/ }).click();
         await waitForImageHealthWorkflow(page);
-        await page.getByLabel('游戏库').click();
+        await page.getByLabel('游戏库', { exact: true }).click();
         await page.getByText('媒体图库').first().waitFor({ timeout: 5000 });
         await page.getByRole('button', { name: '批量', exact: true }).click();
         await page.getByRole('button', { name: /选中当前/ }).click();

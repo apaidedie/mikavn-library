@@ -7,6 +7,7 @@ import { useAppKeyboardShortcuts } from './useAppKeyboardShortcuts';
 import { useAppThemeSettings } from './useAppThemeSettings';
 import { useStartupDatabaseBackup } from './useStartupDatabaseBackup';
 import { useStartupDatabaseBackupDiagnosticExport } from './useStartupDatabaseBackupDiagnosticExport';
+import { useStartupSelfCheck } from './useStartupSelfCheck';
 import { useStartupUpdater } from './useStartupUpdater';
 
 export function useAppController() {
@@ -29,6 +30,7 @@ export function useAppController() {
   const { accent, previewAccent, previewTheme, resolvedTheme, toggleTheme } = useAppThemeSettings(refreshKey);
   const startupDatabaseBackup = useStartupDatabaseBackup();
   const startupDatabaseBackupDiagnosticExport = useStartupDatabaseBackupDiagnosticExport();
+  const startupSelfCheck = useStartupSelfCheck();
   const startupUpdater = useStartupUpdater();
   const startupUpdateNotice = startupUpdater.notice?.kind === 'available' ? startupUpdater.notice : null;
 
@@ -150,6 +152,7 @@ export function useAppController() {
     startupUpdateNotice,
     startupDatabaseBackup,
     ...startupDatabaseBackupDiagnosticExport,
+    ...startupSelfCheck,
     startupUpdater,
     taskFilterPresetRequest,
     taskFocusRequest,

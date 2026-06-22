@@ -1,6 +1,7 @@
 import { AppChrome } from './AppChrome';
 import { AppRoutes } from './AppRoutes';
 import { AppStartupDatabaseBackupNotice } from './AppStartupDatabaseBackupNotice';
+import { AppStartupSelfCheckNotice } from './AppStartupSelfCheckNotice';
 import { AppUpdateNotice } from './AppUpdateNotice';
 import { useAppController } from './useAppController';
 
@@ -23,6 +24,20 @@ export function App() {
       topSearchRef={app.topSearchRef}
       view={app.view}
     >
+      {!app.startupSelfCheckDismissed && (app.startupSelfCheckError || app.startupSelfCheckWarnings.length > 0) && (
+        <AppStartupSelfCheckNotice
+          diagnosticExportLoading={app.startupSelfCheckDiagnosticExportLoading}
+          diagnosticExportMessage={app.startupSelfCheckDiagnosticExportMessage}
+          diagnosticExportPath={app.startupSelfCheckDiagnosticExportPath}
+          error={app.startupSelfCheckError}
+          startupSelfCheckWarnings={app.startupSelfCheckWarnings}
+          onDismiss={app.dismissStartupSelfCheck}
+          onExportDiagnosticPackage={app.exportStartupSelfCheckDiagnosticPackage}
+          onOpenMaintenance={() => app.openMaintenance()}
+          onRevealDiagnosticExportPath={app.revealStartupSelfCheckDiagnosticExportPath}
+        />
+      )}
+
       {app.startupDatabaseBackup.startupDatabaseBackupError && (
         <AppStartupDatabaseBackupNotice
           diagnosticExportLoading={app.startupDatabaseBackupDiagnosticExportLoading}

@@ -119,3 +119,30 @@ test('startup database backup failure notice reports diagnostic path copy result
   assert.match(notice, /复制诊断包路径失败/);
   assert.match(notice, /role="status"/);
 });
+
+test('startup self-check warning notice can open maintenance and export diagnostics', () => {
+  const app = fs.readFileSync('src/app/App.tsx', 'utf8');
+  const controller = fs.readFileSync('src/app/useAppController.ts', 'utf8');
+  const hook = fs.readFileSync('src/app/useStartupSelfCheck.ts', 'utf8');
+  const notice = fs.readFileSync('src/app/AppStartupSelfCheckNotice.tsx', 'utf8');
+
+  assert.match(controller, /useStartupSelfCheck/);
+  assert.match(controller, /\.\.\.startupSelfCheck/);
+  assert.match(hook, /api\s*\.\s*getAppDataDiagnostics\(\)/);
+  assert.match(hook, /diagnostics\.warnings/);
+  assert.match(hook, /!diagnostics\.database\.quickCheckOk/);
+  assert.match(hook, /startupSelfCheckWarnings/);
+  assert.match(hook, /startupSelfCheckError/);
+  assert.match(hook, /exportStartupSelfCheckDiagnosticPackage/);
+  assert.match(hook, /api\.exportDiagnosticPackage\(\)/);
+  assert.match(hook, /revealStartupSelfCheckDiagnosticExportPath/);
+  assert.match(app, /AppStartupSelfCheckNotice/);
+  assert.match(app, /startupSelfCheckWarnings=\{app\.startupSelfCheckWarnings\}/);
+  assert.match(app, /onOpenMaintenance=\{\(\) => app\.openMaintenance\(\)\}/);
+  assert.match(notice, /启动自检发现问题/);
+  assert.match(notice, /打开维护中心/);
+  assert.match(notice, /导出诊断包/);
+  assert.match(notice, /DiagnosticExportPathActions/);
+  assert.match(notice, /navigator\.clipboard\.writeText\(diagnosticExportPath\)/);
+  assert.match(notice, /role="status"/);
+});
