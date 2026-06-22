@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/services/api';
 import { errorMessage } from '@/utils/errorMessage';
+import { getStartupAppDataDiagnostics } from './startupDiagnostics';
 import { deriveStartupDatabaseBackupPlan, startupDatabaseBackupCleanupPolicy } from './startupDatabaseBackup';
 
 export function useStartupDatabaseBackup() {
@@ -10,7 +11,7 @@ export function useStartupDatabaseBackup() {
   useEffect(() => {
     let cancelled = false;
     const timeoutId = window.setTimeout(() => {
-      void Promise.all([api.getAppSettings(), api.getAppDataDiagnostics()])
+      void Promise.all([api.getAppSettings(), getStartupAppDataDiagnostics()])
         .then(([settings, diagnostics]) => {
           if (cancelled) return;
           const plan = deriveStartupDatabaseBackupPlan({ settings, diagnostics });

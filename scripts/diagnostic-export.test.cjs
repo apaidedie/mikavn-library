@@ -128,7 +128,7 @@ test('startup self-check warning notice can open maintenance and export diagnost
 
   assert.match(controller, /useStartupSelfCheck/);
   assert.match(controller, /\.\.\.startupSelfCheck/);
-  assert.match(hook, /api\s*\.\s*getAppDataDiagnostics\(\)/);
+  assert.match(hook, /getStartupAppDataDiagnostics\(\)/);
   assert.match(hook, /diagnostics\.warnings/);
   assert.match(hook, /!diagnostics\.database\.quickCheckOk/);
   assert.match(hook, /startupSelfCheckWarnings/);

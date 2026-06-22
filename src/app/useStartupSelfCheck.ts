@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/services/api';
 import { errorMessage } from '@/utils/errorMessage';
+import { getStartupAppDataDiagnostics } from './startupDiagnostics';
 
 export function useStartupSelfCheck() {
   const [startupSelfCheckWarnings, setStartupSelfCheckWarnings] = useState<string[]>([]);
@@ -13,8 +14,7 @@ export function useStartupSelfCheck() {
   useEffect(() => {
     let cancelled = false;
 
-    api
-      .getAppDataDiagnostics()
+    getStartupAppDataDiagnostics()
       .then((diagnostics) => {
         if (cancelled) return;
         const warnings = [...diagnostics.warnings];
