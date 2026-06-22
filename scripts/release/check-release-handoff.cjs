@@ -177,8 +177,15 @@ function manualRiskChecklistSummary(checklist) {
   };
 }
 
-function blockingReleaseRisks({ signingStatus, manualRiskChecklist, largeLibraryPerformanceWarnings = 0 }) {
+function blockingReleaseRisks({ signingStatus, manualRiskChecklist, buildMode, largeLibraryPerformanceWarnings = 0 }) {
   const risks = [];
+  if (buildMode !== 'updater-capable') {
+    risks.push({
+      code: 'not-updater-capable',
+      message: 'Release handoff was built with tauri:build:local; public in-app updates require npm run tauri:build updater artifacts.',
+      buildMode,
+    });
+  }
   if (signingStatus === 'documented-unsigned') {
     risks.push({
       code: 'unsigned-windows-artifacts',
@@ -255,7 +262,7 @@ function checkReleaseHandoff(options = {}) {
   requireTokens(checklist, REQUIRED_CHECKLIST_TOKENS, 'manual risk checklist');
   const manualRiskChecklist = manualRiskChecklistSummary(checklist);
   const manualRiskStatus = manualRiskChecklist.pending === 0 ? 'passed' : 'checklist-pending';
-  const blockingRisks = blockingReleaseRisks({ signingStatus, manualRiskChecklist, largeLibraryPerformanceWarnings });
+  const blockingRisks = blockingReleaseRisks({ signingStatus, manualRiskChecklist, buildMode, largeLibraryPerformanceWarnings });
   if (options.requirePublicReady) requireNoBlockingReleaseRisks(blockingRisks);
 
   return {

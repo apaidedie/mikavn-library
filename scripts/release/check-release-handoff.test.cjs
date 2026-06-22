@@ -280,6 +280,39 @@ test('checkReleaseHandoff treats large-library performance warnings as public re
   );
 });
 
+test('checkReleaseHandoff treats local-only builds as public release blockers even when signed', () => {
+  const { releaseDir } = createHandoff({ localTauriBuildOnly: true });
+  const reportPath = path.join(releaseDir, 'RELEASE_VALIDATION_REPORT.md');
+  fs.writeFileSync(
+    reportPath,
+    fs.readFileSync(reportPath, 'utf8')
+      .replace('- `npm run release:signing:check`: artifacts are `NotSigned`.', '- `npm run release:signing:check`: signed true.')
+      .replace('- `npm run release:signing:require`: failed as expected because the artifacts are not signed with a valid trusted certificate.', '- `npm run release:signing:require`: passed.'),
+  );
+  const checklistPath = path.join(releaseDir, 'MANUAL_RISK_PASS_CHECKLIST.md');
+  fs.writeFileSync(
+    checklistPath,
+    fs.readFileSync(checklistPath, 'utf8')
+      .replaceAll('- [ ]', '- [x]')
+      .replace(/^(- \[x\] .+?)$/gm, '$1 Evidence: verified during release smoke.'),
+  );
+
+  const reportOnly = checkReleaseHandoff({ releaseDir });
+  assert.equal(reportOnly.buildMode, 'local-unsigned');
+  assert.deepEqual(reportOnly.blockingReleaseRisks, [
+    {
+      code: 'not-updater-capable',
+      message: 'Release handoff was built with tauri:build:local; public in-app updates require npm run tauri:build updater artifacts.',
+      buildMode: 'local-unsigned',
+    },
+  ]);
+
+  assert.throws(
+    () => checkReleaseHandoff({ releaseDir, requirePublicReady: true }),
+    /release handoff has blocking public release risk\(s\): not-updater-capable/,
+  );
+});
+
 test('checkReleaseHandoff rejects checked manual risk items without evidence', () => {
   const { releaseDir } = createHandoff();
   const checklistPath = path.join(releaseDir, 'MANUAL_RISK_PASS_CHECKLIST.md');
