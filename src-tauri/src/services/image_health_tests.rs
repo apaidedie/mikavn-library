@@ -323,6 +323,7 @@ fn image_health_report_counts_content_type_mismatches_separately() {
     assert_eq!(report.summary.invalid_image_refs, 0);
     assert_eq!(report.summary.content_type_mismatch_files, 1);
     assert_eq!(report.summary.content_type_mismatch_refs, 1);
+    assert_eq!(report.summary.issue_image_refs, 1);
     assert_eq!(report.cache.invalid_image_file_count, 0);
     assert_eq!(report.cache.content_type_mismatch_file_count, 1);
     assert_eq!(report.cache.content_type_mismatch_referenced_file_count, 1);

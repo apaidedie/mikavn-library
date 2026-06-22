@@ -80,6 +80,7 @@ pub(crate) fn get_image_health_report_with_paths(
     summary.content_type_mismatch_files = cache.content_type_mismatch_file_count;
     summary.content_type_mismatch_refs = cache.content_type_mismatch_referenced_file_count;
     summary.issue_image_refs += cache.invalid_referenced_file_count;
+    summary.issue_image_refs += cache.content_type_mismatch_referenced_file_count;
     let recommendations = image_health_recommendations(&summary);
 
     Ok(ImageHealthReport {
