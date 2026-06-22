@@ -219,6 +219,14 @@ test('library bulk panel labels select-current with the visible count', () => {
   assert.match(source, /选中当前 \{formatLibraryCount\(gameCount\)\}/);
 });
 
+test('library bulk panel explains current-filter safety boundary', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Library', 'LibrarySidebarControls.tsx'), 'utf8');
+
+  assert.match(source, /批量操作只作用于当前筛选结果/);
+  assert.match(source, /切换筛选会清空不可见选择/);
+  assert.match(source, /不会删除真实游戏文件/);
+});
+
 test('library render budgets keep large sidebars bounded', () => {
   const {
     libraryListInitialRenderCount,

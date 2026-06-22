@@ -62,6 +62,7 @@ function LibraryBulkPanel({ bulkActions, gameCount }: { bulkActions: LibraryBulk
           <Button className="h-7 px-2" disabled={bulkActions.bulkBusy || bulkActions.bulkSelectedVisibleCount === 0} size="sm" variant="ghost" onClick={bulkActions.clearBulkSelection}>清空</Button>
         </div>
       </div>
+      <p className="text-[11px] leading-4 text-slate-500">批量操作只作用于当前筛选结果；切换筛选会清空不可见选择；只修改 MikaVN 数据库记录，不会删除真实游戏文件。</p>
       <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-1.5">
         <Select aria-label="批量游玩状态" className="w-full" disabled={bulkActions.bulkBusy} value={bulkActions.bulkPlayStatus} onChange={(event) => bulkActions.setBulkPlayStatus(event.target.value as PlayStatus)}>
           {libraryStatuses.filter((item): item is PlayStatus => item !== 'all').map((item) => <option key={item} value={item}>{PLAY_STATUS_LABEL[item]}</option>)}
