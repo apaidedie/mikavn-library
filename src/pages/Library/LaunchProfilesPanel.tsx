@@ -80,11 +80,11 @@ export function LaunchProfilesPanel({ game, profiles, selectedProfileId, onSelec
       onMessage('旧版默认启动配置来自游戏字段，请在编辑游戏中修改。');
       return;
     }
-    if (!window.confirm('删除这个启动配置？不会删除真实文件。')) return;
+    if (!window.confirm(`删除启动配置「${profile.name}」？只删除这个启动配置记录，不会删除游戏记录，也不会删除真实游戏文件或启动程序。`)) return;
     try {
       await api.deleteLaunchProfile(profile.id);
       await refresh();
-      onMessage('启动配置已删除。');
+      onMessage('启动配置记录已删除，游戏记录和真实文件未受影响。');
     } catch (reason) {
       onMessage(errorMessage(reason));
     }
