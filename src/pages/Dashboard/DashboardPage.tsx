@@ -12,6 +12,7 @@ import { ContinuePanel, TodayStrip } from './DashboardHeroPanels';
 import { LocalSafetyPanel, NeedsAttentionPanel } from './DashboardLocalPanels';
 import { deriveDashboardAttentionItems, deriveDashboardTaskSummary, rankContinueGames, uniqueDashboardGames } from './dashboardPersonal';
 import { RecentTasksPanel } from './RecentTasksPanel';
+import { useDashboardDiagnosticExport } from './useDashboardDiagnosticExport';
 
 type DashboardPageProps = {
   refreshKey: number;
@@ -34,9 +35,7 @@ export function DashboardPage({ refreshKey, onOpenGame, onAddGame, onOpenScanner
   const [tasks, setTasks] = useState<TaskRecord[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [sectionErrors, setSectionErrors] = useState<string[]>([]);
-  const [diagnosticExportLoading, setDiagnosticExportLoading] = useState(false);
-  const [diagnosticExportMessage, setDiagnosticExportMessage] = useState<string | null>(null);
-  const [diagnosticExportPath, setDiagnosticExportPath] = useState<string | null>(null);
+  const { copyDashboardDiagnosticExportPath, diagnosticExportLoading, diagnosticExportMessage, diagnosticExportPath, exportDiagnosticPackage, revealDiagnosticExportPath } = useDashboardDiagnosticExport();
 
   useEffect(() => {
     let cancelled = false;
@@ -79,30 +78,6 @@ export function DashboardPage({ refreshKey, onOpenGame, onAddGame, onOpenScanner
   const continueGames = useMemo(() => data ? rankContinueGames(uniqueDashboardGames([...playingGames, ...data.recentGames, ...data.recentlyAdded]), { hideHidden, limit: 6 }) : [], [data, hideHidden, playingGames]);
   const attentionItems = useMemo(() => deriveDashboardAttentionItems({ diagnostics, tasks }), [diagnostics, tasks]);
   const taskSummary = useMemo(() => deriveDashboardTaskSummary(tasks), [tasks]);
-
-  const exportDiagnosticPackage = async () => {
-    setDiagnosticExportLoading(true);
-    setDiagnosticExportMessage(null);
-    setDiagnosticExportPath(null);
-    try {
-      const report = await api.exportDiagnosticPackage();
-      setDiagnosticExportPath(report.path);
-      setDiagnosticExportMessage(`诊断包已导出：${report.fileName}。不包含完整数据库、图片缓存或存档文件。`);
-    } catch (reason) {
-      setDiagnosticExportMessage(`诊断包导出失败：${errorMessage(reason)}`);
-    } finally {
-      setDiagnosticExportLoading(false);
-    }
-  };
-
-  const revealDiagnosticExportPath = async () => {
-    if (!diagnosticExportPath) return;
-    try {
-      await api.revealPath(diagnosticExportPath);
-    } catch (reason) {
-      setDiagnosticExportMessage(`打开诊断包位置失败：${errorMessage(reason)}`);
-    }
-  };
 
   if (error) {
     return (
@@ -148,7 +123,18 @@ export function DashboardPage({ refreshKey, onOpenGame, onAddGame, onOpenScanner
           <ContinuePanel games={continueGames} onOpenGame={onOpenGame} onAddGame={onAddGame} onOpenScanner={onOpenScanner} />
           <NeedsAttentionPanel items={attentionItems} onOpenLibrary={onOpenLibrary} onOpenMaintenance={onOpenMaintenance} onOpenMetadata={onOpenMetadata} onOpenSettings={onOpenSettings} onOpenTasks={onOpenTasks} />
         </div>
-        <LocalSafetyPanel diagnostics={diagnostics} onOpenSaves={onOpenSaves} onOpenSettings={onOpenSettings} onOpenTasks={onOpenTasks} />
+        <LocalSafetyPanel
+          diagnosticExportLoading={diagnosticExportLoading}
+          diagnosticExportMessage={diagnosticExportMessage}
+          diagnosticExportPath={diagnosticExportPath}
+          diagnostics={diagnostics}
+          onCopyDiagnosticExportPath={() => void copyDashboardDiagnosticExportPath()}
+          onExportDiagnosticPackage={exportDiagnosticPackage}
+          onOpenSaves={onOpenSaves}
+          onOpenSettings={onOpenSettings}
+          onOpenTasks={onOpenTasks}
+          onRevealDiagnosticExportPath={revealDiagnosticExportPath}
+        />
         <RecentTasksPanel tasks={tasks} onOpenTasks={onOpenTasks} />
       </PageFrame>
     </PageShell>

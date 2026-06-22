@@ -1,4 +1,5 @@
-import { Activity, AlertTriangle, Archive, Clock3, Database, HardDrive, ImageOff, RotateCcw, Search, ShieldCheck } from 'lucide-react';
+import { Activity, AlertTriangle, Archive, Clock3, Database, FileArchive, HardDrive, ImageOff, RotateCcw, Search, ShieldCheck } from 'lucide-react';
+import { DiagnosticExportPathActions } from '@/components/diagnostics/DiagnosticExportPathActions';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/notice';
@@ -47,7 +48,28 @@ export function NeedsAttentionPanel({ items, onOpenLibrary, onOpenMaintenance, o
   );
 }
 
-export function LocalSafetyPanel({ diagnostics, onOpenSaves, onOpenSettings, onOpenTasks }: Pick<DashboardPanelActions, 'onOpenSaves' | 'onOpenSettings' | 'onOpenTasks'> & { diagnostics: AppDataDiagnostics | null }) {
+type LocalSafetyPanelProps = Pick<DashboardPanelActions, 'onOpenSaves' | 'onOpenSettings' | 'onOpenTasks'> & {
+  diagnosticExportLoading?: boolean;
+  diagnosticExportMessage?: string | null;
+  diagnosticExportPath?: string | null;
+  diagnostics: AppDataDiagnostics | null;
+  onCopyDiagnosticExportPath?: () => void;
+  onExportDiagnosticPackage?: () => void;
+  onRevealDiagnosticExportPath?: () => void;
+};
+
+export function LocalSafetyPanel({
+  diagnosticExportLoading = false,
+  diagnosticExportMessage,
+  diagnosticExportPath,
+  diagnostics,
+  onCopyDiagnosticExportPath,
+  onExportDiagnosticPackage,
+  onOpenSaves,
+  onOpenSettings,
+  onOpenTasks,
+  onRevealDiagnosticExportPath,
+}: LocalSafetyPanelProps) {
   const backupStatus = deriveDatabaseBackupStatus(diagnostics?.databaseBackups);
   const databaseSummary = diagnostics ? `${diagnostics.database.gameCount} 个游戏 · ${backupStatus.summary}` : '读取本地自检后显示数据库和备份状态。';
   const backupDetail = diagnostics ? `${backupStatus.detail}${backupStatus.latestBackupAt ? ` 最近：${formatDateTime(backupStatus.latestBackupAt)}` : ''}` : '数据库备份会保存在本机 app-data 中。';
@@ -85,7 +107,12 @@ export function LocalSafetyPanel({ diagnostics, onOpenSaves, onOpenSettings, onO
             <div className="flex flex-wrap gap-2">
               <Button size="sm" variant="outline" onClick={() => onOpenSettings?.('local')}>数据目录</Button>
               {onOpenTasks && <Button size="sm" variant="ghost" onClick={() => onOpenTasks(null, { statusFilter: 'attention' })}>任务日志</Button>}
+              {onExportDiagnosticPackage && <Button disabled={diagnosticExportLoading} size="sm" variant="ghost" onClick={onExportDiagnosticPackage}><FileArchive className="h-4 w-4" />{diagnosticExportLoading ? '导出中' : '导出诊断包'}</Button>}
+              {diagnosticExportPath && onCopyDiagnosticExportPath && onRevealDiagnosticExportPath && (
+                <DiagnosticExportPathActions buttonSize="sm" buttonVariant="ghost" path={diagnosticExportPath} onCopy={onCopyDiagnosticExportPath} onReveal={onRevealDiagnosticExportPath} />
+              )}
             </div>
+            {diagnosticExportMessage && <div className="break-all text-xs text-slate-500" role="status">{diagnosticExportMessage}</div>}
           </SoftRow>
         </div>
       </PanelContent>
