@@ -1,4 +1,5 @@
 use super::*;
+use crate::db::models::GameFilter;
 
 fn test_db() -> Database {
     let path = std::env::temp_dir().join(format!("mikavn-archive-test-{}.db", Uuid::new_v4()));

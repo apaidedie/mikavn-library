@@ -12,7 +12,7 @@ use uuid::Uuid;
 use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, ZipArchive, ZipWriter};
 
-use crate::db::models::{Game, GameFilter, TaskRecord};
+use crate::db::models::{ArchiveImportConflictRow, Game, TaskRecord};
 use crate::db::{Database, DbError, DbResult};
 use crate::infrastructure::logger;
 use crate::infrastructure::paths::AppPaths;
@@ -798,7 +798,7 @@ fn import_archive_games_with_summary(
     mut on_progress: impl FnMut(f64, String) -> DbResult<()>,
 ) -> DbResult<()> {
     let total = archive_games.len().max(1) as f64;
-    let mut conflicts = ArchiveImportConflictIndex::new(db.list_games(GameFilter::default())?);
+    let mut conflicts = ArchiveImportConflictIndex::new(db.list_archive_import_conflict_rows()?);
     for (index, game) in archive_games.into_iter().enumerate() {
         if let Some(reason) = conflicts.conflict_reason(&game) {
             summary.skipped += 1;
@@ -810,7 +810,7 @@ fn import_archive_games_with_summary(
         } else {
             let title = game.title.clone();
             let imported = game_service::insert_imported_game(db, game)?;
-            conflicts.insert(&imported);
+            conflicts.insert_game(&imported);
             summary.imported += 1;
             db.append_task_log(task_id, "info", &format!("归档导入新增：{title}"))?;
         }
@@ -828,7 +828,13 @@ fn import_archive_games_with_summary(
 
 #[cfg(test)]
 fn archive_import_conflict_reason(existing: &[Game], incoming: &Game) -> Option<String> {
-    ArchiveImportConflictIndex::new(existing.to_vec()).conflict_reason(incoming)
+    ArchiveImportConflictIndex::new(
+        existing
+            .iter()
+            .map(archive_import_conflict_row_from_game)
+            .collect(),
+    )
+    .conflict_reason(incoming)
 }
 
 struct ArchiveImportConflictIndex {
@@ -838,24 +844,28 @@ struct ArchiveImportConflictIndex {
 }
 
 impl ArchiveImportConflictIndex {
-    fn new(existing: Vec<Game>) -> Self {
+    fn new(existing: Vec<ArchiveImportConflictRow>) -> Self {
         let mut index = Self {
             ids: HashMap::new(),
             titles: HashMap::new(),
             install_paths: HashMap::new(),
         };
-        for game in &existing {
-            index.insert(game);
+        for row in &existing {
+            index.insert_row(row);
         }
         index
     }
 
-    fn insert(&mut self, game: &Game) {
-        self.ids.insert(game.id.clone(), game.title.clone());
+    fn insert_row(&mut self, row: &ArchiveImportConflictRow) {
+        self.ids.insert(row.id.clone(), row.title.clone());
         self.titles
-            .insert(normalize_title(&game.title), game.title.clone());
+            .insert(normalize_title(&row.title), row.title.clone());
         self.install_paths
-            .insert(normalize_path(&game.install_path), game.title.clone());
+            .insert(normalize_path(&row.install_path), row.title.clone());
+    }
+
+    fn insert_game(&mut self, game: &Game) {
+        self.insert_row(&archive_import_conflict_row_from_game(game));
     }
 
     fn conflict_reason(&self, incoming: &Game) -> Option<String> {
@@ -868,6 +878,14 @@ impl ArchiveImportConflictIndex {
                 .get(&normalize_path(&incoming.install_path))
                 .map(|title| format!("安装目录已存在：{title}"))
         }
+    }
+}
+
+fn archive_import_conflict_row_from_game(game: &Game) -> ArchiveImportConflictRow {
+    ArchiveImportConflictRow {
+        id: game.id.clone(),
+        title: game.title.clone(),
+        install_path: game.install_path.clone(),
     }
 }
 

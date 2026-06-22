@@ -19,3 +19,14 @@ test('archive import and restore confirmations repeat the real-install safety bo
   assert.match(source, /不会触碰真实游戏安装目录/);
   assert.match(source, /api\.restoreLibraryArchive/);
 });
+
+test('archive import uses lightweight conflict rows instead of loading full games', () => {
+  const source = fs.readFileSync('src-tauri/src/services/archives.rs', 'utf8');
+  const gamesDb = fs.readFileSync('src-tauri/src/db/games_ext.rs', 'utf8');
+
+  assert.doesNotMatch(source, /db\.list_games\(GameFilter::default\(\)\)/);
+  assert.match(source, /ArchiveImportConflictRow/);
+  assert.match(source, /list_archive_import_conflict_rows/);
+  assert.match(gamesDb, /pub fn list_archive_import_conflict_rows/);
+  assert.match(gamesDb, /SELECT id, title, install_path FROM games/);
+});

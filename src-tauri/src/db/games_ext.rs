@@ -1,4 +1,6 @@
-use crate::db::models::{AddGameInput, Game, GameFilter, UpdateGameInput};
+use crate::db::models::{
+    AddGameInput, ArchiveImportConflictRow, Game, GameFilter, UpdateGameInput,
+};
 use crate::db::{Database, DbResult};
 use crate::services::games as game_service;
 
@@ -69,6 +71,20 @@ impl Database {
             };
         self.game_repository()
             .list(filter, collection_game_ids.as_deref())
+    }
+
+    pub fn list_archive_import_conflict_rows(&self) -> DbResult<Vec<ArchiveImportConflictRow>> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT id, title, install_path FROM games")?;
+        let rows = stmt.query_map([], |row| {
+            Ok(ArchiveImportConflictRow {
+                id: row.get(0)?,
+                title: row.get(1)?,
+                install_path: row.get(2)?,
+            })
+        })?;
+        Ok(rows.collect::<Result<Vec<_>, _>>()?)
     }
 }
 

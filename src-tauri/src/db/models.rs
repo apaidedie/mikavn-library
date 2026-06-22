@@ -40,6 +40,13 @@ pub struct Game {
     pub updated_at: String,
 }
 
+#[derive(Debug, Clone)]
+pub struct ArchiveImportConflictRow {
+    pub id: String,
+    pub title: String,
+    pub install_path: String,
+}
+
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AddGameInput {
