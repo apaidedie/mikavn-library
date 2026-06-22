@@ -169,6 +169,32 @@ test('deriveDashboardAttentionItems creates deterministic local action items', (
   assert.equal(items.find((item) => item.kind === 'missing_external_ids').count, 4);
 });
 
+test('deriveDashboardAttentionItems asks for backup cleanup when database backup storage is large', () => {
+  const { deriveDashboardAttentionItems } = loadDashboardPersonal();
+  const items = deriveDashboardAttentionItems({
+    diagnostics: {
+      database: {
+        metadataCoverage: {},
+        pathStatus: {},
+      },
+      databaseBackups: {
+        fileCount: 48,
+        totalBytes: 2_199_564_288,
+      },
+    },
+    tasks: [],
+  });
+
+  assert.deepEqual(items, [{
+    kind: 'database_backup',
+    title: '数据库备份占用偏大',
+    detail: '48 个数据库备份占用 2.05 GB，建议清理旧备份。',
+    count: 48,
+    tone: 'warning',
+    action: 'settings_local',
+  }]);
+});
+
 test('deriveDatabaseBackupStatus reports missing, fresh, and stale local backups', () => {
   const { deriveDatabaseBackupStatus } = loadDashboardPersonal();
 
@@ -203,6 +229,22 @@ test('deriveDatabaseBackupStatus reports missing, fresh, and stale local backups
     summary: '最近备份已超过 14 天',
     detail: '当前有 1 个数据库备份，建议更新一次。',
     latestBackupAt: '2026-05-20T00:00:00.000Z',
+  });
+});
+
+test('deriveDatabaseBackupStatus recommends cleanup when backup storage grows large', () => {
+  const { deriveDatabaseBackupStatus } = loadDashboardPersonal();
+
+  assert.deepEqual(deriveDatabaseBackupStatus({
+    fileCount: 48,
+    totalBytes: 2_199_564_288,
+    files: [{ modifiedAt: '2026-06-16T00:00:00.000Z' }],
+  }, '2026-06-17T00:00:00.000Z'), {
+    level: 'large',
+    actionNeeded: true,
+    summary: '数据库备份占用偏大',
+    detail: '当前有 48 个数据库备份，占用 2.05 GB，建议按安全规则清理旧备份。',
+    latestBackupAt: '2026-06-16T00:00:00.000Z',
   });
 });
 

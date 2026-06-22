@@ -20,7 +20,7 @@ export type DashboardAttentionItem = {
 };
 
 export type DatabaseBackupStatus = {
-  level: 'missing' | 'fresh' | 'stale' | 'unknown';
+  level: 'missing' | 'fresh' | 'stale' | 'large' | 'unknown';
   actionNeeded: boolean;
   summary: string;
   detail: string;
@@ -97,6 +97,7 @@ export function deriveDashboardAttentionItems(input: AttentionInput): DashboardA
   const pathStatus = input.diagnostics?.database.pathStatus;
   const metadata = input.diagnostics?.database.metadataCoverage;
   const backupCount = input.diagnostics?.databaseBackups.fileCount ?? 0;
+  const backupBytes = input.diagnostics?.databaseBackups.totalBytes ?? 0;
   const pathIssueCount = (pathStatus?.brokenCount ?? 0) + (pathStatus?.incompleteCount ?? 0) + (pathStatus?.uncheckedCount ?? 0);
   const missingArtworkCount = (metadata?.missingCoverCount ?? 0) + (metadata?.missingBannerCount ?? 0) + (metadata?.missingBackgroundCount ?? 0);
   const missingExternalIdCount = metadata?.missingExternalIdCount ?? 0;
@@ -166,12 +167,21 @@ export function deriveDashboardAttentionItems(input: AttentionInput): DashboardA
       tone: 'info',
       action: 'settings_local',
     });
+  } else if (shouldSuggestDatabaseBackupCleanup(input.diagnostics?.databaseBackups)) {
+    items.push({
+      kind: 'database_backup',
+      title: '数据库备份占用偏大',
+      detail: `${backupCount} 个数据库备份占用 ${formatBackupBytes(backupBytes)}，建议清理旧备份。`,
+      count: backupCount,
+      tone: 'warning',
+      action: 'settings_local',
+    });
   }
 
   return items;
 }
 
-export function deriveDatabaseBackupStatus(backups: Pick<DatabaseBackupSummary, 'fileCount' | 'files'> | null | undefined, now: string | Date = new Date()): DatabaseBackupStatus {
+export function deriveDatabaseBackupStatus(backups: Pick<DatabaseBackupSummary, 'fileCount' | 'files' | 'totalBytes'> | null | undefined, now: string | Date = new Date()): DatabaseBackupStatus {
   const fileCount = backups?.fileCount ?? 0;
   if (fileCount === 0) {
     return {
@@ -195,6 +205,16 @@ export function deriveDatabaseBackupStatus(backups: Pick<DatabaseBackupSummary, 
   }
 
   const ageDays = Math.max(0, Math.floor((dateMillis(now) - dateMillis(latestBackupAt)) / 86_400_000));
+  if (shouldSuggestDatabaseBackupCleanup(backups)) {
+    return {
+      level: 'large',
+      actionNeeded: true,
+      summary: '数据库备份占用偏大',
+      detail: `当前有 ${fileCount} 个数据库备份，占用 ${formatBackupBytes(backups?.totalBytes ?? 0)}，建议按安全规则清理旧备份。`,
+      latestBackupAt,
+    };
+  }
+
   if (ageDays > 14) {
     return {
       level: 'stale',
@@ -249,4 +269,22 @@ function dateMillis(value?: string | Date | null) {
 function clamp(value: number, min: number, max: number) {
   if (!Number.isFinite(value)) return min;
   return Math.min(max, Math.max(min, value));
+}
+
+function shouldSuggestDatabaseBackupCleanup(backups: { fileCount?: number | null; totalBytes?: number | null } | null | undefined) {
+  const fileCount = backups?.fileCount ?? 0;
+  const totalBytes = backups?.totalBytes ?? 0;
+  return fileCount > 20 || totalBytes > 1024 * 1024 * 1024;
+}
+
+function formatBackupBytes(bytes: number) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let value = bytes;
+  let unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+  return `${unitIndex === 0 ? Math.round(value) : value.toFixed(2)} ${units[unitIndex]}`;
 }

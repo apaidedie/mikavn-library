@@ -70,6 +70,20 @@ test('database backup cleanup policy is centralized and visible before cleanup',
   assert.doesNotMatch(maintenanceActions, /retainCount:\s*10,\s*retainDays:\s*30/);
 });
 
+test('local data settings highlights large database backup storage before cleanup', () => {
+  const policy = read('src/utils/databaseBackupCleanupPolicy.ts');
+  const section = read('src/pages/Settings/SettingsLocalDataSection.tsx');
+
+  assert.match(policy, /databaseBackupMaintenanceThresholds/);
+  assert.match(policy, /warnFileCount:\s*20/);
+  assert.match(policy, /warnTotalBytes:\s*1024 \* 1024 \* 1024/);
+  assert.match(policy, /shouldSuggestDatabaseBackupCleanup/);
+  assert.match(section, /shouldSuggestDatabaseBackupCleanup\(diagnostics\?\.databaseBackups\)/);
+  assert.match(section, /备份占用偏大/);
+  assert.match(section, /建议清理旧备份/);
+  assert.match(section, /清理旧备份/);
+});
+
 test('settings top-level local tab advertises backup access', () => {
   const source = read('src/pages/Settings/SettingsPage.tsx');
 
