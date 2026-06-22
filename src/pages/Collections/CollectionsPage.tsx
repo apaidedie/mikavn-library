@@ -103,14 +103,16 @@ export function CollectionsPage({ refreshKey, onOpenGame, onChanged }: Collectio
     }
   };
 
-  const removeGame = async (gameId: string) => {
+  const removeGame = async (game: Game) => {
     if (!selected) return;
+    if (!window.confirm(`从合集「${selected.name}」移除「${game.title}」？只会移除合集关系，不会删除游戏记录，也不会删除真实游戏文件。`)) return;
     setError(null);
     try {
-      await api.removeGameFromCollection(selected.id, gameId);
+      await api.removeGameFromCollection(selected.id, game.id);
       setGames(await api.listCollectionGames(selected.id));
       await loadCollections();
       onChanged();
+      setMessage('已从合集移除，游戏记录和真实文件未受影响。');
     } catch (reason) {
       setError(errorMessage(reason));
     }
@@ -193,7 +195,7 @@ export function CollectionsPage({ refreshKey, onOpenGame, onChanged }: Collectio
                             <span className="truncate">{game.developer || game.brand || '未填写会社'}</span>
                           </div>
                         </button>
-                        <Button size="sm" variant="outline" onClick={() => removeGame(game.id)}>移除</Button>
+                        <Button size="sm" variant="outline" onClick={() => removeGame(game)}>移除</Button>
                       </SoftRow>
                     ))}
                   </div>
