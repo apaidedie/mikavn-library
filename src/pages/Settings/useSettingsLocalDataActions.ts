@@ -2,8 +2,8 @@ import { useMemo, useState } from 'react';
 import { api } from '@/services/api';
 import { chooseArchiveDirectory, chooseArchivePath, chooseDatabaseBackupPath, chooseDatabaseRestorePath } from '@/services/dialog';
 import type { AppDataDiagnostics, LibraryArchivePreview } from '@/types/archive';
+import { databaseBackupCleanupPolicy, formatDatabaseBackupCleanupPolicy } from '@/utils/databaseBackupCleanupPolicy';
 import { errorMessage } from '@/utils/errorMessage';
-import { databaseBackupCleanupPolicy, formatDatabaseBackupCleanupPolicy } from './settingsBackupCleanupPolicy';
 import { formatBytes, getDirectoryLocations, type DirectoryLocationItem } from './SettingsPageParts';
 
 type TaskMessage = { text: string; taskId?: string | null };

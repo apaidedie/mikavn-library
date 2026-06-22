@@ -23,7 +23,9 @@ test('local data settings exposes clear backup and restore entry', () => {
 });
 
 test('database backup cleanup policy is centralized and visible before cleanup', () => {
-  const policy = read('src/pages/Settings/settingsBackupCleanupPolicy.ts');
+  const policyPath = 'src/utils/databaseBackupCleanupPolicy.ts';
+  assert.ok(fs.existsSync(path.join(repoRoot, policyPath)), 'database backup cleanup policy should live in shared utils');
+  const policy = read(policyPath);
   const section = read('src/pages/Settings/SettingsLocalDataSection.tsx');
   const actions = read('src/pages/Settings/useSettingsLocalDataActions.ts');
   const maintenanceActions = read('src/pages/Maintenance/useMaintenanceDataActions.ts');
@@ -36,12 +38,18 @@ test('database backup cleanup policy is centralized and visible before cleanup',
   assert.match(section, /formatDatabaseBackupCleanupPolicy\(databaseBackupCleanupPolicy\)/);
   assert.match(section, /只清理应用管理的旧数据库备份/);
   assert.match(section, /不会删除当前 mikavn\.db/);
+  assert.match(section, /@\/utils\/databaseBackupCleanupPolicy/);
   assert.match(actions, /databaseBackupCleanupPolicy/);
+  assert.match(actions, /@\/utils\/databaseBackupCleanupPolicy/);
   assert.match(actions, /formatDatabaseBackupCleanupPolicy\(databaseBackupCleanupPolicy\)/);
   assert.match(actions, /cleanupOldDatabaseBackups\(databaseBackupCleanupPolicy\)/);
   assert.match(maintenanceActions, /databaseBackupCleanupPolicy/);
+  assert.match(maintenanceActions, /@\/utils\/databaseBackupCleanupPolicy/);
   assert.match(maintenanceActions, /formatDatabaseBackupCleanupPolicy\(databaseBackupCleanupPolicy\)/);
   assert.match(maintenanceActions, /cleanupOldDatabaseBackups\(databaseBackupCleanupPolicy\)/);
+  assert.doesNotMatch(actions, /\.\/settingsBackupCleanupPolicy/);
+  assert.doesNotMatch(section, /\.\/settingsBackupCleanupPolicy/);
+  assert.doesNotMatch(maintenanceActions, /\.\.\/Settings\/settingsBackupCleanupPolicy/);
   assert.doesNotMatch(maintenanceActions, /retainCount:\s*10,\s*retainDays:\s*30/);
 });
 

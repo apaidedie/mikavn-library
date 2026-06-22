@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { ConfigItem, ConfigSection } from '@/components/ui/config-item';
 import { Input } from '@/components/ui/input';
 import type { AppDataDiagnostics, LibraryArchivePreview } from '@/types/archive';
-import { databaseBackupCleanupPolicy, formatDatabaseBackupCleanupPolicy } from './settingsBackupCleanupPolicy';
+import { databaseBackupCleanupPolicy, formatDatabaseBackupCleanupPolicy } from '@/utils/databaseBackupCleanupPolicy';
 import { SettingFlag } from './SettingFlag';
 import { DirectoryLocation, Stat, dataDirSourceLabel, formatBytes, formatCount, type DirectoryLocationItem } from './SettingsPageParts';
 

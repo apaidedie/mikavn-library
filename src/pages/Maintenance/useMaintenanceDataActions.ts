@@ -1,8 +1,8 @@
 import { useCallback, useState } from 'react';
 import { api } from '@/services/api';
 import type { AppDataDiagnostics } from '@/types/archive';
+import { databaseBackupCleanupPolicy, formatDatabaseBackupCleanupPolicy } from '@/utils/databaseBackupCleanupPolicy';
 import { errorMessage } from '@/utils/errorMessage';
-import { databaseBackupCleanupPolicy, formatDatabaseBackupCleanupPolicy } from '../Settings/settingsBackupCleanupPolicy';
 import { formatBytes } from './MaintenancePageParts';
 
 type TaskMessage = { text: string; taskId?: string | null };
