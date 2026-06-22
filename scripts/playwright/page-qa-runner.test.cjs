@@ -39,3 +39,14 @@ test('page QA returns from image health with an exact library nav locator', () =
   assert.match(source, /getByLabel\('游戏库', \{ exact: true \}\)\.click\(\)/);
   assert.doesNotMatch(source, /getByLabel\('游戏库'\)\.click\(\)/);
 });
+
+test('dashboard populated QA returns home before taking dashboard screenshot', () => {
+  const source = fs.readFileSync(sourcePath, 'utf8');
+  const caseStart = source.indexOf("['dashboard-populated'");
+  const nextCase = source.indexOf("['dashboard-task-shortcuts'", caseStart);
+  const dashboardCase = source.slice(caseStart, nextCase);
+  const afterRestoreClick = dashboardCase.slice(dashboardCase.indexOf("getByRole('button', { name: /恢复数据库/ }).click()"));
+
+  assert.match(dashboardCase, /getByRole\('button', \{ name: \/恢复数据库\/ \}\)\.click\(\)/);
+  assert.match(afterRestoreClick, /getByLabel\('首页'\)\.click\(\);[\s\S]*getByText\('今日状态'\)\.first\(\)\.waitFor/);
+});

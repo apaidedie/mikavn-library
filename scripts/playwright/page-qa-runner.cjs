@@ -176,6 +176,8 @@ async function main() {
         await page.locator('section').filter({ hasText: '本地安全' }).first().getByRole('button', { name: /恢复数据库/ }).click();
         await page.waitForFunction(() => [...document.querySelectorAll('[role="tab"]')].some((tab) => tab.textContent?.includes('备份与本地') && tab.getAttribute('data-state') === 'active'), null, { timeout: 5000 });
         await page.getByText('数据目录自检').first().waitFor({ timeout: 5000 });
+        await page.getByLabel('首页').click();
+        await page.getByText('今日状态').first().waitFor({ timeout: 5000 });
       }],
       ['dashboard-task-shortcuts', 'dashboard', { games: [...games, descriptionRepairGame], tasks: [descriptionImageRepairFailedTask, fanzaDescriptionImageRepairTask, ...tasks], taskLogs }, async (page) => {
         await page.getByText('近期任务').first().waitFor({ timeout: 5000 });
