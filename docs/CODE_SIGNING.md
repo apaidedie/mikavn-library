@@ -11,6 +11,20 @@ MikaVN Library release artifacts should be signed before a public Windows releas
 
 ## Check Current Artifacts
 
+Before signing, check whether this machine has a usable trusted code-signing certificate:
+
+```powershell
+npm run release:signing:certificate:check
+```
+
+For a public release gate, require a trusted non-self-signed code-signing certificate candidate:
+
+```powershell
+npm run release:signing:certificate:require
+```
+
+This preflight scans the CurrentUser and LocalMachine personal certificate stores. A public release candidate must be unexpired, have an available private key, include Code Signing EKU, build a trusted chain, and not be self-signed.
+
 ```powershell
 npm run release:signing:check
 ```

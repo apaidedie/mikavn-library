@@ -66,7 +66,7 @@ if ($package.private -ne $true) {
   throw "package.json should remain private=true; GitHub release publishes the desktop installer, not an npm package."
 }
 
-$requiredScripts = @("build", "typecheck", "test:release-scripts", "test:playwright-scripts", "test:updater-release", "test:diagnostic-export", "test:data-safety", "test:maintenance-image-health", "test:library-performance", "release:check", "release:check:strict", "release:signing:check", "release:signing:require", "release:sign", "release:handoff:check", "release:handoff:require-public", "release:handoff:prepare-updater", "release:validate", "release:validate:strict", "release:validate:core", "smoke:browser", "smoke:large", "smoke:install", "smoke:portable-data", "smoke:real-data:readonly", "smoke:real-install:update", "smoke:elevated-launch", "tauri:build", "smoke:desktop")
+$requiredScripts = @("build", "typecheck", "test:release-scripts", "test:playwright-scripts", "test:updater-release", "test:diagnostic-export", "test:data-safety", "test:maintenance-image-health", "test:library-performance", "release:check", "release:check:strict", "release:signing:certificate:check", "release:signing:certificate:require", "release:signing:check", "release:signing:require", "release:sign", "release:handoff:check", "release:handoff:require-public", "release:handoff:prepare-updater", "release:validate", "release:validate:strict", "release:validate:core", "smoke:browser", "smoke:large", "smoke:install", "smoke:portable-data", "smoke:real-data:readonly", "smoke:real-install:update", "smoke:elevated-launch", "tauri:build", "smoke:desktop")
 foreach ($scriptName in $requiredScripts) {
   if ($null -eq $package.scripts.$scriptName -or [string]::IsNullOrWhiteSpace([string]$package.scripts.$scriptName)) {
     throw "package.json is missing required script '$scriptName'."
@@ -88,6 +88,18 @@ foreach ($token in @("scripts/release/check-windows-signing.ps1", "-RequireSigne
   $scriptText = [string]$package.scripts.'release:signing:require'
   if (!$scriptText.Contains($token)) {
     throw "package.json release:signing:require must include token '$token'."
+  }
+}
+foreach ($token in @("scripts/release/check-signing-certificate.cjs")) {
+  $scriptText = [string]$package.scripts.'release:signing:certificate:check'
+  if (!$scriptText.Contains($token)) {
+    throw "package.json release:signing:certificate:check must include token '$token'."
+  }
+}
+foreach ($token in @("scripts/release/check-signing-certificate.cjs", "--require-certificate")) {
+  $scriptText = [string]$package.scripts.'release:signing:certificate:require'
+  if (!$scriptText.Contains($token)) {
+    throw "package.json release:signing:certificate:require must include token '$token'."
   }
 }
 foreach ($token in @("scripts/release/sign-windows-release.ps1")) {
@@ -114,7 +126,7 @@ foreach ($token in @("scripts/release/prepare-updater-handoff.cjs")) {
     throw "package.json release:handoff:prepare-updater must include token '$token'."
   }
 }
-foreach ($token in @("scripts/release/check-build-chunks.test.cjs", "scripts/release/check-source-size.test.cjs", "scripts/release/check-release-handoff.test.cjs", "scripts/release/prepare-updater-handoff.test.cjs", "scripts/updater-release-config.test.cjs")) {
+foreach ($token in @("scripts/release/check-build-chunks.test.cjs", "scripts/release/check-source-size.test.cjs", "scripts/release/check-release-handoff.test.cjs", "scripts/release/prepare-updater-handoff.test.cjs", "scripts/release/check-signing-certificate.test.cjs", "scripts/updater-release-config.test.cjs")) {
   $scriptText = [string]$package.scripts.'test:release-scripts'
   if (!$scriptText.Contains($token)) {
     throw "package.json test:release-scripts must include token '$token'."
