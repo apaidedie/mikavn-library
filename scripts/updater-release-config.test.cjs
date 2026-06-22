@@ -19,6 +19,8 @@ test('package scripts and dependencies include updater gates and frontend plugin
   assert.equal(pkg.scripts['test:updater-release'], 'node --test scripts/updater-release-config.test.cjs scripts/updater-service-model.test.cjs scripts/settings-updater-section.test.cjs scripts/startup-updater.test.cjs scripts/updater-install-flow.test.cjs scripts/settings-local-data-section.test.cjs');
   assert.match(pkg.scripts['test:diagnostic-export'], /scripts\/diagnostic-export\.test\.cjs/);
   assert.match(pkg.scripts['test:diagnostic-export'], /scripts\/dashboard-diagnostic-export\.test\.cjs/);
+  assert.match(pkg.scripts['test:library-performance'], /scripts\/cover-image-performance\.test\.cjs/);
+  assert.match(pkg.scripts['test:library-performance'], /scripts\/library-filter-performance\.test\.cjs/);
   assert.match(pkg.scripts['test:release-scripts'], /updater-release-config\.test\.cjs/);
   assert.match(pkg.scripts['release:handoff:require-public'], /check-release-handoff\.cjs --require-public-ready/);
   assert.match(pkg.scripts['smoke:real-data:readonly'], /run-real-app-data-readonly-smoke\.ps1/);
@@ -74,6 +76,7 @@ test('release workflow requires signing secrets and publishes updater assets', (
 
   assert.match(workflow, /npm run test:updater-release/);
   assert.match(workflow, /npm run test:diagnostic-export/);
+  assert.match(workflow, /npm run test:library-performance/);
   assert.match(workflow, /TAURI_SIGNING_PRIVATE_KEY/);
   assert.match(workflow, /Require updater signing secrets/);
   assert.match(workflow, /Create updater metadata/);
@@ -97,6 +100,7 @@ test('release metadata gate knows about updater release checks', () => {
 
   assert.match(gate, /test:updater-release/);
   assert.match(gate, /test:diagnostic-export/);
+  assert.match(gate, /test:library-performance/);
   assert.match(gate, /smoke:real-data:readonly/);
   assert.match(gate, /release:handoff:require-public/);
   assert.match(gate, /run-real-app-data-readonly-smoke\.ps1/);
@@ -111,8 +115,10 @@ test('ci and local release validation run updater-specific tests', () => {
 
   assert.match(ciWorkflow, /npm run test:updater-release/);
   assert.match(ciWorkflow, /npm run test:diagnostic-export/);
+  assert.match(ciWorkflow, /npm run test:library-performance/);
   assert.match(releaseValidation, /npm run test:updater-release/);
   assert.match(releaseValidation, /npm run test:diagnostic-export/);
+  assert.match(releaseValidation, /npm run test:library-performance/);
   assert.match(releaseValidation, /SkipRealDataSmoke/);
   assert.match(releaseValidation, /npm run smoke:real-data:readonly/);
 });
