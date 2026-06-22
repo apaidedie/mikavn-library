@@ -15,6 +15,7 @@ type UseLibraryPageDataResult = {
   error: string | null;
   filters: ReturnType<typeof useLibraryFilters>;
   loading: boolean;
+  refreshing: boolean;
   setError: (message: string | null) => void;
   setGames: Dispatch<SetStateAction<Game[]>>;
   settings: Record<string, string>;
@@ -23,14 +24,18 @@ type UseLibraryPageDataResult = {
 export function useLibraryPageData({ filterPreset, filterToggleKey, refreshKey, toolbarQuery }: UseLibraryPageDataOptions): UseLibraryPageDataResult {
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [settings, setSettings] = useState<Record<string, string>>({});
   const filters = useLibraryFilters({ filterPreset, filterToggleKey, games, settings, toolbarQuery });
+  const hasLoadedGames = games.length > 0;
 
   useEffect(() => {
     let cancelled = false;
+    const shouldRefreshLibrary = hasLoadedGames || !loading;
 
-    setLoading(true);
+    if (shouldRefreshLibrary) setRefreshing(true);
+    else setLoading(true);
     api
       .listGames(filters.filter)
       .then((items) => {
@@ -45,6 +50,7 @@ export function useLibraryPageData({ filterPreset, filterToggleKey, refreshKey, 
       .finally(() => {
         if (cancelled) return;
         setLoading(false);
+        setRefreshing(false);
       });
 
     return () => {
@@ -71,5 +77,5 @@ export function useLibraryPageData({ filterPreset, filterToggleKey, refreshKey, 
     };
   }, [refreshKey]);
 
-  return { error, filters, loading, setError, setGames, settings };
+  return { error, filters, loading, refreshing, setError, setGames, settings };
 }

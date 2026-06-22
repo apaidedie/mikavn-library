@@ -30,7 +30,7 @@ export function LibraryPage({ refreshKey, selectedGameId, onSelectedGameChange, 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingGame, setEditingGame] = useState<Game | null>(null);
   const { draggingPanel, libraryPanelWidth, resetLibraryPanelWidth, startPanelResize } = useLibraryPanelResize();
-  const { error, filters, loading, setError, setGames, settings } = useLibraryPageData({ filterPreset, filterToggleKey, refreshKey, toolbarQuery });
+  const { error, filters, loading, refreshing, setError, setGames, settings } = useLibraryPageData({ filterPreset, filterToggleKey, refreshKey, toolbarQuery });
   const { visibleGames } = filters;
 
   const gameLookup = useMemo(() => buildLibraryGameLookup(visibleGames), [visibleGames]);
@@ -94,6 +94,7 @@ export function LibraryPage({ refreshKey, selectedGameId, onSelectedGameChange, 
         error={error}
         filters={filters}
         loading={loading}
+        refreshing={refreshing}
         selectedGameId={selectedGameId}
         viewMode={viewMode}
         visibleGames={visibleGames}

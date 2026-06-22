@@ -24,6 +24,26 @@ test('library page data ignores stale async results while filters change quickly
   assert.match(source, /setLoading\(false\)/);
 });
 
+test('library page keeps the current result list while refreshing filtered data', () => {
+  const dataSource = fs.readFileSync('src/pages/Library/useLibraryPageData.ts', 'utf8');
+  const pageSource = fs.readFileSync('src/pages/Library/LibraryPage.tsx', 'utf8');
+  const sidebarSource = fs.readFileSync('src/pages/Library/LibrarySidebar.tsx', 'utf8');
+
+  assert.match(dataSource, /refreshing/);
+  assert.match(dataSource, /const hasLoadedGames = games\.length > 0/);
+  assert.match(dataSource, /const shouldRefreshLibrary = hasLoadedGames \|\| !loading/);
+  assert.match(dataSource, /if \(shouldRefreshLibrary\) setRefreshing\(true\)/);
+  assert.match(dataSource, /else setLoading\(true\)/);
+  assert.match(dataSource, /setRefreshing\(false\)/);
+  assert.match(dataSource, /return \{ error, filters, loading, refreshing, setError, setGames, settings \}/);
+  assert.match(pageSource, /const \{ error, filters, loading, refreshing, setError, setGames, settings \}/);
+  assert.match(pageSource, /refreshing=\{refreshing\}/);
+  assert.match(sidebarSource, /refreshing: boolean/);
+  assert.match(sidebarSource, /refreshing && <Notice/);
+  assert.match(sidebarSource, /正在更新筛选结果/);
+  assert.match(sidebarSource, /loading \? \(/);
+});
+
 test('game list filters expose and apply a bounded result limit', () => {
   const frontendTypes = fs.readFileSync('src/types/game.ts', 'utf8');
   const rustModels = fs.readFileSync('src-tauri/src/db/models.rs', 'utf8');
