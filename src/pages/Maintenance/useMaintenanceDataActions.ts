@@ -85,7 +85,7 @@ export function useMaintenanceDataActions({ setError, setMessage }: UseMaintenan
       setMessage({ text: '没有需要清理的图片缓存文件。' });
       return;
     }
-    if (!window.confirm(`清理 ${formatCount(preview.removedFiles)} 个未引用图片缓存文件，预计释放 ${formatBytes(preview.removedBytes)}？`)) return;
+    if (!window.confirm(`清理 ${formatCount(preview.removedFiles)} 个未引用图片缓存文件，预计释放 ${formatBytes(preview.removedBytes)}？\n\n只会删除 app-data/images 中未引用的缓存文件。\n不会删除真实游戏文件或仍在图库、主图、简介中引用的图片。`)) return;
 
     setAssetCleanupLoading(true);
     try {
