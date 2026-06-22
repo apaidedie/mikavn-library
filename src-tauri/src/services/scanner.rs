@@ -6,8 +6,8 @@ use tauri::AppHandle;
 use uuid::Uuid;
 
 use crate::db::models::{
-    AddGameInput, Game, GameFilter, ImportCandidate, ImportScanReport, ImportScanReportItem,
-    LibraryRoot, ScanCandidate, ScanConflict, ScanExecutable, ScanTaskStatus, TaskRecord,
+    AddGameInput, Game, ImportCandidate, ImportScanReport, ImportScanReportItem, LibraryRoot,
+    ScanCandidate, ScanConflict, ScanConflictRow, ScanExecutable, ScanTaskStatus, TaskRecord,
 };
 use crate::db::{Database, DbError, DbResult};
 use crate::infrastructure::logger;
@@ -561,9 +561,9 @@ fn scan_dirs_with_cancel(
 }
 
 fn mark_conflicts(db: &Database, candidates: &mut [ScanCandidate]) -> DbResult<()> {
-    let games = db.list_games(GameFilter::default())?;
+    let rows = db.list_scan_conflict_rows()?;
     for candidate in candidates {
-        candidate.conflict = find_candidate_conflict(&games, candidate);
+        candidate.conflict = find_candidate_conflict(&rows, candidate);
     }
     Ok(())
 }
@@ -572,7 +572,7 @@ fn find_import_conflict(
     db: &Database,
     candidate: &ImportCandidate,
 ) -> DbResult<Option<ScanConflict>> {
-    let games = db.list_games(GameFilter::default())?;
+    let rows = db.list_scan_conflict_rows()?;
     let probe = ScanCandidate {
         id: String::new(),
         root_path: String::new(),
@@ -584,38 +584,41 @@ fn find_import_conflict(
         executables: Vec::new(),
         conflict: None,
     };
-    Ok(find_candidate_conflict(&games, &probe))
+    Ok(find_candidate_conflict(&rows, &probe))
 }
 
-fn find_candidate_conflict(games: &[Game], candidate: &ScanCandidate) -> Option<ScanConflict> {
+fn find_candidate_conflict(
+    rows: &[ScanConflictRow],
+    candidate: &ScanCandidate,
+) -> Option<ScanConflict> {
     let candidate_install = normalize_path(&candidate.install_path);
     let candidate_exe = candidate.selected_executable.as_deref().map(normalize_path);
     let candidate_title = normalize_title(&candidate.suggested_title);
 
-    for game in games {
-        if normalize_path(&game.install_path) == candidate_install {
-            return Some(conflict(game, "安装目录已存在"));
+    for row in rows {
+        if normalize_path(&row.install_path) == candidate_install {
+            return Some(conflict(row, "安装目录已存在"));
         }
         if let (Some(game_exe), Some(candidate_exe)) = (
-            game.executable_path.as_deref().map(normalize_path),
+            row.executable_path.as_deref().map(normalize_path),
             candidate_exe.as_ref(),
         ) {
             if &game_exe == candidate_exe {
-                return Some(conflict(game, "启动程序已存在"));
+                return Some(conflict(row, "启动程序已存在"));
             }
         }
-        if !candidate_title.is_empty() && normalize_title(&game.title) == candidate_title {
-            return Some(conflict(game, "标题相同"));
+        if !candidate_title.is_empty() && normalize_title(&row.title) == candidate_title {
+            return Some(conflict(row, "标题相同"));
         }
     }
 
     None
 }
 
-fn conflict(game: &Game, reason: &str) -> ScanConflict {
+fn conflict(row: &ScanConflictRow, reason: &str) -> ScanConflict {
     ScanConflict {
-        game_id: game.id.clone(),
-        title: game.title.clone(),
+        game_id: row.id.clone(),
+        title: row.title.clone(),
         reason: reason.to_string(),
     }
 }

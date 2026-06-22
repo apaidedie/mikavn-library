@@ -568,6 +568,14 @@ pub struct ScanConflict {
     pub reason: String,
 }
 
+#[derive(Debug, Clone)]
+pub struct ScanConflictRow {
+    pub id: String,
+    pub title: String,
+    pub install_path: String,
+    pub executable_path: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ScanTaskStatus {

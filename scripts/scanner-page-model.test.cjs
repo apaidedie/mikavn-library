@@ -112,3 +112,14 @@ test('scanner actions ignore stale scan and metadata match status polls', () => 
   assert.match(source, /if \(requestId !== scanStatusRequestRef\.current\) return/);
   assert.doesNotMatch(source, /\.then\(setMatchStatus\)/);
 });
+
+test('scanner backend uses lightweight conflict rows instead of loading full games', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'src-tauri', 'src', 'services', 'scanner.rs'), 'utf8');
+  const scannerDb = fs.readFileSync(path.join(__dirname, '..', 'src-tauri', 'src', 'db', 'scanner_ext.rs'), 'utf8');
+
+  assert.doesNotMatch(source, /db\.list_games\(GameFilter::default\(\)\)/);
+  assert.match(source, /ScanConflictRow/);
+  assert.match(source, /list_scan_conflict_rows/);
+  assert.match(scannerDb, /pub fn list_scan_conflict_rows/);
+  assert.match(scannerDb, /SELECT id, title, install_path, executable_path FROM games/);
+});

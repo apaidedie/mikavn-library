@@ -1,7 +1,22 @@
-use crate::db::models::{ScanCandidate, ScanTaskStatus};
+use crate::db::models::{ScanCandidate, ScanConflictRow, ScanTaskStatus};
 use crate::db::{Database, DbResult};
 
 impl Database {
+    pub fn list_scan_conflict_rows(&self) -> DbResult<Vec<ScanConflictRow>> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT id, title, install_path, executable_path FROM games")?;
+        let rows = stmt.query_map([], |row| {
+            Ok(ScanConflictRow {
+                id: row.get(0)?,
+                title: row.get(1)?,
+                install_path: row.get(2)?,
+                executable_path: row.get(3)?,
+            })
+        })?;
+        Ok(rows.collect::<Result<Vec<_>, _>>()?)
+    }
+
     pub fn upsert_scan_task_result(
         &self,
         task_id: &str,

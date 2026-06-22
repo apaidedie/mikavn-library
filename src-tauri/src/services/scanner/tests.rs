@@ -1,42 +1,17 @@
 use super::*;
+use crate::db::models::GameFilter;
 
-fn game(id: &str, title: &str, install_path: &str, executable_path: Option<&str>) -> Game {
-    Game {
+fn conflict_row(
+    id: &str,
+    title: &str,
+    install_path: &str,
+    executable_path: Option<&str>,
+) -> ScanConflictRow {
+    ScanConflictRow {
         id: id.to_string(),
         title: title.to_string(),
-        original_title: None,
-        aliases: Vec::new(),
-        developer: None,
-        publisher: None,
-        brand: None,
-        release_date: None,
-        description: None,
-        notes: None,
-        tags: Vec::new(),
-        genres: Vec::new(),
-        rating: None,
-        age_rating: None,
-        play_status: "planned".to_string(),
-        favorite: false,
-        hidden: false,
         install_path: install_path.to_string(),
         executable_path: executable_path.map(ToString::to_string),
-        working_directory: Some(install_path.to_string()),
-        launch_args: None,
-        path_status: "unknown".to_string(),
-        last_path_checked_at: None,
-        cover_image: None,
-        banner_image: None,
-        background_image: None,
-        vndb_id: None,
-        bangumi_id: None,
-        dlsite_id: None,
-        fanza_id: None,
-        ymgal_id: None,
-        total_play_seconds: 0,
-        last_played_at: None,
-        created_at: String::new(),
-        updated_at: String::new(),
     }
 }
 
@@ -56,9 +31,14 @@ fn candidate(title: &str, install_path: &str, executable_path: Option<&str>) -> 
 
 #[test]
 fn detects_install_path_conflict() {
-    let games = vec![game("game-1", "星之终途", "D:\\Games\\星之终途", None)];
+    let rows = vec![conflict_row(
+        "game-1",
+        "星之终途",
+        "D:\\Games\\星之终途",
+        None,
+    )];
     let conflict = find_candidate_conflict(
-        &games,
+        &rows,
         &candidate("星之终途 汉化版", "D:/Games/星之终途/", None),
     )
     .unwrap();
@@ -67,14 +47,14 @@ fn detects_install_path_conflict() {
 
 #[test]
 fn detects_title_conflict() {
-    let games = vec![game(
+    let rows = vec![conflict_row(
         "game-1",
         "天使☆騒々 RE-BOOT!",
         "D:\\Games\\Yuzu\\Tenshi",
         None,
     )];
     let conflict = find_candidate_conflict(
-        &games,
+        &rows,
         &candidate("天使☆騒々 RE-BOOT!", "D:\\Games\\Other", None),
     )
     .unwrap();
