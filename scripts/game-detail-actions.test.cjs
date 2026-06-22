@@ -29,3 +29,12 @@ test('game detail delete confirmation names the game and explains record-only im
   assert.match(source, /不会删除真实游戏文件/);
   assert.match(source, /启动记录、存档路径、图库引用/);
 });
+
+test('game detail hook can copy current image diagnostics', () => {
+  const source = fs.readFileSync('src/pages/Library/useGameDetailActions.ts', 'utf8');
+
+  assert.match(source, /copyImageDiagnostic/);
+  assert.match(source, /formatGameImageDiagnostic\(game, imageAudit\)/);
+  assert.match(source, /navigator\.clipboard\.writeText\(diagnostic\)/);
+  assert.match(source, /已复制图片诊断信息/);
+});

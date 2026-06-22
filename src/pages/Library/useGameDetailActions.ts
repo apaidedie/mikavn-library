@@ -5,6 +5,7 @@ import type { ImageReferenceAudit } from '@/types/archive';
 import type { Game, GamePathHealth, PlaySession } from '@/types/game';
 import type { LaunchProfile } from '@/types/launch';
 import { errorMessage } from '@/utils/errorMessage';
+import { formatGameImageDiagnostic } from './gameDetailMediaModel';
 import { pathHealthMessage } from './GamePathPanel';
 
 export type TaskMessage = { text: string; taskId?: string | null };
@@ -146,6 +147,17 @@ export function useGameDetailActions({ game, onChanged, onDeleted }: UseGameDeta
 
   const copyPath = async (label: string, path?: string | null) => copyTextValue(`${label}路径`, path);
   const copyText = async (label: string, value?: string | null) => copyTextValue(label, value);
+  const copyImageDiagnostic = async () => {
+    if (!game) return;
+    const diagnostic = formatGameImageDiagnostic(game, imageAudit);
+    setMessage(null);
+    try {
+      await navigator.clipboard.writeText(diagnostic);
+      setMessage({ text: '已复制图片诊断信息。' });
+    } catch (reason) {
+      setMessage({ text: errorMessage(reason) });
+    }
+  };
 
   async function copyTextValue(label: string, value?: string | null) {
     if (!value) return;
@@ -188,6 +200,7 @@ export function useGameDetailActions({ game, onChanged, onDeleted }: UseGameDeta
       checkImageReferences,
       checkPaths,
       checkPathsInBackground,
+      copyImageDiagnostic,
       copyPath,
       copyText,
       launch,

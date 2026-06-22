@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2, RefreshCw, Wrench } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Copy, RefreshCw, Wrench } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -15,7 +15,7 @@ import {
   type MediaHealthItem,
 } from './gameDetailMediaModel';
 
-export { summarizeMediaHealth } from './gameDetailMediaModel';
+export { formatGameImageDiagnostic, summarizeMediaHealth } from './gameDetailMediaModel';
 export { AssetGallery } from './AssetGallery';
 
 export function DescriptionRichText({ value }: { value?: string | null }) {
@@ -43,7 +43,7 @@ export function DescriptionRichText({ value }: { value?: string | null }) {
   );
 }
 
-export function MediaHealthStack({ audit, auditLoading, items, missingCount, onAudit, onOpenMaintenance }: { audit: ImageReferenceAudit | null; auditLoading: boolean; items: MediaHealthItem[]; missingCount: number; onAudit: () => void; onOpenMaintenance?: () => void }) {
+export function MediaHealthStack({ audit, auditLoading, items, missingCount, onAudit, onCopyDiagnostics, onOpenMaintenance }: { audit: ImageReferenceAudit | null; auditLoading: boolean; items: MediaHealthItem[]; missingCount: number; onAudit: () => void; onCopyDiagnostics: () => void; onOpenMaintenance?: () => void }) {
   const auditItems = audit?.items ?? [];
   return (
     <MediaInfoStack title="媒体健康">
@@ -53,6 +53,7 @@ export function MediaHealthStack({ audit, auditLoading, items, missingCount, onA
         </Badge>
         {audit && <Badge className={audit.issueCount > 0 ? 'border-rose-300/25 bg-rose-300/10 text-rose-100' : 'border-emerald-300/25 bg-emerald-300/10 text-emerald-100'}>{audit.issueCount > 0 ? `问题引用 ${audit.issueCount}` : '引用正常'}</Badge>}
         <Button className="h-7 px-2" disabled={auditLoading} size="sm" variant="ghost" onClick={onAudit}><RefreshCw className={cn('h-3.5 w-3.5', auditLoading && 'animate-spin')} />检查引用</Button>
+        <Button className="h-7 px-2" size="sm" variant="ghost" onClick={onCopyDiagnostics}><Copy className="h-3.5 w-3.5" />复制图片诊断</Button>
       </div>
       <div className="space-y-1.5">
         {items.map((item) => (

@@ -132,6 +132,53 @@ export function summarizeMediaHealth(game: Game): { items: MediaHealthItem[]; mi
   return { items, missingCount: items.filter((item) => item.status === 'missing').length };
 }
 
+export function formatGameImageDiagnostic(game: Game, audit: ImageReferenceAudit | null) {
+  const descriptionImageCount = countDescriptionImages(game.description);
+  const lines = [
+    '# MikaVN 图片诊断',
+    '',
+    `游戏：${game.title} (${game.id})`,
+    `安装目录：${valueOrEmpty(game.installPath)}`,
+    `封面：${valueOrEmpty(game.coverImage)}`,
+    `横幅：${valueOrEmpty(game.bannerImage)}`,
+    `背景：${valueOrEmpty(game.backgroundImage)}`,
+    `简介图片：${descriptionImageCount} 张引用`,
+    '',
+    '## 引用审计',
+  ];
+
+  if (!audit) {
+    lines.push('尚未运行图片引用检查。请先点“检查引用”，或到维护中心查看图片健康。');
+  } else {
+    lines.push(
+      `引用总数：${audit.totalRefs}`,
+      `问题引用：${audit.issueCount}`,
+      `本地引用：${audit.localCount}`,
+      `远程引用：${audit.remoteCount}`,
+      `缺失：${audit.missingCount}`,
+      `C 盘：${audit.cDriveCount}`,
+      `Playnite：${audit.playniteCount}`,
+      `结果截断：${audit.truncated ? '是' : '否'}`,
+    );
+
+    const issueItems = audit.items.filter((item) => item.issues.length > 0 || item.status !== 'ok').slice(0, 8);
+    if (issueItems.length > 0) {
+      lines.push('', '## 问题样本');
+      issueItems.forEach((item, index) => {
+        const issues = item.issues.length > 0 ? item.issues : [item.status];
+        lines.push(
+          `${index + 1}. ${imageAuditFieldLabel(item.fieldName ?? item.sourceLabel)} [${issues.map(imageAuditIssueLabel).join(', ')}]`,
+          `   原始值：${item.value}`,
+        );
+        if (item.resolvedPath) lines.push(`   解析路径：${item.resolvedPath}`);
+      });
+    }
+  }
+
+  lines.push('', '维护入口：维护中心 -> 图片健康 / 图片引用审计');
+  return lines.join('\n');
+}
+
 function mediaFieldHealth(id: string, label: string, value?: string | null): MediaHealthItem {
   const filled = Boolean(value?.trim());
   return {
@@ -140,6 +187,10 @@ function mediaFieldHealth(id: string, label: string, value?: string | null): Med
     status: filled ? 'ok' : 'missing',
     detail: filled ? '已填写' : '缺失',
   };
+}
+
+function valueOrEmpty(value?: string | null) {
+  return value?.trim() ? value.trim() : '(空)';
 }
 
 function countDescriptionImages(value?: string | null) {

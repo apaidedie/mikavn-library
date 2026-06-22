@@ -17,12 +17,13 @@ type GameDetailOverviewProps = {
   pathHealth: GamePathHealth | null;
   onChanged?: (game: Game) => void;
   onEdit: (game: Game) => void;
+  onCopyImageDiagnostic: () => void;
   onImageAudit: () => void;
   onMessage: (message: TaskMessage | null) => void;
   onOpenMaintenance?: (section?: string | null) => void;
 };
 
-export function GameDetailOverview({ blurCover, externalIds, game, imageAudit, imageAuditLoading, onChanged, onEdit, onImageAudit, onMessage, onOpenMaintenance, pathHealth }: GameDetailOverviewProps) {
+export function GameDetailOverview({ blurCover, externalIds, game, imageAudit, imageAuditLoading, onChanged, onCopyImageDiagnostic, onEdit, onImageAudit, onMessage, onOpenMaintenance, pathHealth }: GameDetailOverviewProps) {
   const mediaHealth = summarizeMediaHealth(game);
 
   return (
@@ -48,7 +49,7 @@ export function GameDetailOverview({ blurCover, externalIds, game, imageAudit, i
       </div>
 
       <aside className="col-span-1 space-y-5 pt-0.5">
-        <MediaHealthStack audit={imageAudit} auditLoading={imageAuditLoading} items={mediaHealth.items} missingCount={mediaHealth.missingCount} onAudit={onImageAudit} onOpenMaintenance={onOpenMaintenance ? () => onOpenMaintenance('image-audit') : undefined} />
+        <MediaHealthStack audit={imageAudit} auditLoading={imageAuditLoading} items={mediaHealth.items} missingCount={mediaHealth.missingCount} onAudit={onImageAudit} onCopyDiagnostics={onCopyImageDiagnostic} onOpenMaintenance={onOpenMaintenance ? () => onOpenMaintenance('image-audit') : undefined} />
 
         <InfoStack title="信息">
           <InfoLine label="原名" value={game.originalTitle || '暂无'} />

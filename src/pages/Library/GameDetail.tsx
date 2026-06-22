@@ -70,6 +70,7 @@ export function GameDetail({ game, onEdit, onDeleted, onChanged, onOpenMaintenan
               imageAuditLoading={detail.imageAuditLoading}
               pathHealth={detail.pathHealth}
               onChanged={onChanged}
+              onCopyImageDiagnostic={() => void actions.copyImageDiagnostic()}
               onEdit={onEdit}
               onImageAudit={() => void actions.checkImageReferences()}
               onMessage={actions.setMessage}
