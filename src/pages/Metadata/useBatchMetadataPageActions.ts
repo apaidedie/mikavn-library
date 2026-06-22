@@ -17,6 +17,8 @@ import {
 
 export type TaskMessage = { text: string; taskId?: string | null };
 
+const batchMetadataQueueLoadLimit = 500;
+
 export function useBatchMetadataPageActions(refreshKey: number, queuePresetRequest?: QueuePresetRequest | null) {
   const loadGamesRequestRef = useRef(0);
   const batchStatusRequestRef = useRef(0);
@@ -81,7 +83,7 @@ export function useBatchMetadataPageActions(refreshKey: number, queuePresetReque
   async function loadGames() {
     const requestId = ++loadGamesRequestRef.current;
     try {
-      const nextGames = await api.listGames({ metadataStatus: 'missing_any_external_id', sortBy: 'updated_at', sortDirection: 'desc' });
+      const nextGames = await api.listGames({ metadataStatus: 'missing_any_external_id', sortBy: 'updated_at', sortDirection: 'desc', limit: batchMetadataQueueLoadLimit });
       if (requestId !== loadGamesRequestRef.current) return;
       setGames(nextGames);
     } catch (reason) {

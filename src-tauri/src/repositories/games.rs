@@ -42,7 +42,11 @@ impl<'a> GameRepository<'a> {
         let sort_by = filter.sort_by.unwrap_or_else(|| "updated_at".to_string());
         let desc = filter.sort_direction.unwrap_or_else(|| "desc".to_string()) != "asc";
         let limit = filter.limit.map(|value| value.clamp(1, 500));
-        let sql_limit = if tag.is_none() && metadata_status.is_none() {
+        let metadata_status_can_limit_in_sql = matches!(
+            metadata_status_key.as_deref(),
+            None | Some("missinganyexternalid")
+        );
+        let sql_limit = if tag.is_none() && metadata_status_can_limit_in_sql {
             limit
         } else {
             None
