@@ -80,6 +80,30 @@ test('large library smoke history flags substantial timing regressions without f
   assert.match(result.warnings[0].message, /libraryLoadMs regressed by 700ms/);
 });
 
+test('large library smoke history flags rendered row regressions', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mikavn-large-history-rows-'));
+  const historyPath = path.join(tempDir, 'large-library-history.jsonl');
+  const baselineReport = {
+    gameCount: 4500,
+    timings: { libraryLoadMs: 1000, detailSwitchMs: 80, searchMs: 800 },
+    renderedRows: { initial: 240, afterLoadMore: 480 },
+  };
+  const bloatedReport = {
+    gameCount: 4500,
+    timings: { libraryLoadMs: 1010, detailSwitchMs: 82, searchMs: 810 },
+    renderedRows: { initial: 1200, afterLoadMore: 1680 },
+  };
+
+  recordLargeLibrarySmokeHistory(baselineReport, { historyPath, timestamp: '2026-06-21T12:00:00.000Z' });
+  const result = recordLargeLibrarySmokeHistory(bloatedReport, { historyPath, timestamp: '2026-06-21T12:10:00.000Z' });
+
+  assert.deepEqual(result.warnings.map((warning) => warning.metric), ['renderedRows.initial', 'renderedRows.afterLoadMore']);
+  assert.equal(result.warnings[0].previousRows, 240);
+  assert.equal(result.warnings[0].currentRows, 1200);
+  assert.equal(result.warnings[0].deltaRows, 960);
+  assert.match(result.warnings[0].message, /renderedRows\.initial regressed by 960 rows/);
+});
+
 test('large library smoke prints timing regression warnings for release logs', () => {
   const warnings = [
     { metric: 'libraryLoadMs', previousMs: 1000, currentMs: 1700, deltaMs: 700, ratio: 0.7 },
@@ -93,6 +117,18 @@ test('large library smoke prints timing regression warnings for release logs', (
   ]);
   assert.match(source, /formatLargeLibrarySmokeWarnings/);
   assert.match(source, /console\.warn/);
+});
+
+test('large library smoke prints rendered row regression warnings for release logs', () => {
+  const warnings = [
+    { metric: 'renderedRows.initial', previousRows: 240, currentRows: 1200, deltaRows: 960, ratio: 4 },
+    { metric: 'renderedRows.afterLoadMore', previousRows: 480, currentRows: 1680, deltaRows: 1200, ratio: 2.5 },
+  ];
+
+  assert.deepEqual(formatLargeLibrarySmokeWarnings(warnings), [
+    'WARN large library render regression: renderedRows.initial 240 -> 1200 rows (+960, +400%)',
+    'WARN large library render regression: renderedRows.afterLoadMore 480 -> 1680 rows (+1200, +250%)',
+  ]);
 });
 
 test('large library smoke waits for advanced search content before searching', () => {

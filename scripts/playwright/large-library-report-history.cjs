@@ -58,7 +58,10 @@ function buildLargeLibrarySmokeWarnings(current, previous, options = {}) {
   if (!previous) return [];
   const minDeltaMs = Number(options.minDeltaMs ?? 500);
   const minRatio = Number(options.minRatio ?? 0.25);
+  const minRowDelta = Number(options.minRowDelta ?? 240);
+  const minRowRatio = Number(options.minRowRatio ?? 0.5);
   const timingMetrics = ['libraryLoadMs', 'detailSwitchMs', 'searchMs'];
+  const rowMetrics = ['initial', 'afterLoadMore'];
   const warnings = [];
 
   for (const metric of timingMetrics) {
@@ -80,12 +83,34 @@ function buildLargeLibrarySmokeWarnings(current, previous, options = {}) {
     }
   }
 
+  for (const metric of rowMetrics) {
+    const currentRows = Number(current.renderedRows?.[metric] || 0);
+    const previousRows = Number(previous.renderedRows?.[metric] || 0);
+    if (previousRows <= 0 || currentRows <= 0) continue;
+
+    const deltaRows = currentRows - previousRows;
+    const ratio = deltaRows / previousRows;
+    if (deltaRows >= minRowDelta && ratio >= minRowRatio) {
+      warnings.push({
+        metric: `renderedRows.${metric}`,
+        previousRows,
+        currentRows,
+        deltaRows,
+        ratio,
+        message: `renderedRows.${metric} regressed by ${deltaRows} rows (${Math.round(ratio * 100)}%) compared with the previous large-library smoke run.`,
+      });
+    }
+  }
+
   return warnings;
 }
 
 function formatLargeLibrarySmokeWarnings(warnings = []) {
   return warnings.map((warning) => {
     const ratioPercent = Math.round(Number(warning.ratio || 0) * 100);
+    if (warning.metric && String(warning.metric).startsWith('renderedRows.')) {
+      return `WARN large library render regression: ${warning.metric} ${warning.previousRows} -> ${warning.currentRows} rows (+${warning.deltaRows}, +${ratioPercent}%)`;
+    }
     return `WARN large library performance regression: ${warning.metric} ${warning.previousMs}ms -> ${warning.currentMs}ms (+${warning.deltaMs}ms, +${ratioPercent}%)`;
   });
 }
