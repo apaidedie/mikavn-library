@@ -30,6 +30,7 @@ Or, equivalently, the expanded validation chain:
 - `npm run test:updater-release`
 - `npm run test:diagnostic-export`
 - `npm run test:data-safety`
+- `npm run test:maintenance-image-health`
 - `npm run test:library-performance`
 - `npm run build`
 - `cargo fmt --check`
