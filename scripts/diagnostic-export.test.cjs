@@ -107,3 +107,15 @@ test('startup database backup failure notice can export diagnostics and expose t
   assert.match(actions, /打开诊断包位置/);
   assert.match(actions, /复制诊断包路径/);
 });
+
+test('startup database backup failure notice reports diagnostic path copy result', () => {
+  const notice = fs.readFileSync('src/app/AppStartupDatabaseBackupNotice.tsx', 'utf8');
+
+  assert.match(notice, /useState/);
+  assert.match(notice, /diagnosticCopyMessage/);
+  assert.match(notice, /copyDiagnosticExportPath/);
+  assert.match(notice, /navigator\.clipboard\.writeText\(diagnosticExportPath\)/);
+  assert.match(notice, /诊断包路径已复制。/);
+  assert.match(notice, /复制诊断包路径失败/);
+  assert.match(notice, /role="status"/);
+});

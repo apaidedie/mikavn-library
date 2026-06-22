@@ -1,7 +1,9 @@
 import { AlertTriangle, Database, FileArchive, X } from 'lucide-react';
+import { useState } from 'react';
 import { DiagnosticExportPathActions } from '@/components/diagnostics/DiagnosticExportPathActions';
 import { Button } from '@/components/ui/button';
 import { Notice } from '@/components/ui/notice';
+import { errorMessage } from '@/utils/errorMessage';
 
 type AppStartupDatabaseBackupNoticeProps = {
   diagnosticExportLoading: boolean;
@@ -24,6 +26,19 @@ export function AppStartupDatabaseBackupNotice({
   onOpenSettings,
   onRevealDiagnosticExportPath,
 }: AppStartupDatabaseBackupNoticeProps) {
+  const [diagnosticCopyMessage, setDiagnosticCopyMessage] = useState<string | null>(null);
+
+  const copyDiagnosticExportPath = async () => {
+    if (!diagnosticExportPath) return;
+    setDiagnosticCopyMessage(null);
+    try {
+      await navigator.clipboard.writeText(diagnosticExportPath);
+      setDiagnosticCopyMessage('诊断包路径已复制。');
+    } catch (reason) {
+      setDiagnosticCopyMessage(`复制诊断包路径失败：${errorMessage(reason)}`);
+    }
+  };
+
   return (
     <Notice className="mx-3 mt-3" tone="warning">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -41,11 +56,12 @@ export function AppStartupDatabaseBackupNotice({
                 buttonSize="sm"
                 buttonVariant="ghost"
                 path={diagnosticExportPath}
-                onCopy={() => void navigator.clipboard.writeText(diagnosticExportPath)}
+                onCopy={() => void copyDiagnosticExportPath()}
                 onReveal={onRevealDiagnosticExportPath}
               />
             </div>
           )}
+          {diagnosticCopyMessage && <div className="mt-1 break-all text-xs opacity-90" role="status">{diagnosticCopyMessage}</div>}
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
           <Button disabled={diagnosticExportLoading} size="sm" variant="outline" onClick={onExportDiagnosticPackage}>

@@ -41,8 +41,21 @@ test('dashboard diagnostic export notice can reveal or copy exported path', () =
   assert.match(pageSource, /api\.revealPath\(diagnosticExportPath\)/);
   assert.match(noticeSource, /diagnosticExportPath/);
   assert.match(noticeSource, /DiagnosticExportPathActions/);
-  assert.match(noticeSource, /onCopy=\{\(\) => void navigator\.clipboard\.writeText\(diagnosticExportPath\)\}/);
+  assert.match(noticeSource, /onCopy=\{\(\) => void copyDiagnosticExportPath\(\)\}/);
+  assert.match(noticeSource, /navigator\.clipboard\.writeText\(diagnosticExportPath\)/);
   assert.match(actionsSource, /export function DiagnosticExportPathActions/);
   assert.match(actionsSource, /打开诊断包位置/);
   assert.match(actionsSource, /复制诊断包路径/);
+});
+
+test('dashboard diagnostic export notice reports diagnostic path copy result', () => {
+  const noticeSource = read('src/pages/Dashboard/DashboardErrorNotice.tsx');
+
+  assert.match(noticeSource, /useState/);
+  assert.match(noticeSource, /diagnosticCopyMessage/);
+  assert.match(noticeSource, /copyDiagnosticExportPath/);
+  assert.match(noticeSource, /navigator\.clipboard\.writeText\(diagnosticExportPath\)/);
+  assert.match(noticeSource, /诊断包路径已复制。/);
+  assert.match(noticeSource, /复制诊断包路径失败/);
+  assert.match(noticeSource, /role="status"/);
 });
