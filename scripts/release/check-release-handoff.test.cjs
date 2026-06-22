@@ -42,6 +42,7 @@ function createHandoff(overrides = {}) {
     '- `npm run smoke:install`: passed.',
     '- `npm run smoke:portable-data`: passed.',
     '- `npm run smoke:real-data:readonly`: passed. `quick_check` ok; image header samples ok.',
+    '- `npm run smoke:real-install:update`: passed. Real install counts preserved.',
     '- Target install directory: `E:\\MikaVN Library`.',
     '- Post-install SQLite `quick_check`: ok.',
     '- Real installed exe: `E:\\MikaVN Library\\mikavn-library.exe`.',
@@ -367,6 +368,18 @@ test('checkReleaseHandoff requires real install target evidence in the validatio
   assert.throws(
     () => checkReleaseHandoff({ releaseDir }),
     /release validation report is missing required token: .*Target install directory/,
+  );
+});
+
+test('checkReleaseHandoff requires real install update smoke evidence in the validation report', () => {
+  const { releaseDir } = createHandoff();
+  const reportPath = path.join(releaseDir, 'RELEASE_VALIDATION_REPORT.md');
+  const report = fs.readFileSync(reportPath, 'utf8');
+  fs.writeFileSync(reportPath, report.replace('- `npm run smoke:real-install:update`: passed. Real install counts preserved.\n', ''));
+
+  assert.throws(
+    () => checkReleaseHandoff({ releaseDir }),
+    /release validation report is missing required token: .*npm run smoke:real-install:update/,
   );
 });
 

@@ -11,6 +11,7 @@ const REQUIRED_REPORT_TOKENS = [
   'npm run smoke:install',
   'npm run smoke:portable-data',
   'npm run smoke:real-data:readonly',
+  'npm run smoke:real-install:update',
   'Target install directory',
   'Post-install SQLite `quick_check`: ok',
   'Real installed exe',
@@ -55,6 +56,7 @@ const REQUIRED_PASSED_COMMANDS = [
   'npm run smoke:install',
   'npm run smoke:portable-data',
   'npm run smoke:real-data:readonly',
+  'npm run smoke:real-install:update',
   'npm run smoke:desktop',
   'npm run release:handoff:check',
 ];
