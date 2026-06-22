@@ -5,6 +5,8 @@ param(
   [int]$MinBackupFiles = 1,
   [int]$MaxMissingLocalAssetPaths = 0,
   [int]$MaxUnsupportedLocalAssetImages = 0,
+  [int]$MaxMissingArtworkImageRefs = 0,
+  [int]$MaxUnsupportedArtworkImages = 0,
   [int]$MaxBackupQuickCheckFiles = 3,
   [int]$MaxImageHeaderQuickCheckFiles = 25,
   [int]$MaxReferencedImageHeaderQuickCheckFiles = 250,
@@ -213,6 +215,29 @@ function Test-ReferencedImageHeaderQuickChecks([object]$Database, [int]$Limit) {
   }
 }
 
+function Test-GameArtworkRenderability([object]$Database, [int]$MaxMissing, [int]$MaxUnsupported) {
+  $summary = $Database.gameArtworkRenderability
+  if (!$summary) {
+    return [ordered]@{
+      checkedCount = 0
+      allOk = $true
+      missingArtworkImageRefCount = 0
+      unsupportedArtworkImageCount = 0
+      artworkImageKindCounts = [ordered]@{}
+    }
+  }
+
+  if ($summary.missingArtworkImageRefCount -gt $MaxMissing) {
+    $samples = ($summary.missingArtworkImageRefSamples | ConvertTo-Json -Depth 4)
+    throw "Real data smoke failed: missing artwork image refs $($summary.missingArtworkImageRefCount) exceeds maximum $MaxMissing. Samples:`n$samples"
+  }
+  if ($summary.unsupportedArtworkImageCount -gt $MaxUnsupported) {
+    $samples = ($summary.unsupportedArtworkImageSamples | ConvertTo-Json -Depth 4)
+    throw "Real data smoke failed: unsupported artwork images $($summary.unsupportedArtworkImageCount) exceeds maximum $MaxUnsupported. Samples:`n$samples"
+  }
+  return $summary
+}
+
 $resolvedAppRoot = (Resolve-Path -LiteralPath $AppRoot).Path
 $appDataRoot = Assert-UnderRoot $resolvedAppRoot (Join-Path $resolvedAppRoot "app-data") "app-data"
 $databasePath = Assert-UnderRoot $appDataRoot (Join-Path $appDataRoot "mikavn.db") "database"
@@ -226,17 +251,56 @@ if (!$python) {
 $pythonCode = @'
 import json
 import os
+import re
 import sqlite3
 import sys
 from collections import Counter
 
 db_path = sys.argv[1]
 referenced_sample_limit = int(sys.argv[2]) if len(sys.argv) > 2 else 250
+app_data_root = sys.argv[3] if len(sys.argv) > 3 else os.path.dirname(db_path)
+image_root = os.path.join(app_data_root, "images")
 conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
 conn.row_factory = sqlite3.Row
 
+IMAGE_REF_RE = re.compile(r"^(?:images[\\/])?[^?#]+\.(?:jpe?g|png|webp|gif|ico)$", re.I)
+WINDOWS_ABSOLUTE_RE = re.compile(r"^[A-Za-z]:[\\/]")
+
 def table_exists(name):
     return conn.execute("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?", (name,)).fetchone()[0] > 0
+
+def table_columns(name):
+    if not table_exists(name):
+        return set()
+    return {row["name"] for row in conn.execute(f"PRAGMA table_info({name})")}
+
+def is_web_safe_image_ref(value):
+    lower = value.lower()
+    return lower.startswith("http://") or lower.startswith("https://") or lower.startswith("data:") or lower.startswith("asset:")
+
+def is_under(path, root):
+    try:
+        return os.path.commonpath([os.path.normcase(os.path.abspath(path)), os.path.normcase(os.path.abspath(root))]) == os.path.normcase(os.path.abspath(root))
+    except ValueError:
+        return False
+
+def resolve_cache_relative_image(value):
+    normalized = value.replace("\\", "/")
+    relative = normalized[7:] if normalized.lower().startswith("images/") else normalized
+    parts = relative.split("/")
+    if not relative or any(part in {"", ".", ".."} for part in parts):
+        return None
+    return os.path.join(image_root, *parts)
+
+def resolve_artwork_image_ref(value):
+    clean = (value or "").strip()
+    if not clean or is_web_safe_image_ref(clean):
+        return None, "web"
+    if WINDOWS_ABSOLUTE_RE.match(clean) or os.path.isabs(clean):
+        return clean, "absolute-app-data" if is_under(clean, image_root) else "absolute-external"
+    if IMAGE_REF_RE.match(clean):
+        return resolve_cache_relative_image(clean), "cache-relative"
+    return None, "unsupported-ref"
 
 def sniff_image_kind(path):
     try:
@@ -259,6 +323,77 @@ def sniff_image_kind(path):
 tables = {}
 for name in ["games", "game_assets", "tasks", "task_logs", "save_backups"]:
     tables[name] = conn.execute(f"SELECT COUNT(*) FROM {name}").fetchone()[0] if table_exists(name) else None
+
+game_artwork_renderability = None
+if table_exists("games"):
+    game_columns = table_columns("games")
+    artwork_fields = [field for field in ["cover_image", "banner_image", "background_image"] if field in game_columns]
+    select_fields = ["id", "title"] + artwork_fields
+    rows = conn.execute(f"SELECT {', '.join(select_fields)} FROM games").fetchall() if artwork_fields else []
+    checked_refs = []
+    missing_refs = []
+    unsupported_refs = []
+    existing_paths = []
+    cache_relative_count = 0
+    absolute_app_data_count = 0
+    absolute_external_count = 0
+    remote_count = 0
+    unsupported_ref_count = 0
+    for row in rows:
+        for field in artwork_fields:
+            raw_value = row[field]
+            value = raw_value.strip() if isinstance(raw_value, str) else ""
+            if not value:
+                continue
+            resolved_path, ref_kind = resolve_artwork_image_ref(value)
+            item = {
+                "gameId": row["id"],
+                "title": row["title"],
+                "field": field,
+                "value": value,
+                "resolvedPath": resolved_path,
+                "refKind": ref_kind,
+            }
+            checked_refs.append(item)
+            if ref_kind == "web":
+                remote_count += 1
+                continue
+            if ref_kind == "cache-relative":
+                cache_relative_count += 1
+            elif ref_kind == "absolute-app-data":
+                absolute_app_data_count += 1
+            elif ref_kind == "absolute-external":
+                absolute_external_count += 1
+            elif ref_kind == "unsupported-ref":
+                unsupported_ref_count += 1
+                unsupported_refs.append(item)
+                continue
+
+            if not resolved_path or not os.path.isfile(resolved_path):
+                missing_refs.append(item)
+                continue
+            kind = sniff_image_kind(resolved_path)
+            item["kind"] = kind
+            existing_paths.append(resolved_path)
+            if kind in {"unsupported", "unreadable"}:
+                unsupported_refs.append(item)
+
+    kind_counts = Counter(sniff_image_kind(path) for path in sorted(set(existing_paths)))
+    game_artwork_renderability = {
+        "checkedCount": len(checked_refs),
+        "fieldNames": artwork_fields,
+        "cacheRelativeImageRefCount": cache_relative_count,
+        "absoluteAppDataImageRefCount": absolute_app_data_count,
+        "absoluteExternalImageRefCount": absolute_external_count,
+        "remoteImageRefCount": remote_count,
+        "unsupportedArtworkImageRefCount": unsupported_ref_count,
+        "missingArtworkImageRefCount": len(missing_refs),
+        "missingArtworkImageRefSamples": missing_refs[:10],
+        "unsupportedArtworkImageCount": len(unsupported_refs),
+        "unsupportedArtworkImageSamples": unsupported_refs[:10],
+        "artworkImageKindCounts": dict(sorted(kind_counts.items())),
+        "allOk": len(missing_refs) == 0 and len(unsupported_refs) == 0,
+    }
 
 asset_summary = None
 if table_exists("game_assets"):
@@ -292,6 +427,7 @@ if table_exists("game_assets"):
 result = {
     "quickCheck": conn.execute("PRAGMA quick_check").fetchone()[0],
     "tables": tables,
+    "gameArtworkRenderability": game_artwork_renderability,
     "assetSummary": asset_summary,
 }
 conn.close()
@@ -377,13 +513,14 @@ print(json.dumps({
 }, ensure_ascii=False))
 '@
 
-$dbJson = $pythonCode | python - $databasePath $MaxReferencedImageHeaderQuickCheckFiles
+$dbJson = $pythonCode | python - $databasePath $MaxReferencedImageHeaderQuickCheckFiles $appDataRoot
 if ($LASTEXITCODE -ne 0) {
   throw "SQLite readonly smoke failed while reading $databasePath"
 }
 $database = $dbJson | ConvertFrom-Json
 
 $images = Get-DirectorySummary $appDataRoot "images"
+$gameArtworkRenderability = Test-GameArtworkRenderability $database $MaxMissingArtworkImageRefs $MaxUnsupportedArtworkImages
 $imageHeaderQuickChecks = Test-ImageHeaderQuickChecks $images $MaxImageHeaderQuickCheckFiles
 $referencedImageHeaderQuickChecks = Test-ReferencedImageHeaderQuickChecks $database $MaxReferencedImageHeaderQuickCheckFiles
 if ($database.assetSummary -and $database.assetSummary.existingReferencedLocalPaths) {
@@ -427,6 +564,7 @@ $report = [ordered]@{
   databasePath = $databasePath
   databaseBytes = (Get-Item -LiteralPath $databasePath).Length
   database = $database
+  gameArtworkRenderability = $gameArtworkRenderability
   images = $images
   imageHeaderQuickChecks = $imageHeaderQuickChecks
   referencedImageHeaderQuickChecks = $referencedImageHeaderQuickChecks

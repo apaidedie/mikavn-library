@@ -36,6 +36,15 @@ test('real app-data readonly smoke is exposed and cannot mutate the live library
   assert.match(script, /localImageKindCounts/);
   assert.match(script, /existingReferencedLocalPaths/);
   assert.match(script, /os\.path\.isfile/);
+  assert.match(script, /MaxMissingArtworkImageRefs/);
+  assert.match(script, /MaxUnsupportedArtworkImages/);
+  assert.match(script, /Test-GameArtworkRenderability/);
+  assert.match(script, /gameArtworkRenderability/);
+  assert.match(script, /cacheRelativeImageRefCount/);
+  assert.match(script, /absoluteAppDataImageRefCount/);
+  assert.match(script, /missingArtworkImageRefCount/);
+  assert.match(script, /unsupportedArtworkImageCount/);
+  assert.match(script, /artworkImageKindCounts/);
   assert.match(script, /Assert-UnderRoot/);
   assert.doesNotMatch(script, /\bRemove-Item\b/);
   assert.doesNotMatch(script, /\bMove-Item\b/);
