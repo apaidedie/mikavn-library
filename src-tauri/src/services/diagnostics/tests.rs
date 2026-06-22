@@ -352,6 +352,7 @@ fn diagnostic_export_summary_reports_core_counts() {
     let summary = read_zip_entry(std::path::Path::new(&report.path), "summary.md");
 
     assert!(summary.contains("quick_check"));
+    assert!(summary.contains("应用版本：test"));
     assert!(summary.contains("ok"));
     assert!(summary.contains("游戏数量：1"));
     assert!(summary.contains("图片文件"));

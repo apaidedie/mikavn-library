@@ -132,7 +132,7 @@ fn write_diagnostic_package(
     write_redacted_json(staging_dir.join("diagnostics.json"), &diagnostics)?;
     write_redacted_text(
         staging_dir.join("summary.md"),
-        &diagnostic_summary(&diagnostics),
+        &diagnostic_summary(&diagnostics, app_version),
     )?;
     write_redacted_json(staging_dir.join("logs-preview.json"), &logs)?;
     write_redacted_json(staging_dir.join("environment.json"), &environment)?;
@@ -182,9 +182,10 @@ fn redact_json_value(value: &mut Value) {
     }
 }
 
-fn diagnostic_summary(diagnostics: &diagnostics::AppDataDiagnostics) -> String {
+fn diagnostic_summary(diagnostics: &diagnostics::AppDataDiagnostics, app_version: &str) -> String {
     format!(
-        "# MikaVN Diagnostic Summary\n\n- 数据目录来源：{}\n- 数据库 quick_check：{}\n- 游戏数量：{}\n- 媒体资产：{}\n- 图片文件：{}\n- 日志文件：{}\n- 数据库备份：{}\n- 警告数量：{}\n",
+        "# MikaVN Diagnostic Summary\n\n- 应用版本：{}\n- 数据目录来源：{}\n- 数据库 quick_check：{}\n- 游戏数量：{}\n- 媒体资产：{}\n- 图片文件：{}\n- 日志文件：{}\n- 数据库备份：{}\n- 警告数量：{}\n",
+        app_version,
         diagnostics.data_dir_source,
         diagnostics
             .database
