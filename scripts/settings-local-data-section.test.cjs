@@ -26,6 +26,7 @@ test('database backup cleanup policy is centralized and visible before cleanup',
   const policy = read('src/pages/Settings/settingsBackupCleanupPolicy.ts');
   const section = read('src/pages/Settings/SettingsLocalDataSection.tsx');
   const actions = read('src/pages/Settings/useSettingsLocalDataActions.ts');
+  const maintenanceActions = read('src/pages/Maintenance/useMaintenanceDataActions.ts');
 
   assert.match(policy, /databaseBackupCleanupPolicy/);
   assert.match(policy, /retainCount:\s*10/);
@@ -38,6 +39,10 @@ test('database backup cleanup policy is centralized and visible before cleanup',
   assert.match(actions, /databaseBackupCleanupPolicy/);
   assert.match(actions, /formatDatabaseBackupCleanupPolicy\(databaseBackupCleanupPolicy\)/);
   assert.match(actions, /cleanupOldDatabaseBackups\(databaseBackupCleanupPolicy\)/);
+  assert.match(maintenanceActions, /databaseBackupCleanupPolicy/);
+  assert.match(maintenanceActions, /formatDatabaseBackupCleanupPolicy\(databaseBackupCleanupPolicy\)/);
+  assert.match(maintenanceActions, /cleanupOldDatabaseBackups\(databaseBackupCleanupPolicy\)/);
+  assert.doesNotMatch(maintenanceActions, /retainCount:\s*10,\s*retainDays:\s*30/);
 });
 
 test('settings top-level local tab advertises backup access', () => {

@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { api } from '@/services/api';
 import type { AppDataDiagnostics } from '@/types/archive';
 import { errorMessage } from '@/utils/errorMessage';
+import { databaseBackupCleanupPolicy, formatDatabaseBackupCleanupPolicy } from '../Settings/settingsBackupCleanupPolicy';
 import { formatBytes } from './MaintenancePageParts';
 
 type TaskMessage = { text: string; taskId?: string | null };
@@ -31,12 +32,13 @@ export function useMaintenanceDataActions({ setError, setMessage }: UseMaintenan
   }, [setError]);
 
   const cleanupDatabaseBackups = useCallback(async () => {
-    if (!window.confirm('按安全规则清理旧数据库备份？会保留最近 10 个和 30 天内备份，不会删除当前 mikavn.db。')) return;
+    const cleanupPolicyText = formatDatabaseBackupCleanupPolicy(databaseBackupCleanupPolicy);
+    if (!window.confirm(`按安全规则清理旧数据库备份？${cleanupPolicyText}；只清理应用管理的旧数据库备份，不会删除当前 mikavn.db。`)) return;
     setCleanupLoading(true);
     setError(null);
     setMessage(null);
     try {
-      const report = await api.cleanupOldDatabaseBackups({ retainCount: 10, retainDays: 30 });
+      const report = await api.cleanupOldDatabaseBackups(databaseBackupCleanupPolicy);
       setMessage({ text: report.removedFiles > 0 ? `已清理 ${report.removedFiles} 个旧数据库备份，释放 ${formatBytes(report.removedBytes)}。` : '没有需要清理的旧数据库备份。' });
       await loadDiagnostics();
     } catch (reason) {
