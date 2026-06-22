@@ -274,10 +274,18 @@ test('getLibraryRenderIdentity changes when middle results change under the same
   );
 });
 
-test('getLibraryRenderIdentity samples large result windows beyond first middle and last ids', () => {
+test('getLibraryRenderIdentity changes when early large-list results change', () => {
   const { getLibraryRenderIdentity } = loadLibraryPageModel();
   const base = Array.from({ length: 1000 }, (_, index) => game({ id: `game-${index}` }));
   const changed = base.map((item, index) => index === 10 ? game({ id: 'game-replaced-10' }) : item);
+
+  assert.notEqual(getLibraryRenderIdentity(base), getLibraryRenderIdentity(changed));
+});
+
+test('getLibraryRenderIdentity changes when any unsampled large-list result changes', () => {
+  const { getLibraryRenderIdentity } = loadLibraryPageModel();
+  const base = Array.from({ length: 1000 }, (_, index) => game({ id: `game-${index}` }));
+  const changed = base.map((item, index) => index === 11 ? game({ id: 'game-replaced-11' }) : item);
 
   assert.notEqual(getLibraryRenderIdentity(base), getLibraryRenderIdentity(changed));
 });
@@ -341,6 +349,7 @@ test('library nav resets render budgets synchronously when result identity chang
   const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Library', 'LibraryGameNav.tsx'), 'utf8');
 
   assert.match(source, /getLibraryRenderIdentity/);
+  assert.match(source, /useMemo\(\(\) => getLibraryRenderIdentity\(games\), \[games\]\)/);
   assert.match(source, /renderState\.identity === renderIdentity \? renderState\.count : libraryListInitialRenderCount/);
   assert.match(source, /renderState\.identity === renderIdentity \? renderState\.count : libraryGridInitialRenderCount/);
   assert.match(source, /setRenderState\(\(\) => \(\{ identity: renderIdentity, count: Math\.min\(games\.length, renderWindow\.primaryGames\.length \+ libraryListRenderBatchSize\) \}\)\)/);

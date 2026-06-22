@@ -29,7 +29,7 @@ type LibraryGameNavProps = {
 };
 
 export function GameList({ blurCovers, bulkMode, games, onSelect, onToggleSelection, selectedId, selectedIds }: LibraryGameNavProps) {
-  const renderIdentity = getLibraryRenderIdentity(games);
+  const renderIdentity = useMemo(() => getLibraryRenderIdentity(games), [games]);
   const gameIndexLookup = useMemo(() => buildLibraryGameIndexLookup(games), [games]);
   const [renderState, setRenderState] = useState({ identity: renderIdentity, count: libraryListInitialRenderCount });
   const renderCount = renderState.identity === renderIdentity ? renderState.count : libraryListInitialRenderCount;
@@ -80,7 +80,7 @@ export function GameList({ blurCovers, bulkMode, games, onSelect, onToggleSelect
 }
 
 export function GameGrid({ blurCovers, bulkMode, games, onSelect, onToggleSelection, selectedId, selectedIds }: LibraryGameNavProps) {
-  const renderIdentity = getLibraryRenderIdentity(games);
+  const renderIdentity = useMemo(() => getLibraryRenderIdentity(games), [games]);
   const gameIndexLookup = useMemo(() => buildLibraryGameIndexLookup(games), [games]);
   const [renderState, setRenderState] = useState({ identity: renderIdentity, count: libraryGridInitialRenderCount });
   const renderCount = renderState.identity === renderIdentity ? renderState.count : libraryGridInitialRenderCount;

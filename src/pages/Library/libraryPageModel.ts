@@ -42,18 +42,7 @@ export function buildLibraryGameIndexLookup(games: Game[]) {
 
 export function getLibraryRenderIdentity(games: Game[]) {
   if (games.length === 0) return '0::';
-  const sampleIndexes = [
-    0,
-    1,
-    10,
-    Math.floor(games.length / 4),
-    Math.floor(games.length / 2),
-    Math.floor((games.length * 3) / 4),
-    games.length - 2,
-    games.length - 1,
-  ].filter((index, position, indexes) => index >= 0 && index < games.length && indexes.indexOf(index) === position);
-
-  return `${games.length}:${sampleIndexes.map((index) => games[index]?.id ?? '').join(':')}`;
+  return `${games.length}:${games.map((game) => game.id).join(':')}`;
 }
 
 export function groupLibraryGames(games: Game[], statusLabels: Record<PlayStatus, string>): LibraryGameGroup[] {
