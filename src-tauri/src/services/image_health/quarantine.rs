@@ -12,8 +12,9 @@ use super::types::{
 };
 use super::{
     collect_image_references, duplicate_content_candidate_groups_from_candidates,
-    normalize_path_key, scan_image_cache, ImageCacheFileIssue, ImageHealthReportOptions,
-    ImageQuarantineReport, ImageQuarantineSkippedFile, DEFAULT_OVERSIZED_IMAGE_BYTES,
+    normalize_path_key, scan_image_cache_issue_samples, ImageCacheFileIssue,
+    ImageHealthReportOptions, ImageQuarantineReport, ImageQuarantineSkippedFile,
+    DEFAULT_OVERSIZED_IMAGE_BYTES,
 };
 
 pub fn quarantine_orphan_images(
@@ -197,7 +198,7 @@ fn orphan_candidates(
         .oversized_bytes
         .unwrap_or(DEFAULT_OVERSIZED_IMAGE_BYTES);
     let references = collect_image_references(paths)?;
-    let cache = scan_image_cache(
+    let cache = scan_image_cache_issue_samples(
         paths,
         &references.referenced_paths,
         &references.reference_sources,
@@ -253,7 +254,7 @@ fn invalid_unreferenced_candidates(
         .oversized_bytes
         .unwrap_or(DEFAULT_OVERSIZED_IMAGE_BYTES);
     let references = collect_image_references(paths)?;
-    let cache = scan_image_cache(
+    let cache = scan_image_cache_issue_samples(
         paths,
         &references.referenced_paths,
         &references.reference_sources,
@@ -275,7 +276,7 @@ fn oversized_unreferenced_candidates(
         .oversized_bytes
         .unwrap_or(DEFAULT_OVERSIZED_IMAGE_BYTES);
     let references = collect_image_references(paths)?;
-    let cache = scan_image_cache(
+    let cache = scan_image_cache_issue_samples(
         paths,
         &references.referenced_paths,
         &references.reference_sources,
@@ -297,7 +298,7 @@ fn content_type_mismatch_unreferenced_candidates(
         .oversized_bytes
         .unwrap_or(DEFAULT_OVERSIZED_IMAGE_BYTES);
     let references = collect_image_references(paths)?;
-    let cache = scan_image_cache(
+    let cache = scan_image_cache_issue_samples(
         paths,
         &references.referenced_paths,
         &references.reference_sources,

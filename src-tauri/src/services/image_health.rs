@@ -356,6 +356,41 @@ fn scan_image_cache(
     oversized_bytes: u64,
     sample_limit: usize,
 ) -> DbResult<ImageCacheHealth> {
+    scan_image_cache_with_duplicate_groups(
+        paths,
+        referenced_paths,
+        reference_sources,
+        oversized_bytes,
+        sample_limit,
+        true,
+    )
+}
+
+fn scan_image_cache_issue_samples(
+    paths: &AppPaths,
+    referenced_paths: &HashSet<String>,
+    reference_sources: &HashMap<String, Vec<ImageCacheReferenceSample>>,
+    oversized_bytes: u64,
+    sample_limit: usize,
+) -> DbResult<ImageCacheHealth> {
+    scan_image_cache_with_duplicate_groups(
+        paths,
+        referenced_paths,
+        reference_sources,
+        oversized_bytes,
+        sample_limit,
+        false,
+    )
+}
+
+fn scan_image_cache_with_duplicate_groups(
+    paths: &AppPaths,
+    referenced_paths: &HashSet<String>,
+    reference_sources: &HashMap<String, Vec<ImageCacheReferenceSample>>,
+    oversized_bytes: u64,
+    sample_limit: usize,
+    include_duplicate_groups: bool,
+) -> DbResult<ImageCacheHealth> {
     let root = paths.images();
     let mut health = ImageCacheHealth {
         root_path: root.to_string_lossy().to_string(),
@@ -373,17 +408,20 @@ fn scan_image_cache(
         reference_sources,
         oversized_bytes,
         sample_limit,
+        include_duplicate_groups,
         &mut duplicate_names,
         &mut content_candidates,
         &mut health,
     )?;
-    let duplicate_name_groups = duplicate_name_groups_from_names(duplicate_names, sample_limit);
-    health.duplicate_file_name_groups = duplicate_name_groups.total_groups;
-    health.duplicate_name_samples = duplicate_name_groups.samples;
-    let duplicate_content_groups =
-        duplicate_content_groups_from_candidates(content_candidates, sample_limit)?;
-    health.duplicate_content_groups = duplicate_content_groups.total_groups;
-    health.duplicate_content_samples = duplicate_content_groups.samples;
+    if include_duplicate_groups {
+        let duplicate_name_groups = duplicate_name_groups_from_names(duplicate_names, sample_limit);
+        health.duplicate_file_name_groups = duplicate_name_groups.total_groups;
+        health.duplicate_name_samples = duplicate_name_groups.samples;
+        let duplicate_content_groups =
+            duplicate_content_groups_from_candidates(content_candidates, sample_limit)?;
+        health.duplicate_content_groups = duplicate_content_groups.total_groups;
+        health.duplicate_content_samples = duplicate_content_groups.samples;
+    }
     Ok(health)
 }
 
@@ -438,6 +476,7 @@ fn scan_image_dir(
     reference_sources: &HashMap<String, Vec<ImageCacheReferenceSample>>,
     oversized_bytes: u64,
     sample_limit: usize,
+    include_duplicate_groups: bool,
     duplicate_names: &mut HashMap<String, Vec<String>>,
     content_candidates: &mut Vec<ImageCacheContentCandidate>,
     health: &mut ImageCacheHealth,
@@ -454,6 +493,7 @@ fn scan_image_dir(
                 reference_sources,
                 oversized_bytes,
                 sample_limit,
+                include_duplicate_groups,
                 duplicate_names,
                 content_candidates,
                 health,
@@ -481,20 +521,22 @@ fn scan_image_dir(
         };
         health.file_count += 1;
         health.total_bytes += size_bytes;
-        duplicate_names
-            .entry(
-                path.file_name()
-                    .map(|name| name.to_string_lossy().to_ascii_lowercase())
-                    .unwrap_or_default(),
-            )
-            .or_default()
-            .push(relative_path.clone());
-        content_candidates.push(ImageCacheContentCandidate {
-            path: path.clone(),
-            relative_path: relative_path.clone(),
-            size_bytes,
-            content_hash: 0,
-        });
+        if include_duplicate_groups {
+            duplicate_names
+                .entry(
+                    path.file_name()
+                        .map(|name| name.to_string_lossy().to_ascii_lowercase())
+                        .unwrap_or_default(),
+                )
+                .or_default()
+                .push(relative_path.clone());
+            content_candidates.push(ImageCacheContentCandidate {
+                path: path.clone(),
+                relative_path: relative_path.clone(),
+                size_bytes,
+                content_hash: 0,
+            });
+        }
 
         let path_key = normalize_path_key(&path.to_string_lossy());
         let is_referenced = referenced_paths.contains(&path_key);

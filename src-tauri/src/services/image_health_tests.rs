@@ -434,6 +434,32 @@ fn duplicate_content_group_count_is_not_limited_by_sample_limit() {
 }
 
 #[test]
+fn issue_sample_scan_skips_duplicate_content_grouping() {
+    let root =
+        std::env::temp_dir().join(format!("mikavn-image-issue-sample-scan-{}", Uuid::new_v4()));
+    let paths = AppPaths::from_root(root.clone()).unwrap();
+    fs::create_dir_all(paths.images()).unwrap();
+    fs::write(paths.images().join("same-a.jpg"), b"\xFF\xD8\xFFsame").unwrap();
+    fs::write(paths.images().join("same-b.webp"), b"\xFF\xD8\xFFsame").unwrap();
+
+    let health = scan_image_cache_issue_samples(
+        &paths,
+        &HashSet::new(),
+        &HashMap::new(),
+        DEFAULT_OVERSIZED_IMAGE_BYTES,
+        usize::MAX,
+    )
+    .unwrap();
+
+    assert_eq!(health.file_count, 2);
+    assert_eq!(health.orphan_file_count, 2);
+    assert_eq!(health.orphan_samples.len(), 2);
+    assert_eq!(health.duplicate_content_groups, 0);
+    assert!(health.duplicate_content_samples.is_empty());
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
 fn duplicate_content_groups_and_samples_are_stably_sorted() {
     let root = std::env::temp_dir().join(format!(
         "mikavn-image-content-stable-sort-{}",
