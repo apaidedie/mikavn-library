@@ -84,7 +84,8 @@ test('game list filters support missing any external id metadata status for batc
   assert.match(frontendTypes, /missing_any_external_id/);
   assert.match(repository, /missinganyexternalid/);
   assert.match(repository, /metadata_status_can_limit_in_sql/);
-  assert.match(repository, /metadata_status_key\.as_deref\(\),\s*Some\("missinganyexternalid"\)/);
+  assert.match(repository, /metadata_status_sql_clause\s*=\s*metadata_status_key\s*\.as_deref\(\)\s*\.and_then\(metadata_status_sql_condition\)/);
+  assert.match(repository, /"missinganyexternalid"\s*=>\s*format!\(\s*"\(\{\} OR \{\} OR \{\} OR \{\} OR \{\}\)"/);
   assert.match(mockMetadata, /missing_any_external_id/);
 });
 

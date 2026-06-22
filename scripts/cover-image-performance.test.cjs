@@ -7,8 +7,10 @@ test('CoverImage defaults to native lazy loading and async decoding', () => {
 
   assert.match(source, /loading = 'lazy'/);
   assert.match(source, /decoding = 'async'/);
+  assert.match(source, /fetchPriority = 'auto'/);
   assert.match(source, /loading=\{loading\}/);
   assert.match(source, /decoding=\{decoding\}/);
+  assert.match(source, /fetchPriority=\{fetchPriority\}/);
 });
 
 test('CoverImage falls back to the placeholder after image load failures', () => {
@@ -27,6 +29,15 @@ test('library detail hero decodes images asynchronously', () => {
 
   assert.match(source, /decoding="async"/);
   assert.match(source, /loading="eager"/);
+  assert.match(source, /fetchPriority="high"/);
+});
+
+test('library navigation thumbnails use low fetch priority', () => {
+  const source = fs.readFileSync('src/pages/Library/LibraryGameNav.tsx', 'utf8');
+
+  assert.match(source, /fetchPriority="low"/);
+  assert.match(source, /<CoverImage[^>]+className="h-\[18px\]/);
+  assert.match(source, /<CoverImage[^>]+className="aspect-\[2\/3\]"/);
 });
 
 test('library description images lazy load and decode asynchronously', () => {

@@ -132,7 +132,7 @@ function GameListRow({ blurCovers, bulkMode, game, onSelect, onToggleSelection, 
     >
       {bulkMode && <Checkbox aria-label={`选择${game.title}`} checked={selectedIds.has(game.id)} className="h-3.5 w-3.5" onChange={(event) => onToggleSelection(game.id, event.target.checked)} />}
       <button className="flex min-w-0 flex-1 items-center gap-2 text-left" onClick={() => onSelect(game.id)} type="button">
-        <CoverImage alt={game.title} blur={blurCovers} className="h-[18px] w-[18px] shrink-0 rounded-md shadow-sm" src={game.coverImage} />
+        <CoverImage alt={game.title} blur={blurCovers} className="h-[18px] w-[18px] shrink-0 rounded-md shadow-sm" fetchPriority="low" src={game.coverImage} />
         <span className="min-w-0 flex-1 truncate">{game.title}</span>
         {game.favorite && <span className="shrink-0 text-[10px] text-amber-200">★</span>}
         {game.pathStatus === 'broken' && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-rose-300" title="路径异常" />}
@@ -152,7 +152,7 @@ function GameGridCard({ blurCovers, bulkMode, game, onSelect, onToggleSelection,
       )}
       <button className="w-full text-left" onClick={() => onSelect(game.id)} type="button">
         <div className={cn('motion-poster overflow-hidden rounded-lg shadow-md group-hover:ring-2 group-hover:ring-[rgb(var(--accent-rgb))]', selected && 'ring-2 ring-[rgb(var(--accent-rgb))]')}>
-          <CoverImage alt={game.title} blur={blurCovers} className="aspect-[2/3]" src={game.coverImage} />
+          <CoverImage alt={game.title} blur={blurCovers} className="aspect-[2/3]" fetchPriority="low" src={game.coverImage} />
         </div>
         <div className="mt-2 truncate text-center text-xs text-slate-200">{game.title}</div>
       </button>
