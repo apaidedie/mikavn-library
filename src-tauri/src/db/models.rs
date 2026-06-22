@@ -258,16 +258,6 @@ pub struct AssetDownloadInput {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct AssetCacheCleanupResult {
-    pub scanned_files: i64,
-    pub removed_files: i64,
-    pub kept_files: i64,
-    pub removed_bytes: u64,
-    pub kept_bytes: u64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct TagRecord {
     pub id: String,
     pub name: String,

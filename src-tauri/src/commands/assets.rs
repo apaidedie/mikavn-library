@@ -1,8 +1,7 @@
 use tauri::{AppHandle, State};
 
 use crate::db::models::{
-    AssetCacheCleanupResult, AssetDownloadInput, AssetImportInput, AssetInput, Game, GameAsset,
-    TagRecord,
+    AssetDownloadInput, AssetImportInput, AssetInput, Game, GameAsset, TagRecord,
 };
 use crate::db::DbResult;
 use crate::services::assets as asset_service;
@@ -56,24 +55,6 @@ pub fn download_game_asset(
 ) -> DbResult<GameAsset> {
     let db = state.db()?;
     asset_service::download_game_asset(&app, &db, game_id, input)
-}
-
-#[tauri::command]
-pub fn cleanup_asset_cache(
-    app: AppHandle,
-    state: State<'_, AppState>,
-) -> DbResult<AssetCacheCleanupResult> {
-    let db = state.db()?;
-    asset_service::cleanup_asset_cache(&app, &db)
-}
-
-#[tauri::command]
-pub fn preview_asset_cache_cleanup(
-    app: AppHandle,
-    state: State<'_, AppState>,
-) -> DbResult<AssetCacheCleanupResult> {
-    let db = state.db()?;
-    asset_service::preview_asset_cache_cleanup(&app, &db)
 }
 
 #[tauri::command]

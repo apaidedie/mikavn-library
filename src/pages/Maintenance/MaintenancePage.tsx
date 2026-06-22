@@ -71,6 +71,17 @@ export function MaintenancePage({ refreshKey, focusSection, focusRequestKey = 0,
     }
   }, [focusRequestKey, focusSection, inspectionActions.imageAudit, inspectionActions.imageAuditLoading, inspectionActions.loadImageAudit]);
 
+  useEffect(() => {
+    if (focusSection !== 'image-health' || handledFocusKeyRef.current === focusRequestKey) return;
+    handledFocusKeyRef.current = focusRequestKey;
+    window.requestAnimationFrame(() => {
+      imageAuditRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    });
+    if (!inspectionActions.imageHealth && !inspectionActions.imageHealthLoading) {
+      void inspectionActions.loadImageHealth();
+    }
+  }, [focusRequestKey, focusSection, inspectionActions.imageHealth, inspectionActions.imageHealthLoading, inspectionActions.loadImageHealth]);
+
   return (
     <PageShell>
       <PageFrame className="max-w-[88rem] gap-5">

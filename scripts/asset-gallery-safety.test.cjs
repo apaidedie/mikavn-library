@@ -2,20 +2,35 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const test = require('node:test');
 
-test('asset gallery cache cleanup previews removable files before deleting cache files', () => {
-  const source = fs.readFileSync('src/pages/Library/AssetGallery.tsx', 'utf8');
+test('asset gallery routes cache maintenance to image health quarantine workflow', () => {
+  const gallery = fs.readFileSync('src/pages/Library/AssetGallery.tsx', 'utf8');
+  const overview = fs.readFileSync('src/pages/Library/GameDetailOverview.tsx', 'utf8');
+  const maintenance = fs.readFileSync('src/pages/Maintenance/MaintenancePage.tsx', 'utf8');
+  const api = fs.readFileSync('src/services/api.ts', 'utf8');
+  const commands = fs.readFileSync('src-tauri/src/commands/assets.rs', 'utf8');
+  const lib = fs.readFileSync('src-tauri/src/lib.rs', 'utf8');
 
-  assert.match(source, /api\.previewAssetCacheCleanup\(\)/);
-  assert.match(source, /if \(preview\.removedFiles === 0\)/);
-  assert.match(source, /window\.confirm\(`清理 \$\{formatAssetCount\(preview\.removedFiles\)\} 个未引用图片缓存文件/);
-  assert.match(source, /只会删除 app-data\/images 中未引用的缓存文件/);
-  assert.match(source, /不会删除真实游戏文件或仍在图库、主图、简介中引用的图片/);
-  assert.match(source, /api\.cleanupAssetCache\(\)/);
+  assert.match(gallery, /图片健康/);
+  assert.match(gallery, /隔离区/);
+  assert.match(gallery, /onOpenMaintenance\?\.\('image-health'\)/);
+  assert.match(overview, /onOpenMaintenance=\{onOpenMaintenance\}/);
+  assert.match(maintenance, /focusSection !== 'image-health'/);
+  assert.match(maintenance, /inspectionActions\.loadImageHealth\(\)/);
+  assert.doesNotMatch(gallery, /api\.previewAssetCacheCleanup\(\)/);
+  assert.doesNotMatch(gallery, /api\.cleanupAssetCache\(\)/);
+  assert.doesNotMatch(gallery, /window\.confirm\(`清理/);
+  assert.doesNotMatch(api, /cleanupAssetCache/);
+  assert.doesNotMatch(api, /previewAssetCacheCleanup/);
+  assert.doesNotMatch(commands, /pub fn cleanup_asset_cache/);
+  assert.doesNotMatch(commands, /pub fn preview_asset_cache_cleanup/);
+  assert.doesNotMatch(lib, /commands::assets::cleanup_asset_cache/);
+  assert.doesNotMatch(lib, /commands::assets::preview_asset_cache_cleanup/);
 });
 
 test('maintenance data panel routes image cache cleanup to image health quarantine workflow', () => {
   const panel = fs.readFileSync('src/pages/Maintenance/MaintenanceDataLocationPanel.tsx', 'utf8');
   const content = fs.readFileSync('src/pages/Maintenance/MaintenancePageContent.tsx', 'utf8');
+  const actions = fs.readFileSync('src/pages/Maintenance/useMaintenanceDataActions.ts', 'utf8');
 
   assert.match(panel, /图片健康/);
   assert.match(panel, /一键安全整理/);
@@ -28,6 +43,9 @@ test('maintenance data panel routes image cache cleanup to image health quaranti
   assert.doesNotMatch(panel, /onCleanupAssetCache/);
   assert.doesNotMatch(panel, /清理<\/Button>/);
   assert.doesNotMatch(panel, /variant="danger"/);
+  assert.doesNotMatch(actions, /api\.previewAssetCacheCleanup\(\)/);
+  assert.doesNotMatch(actions, /api\.cleanupAssetCache\(\)/);
+  assert.doesNotMatch(actions, /assetCleanupPreview/);
 });
 
 test('asset gallery ignores stale asset loads after switching games', () => {

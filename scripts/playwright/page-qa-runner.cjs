@@ -127,8 +127,10 @@ async function clickMaintenanceStart(page, label) {
   await row.getByRole('button', { name: /开始/ }).click();
 }
 
-async function waitForAssetCacheCleanupResult(page) {
-  await page.getByText(/缓存清理(?:完成|预览完成)/).first().waitFor({ timeout: 5000 });
+async function waitForImageHealthWorkflow(page) {
+  await page.getByText(/维护中心/).first().waitFor({ timeout: 5000 });
+  await page.getByText(/图片健康/).first().waitFor({ timeout: 5000 });
+  await page.getByText(/一键安全整理/).first().waitFor({ timeout: 5000 });
 }
 
 async function expectNoHorizontalOverflow(page, label) {
@@ -313,8 +315,10 @@ async function main() {
         await page.getByText(/资产记录已移除/).first().waitFor({ timeout: 5000 });
         const removedAssetRecords = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.assets') || '[]'));
         if (removedAssetRecords.some((asset) => asset.id === 'qa-asset-shot')) throw new Error('asset gallery remove action did not delete the screenshot asset record');
-        await page.getByRole('button', { name: /清理缓存/ }).click();
-        await waitForAssetCacheCleanupResult(page);
+        await page.getByRole('button', { name: /图片健康/ }).click();
+        await waitForImageHealthWorkflow(page);
+        await page.getByLabel('游戏库').click();
+        await page.getByText('媒体图库').first().waitFor({ timeout: 5000 });
         await page.getByRole('button', { name: '批量', exact: true }).click();
         await page.getByRole('button', { name: /选中当前/ }).click();
         await page.getByText(/已选 2/).first().waitFor({ timeout: 5000 });

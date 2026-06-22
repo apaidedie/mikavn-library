@@ -1,9 +1,8 @@
 import { useCallback, useState } from 'react';
 import { api } from '@/services/api';
 import type { AppDataDiagnostics } from '@/types/archive';
-import type { AssetCacheCleanupResult } from '@/types/game';
 import { errorMessage } from '@/utils/errorMessage';
-import { formatBytes, formatCount } from './MaintenancePageParts';
+import { formatBytes } from './MaintenancePageParts';
 
 type TaskMessage = { text: string; taskId?: string | null };
 
@@ -16,10 +15,8 @@ export function useMaintenanceDataActions({ setError, setMessage }: UseMaintenan
   const [diagnostics, setDiagnostics] = useState<AppDataDiagnostics | null>(null);
   const [loading, setLoading] = useState(false);
   const [cleanupLoading, setCleanupLoading] = useState(false);
-  const [assetCleanupLoading, setAssetCleanupLoading] = useState(false);
   const [diagnosticExportLoading, setDiagnosticExportLoading] = useState(false);
   const [diagnosticExportPath, setDiagnosticExportPath] = useState<string | null>(null);
-  const [assetCleanupPreview, setAssetCleanupPreview] = useState<AssetCacheCleanupResult | null>(null);
 
   const loadDiagnostics = useCallback(async () => {
     setLoading(true);
@@ -48,57 +45,6 @@ export function useMaintenanceDataActions({ setError, setMessage }: UseMaintenan
       setCleanupLoading(false);
     }
   }, [loadDiagnostics, setError, setMessage]);
-
-  const previewAssetCacheCleanup = useCallback(async () => {
-    setAssetCleanupLoading(true);
-    setError(null);
-    setMessage(null);
-    try {
-      const result = await api.previewAssetCacheCleanup();
-      setAssetCleanupPreview(result);
-      setMessage({ text: result.removedFiles > 0 ? `图片缓存预览完成：可清理 ${formatCount(result.removedFiles)} 个文件，预计释放 ${formatBytes(result.removedBytes)}。` : '图片缓存预览完成，没有发现可清理文件。' });
-    } catch (reason) {
-      setError(errorMessage(reason));
-    } finally {
-      setAssetCleanupLoading(false);
-    }
-  }, [setError, setMessage]);
-
-  const cleanupAssetCache = useCallback(async () => {
-    setError(null);
-    setMessage(null);
-    let preview = assetCleanupPreview;
-    if (!preview) {
-      setAssetCleanupLoading(true);
-      try {
-        preview = await api.previewAssetCacheCleanup();
-        setAssetCleanupPreview(preview);
-      } catch (reason) {
-        setError(errorMessage(reason));
-        setAssetCleanupLoading(false);
-        return;
-      }
-      setAssetCleanupLoading(false);
-    }
-
-    if (preview.removedFiles === 0) {
-      setMessage({ text: '没有需要清理的图片缓存文件。' });
-      return;
-    }
-    if (!window.confirm(`清理 ${formatCount(preview.removedFiles)} 个未引用图片缓存文件，预计释放 ${formatBytes(preview.removedBytes)}？\n\n只会删除 app-data/images 中未引用的缓存文件。\n不会删除真实游戏文件或仍在图库、主图、简介中引用的图片。`)) return;
-
-    setAssetCleanupLoading(true);
-    try {
-      const result = await api.cleanupAssetCache();
-      setMessage({ text: result.removedFiles > 0 ? `已清理 ${formatCount(result.removedFiles)} 个图片缓存文件，释放 ${formatBytes(result.removedBytes)}。` : '没有需要清理的图片缓存文件。' });
-      setAssetCleanupPreview(await api.previewAssetCacheCleanup());
-      await loadDiagnostics();
-    } catch (reason) {
-      setError(errorMessage(reason));
-    } finally {
-      setAssetCleanupLoading(false);
-    }
-  }, [assetCleanupPreview, loadDiagnostics, setError, setMessage]);
 
   const exportDiagnosticPackage = useCallback(async () => {
     setDiagnosticExportLoading(true);
@@ -158,9 +104,6 @@ export function useMaintenanceDataActions({ setError, setMessage }: UseMaintenan
   }, [setError, setMessage]);
 
   return {
-    assetCleanupLoading,
-    assetCleanupPreview,
-    cleanupAssetCache,
     cleanupDatabaseBackups,
     cleanupLoading,
     copyPath,
@@ -171,7 +114,6 @@ export function useMaintenanceDataActions({ setError, setMessage }: UseMaintenan
     exportDiagnosticPackage,
     loadDiagnostics,
     loading,
-    previewAssetCacheCleanup,
     revealDiagnosticExportPath,
     revealPath,
   };

@@ -1,4 +1,4 @@
-import { CheckCircle2, Download, ImagePlus, RefreshCw, Star, Trash2 } from 'lucide-react';
+import { CheckCircle2, Download, ImagePlus, Star, Trash2, Wrench } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -10,11 +10,11 @@ import { chooseImage } from '@/services/dialog';
 import type { Game, GameAsset } from '@/types/game';
 import { cn } from '@/utils/cn';
 import { errorMessage } from '@/utils/errorMessage';
-import { assetTypeLabel, assetTypeOrder, formatBytes } from './gameDetailMediaModel';
+import { assetTypeLabel, assetTypeOrder } from './gameDetailMediaModel';
 
 const assetGalleryTypeRenderLimit = 12;
 
-export function AssetGallery({ game, blurCover, onChanged, onMessage }: { game: Game; blurCover: boolean; onChanged?: (game: Game) => void; onMessage: (message: string | null) => void }) {
+export function AssetGallery({ game, blurCover, onChanged, onMessage, onOpenMaintenance }: { game: Game; blurCover: boolean; onChanged?: (game: Game) => void; onMessage: (message: string | null) => void; onOpenMaintenance?: (section?: string | null) => void }) {
   const [assets, setAssets] = useState<GameAsset[]>([]);
   const [assetType, setAssetType] = useState('cover');
   const [url, setUrl] = useState('');
@@ -57,7 +57,7 @@ export function AssetGallery({ game, blurCover, onChanged, onMessage }: { game: 
             <option value="screenshot">截图</option>
           </Select>
           <Button disabled={Boolean(busy)} size="sm" variant="outline" onClick={() => void importFromPath()}><ImagePlus className="h-4 w-4" />导入图片</Button>
-          <Button disabled={Boolean(busy)} size="sm" variant="ghost" onClick={() => void cleanupCache()}><RefreshCw className="h-4 w-4" />清理缓存</Button>
+          <Button disabled={Boolean(busy) || !onOpenMaintenance} size="sm" title="到图片健康，用隔离区安全整理缓存" variant="ghost" onClick={() => onOpenMaintenance?.('image-health')}><Wrench className="h-4 w-4" />图片健康</Button>
         </div>
         <div className="flex min-w-[18rem] flex-1 justify-end gap-2">
           <Input className="max-w-[26rem]" value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://example.com/cover.jpg" />
@@ -167,26 +167,6 @@ export function AssetGallery({ game, blurCover, onChanged, onMessage }: { game: 
       onChanged?.(updated);
       await refreshAssets();
       onMessage('资产记录已移除。');
-    } catch (reason) {
-      onMessage(errorMessage(reason));
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  async function cleanupCache() {
-    setBusy('cleanup');
-    onMessage(null);
-    try {
-      const preview = await api.previewAssetCacheCleanup();
-      if (preview.removedFiles === 0) {
-        onMessage(`缓存清理预览完成：扫描 ${formatAssetCount(preview.scannedFiles)} 个文件，没有发现可清理缓存。`);
-        return;
-      }
-      if (!window.confirm(`清理 ${formatAssetCount(preview.removedFiles)} 个未引用图片缓存文件，预计释放 ${formatBytes(preview.removedBytes)}？\n\n只会删除 app-data/images 中未引用的缓存文件。\n不会删除真实游戏文件或仍在图库、主图、简介中引用的图片。`)) return;
-      const result = await api.cleanupAssetCache();
-      await refreshAssets();
-      onMessage(`缓存清理完成：扫描 ${formatAssetCount(result.scannedFiles)} 个，删除 ${formatAssetCount(result.removedFiles)} 个，保留 ${formatAssetCount(result.keptFiles)} 个，释放 ${formatBytes(result.removedBytes)}。`);
     } catch (reason) {
       onMessage(errorMessage(reason));
     } finally {

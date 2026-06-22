@@ -44,7 +44,7 @@ export function GameDetailOverview({ blurCover, externalIds, game, imageAudit, i
         </DetailSurface>
 
         <DetailSurface title="媒体图库">
-          <AssetGallery game={game} blurCover={blurCover} onChanged={onChanged} onMessage={(value) => onMessage(value ? { text: value } : null)} />
+          <AssetGallery game={game} blurCover={blurCover} onChanged={onChanged} onMessage={(value) => onMessage(value ? { text: value } : null)} onOpenMaintenance={onOpenMaintenance} />
         </DetailSurface>
       </div>
 

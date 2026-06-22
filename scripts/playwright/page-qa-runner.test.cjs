@@ -5,12 +5,14 @@ const test = require('node:test');
 
 const sourcePath = path.join(__dirname, 'page-qa-runner.cjs');
 
-test('page QA accepts asset cache cleanup preview or cleanup completion messages', () => {
+test('page QA routes asset cache maintenance through image health', () => {
   const source = fs.readFileSync(sourcePath, 'utf8');
 
-  assert.match(source, /waitForAssetCacheCleanupResult/);
-  assert.match(source, /缓存清理\(\?:完成\|预览完成\)/);
-  assert.doesNotMatch(source, /getByText\(\/缓存清理完成\/\)\.first\(\)\.waitFor/);
+  assert.match(source, /waitForImageHealthWorkflow/);
+  assert.match(source, /getByRole\('button', \{ name: \/图片健康\/ \}\)/);
+  assert.match(source, /一键安全整理/);
+  assert.doesNotMatch(source, /getByRole\('button', \{ name: \/清理缓存\/ \}\)/);
+  assert.doesNotMatch(source, /缓存清理\(\?:完成\|预览完成\)/);
 });
 
 test('advanced search QA uses the field label instead of broad placeholder matching', () => {

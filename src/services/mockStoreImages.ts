@@ -1,16 +1,5 @@
 import type { ImageReferenceAudit, ImageReferenceAuditItem, ImageReferenceAuditOptions } from '@/types/archive';
-import type { AssetCacheCleanupResult, Game, GameAsset } from '@/types/game';
-
-export function mockAssetCacheCleanupResult(assets: GameAsset[]): AssetCacheCleanupResult {
-  const keptBytes = Math.max(assets.length, 0) * 96 * 1024;
-  return {
-    scannedFiles: assets.length,
-    removedFiles: 0,
-    keptFiles: assets.length,
-    removedBytes: 0,
-    keptBytes,
-  };
-}
+import type { Game, GameAsset } from '@/types/game';
 
 function mockDescriptionImageSources(value?: string | null) {
   const pattern = /!\[[^\]]*\]\(([^)]*?)\)|<img\b[^>]*>|\[img\]([\s\S]*?)\[\/img\]|https?:\/\/[^\s<>"']+?\.(?:png|jpe?g|webp|gif)(?:\?[^\s<>"']*)?/gi;

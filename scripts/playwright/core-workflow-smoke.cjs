@@ -73,8 +73,10 @@ async function expectText(page, pattern, timeout = 7000) {
   await page.getByText(pattern).first().waitFor({ timeout });
 }
 
-async function waitForAssetCacheCleanupResult(page) {
-  await expectText(page, /缓存清理(?:完成|预览完成)/);
+async function waitForImageHealthWorkflow(page) {
+  await expectText(page, /维护中心/);
+  await expectText(page, /图片健康/);
+  await expectText(page, /一键安全整理/);
 }
 
 async function navigate(page, view) {
@@ -148,14 +150,14 @@ async function main() {
     await page.getByPlaceholder('https://example.com/cover.jpg').fill(`${baseUrl.replace(/\/$/, '')}${hero}`);
     await page.getByRole('button', { name: /下载/ }).first().click();
     await expectText(page, /图片已下载到本地缓存并设为主图/);
-    await page.getByRole('button', { name: /清理缓存/ }).click();
-    await waitForAssetCacheCleanupResult(page);
+    await page.getByRole('button', { name: /图片健康/ }).click();
+    await waitForImageHealthWorkflow(page);
     const afterAssetGames = await getStorage(page, 'mikavn-library.mock.games');
     const afterAssetRecords = await getStorage(page, 'mikavn-library.mock.assets');
     const assetGame = afterAssetGames.find((item) => item.id === 'qa-1');
     if (assetGame?.coverImage !== `${baseUrl.replace(/\/$/, '')}${hero}`) throw new Error('asset download did not update primary cover field');
     if (!Array.isArray(afterAssetRecords) || !afterAssetRecords.some((item) => item.source === 'download' && item.uri.includes(hero))) throw new Error('asset download record was not persisted');
-    console.log('OK asset gallery download/cache cleanup');
+    console.log('OK asset gallery download/image health route');
 
     await navigate(page, 'scanner');
     await page.getByPlaceholder(/例如/).fill('D:\\Games\\VN');

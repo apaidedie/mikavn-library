@@ -84,8 +84,6 @@ pub fn run() {
             commands::assets::set_primary_asset,
             commands::assets::import_game_asset_from_path,
             commands::assets::download_game_asset,
-            commands::assets::cleanup_asset_cache,
-            commands::assets::preview_asset_cache_cleanup,
             commands::assets::list_tags,
             commands::assets::rename_tag,
             commands::assets::merge_tags,

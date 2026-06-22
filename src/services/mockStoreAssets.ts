@@ -1,6 +1,5 @@
-import type { AssetCacheCleanupResult, AssetDownloadInput, AssetImportInput, AssetInput, Game, GameAsset, UpdateGameInput } from '@/types/game';
+import type { AssetDownloadInput, AssetImportInput, AssetInput, Game, GameAsset, UpdateGameInput } from '@/types/game';
 import { ensureGameDefaults } from './mockStoreGames';
-import { mockAssetCacheCleanupResult } from './mockStoreImages';
 import { ASSETS_KEY, readJson, writeJson } from './mockStoreStorage';
 
 export function readAssets() {
@@ -103,13 +102,5 @@ export function createMockStoreAssets({ readGames, getGame, updateGame }: MockSt
       return upsertGameAsset(gameId, { assetType: input.assetType, uri: input.url, source: 'download', isPrimary: input.isPrimary });
     },
 
-    cleanupAssetCache(): Promise<AssetCacheCleanupResult> {
-      const assets = readAssets();
-      return Promise.resolve(mockAssetCacheCleanupResult(assets));
-    },
-
-    previewAssetCacheCleanup(): Promise<AssetCacheCleanupResult> {
-      return Promise.resolve(mockAssetCacheCleanupResult(readAssets()));
-    },
   };
 }

@@ -160,14 +160,6 @@ export type AssetDownloadInput = {
   isPrimary?: boolean;
 };
 
-export type AssetCacheCleanupResult = {
-  scannedFiles: number;
-  removedFiles: number;
-  keptFiles: number;
-  removedBytes: number;
-  keptBytes: number;
-};
-
 export type TagRecord = {
   id: string;
   name: string;
