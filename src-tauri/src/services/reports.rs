@@ -10,7 +10,7 @@ use crate::infrastructure::paths::AppPaths;
 use crate::services::tasks;
 
 pub fn get_dashboard(db: &Database) -> DbResult<DashboardData> {
-    db.dashboard()
+    crate::services::dashboard::dashboard(db)
 }
 
 pub fn get_report_summary(db: &Database) -> DbResult<ReportSummary> {
