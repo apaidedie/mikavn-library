@@ -8,6 +8,7 @@ mod library_roots_ext;
 mod metadata_ext;
 mod migrations;
 pub mod models;
+mod reports_ext;
 mod saves_ext;
 mod scanner_ext;
 mod schema;
@@ -737,6 +738,69 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec![missing_all.id.as_str()]
         );
+    }
+
+    #[test]
+    fn report_summary_respects_privacy_filter_and_returns_gap_examples() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch("PRAGMA foreign_keys = ON;").unwrap();
+        let db = Database { conn };
+        db.migrate().unwrap();
+
+        let visible = db
+            .add_game(AddGameInput {
+                title: "Visible Missing Cover".to_string(),
+                install_path: "D:\\Games\\Visible Missing Cover".to_string(),
+                play_status: Some("playing".to_string()),
+                tags: Some(vec!["剧情".to_string()]),
+                developer: Some("Visible Studio".to_string()),
+                description: Some("plain description".to_string()),
+                release_date: Some("2026-01-01".to_string()),
+                dlsite_id: Some("RJ01000001".to_string()),
+                ..empty_game_input()
+            })
+            .unwrap();
+        db.conn
+            .execute(
+                "UPDATE games SET total_play_seconds = 3600 WHERE id = ?1",
+                params![&visible.id],
+            )
+            .unwrap();
+        let hidden = db
+            .add_game(AddGameInput {
+                title: "Hidden R18".to_string(),
+                install_path: "D:\\Games\\Hidden R18".to_string(),
+                hidden: Some(true),
+                age_rating: Some("R18".to_string()),
+                play_status: Some("completed".to_string()),
+                tags: Some(vec!["隐藏".to_string()]),
+                cover_image: Some("cover.jpg".to_string()),
+                ..empty_game_input()
+            })
+            .unwrap();
+        db.conn
+            .execute(
+                "UPDATE games SET total_play_seconds = 7200 WHERE id = ?1",
+                params![&hidden.id],
+            )
+            .unwrap();
+
+        let summary = db.report_summary().unwrap();
+
+        assert_eq!(summary.total_games, 1);
+        assert_eq!(summary.total_play_seconds, 3600);
+        assert_eq!(summary.status[0].label, "游玩中");
+        assert_eq!(summary.tags[0].label, "剧情");
+        assert_eq!(summary.developers[0].label, "Visible Studio");
+        assert_eq!(summary.gaps.missing_cover, 1);
+        assert_eq!(summary.gaps.missing_description_image, 1);
+        assert_eq!(summary.gaps.examples.missing_cover[0].id, visible.id);
+
+        db.set_setting("privacy_filter_reports", "false").unwrap();
+        let unfiltered = db.report_summary().unwrap();
+
+        assert_eq!(unfiltered.total_games, 2);
+        assert_eq!(unfiltered.total_play_seconds, 10800);
     }
 
     #[test]

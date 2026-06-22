@@ -409,6 +409,70 @@ pub struct DashboardData {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ReportCountItem {
+    pub label: String,
+    pub value: i64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReportPlaytimeItem {
+    pub label: String,
+    pub seconds: i64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReportGapExample {
+    pub id: String,
+    pub title: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReportCompleteness {
+    pub cover: i64,
+    pub description: i64,
+    pub release_date: i64,
+    pub external_ids: i64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReportGapExamples {
+    pub missing_cover: Vec<ReportGapExample>,
+    pub missing_description_image: Vec<ReportGapExample>,
+    pub missing_external_ids: Vec<ReportGapExample>,
+    pub broken_path: Vec<ReportGapExample>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReportGaps {
+    pub missing_cover: i64,
+    pub missing_description_image: i64,
+    pub missing_external_ids: i64,
+    pub broken_path: i64,
+    pub examples: ReportGapExamples,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReportSummary {
+    pub total_games: i64,
+    pub total_play_seconds: i64,
+    pub week_play_seconds: i64,
+    pub month_play_seconds: i64,
+    pub status: Vec<ReportCountItem>,
+    pub tags: Vec<ReportCountItem>,
+    pub developers: Vec<ReportCountItem>,
+    pub playtime: Vec<ReportPlaytimeItem>,
+    pub completeness: ReportCompleteness,
+    pub gaps: ReportGaps,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PlaySession {
     pub id: String,
     pub game_id: String,

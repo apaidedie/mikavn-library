@@ -27,6 +27,22 @@ test('reports page ignores stale async data loads', () => {
   assert.doesNotMatch(source, /Promise\.all\([\s\S]*\)\.then\(\(\[gameList, nextSettings\]\)/);
 });
 
+test('reports page loads aggregated report summary instead of the full game list', () => {
+  const source = fs.readFileSync('src/pages/Reports/ReportsPage.tsx', 'utf8');
+  const api = fs.readFileSync('src/services/api.ts', 'utf8');
+  const mock = fs.readFileSync('src/services/mockStoreReports.ts', 'utf8');
+  const commands = fs.readFileSync('src-tauri/src/commands/reports.rs', 'utf8');
+  const lib = fs.readFileSync('src-tauri/src/lib.rs', 'utf8');
+
+  assert.match(source, /api\.getReportSummary\(\)/);
+  assert.doesNotMatch(source, /api\.listGames\(\{ sortBy: 'updated_at', sortDirection: 'desc' \}\)/);
+  assert.match(api, /getReportSummary\(\)/);
+  assert.match(api, /command<ReportSummary>\('get_report_summary'/);
+  assert.match(mock, /getReportSummary\(\): Promise<ReportSummary>/);
+  assert.match(commands, /pub fn get_report_summary/);
+  assert.match(lib, /commands::reports::get_report_summary/);
+});
+
 test('reports page shortcuts open focused library repair searches', () => {
   const source = fs.readFileSync('src/pages/Reports/ReportsPage.tsx', 'utf8');
 

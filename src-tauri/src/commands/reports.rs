@@ -2,7 +2,7 @@ use tauri::State;
 
 use tauri::AppHandle;
 
-use crate::db::models::{DashboardData, TaskRecord};
+use crate::db::models::{DashboardData, ReportSummary, TaskRecord};
 use crate::db::DbResult;
 use crate::services::reports as report_service;
 use crate::AppState;
@@ -11,6 +11,12 @@ use crate::AppState;
 pub fn get_dashboard(state: State<'_, AppState>) -> DbResult<DashboardData> {
     let db = state.db()?;
     report_service::get_dashboard(&db)
+}
+
+#[tauri::command]
+pub fn get_report_summary(state: State<'_, AppState>) -> DbResult<ReportSummary> {
+    let db = state.db()?;
+    report_service::get_report_summary(&db)
 }
 
 #[tauri::command]

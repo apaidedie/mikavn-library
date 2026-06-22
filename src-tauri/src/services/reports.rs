@@ -3,7 +3,7 @@ use std::thread;
 
 use tauri::AppHandle;
 
-use crate::db::models::{DashboardData, TaskRecord};
+use crate::db::models::{DashboardData, ReportSummary, TaskRecord};
 use crate::db::{Database, DbError, DbResult};
 use crate::infrastructure::logger;
 use crate::infrastructure::paths::AppPaths;
@@ -11,6 +11,10 @@ use crate::services::tasks;
 
 pub fn get_dashboard(db: &Database) -> DbResult<DashboardData> {
     db.dashboard()
+}
+
+pub fn get_report_summary(db: &Database) -> DbResult<ReportSummary> {
+    db.report_summary()
 }
 
 pub fn export_report_markdown(path: String, content: String) -> DbResult<()> {

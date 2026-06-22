@@ -110,6 +110,7 @@ pub fn run() {
             commands::collections::remove_game_from_collection,
             commands::filesystem::reveal_path,
             commands::reports::get_dashboard,
+            commands::reports::get_report_summary,
             commands::reports::export_report_markdown,
             commands::reports::export_report_markdown_task,
             commands::launcher::launch_game,

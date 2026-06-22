@@ -3,6 +3,7 @@ import type { AddGameInput, AssetDownloadInput, AssetImportInput, AssetInput, Co
 import type { AppDataDiagnostics, DatabaseBackupCleanupPolicy, DatabaseBackupCleanupReport, DatabaseUpdateProtectionBackupReport, DiagnosticExportReport, ImageHealthReport, ImageHealthReportOptions, ImageQuarantineReport, ImageReferenceAudit, ImageReferenceAuditOptions, LibraryArchiveExportOptions, LibraryArchiveImportOptions, LibraryArchivePreview, LibraryArchiveRestoreOptions, LogRecord, LogRetentionPolicy, TrayStatus } from '@/types/archive';
 import type { LaunchProfile, LaunchProfileInput, LaunchProfileUpdate } from '@/types/launch';
 import type { AdvancedSearchInput, AdvancedSearchResult, AiConnectionTestResult, AiRecognitionResult, ApplyMetadataFields, ArtworkRepairDiagnosis, ArtworkRepairOptions, ArtworkRepairPreview, BatchMatchJob, BatchMatchStatus, DescriptionImageRepairOptions, DescriptionImageRepairPreview, DuplicateExternalIdAuditOptions, DuplicateExternalIdPreview, DuplicateGameMergeOptions, DuplicateGameMergePreview, DuplicateGameMergeResult, ExternalIdRecord, FieldLock, MatchSuggestion, MetadataProvider, MetadataSearchResponse, MetadataSourceRecord, NormalizedMetadata, SavedSearch, SavedSearchInput, SearchQueryValidation } from '@/types/metadata';
+import type { ReportSummary } from '@/types/reports';
 import type { SaveBackup, SavePath, SavePathCandidate, SaveRestoreMode, SaveRestorePreview } from '@/types/saves';
 import { normalizeAppError } from '@/types/error';
 import type { ScanTaskStatus, TaskDetail, TaskLogEntry, TaskRecord } from '@/types/task';
@@ -133,6 +134,10 @@ export const api = {
 
   getDashboard() {
     return command<DashboardData>('get_dashboard', undefined, () => mockStore.getDashboard());
+  },
+
+  getReportSummary() {
+    return command<ReportSummary>('get_report_summary', undefined, () => mockStore.getReportSummary());
   },
 
   exportReportMarkdown(path: string, content: string) {
