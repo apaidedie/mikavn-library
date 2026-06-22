@@ -106,6 +106,45 @@ fn diagnostics_treats_app_data_playnite_image_cache_as_local() {
     let _ = fs::remove_dir_all(root);
 }
 
+#[test]
+fn diagnostics_warns_when_database_backup_set_needs_cleanup() {
+    let root = std::env::temp_dir().join(format!(
+        "mikavn-diagnostics-backup-growth-{}",
+        Uuid::new_v4()
+    ));
+    let paths = AppPaths::from_root(root.join("app-data")).unwrap();
+    let conn = Connection::open(paths.database()).unwrap();
+    conn.execute_batch(
+        r#"
+            CREATE TABLE games (id TEXT PRIMARY KEY, title TEXT NOT NULL);
+            CREATE TABLE game_assets (id TEXT PRIMARY KEY, game_id TEXT NOT NULL, uri TEXT NOT NULL);
+            "#,
+    )
+    .unwrap();
+
+    let backup_dir = paths.database_backups().join("metadata-repair");
+    fs::create_dir_all(&backup_dir).unwrap();
+    for index in 0..31 {
+        fs::write(
+            backup_dir.join(format!(
+                "mikavn.before-metadata-repair-20260101-{:06}.db",
+                index
+            )),
+            b"backup",
+        )
+        .unwrap();
+    }
+
+    let diagnostics = get_app_data_diagnostics_with_paths(&paths, "test".to_string()).unwrap();
+
+    assert_eq!(diagnostics.database_backups.file_count, 31);
+    assert!(diagnostics.warnings.iter().any(|warning| {
+        warning.contains("数据库备份已有 31 个") && warning.contains("清理旧备份")
+    }));
+
+    let _ = fs::remove_dir_all(root);
+}
+
 use std::io::Read;
 use zip::ZipArchive;
 

@@ -15,6 +15,8 @@ use crate::services::images;
 
 const DEFAULT_IMAGE_AUDIT_LIMIT: usize = 200;
 const MAX_IMAGE_AUDIT_LIMIT: usize = 1000;
+const DATABASE_BACKUP_WARNING_FILE_COUNT: i64 = 30;
+const DATABASE_BACKUP_WARNING_TOTAL_BYTES: u64 = 1024 * 1024 * 1024;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -266,6 +268,15 @@ pub(crate) fn get_app_data_diagnostics_with_paths(
             database.path_status.broken_count
         ));
     }
+    if database_backups.file_count > DATABASE_BACKUP_WARNING_FILE_COUNT
+        || database_backups.total_bytes > DATABASE_BACKUP_WARNING_TOTAL_BYTES
+    {
+        warnings.push(format!(
+            "数据库备份已有 {} 个，占用 {}；建议在本地数据页运行“清理旧备份”释放空间。",
+            database_backups.file_count,
+            format_bytes_compact(database_backups.total_bytes)
+        ));
+    }
 
     Ok(AppDataDiagnostics {
         app_data_dir: root_text,
@@ -278,6 +289,21 @@ pub(crate) fn get_app_data_diagnostics_with_paths(
         database_backups,
         warnings,
     })
+}
+
+fn format_bytes_compact(value: u64) -> String {
+    const UNITS: [&str; 5] = ["B", "KB", "MB", "GB", "TB"];
+    let mut amount = value as f64;
+    let mut unit_index = 0;
+    while amount >= 1024.0 && unit_index < UNITS.len() - 1 {
+        amount /= 1024.0;
+        unit_index += 1;
+    }
+    if unit_index == 0 {
+        format!("{} {}", value, UNITS[unit_index])
+    } else {
+        format!("{amount:.1} {}", UNITS[unit_index])
+    }
 }
 
 fn database_health(paths: &AppPaths) -> DbResult<DatabaseHealth> {
