@@ -52,6 +52,7 @@ npm run smoke:large
 The large-library smoke seeds 4500 browser-preview records by default, validates library list/filter and advanced search timings, and writes screenshots plus `large-library-report.json` under `output/playwright/large-library-current/`.
 Record `Large library performance warnings: <count>` in `RELEASE_VALIDATION_REPORT.md` from that report's `history.warnings.length`; `npm run release:handoff:check` requires the warning count so timing regressions stay visible during release handoff.
 `npm run release:handoff:check` also prints `manualRiskChecklist.total`, `checked`, `pending`, and `pendingItems`; do not treat a public release as polished while `manualRiskStatus` is `checklist-pending`.
+Before publishing a public download, run `npm run release:handoff:require-public`. That stricter mode fails when blocking release risks remain, including unsigned Windows artifacts or pending manual risk checklist items.
 
 CI runs `npm run smoke:browser` and `npm run smoke:large` against a local Vite server and uploads the Playwright screenshots/reports as workflow artifacts. For release candidates, still run them locally when reviewing visual changes so the generated screenshots can be inspected before tagging.
 
@@ -76,7 +77,7 @@ npm run release:handoff:check
 
 The smoke should start `src-tauri/target/release/mikavn-library.exe`, detect that the main window was exposed, and create or open `mikavn.db` only under `output/desktop-smoke/run-*/isolated-app-data`. The report records `mainWindowDetected`, `mainWindowHandle`, and `mainWindowTitle` when available. The script sets `MIKAVN_APP_DATA_DIR` for the launched process and must fail if the database appears outside that isolated root; desktop smoke must not read from or write to the real `%APPDATA%\dev.mikavn.library` profile.
 
-After copying the release executable, installer, `SHA256SUMS.txt`, `RELEASE_VALIDATION_REPORT.md`, and `MANUAL_RISK_PASS_CHECKLIST.md` into `output/release/<version>-windows-x64/`, run `npm run release:handoff:check` to verify the handoff artifacts, checksums, signing-status documentation, and manual risk-pass checklist have not drifted.
+After copying the release executable, installer, `SHA256SUMS.txt`, `RELEASE_VALIDATION_REPORT.md`, and `MANUAL_RISK_PASS_CHECKLIST.md` into `output/release/<version>-windows-x64/`, run `npm run release:handoff:check` to verify the handoff artifacts, checksums, signing-status documentation, and manual risk-pass checklist have not drifted. For public downloads, rerun it as `npm run release:handoff:require-public` and resolve any reported blocking risks before tagging.
 
 ## 5. Manual Risk Pass
 

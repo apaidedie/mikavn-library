@@ -144,7 +144,7 @@ In-app Windows updates use the Tauri v2 updater plugin and public GitHub Release
 Latest mature V1 acceptance pass. For the repeatable release checklist, see `RELEASE_CHECKLIST.md`.
 
 - `npm run release:check` verifies version alignment, release metadata, Tauri security hardening, browser/large smoke gates, and release desktop-smoke gating; `npm run release:check:strict` also verifies public GitHub release links. `npm run release:validate:strict` runs the local release validation chain end to end, including the real installed library readonly smoke on the release machine, and `npm run release:validate:core` reruns the strict non-smoke core checks.
-- `cargo fmt --check`, `cargo clippy -- -D warnings`, and `cargo test` under `src-tauri` pass with the current repository test count (148 Rust tests in the latest local run).
+- `cargo fmt --check`, `cargo clippy -- -D warnings`, and `cargo test` under `src-tauri` pass with the current repository test count (161 Rust tests in the latest local run).
 - `npm run test:release-scripts`, `npm run test:playwright-scripts`, `npm run test:updater-release`, and `npm run test:diagnostic-export` cover release handoff, source-size, build-chunk, Playwright module-resolution helpers, updater config, updater UI wiring, diagnostic export wiring, and browser-preview fallback.
 - `npm run build` passes TypeScript and Vite production build checks.
 - `npm run smoke:browser` starts or reuses a local Vite server, then runs page-level Playwright QA plus core workflow smoke.
@@ -155,7 +155,7 @@ Latest mature V1 acceptance pass. For the repeatable release checklist, see `REL
 - `npm run smoke:real-data:readonly` checks the real `E:\MikaVN Library` install without mutation: SQLite `quick_check`, backup samples, local image references, and sampled image-cache headers.
 - `npm run smoke:real-install:update` is the explicit real installed-app overwrite check for `E:\MikaVN Library`: it refuses to run while MikaVN is active, creates a verified database backup under `app-data/database-backups/manual-install-smoke`, runs the NSIS installer against the real install directory, launches the app, and verifies game, asset, and image counts are preserved.
 - `npm run smoke:desktop` verifies the release executable starts, exposes a main window handle, and creates `mikavn.db` only under the isolated `output/desktop-smoke/run-*/isolated-app-data` root; latest local desktop smoke passed against the rebuilt release executable.
-- `npm run release:handoff:check` verifies the copied release handoff directory contains the rebuilt executable, NSIS installer, matching SHA256 sums, validation report, signing-status documentation, and manual risk-pass checklist.
+- `npm run release:handoff:check` verifies the copied release handoff directory contains the rebuilt executable, NSIS installer, matching SHA256 sums, validation report, signing-status documentation, and manual risk-pass checklist. Before a public download release, run `npm run release:handoff:require-public` so unsigned artifacts or pending manual risk items fail the handoff instead of only being reported.
 - `npm run release:signing:check` reports Windows Authenticode status; public installers should be signed with a trusted certificate as described in `docs/CODE_SIGNING.md`.
 
 ## Implemented Commands

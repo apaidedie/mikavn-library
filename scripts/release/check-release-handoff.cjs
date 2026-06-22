@@ -193,6 +193,11 @@ function blockingReleaseRisks({ signingStatus, manualRiskChecklist }) {
   return risks;
 }
 
+function requireNoBlockingReleaseRisks(risks) {
+  if (risks.length === 0) return;
+  throw new Error(`release handoff has blocking public release risk(s): ${risks.map((risk) => risk.code).join(', ')}`);
+}
+
 function splitManualRiskChecklistItem(value) {
   const trimmed = value.trim();
   const match = /\s+(?:Evidence|证据)\s*[:：]\s*(.+)$/i.exec(trimmed);
@@ -241,6 +246,8 @@ function checkReleaseHandoff(options = {}) {
   requireTokens(checklist, REQUIRED_CHECKLIST_TOKENS, 'manual risk checklist');
   const manualRiskChecklist = manualRiskChecklistSummary(checklist);
   const manualRiskStatus = manualRiskChecklist.pending === 0 ? 'passed' : 'checklist-pending';
+  const blockingRisks = blockingReleaseRisks({ signingStatus, manualRiskChecklist });
+  if (options.requirePublicReady) requireNoBlockingReleaseRisks(blockingRisks);
 
   return {
     releaseDir,
@@ -251,13 +258,15 @@ function checkReleaseHandoff(options = {}) {
     largeLibraryPerformanceWarnings,
     manualRiskStatus,
     manualRiskChecklist,
-    blockingReleaseRisks: blockingReleaseRisks({ signingStatus, manualRiskChecklist }),
+    blockingReleaseRisks: blockingRisks,
   };
 }
 
 if (require.main === module) {
   try {
-    const result = checkReleaseHandoff();
+    const result = checkReleaseHandoff({
+      requirePublicReady: process.argv.includes('--require-public-ready'),
+    });
     console.log(JSON.stringify({
       releaseDir: result.releaseDir,
       artifacts: result.artifacts,

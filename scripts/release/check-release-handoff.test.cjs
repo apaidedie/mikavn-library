@@ -1,4 +1,5 @@
 const assert = require('node:assert/strict');
+const childProcess = require('node:child_process');
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -200,6 +201,45 @@ test('checkReleaseHandoff marks manual risk checklist passed when all items are 
     ],
     pendingItems: [],
   });
+});
+
+test('checkReleaseHandoff public-ready mode rejects blocking release risks', () => {
+  const { releaseDir } = createHandoff();
+  const checklistPath = path.join(releaseDir, 'MANUAL_RISK_PASS_CHECKLIST.md');
+  fs.writeFileSync(
+    checklistPath,
+    fs.readFileSync(checklistPath, 'utf8')
+      .replaceAll('- [ ]', '- [x]')
+      .replace(/^(- \[x\] .+?)$/gm, '$1 Evidence: verified during release smoke.'),
+  );
+
+  assert.throws(
+    () => checkReleaseHandoff({ releaseDir, requirePublicReady: true }),
+    /release handoff has blocking public release risk\(s\): unsigned-windows-artifacts/,
+  );
+});
+
+test('check-release-handoff CLI can require public release readiness', () => {
+  const { releaseDir } = createHandoff();
+  const checklistPath = path.join(releaseDir, 'MANUAL_RISK_PASS_CHECKLIST.md');
+  fs.writeFileSync(
+    checklistPath,
+    fs.readFileSync(checklistPath, 'utf8')
+      .replaceAll('- [ ]', '- [x]')
+      .replace(/^(- \[x\] .+?)$/gm, '$1 Evidence: verified during release smoke.'),
+  );
+
+  const result = childProcess.spawnSync(process.execPath, [
+    path.join(__dirname, 'check-release-handoff.cjs'),
+    '--require-public-ready',
+  ], {
+    cwd: path.join(__dirname, '..', '..'),
+    encoding: 'utf8',
+    env: { ...process.env, MIKAVN_RELEASE_HANDOFF_DIR: releaseDir },
+  });
+
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /release handoff has blocking public release risk\(s\): unsigned-windows-artifacts/);
 });
 
 test('checkReleaseHandoff rejects checked manual risk items without evidence', () => {

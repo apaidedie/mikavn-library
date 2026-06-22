@@ -38,6 +38,7 @@
     "release:signing:require": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/release/check-windows-signing.ps1 -RequireSigned",
     "release:sign": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/release/sign-windows-release.ps1",
     "release:handoff:check": "node scripts/release/check-release-handoff.cjs",
+    "release:handoff:require-public": "node scripts/release/check-release-handoff.cjs --require-public-ready",
     "release:validate": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/release/run-release-validation.ps1",
     "release:validate:strict": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/release/run-release-validation.ps1 -StrictGitHubLinks",
     "release:validate:core": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/release/run-release-validation.ps1 -StrictGitHubLinks -SkipBrowserSmoke -SkipLargeSmoke -SkipTauriBuild -SkipInstallSmoke -SkipPortableDataSmoke -SkipRealDataSmoke -SkipDesktopSmoke",

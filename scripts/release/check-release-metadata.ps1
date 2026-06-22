@@ -66,7 +66,7 @@ if ($package.private -ne $true) {
   throw "package.json should remain private=true; GitHub release publishes the desktop installer, not an npm package."
 }
 
-$requiredScripts = @("build", "typecheck", "test:release-scripts", "test:playwright-scripts", "test:updater-release", "test:diagnostic-export", "release:check", "release:check:strict", "release:signing:check", "release:signing:require", "release:sign", "release:handoff:check", "release:validate", "release:validate:strict", "release:validate:core", "smoke:browser", "smoke:large", "smoke:install", "smoke:portable-data", "smoke:real-data:readonly", "smoke:real-install:update", "smoke:elevated-launch", "tauri:build", "smoke:desktop")
+$requiredScripts = @("build", "typecheck", "test:release-scripts", "test:playwright-scripts", "test:updater-release", "test:diagnostic-export", "release:check", "release:check:strict", "release:signing:check", "release:signing:require", "release:sign", "release:handoff:check", "release:handoff:require-public", "release:validate", "release:validate:strict", "release:validate:core", "smoke:browser", "smoke:large", "smoke:install", "smoke:portable-data", "smoke:real-data:readonly", "smoke:real-install:update", "smoke:elevated-launch", "tauri:build", "smoke:desktop")
 foreach ($scriptName in $requiredScripts) {
   if ($null -eq $package.scripts.$scriptName -or [string]::IsNullOrWhiteSpace([string]$package.scripts.$scriptName)) {
     throw "package.json is missing required script '$scriptName'."
@@ -100,6 +100,12 @@ foreach ($token in @("scripts/release/check-release-handoff.cjs")) {
   $scriptText = [string]$package.scripts.'release:handoff:check'
   if (!$scriptText.Contains($token)) {
     throw "package.json release:handoff:check must include token '$token'."
+  }
+}
+foreach ($token in @("scripts/release/check-release-handoff.cjs", "--require-public-ready")) {
+  $scriptText = [string]$package.scripts.'release:handoff:require-public'
+  if (!$scriptText.Contains($token)) {
+    throw "package.json release:handoff:require-public must include token '$token'."
   }
 }
 foreach ($token in @("scripts/release/check-build-chunks.test.cjs", "scripts/release/check-source-size.test.cjs", "scripts/release/check-release-handoff.test.cjs", "scripts/updater-release-config.test.cjs")) {
