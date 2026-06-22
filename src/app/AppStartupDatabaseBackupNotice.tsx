@@ -70,7 +70,7 @@ export function AppStartupDatabaseBackupNotice({
           </Button>
           <Button size="sm" variant="outline" onClick={onOpenSettings}>
             <Database className="h-4 w-4" />
-            打开本地数据设置
+            打开备份与恢复
           </Button>
           <Button aria-label="关闭启动自动备份提示" size="icon" variant="ghost" onClick={onDismiss}>
             <X className="h-4 w-4" />

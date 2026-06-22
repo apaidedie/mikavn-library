@@ -115,9 +115,9 @@ test('startup database backup failures are surfaced in app chrome', () => {
   assert.match(controller, /startupDatabaseBackup/);
   assert.match(app, /AppStartupDatabaseBackupNotice/);
   assert.match(app, /startupDatabaseBackup\.startupDatabaseBackupError/);
-  assert.match(app, /onOpenSettings=\{\(\) => app\.openSettings\('local'\)\}/);
+  assert.match(app, /onOpenSettings=\{\(\) => app\.openSettings\('local', 'database-restore'\)\}/);
   assert.match(notice, /启动自动备份失败/);
-  assert.match(notice, /打开本地数据设置/);
+  assert.match(notice, /打开备份与恢复/);
   assert.match(notice, /onDismiss/);
 });
 
