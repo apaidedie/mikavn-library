@@ -49,3 +49,12 @@ test('readInitialView restores valid saved views', () => {
 test('readInitialView falls back to the dashboard for invalid saved views', () => {
   assert.equal(callReadInitialView('legacy-unknown-view'), 'dashboard');
 });
+
+test('AppChrome exposes current page semantics for rail and toolbar navigation', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'app', 'AppChrome.tsx'), 'utf8');
+
+  assert.match(source, /aria-label=\{item\.label\}/);
+  assert.match(source, /aria-current=\{view === item\.id \? 'page' : undefined\}/);
+  assert.match(source, /aria-current=\{view === 'settings' \? 'page' : undefined\}/);
+  assert.match(source, /aria-current=\{active \? 'page' : undefined\}/);
+});

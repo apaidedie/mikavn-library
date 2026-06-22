@@ -73,6 +73,16 @@ export function SettingsLocalDataSection({
 
   return (
     <ConfigSection title="本地数据">
+      <ConfigItem title="备份与恢复入口" description="常用数据安全操作放在最上方；恢复只安排下次启动，不会删除真实游戏文件。">
+        <div className="flex max-w-[42rem] flex-col items-end gap-2 text-right">
+          <div className="text-xs text-slate-500">恢复前会自动创建保护备份；需要确认路径和备份数量时先刷新自检。</div>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button disabled={diagnosticsLoading} variant="outline" onClick={onLoadDiagnostics}><RefreshCw className="h-4 w-4" />{diagnosticsLoading ? '检查中' : '刷新自检'}</Button>
+            <Button variant="secondary" onClick={onBackupDatabase}><Download className="h-4 w-4" />立即备份</Button>
+            <Button variant="outline" onClick={onRestoreDatabase}><RotateCcw className="h-4 w-4" />安排恢复</Button>
+          </div>
+        </div>
+      </ConfigItem>
       <ConfigItem title="数据目录自检" description="读取当前应用数据目录、数据库完整性、图片引用和备份文件状态。">
         <div className="flex max-w-[42rem] flex-col items-end gap-2 text-right">
           <div className="flex flex-wrap justify-end gap-2">

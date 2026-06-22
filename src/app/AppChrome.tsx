@@ -33,6 +33,8 @@ export function AppChrome({ accent, children, librarySearchValue, onFocusLibrary
             const Icon = item.icon;
             return (
               <button
+                aria-current={view === item.id ? 'page' : undefined}
+                aria-label={item.label}
                 key={item.id}
                 className={cn(
                   'motion-button flex h-9 w-9 items-center justify-center rounded-md text-slate-400 hover:bg-white/[0.08] hover:text-slate-100',
@@ -53,6 +55,8 @@ export function AppChrome({ accent, children, librarySearchValue, onFocusLibrary
             <Plus className="h-5 w-5" />
           </Button>
           <button
+            aria-current={view === 'settings' ? 'page' : undefined}
+            aria-label="设置"
             className={cn(
               'motion-button flex h-9 w-9 items-center justify-center rounded-md text-slate-400 hover:bg-white/[0.08] hover:text-slate-100',
               view === 'settings' && 'bg-[rgb(var(--accent-rgb)/0.22)] text-slate-100 shadow-sm',
@@ -117,6 +121,7 @@ export function AppChrome({ accent, children, librarySearchValue, onFocusLibrary
 function ToolbarButton({ active = false, label, onClick, children }: { active?: boolean; label: string; onClick?: () => void; children: ReactNode }) {
   return (
     <button
+      aria-current={active ? 'page' : undefined}
       aria-label={label}
       className={cn(
         'motion-button flex h-8 w-8 items-center justify-center rounded-md bg-black/15 text-slate-400 shadow-sm hover:bg-white/[0.08] hover:text-slate-100',

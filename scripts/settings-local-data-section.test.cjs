@@ -11,15 +11,32 @@ function read(relativePath) {
 
 test('local data settings exposes clear backup and restore entry', () => {
   const source = read('src/pages/Settings/SettingsLocalDataSection.tsx');
+  const restoreSection = source.slice(source.indexOf('id="database-restore-section"'));
 
   assert.match(source, /数据库备份与恢复/);
   assert.match(source, /打开备份目录/);
   assert.match(source, /最近备份/);
-  assert.match(source, />恢复数据库<\/Button>/);
-  assert.doesNotMatch(source, />安排恢复<\/Button>/);
+  assert.match(restoreSection, />恢复数据库<\/Button>/);
+  assert.doesNotMatch(restoreSection, />安排恢复<\/Button>/);
   assert.match(source, /安排下次启动恢复/);
   assert.match(source, /下次启动/);
   assert.match(source, /保护备份/);
+});
+
+test('local data settings keeps backup and restore entry visible before diagnostics', () => {
+  const source = read('src/pages/Settings/SettingsLocalDataSection.tsx');
+  const quickEntryIndex = source.indexOf('title="备份与恢复入口"');
+  const diagnosticsIndex = source.indexOf('title="数据目录自检"');
+
+  assert.ok(quickEntryIndex > -1, 'local data tab should expose a top backup and restore entry');
+  assert.ok(diagnosticsIndex > -1, 'local data tab should still expose data directory diagnostics');
+  assert.ok(quickEntryIndex < diagnosticsIndex, 'backup and restore entry should appear before diagnostics');
+  const quickEntry = source.slice(quickEntryIndex, diagnosticsIndex);
+  assert.match(quickEntry, /安排恢复/);
+  assert.match(quickEntry, /立即备份/);
+  assert.match(quickEntry, /刷新自检/);
+  assert.doesNotMatch(quickEntry, />恢复数据库<\/Button>/);
+  assert.doesNotMatch(quickEntry, />手动备份<\/Button>/);
 });
 
 test('database backup cleanup policy is centralized and visible before cleanup', () => {

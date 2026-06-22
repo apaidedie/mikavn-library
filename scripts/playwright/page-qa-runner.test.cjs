@@ -33,11 +33,12 @@ test('library detail QA verifies copyable image diagnostics', () => {
   assert.match(source, /已复制图片诊断信息/);
 });
 
-test('page QA returns from image health with an exact library nav locator', () => {
+test('page QA returns from image health with a disambiguated library nav helper', () => {
   const source = fs.readFileSync(sourcePath, 'utf8');
 
-  assert.match(source, /getByLabel\('游戏库', \{ exact: true \}\)\.click\(\)/);
-  assert.doesNotMatch(source, /getByLabel\('游戏库'\)\.click\(\)/);
+  assert.match(source, /async function openLibrary\(page\)/);
+  assert.match(source, /openLibrary\(page\)/);
+  assert.doesNotMatch(source, /getByLabel\('游戏库'/);
 });
 
 test('dashboard populated QA returns home before taking dashboard screenshot', () => {
@@ -47,6 +48,20 @@ test('dashboard populated QA returns home before taking dashboard screenshot', (
   const dashboardCase = source.slice(caseStart, nextCase);
   const afterRestoreClick = dashboardCase.slice(dashboardCase.indexOf("getByRole('button', { name: /恢复数据库/ }).click()"));
 
+  assert.match(source, /async function openHome\(page\)/);
+  assert.doesNotMatch(source, /getByLabel\('首页'\)/);
   assert.match(dashboardCase, /getByRole\('button', \{ name: \/恢复数据库\/ \}\)\.click\(\)/);
-  assert.match(afterRestoreClick, /getByLabel\('首页'\)\.click\(\);[\s\S]*getByText\('今日状态'\)\.first\(\)\.waitFor/);
+  assert.match(afterRestoreClick, /openHome\(page\);[\s\S]*getByText\('今日状态'\)\.first\(\)\.waitFor/);
+});
+
+test('maintenance result QA verifies game shortcuts leave the library as the current page', () => {
+  const source = fs.readFileSync(sourcePath, 'utf8');
+  const caseStart = source.indexOf("['maintenance-health-description-repair'");
+  const nextCase = source.indexOf("['maintenance-health-metadata-match'", caseStart);
+  const maintenanceCase = source.slice(caseStart, nextCase);
+  const afterGameShortcut = maintenanceCase.slice(maintenanceCase.indexOf("getByRole('button', { name: /^游戏$/ }).click()"));
+
+  assert.match(afterGameShortcut, /localStorage\.getItem\('mikavn\.currentView'\)[\s\S]*!== 'library'/);
+  assert.match(afterGameShortcut, /getByRole\('button', \{ name: '游戏库' \}\)[\s\S]*getAttribute\('aria-current'\)/);
+  assert.match(afterGameShortcut, /getByRole\('button', \{ name: '维护' \}\)[\s\S]*getAttribute\('aria-current'\)/);
 });

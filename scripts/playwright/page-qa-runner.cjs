@@ -127,6 +127,14 @@ async function clickMaintenanceStart(page, label) {
   await row.getByRole('button', { name: /开始/ }).click();
 }
 
+async function openHome(page) {
+  await page.getByRole('button', { name: '首页' }).first().click();
+}
+
+async function openLibrary(page) {
+  await page.getByRole('button', { name: '游戏库' }).first().click();
+}
+
 async function waitForImageHealthWorkflow(page) {
   await page.getByText(/维护中心/).first().waitFor({ timeout: 5000 });
   await page.getByText(/图片健康/).first().waitFor({ timeout: 5000 });
@@ -163,20 +171,20 @@ async function main() {
         }
         await page.locator('section').filter({ hasText: '继续游玩' }).first().locator('button').filter({ hasText: '星之终途' }).first().click();
         await page.getByText('末世旅途题材的短篇视觉小说。这里用于成熟 V1 页面 QA。').first().waitFor({ timeout: 5000 });
-        await page.getByLabel('首页').click();
+        await openHome(page);
         await page.getByText('今日状态').first().waitFor({ timeout: 5000 });
         await page.locator('section').filter({ hasText: '今日状态' }).first().getByRole('button', { name: /维护/ }).click();
         await page.getByText('维护中心').first().waitFor({ timeout: 5000 });
-        await page.getByLabel('首页').click();
+        await openHome(page);
         await page.getByText('今日状态').first().waitFor({ timeout: 5000 });
         await page.locator('section').filter({ hasText: '今日状态' }).first().getByRole('button', { name: /本地设置/ }).click();
         await page.waitForFunction(() => [...document.querySelectorAll('[role="tab"]')].some((tab) => tab.textContent?.includes('备份与本地') && tab.getAttribute('data-state') === 'active'), null, { timeout: 5000 });
-        await page.getByLabel('首页').click();
+        await openHome(page);
         await page.getByText('本地安全').first().waitFor({ timeout: 5000 });
         await page.locator('section').filter({ hasText: '本地安全' }).first().getByRole('button', { name: /恢复数据库/ }).click();
         await page.waitForFunction(() => [...document.querySelectorAll('[role="tab"]')].some((tab) => tab.textContent?.includes('备份与本地') && tab.getAttribute('data-state') === 'active'), null, { timeout: 5000 });
         await page.getByText('数据目录自检').first().waitFor({ timeout: 5000 });
-        await page.getByLabel('首页').click();
+        await openHome(page);
         await page.getByText('今日状态').first().waitFor({ timeout: 5000 });
       }],
       ['dashboard-task-shortcuts', 'dashboard', { games: [...games, descriptionRepairGame], tasks: [descriptionImageRepairFailedTask, fanzaDescriptionImageRepairTask, ...tasks], taskLogs }, async (page) => {
@@ -192,21 +200,21 @@ async function main() {
         if (await page.getByLabel('任务状态筛选').inputValue() !== 'attention') throw new Error('dashboard attention shortcut did not select attention task filter');
         await page.getByText('简介图片修复失败：DLsite 暂不可用').first().waitFor({ timeout: 5000 });
         if (await page.getByText('正在匹配 2 个游戏').count() > 0) throw new Error('running task should be hidden after dashboard attention shortcut');
-        await page.getByLabel('首页').click();
+        await openHome(page);
         await page.getByText('近期任务').first().waitFor({ timeout: 5000 });
         await page.getByRole('button', { name: /进行中\s+1/ }).click();
         await page.getByText('任务队列').first().waitFor({ timeout: 5000 });
         if (await page.getByLabel('任务状态筛选').inputValue() !== 'active') throw new Error('dashboard running shortcut did not select active task filter');
         await page.getByText('正在匹配 2 个游戏').first().waitFor({ timeout: 5000 });
         if (await page.getByText('扫描失败：路径不存在').count() > 0) throw new Error('failed task should be hidden after dashboard running shortcut');
-        await page.getByLabel('首页').click();
+        await openHome(page);
         await page.getByText('近期任务').first().waitFor({ timeout: 5000 });
         await page.getByRole('button', { name: /已完成\s+1/ }).click();
         await page.getByText('任务队列').first().waitFor({ timeout: 5000 });
         if (await page.getByLabel('任务状态筛选').inputValue() !== 'completed') throw new Error('dashboard completed shortcut did not select completed task filter');
         await page.getByText('简介图片修复完成：更新 1 个条目，插入 1 张图片，跳过 0 个，失败 0 个。').first().waitFor({ timeout: 5000 });
         if (await page.getByText('扫描失败：路径不存在').count() > 0) throw new Error('failed task should be hidden after dashboard completed shortcut');
-        await page.getByLabel('首页').click();
+        await openHome(page);
         await page.getByText('近期任务').first().waitFor({ timeout: 5000 });
         await dashboardResultsPanel.locator('[data-task-result-id="qa-task-description-image-failed"]').getByRole('button', { name: /重试/ }).click();
         await page.getByText('任务队列').first().waitFor({ timeout: 5000 });
@@ -219,7 +227,7 @@ async function main() {
         await page.locator('section').filter({ hasText: '今日状态' }).first().getByRole('button', { name: /本地设置/ }).click();
         await page.waitForFunction(() => [...document.querySelectorAll('[role="tab"]')].some((tab) => tab.textContent?.includes('备份与本地') && tab.getAttribute('data-state') === 'active'), null, { timeout: 5000 });
         await expectNoHorizontalOverflow(page, 'dashboard mobile settings shortcut');
-        await page.getByLabel('首页').click();
+        await openHome(page);
         await page.getByText('今日状态').first().waitFor({ timeout: 5000 });
         await expectNoHorizontalOverflow(page, 'dashboard mobile after returning home');
       }, { viewport: { width: 390, height: 844 } }],
@@ -319,7 +327,7 @@ async function main() {
         if (removedAssetRecords.some((asset) => asset.id === 'qa-asset-shot')) throw new Error('asset gallery remove action did not delete the screenshot asset record');
         await page.getByRole('button', { name: /图片健康/ }).click();
         await waitForImageHealthWorkflow(page);
-        await page.getByLabel('游戏库', { exact: true }).click();
+        await openLibrary(page);
         await page.getByText('媒体图库').first().waitFor({ timeout: 5000 });
         await page.getByRole('button', { name: '批量', exact: true }).click();
         await page.getByRole('button', { name: /选中当前/ }).click();
@@ -720,6 +728,12 @@ async function main() {
         await descriptionRepairResultRow.getByRole('button', { name: /^游戏$/ }).click();
         await page.getByText('媒体健康').first().waitFor({ timeout: 5000 });
         await page.getByText('简介图片修复候选').first().waitFor({ timeout: 5000 });
+        const currentViewAfterGameShortcut = await page.evaluate(() => localStorage.getItem('mikavn.currentView'));
+        if (currentViewAfterGameShortcut !== 'library') throw new Error('maintenance game shortcut did not leave the library as the current view');
+        const libraryCurrent = await page.getByRole('button', { name: '游戏库' }).first().getAttribute('aria-current');
+        if (libraryCurrent !== 'page') throw new Error('maintenance game shortcut did not mark the library navigation as current');
+        const maintenanceCurrent = await page.getByRole('button', { name: '维护' }).first().getAttribute('aria-current');
+        if (maintenanceCurrent === 'page') throw new Error('maintenance navigation stayed current after opening a game from maintenance results');
         const detailDescriptionImages = page.locator('section').filter({ hasText: '简介' }).locator('figure img');
         await assertImagesLoaded(detailDescriptionImages, 'description repair result detail image');
       }],
