@@ -536,6 +536,19 @@ test('image health action hint explains disabled maintenance actions', () => {
       oversizedImageRefs: 2,
     },
   };
+  const referencedContentTypeMismatchOnlyReport = {
+    summary: {
+      orphanFiles: 0,
+      missingLocalRefs: 0,
+      invalidImageRefs: 0,
+      cDriveRefs: 0,
+      playniteRefs: 0,
+      externalLegacyRefs: 0,
+      missingArtworkGames: 0,
+      contentTypeMismatchFiles: 2,
+      contentTypeMismatchRefs: 2,
+    },
+  };
 
   assert.equal(
     getImageHealthActionHint({ report: null, loading: false }),
@@ -556,6 +569,10 @@ test('image health action hint explains disabled maintenance actions', () => {
   assert.equal(
     getImageHealthActionHint({ report: referencedOversizedOnlyReport, loading: false }),
     '过大图片仍被数据库引用，需压缩、重新抓取或人工确认；没有需要逐条审计的失效引用；没有可补全的媒体缺图；没有可整理的孤儿图片。',
+  );
+  assert.equal(
+    getImageHealthActionHint({ report: referencedContentTypeMismatchOnlyReport, loading: false }),
+    '类型不匹配图片仍被数据库引用，需重新抓取或人工确认；没有需要逐条审计的失效引用；没有可补全的媒体缺图；没有可整理的孤儿图片。',
   );
 });
 

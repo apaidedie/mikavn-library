@@ -128,7 +128,9 @@ export function getImageHealthActionHint({ report, loading }: { report: ImageHea
   const hasOversizedImages = (summary.oversizedFiles ?? 0) > 0;
   const hasOversizedUnreferencedImages = oversizedUnreferenced > 0;
   const hasInvalidUnreferencedImages = Math.max(0, (summary.invalidImageFiles ?? 0) - (summary.invalidImageRefs ?? 0)) > 0;
-  const hasContentTypeMismatchUnreferenced = Math.max(0, (summary.contentTypeMismatchFiles ?? 0) - (summary.contentTypeMismatchRefs ?? 0)) > 0;
+  const contentTypeMismatchUnreferenced = Math.max(0, (summary.contentTypeMismatchFiles ?? 0) - (summary.contentTypeMismatchRefs ?? 0));
+  const hasContentTypeMismatchImages = (summary.contentTypeMismatchFiles ?? 0) > 0;
+  const hasContentTypeMismatchUnreferenced = contentTypeMismatchUnreferenced > 0;
   const hasBrokenRefs = [
     summary.missingLocalRefs,
     summary.invalidImageRefs,
@@ -137,7 +139,7 @@ export function getImageHealthActionHint({ report, loading }: { report: ImageHea
     summary.externalLegacyRefs,
   ].some((value) => (value ?? 0) > 0);
 
-  if (!hasOrphans && !hasArtworkGaps && !hasBrokenRefs && !hasDuplicateCache && !hasOversizedImages && !hasContentTypeMismatchUnreferenced) return '当前图片健康检查没有发现需要处理的图片问题。';
+  if (!hasOrphans && !hasArtworkGaps && !hasBrokenRefs && !hasDuplicateCache && !hasOversizedImages && !hasContentTypeMismatchImages) return '当前图片健康检查没有发现需要处理的图片问题。';
 
   const disabledReasons = [];
   if (hasDuplicateContent) disabledReasons.push('可整理重复内容中的未引用副本');
@@ -145,6 +147,7 @@ export function getImageHealthActionHint({ report, loading }: { report: ImageHea
   if (hasOversizedUnreferencedImages) disabledReasons.push('可整理未引用的过大图片');
   if (hasOversizedImages && !hasOversizedUnreferencedImages) disabledReasons.push('过大图片仍被数据库引用，需压缩、重新抓取或人工确认');
   if (hasContentTypeMismatchUnreferenced) disabledReasons.push('可整理未引用的类型不匹配图片');
+  if (hasContentTypeMismatchImages && !hasContentTypeMismatchUnreferenced) disabledReasons.push('类型不匹配图片仍被数据库引用，需重新抓取或人工确认');
   if (hasDuplicateFileNames) disabledReasons.push('重复文件名需要人工确认内容是否相同');
   if (!hasBrokenRefs) disabledReasons.push('没有需要逐条审计的失效引用');
   if (!hasArtworkGaps) disabledReasons.push('没有可补全的媒体缺图');
