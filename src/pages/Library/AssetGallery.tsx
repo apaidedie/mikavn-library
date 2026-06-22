@@ -12,14 +12,18 @@ import { cn } from '@/utils/cn';
 import { errorMessage } from '@/utils/errorMessage';
 import { assetTypeLabel, assetTypeOrder, formatBytes } from './gameDetailMediaModel';
 
+const assetGalleryTypeRenderLimit = 12;
+
 export function AssetGallery({ game, blurCover, onChanged, onMessage }: { game: Game; blurCover: boolean; onChanged?: (game: Game) => void; onMessage: (message: string | null) => void }) {
   const [assets, setAssets] = useState<GameAsset[]>([]);
   const [assetType, setAssetType] = useState('cover');
   const [url, setUrl] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
+  const [expandedAssetTypes, setExpandedAssetTypes] = useState<Set<string>>(() => new Set());
 
   useEffect(() => {
     let active = true;
+    setExpandedAssetTypes(new Set());
 
     async function loadAssets() {
       try {
@@ -65,14 +69,30 @@ export function AssetGallery({ game, blurCover, onChanged, onMessage }: { game: 
         <div className="rounded-md border border-dashed border-white/10 bg-black/[0.08] px-3 py-4 text-sm text-slate-500">暂无媒体资产。导入本地图片或填写图片 URL 后可设为封面、横幅或背景。</div>
       ) : (
         <div className="space-y-4">
-          {assetTypeOrder.filter((type) => grouped[type]?.length).map((type) => (
-            <div key={type}>
-              <div className="mb-2 text-xs font-medium text-slate-400">{assetTypeLabel(type)}</div>
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {grouped[type].map((asset) => <AssetCard asset={asset} blurCover={blurCover} busy={busy === asset.id} key={asset.id} onPrimary={() => void setPrimary(asset)} onRemove={() => void removeAsset(asset)} />)}
+          {assetTypeOrder.filter((type) => grouped[type]?.length).map((type) => {
+            const expanded = expandedAssetTypes.has(type);
+            const visibleAssets = expanded ? grouped[type] : visibleAssetGroup(grouped[type], assetGalleryTypeRenderLimit);
+            const hiddenCount = grouped[type].length - visibleAssets.length;
+            const hiddenText = `还有 ${formatAssetCount(hiddenCount)} 张未渲染，减少详情页图片加载压力。`;
+            return (
+              <div key={type}>
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <div className="text-xs font-medium text-slate-400">{assetTypeLabel(type)}</div>
+                  <div className="flex items-center gap-2">
+                    {hiddenCount > 0 && <div className="text-[11px] text-slate-500">{hiddenText}</div>}
+                    {grouped[type].length > assetGalleryTypeRenderLimit && (
+                      <Button className="h-7 px-2 text-[11px]" size="sm" variant="ghost" onClick={() => toggleAssetTypeExpanded(type)}>
+                        {expanded ? '收起' : '显示全部'}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {visibleAssets.map((asset) => <AssetCard asset={asset} blurCover={blurCover} busy={busy === asset.id} key={asset.id} onPrimary={() => void setPrimary(asset)} onRemove={() => void removeAsset(asset)} />)}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
@@ -173,6 +193,21 @@ export function AssetGallery({ game, blurCover, onChanged, onMessage }: { game: 
       setBusy(null);
     }
   }
+
+  function toggleAssetTypeExpanded(type: string) {
+    setExpandedAssetTypes((current) => {
+      const next = new Set(current);
+      if (next.has(type)) next.delete(type);
+      else next.add(type);
+      return next;
+    });
+  }
+}
+
+function visibleAssetGroup(assets: GameAsset[], limit: number) {
+  const primary = assets.find((asset) => asset.isPrimary);
+  const ordered = primary ? [primary, ...assets.filter((asset) => asset.id !== primary.id)] : assets;
+  return ordered.slice(0, limit);
 }
 
 function AssetCard({ asset, blurCover, busy, onPrimary, onRemove }: { asset: GameAsset; blurCover: boolean; busy: boolean; onPrimary: () => void; onRemove: () => void }) {

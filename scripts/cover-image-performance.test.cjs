@@ -35,3 +35,24 @@ test('library description images lazy load and decode asynchronously', () => {
   assert.match(source, /loading="lazy"/);
   assert.match(source, /decoding="async"/);
 });
+
+test('asset gallery limits per-type render count while keeping primary assets visible', () => {
+  const source = fs.readFileSync('src/pages/Library/AssetGallery.tsx', 'utf8');
+
+  assert.match(source, /const assetGalleryTypeRenderLimit = 12/);
+  assert.match(source, /visibleAssetGroup\(grouped\[type\], assetGalleryTypeRenderLimit\)/);
+  assert.match(source, /asset\.isPrimary/);
+  assert.match(source, /grouped\[type\]\.length - visibleAssets\.length/);
+  assert.match(source, /还有 \$\{formatAssetCount\(hiddenCount\)\} 张未渲染/);
+});
+
+test('asset gallery lets users opt in to rendering all assets for a type', () => {
+  const source = fs.readFileSync('src/pages/Library/AssetGallery.tsx', 'utf8');
+
+  assert.match(source, /expandedAssetTypes/);
+  assert.match(source, /setExpandedAssetTypes/);
+  assert.match(source, /expandedAssetTypes\.has\(type\)/);
+  assert.match(source, /visibleAssets = expanded \? grouped\[type\] : visibleAssetGroup\(grouped\[type\], assetGalleryTypeRenderLimit\)/);
+  assert.match(source, /显示全部/);
+  assert.match(source, /收起/);
+});
