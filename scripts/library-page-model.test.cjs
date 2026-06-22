@@ -274,6 +274,14 @@ test('getLibraryRenderIdentity changes when middle results change under the same
   );
 });
 
+test('getLibraryRenderIdentity samples large result windows beyond first middle and last ids', () => {
+  const { getLibraryRenderIdentity } = loadLibraryPageModel();
+  const base = Array.from({ length: 1000 }, (_, index) => game({ id: `game-${index}` }));
+  const changed = base.map((item, index) => index === 10 ? game({ id: 'game-replaced-10' }) : item);
+
+  assert.notEqual(getLibraryRenderIdentity(base), getLibraryRenderIdentity(changed));
+});
+
 test('buildLibraryGameLookup supports constant-time selected game lookups for large libraries', () => {
   const { buildLibraryGameLookup } = loadLibraryPageModel();
   const games = Array.from({ length: 5000 }, (_, index) => game({ id: `game-${index}` }));
