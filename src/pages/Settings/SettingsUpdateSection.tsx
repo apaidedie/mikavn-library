@@ -19,6 +19,7 @@ export function SettingsUpdateSection({ onOpenDatabaseRestore, onRevealBackup }:
   const [error, setError] = useState<string | null>(null);
   const [backupInfo, setBackupInfo] = useState<{ fileName: string; path: string } | null>(null);
   const [backupActionMessage, setBackupActionMessage] = useState<string | null>(null);
+  const [recoveryActionMessage, setRecoveryActionMessage] = useState<string | null>(null);
   const [installProgress, setInstallProgress] = useState<string | null>(null);
   const installInFlightRef = useRef(false);
   const recoveryHint = createUpdaterRecoveryHint(error);
@@ -28,6 +29,7 @@ export function SettingsUpdateSection({ onOpenDatabaseRestore, onRevealBackup }:
     setError(null);
     setBackupInfo(null);
     setBackupActionMessage(null);
+    setRecoveryActionMessage(null);
     setInstallProgress(null);
     try {
       const response = await checkForAppUpdate();
@@ -49,6 +51,7 @@ export function SettingsUpdateSection({ onOpenDatabaseRestore, onRevealBackup }:
     setError(null);
     setBackupInfo(null);
     setBackupActionMessage(null);
+    setRecoveryActionMessage(null);
     setInstallProgress(null);
     try {
       const installResult = await installAppUpdate(update, (progress) => setInstallProgress(formatUpdaterInstallProgress(progress)));
@@ -91,11 +94,22 @@ export function SettingsUpdateSection({ onOpenDatabaseRestore, onRevealBackup }:
     if (!backupInfo) return;
     setError(null);
     setBackupActionMessage(null);
+    setRecoveryActionMessage(null);
     try {
       await navigator.clipboard.writeText(backupInfo.path);
       setBackupActionMessage('已复制更新前数据库备份路径。');
     } catch (error) {
       setError(`复制备份路径失败：${formatUpdaterError(error).replace(/^更新失败：/, '')}`);
+    }
+  };
+
+  const copyUpdateRecoveryText = async (text: string, successMessage: string) => {
+    setRecoveryActionMessage(null);
+    try {
+      await navigator.clipboard.writeText(text);
+      setRecoveryActionMessage(successMessage);
+    } catch (error) {
+      setRecoveryActionMessage(`复制失败：${formatUpdaterError(error).replace(/^更新失败：/, '')}`);
     }
   };
 
@@ -134,13 +148,13 @@ export function SettingsUpdateSection({ onOpenDatabaseRestore, onRevealBackup }:
               )}
               <textarea className="min-h-16 w-[min(42rem,calc(100vw-3rem))] rounded-md bg-black/30 p-2 text-xs text-rose-100" readOnly value={error} />
               <div className="flex flex-wrap justify-end gap-2">
-                <Button size="sm" type="button" variant="ghost" onClick={() => void navigator.clipboard.writeText(error)}>
+                <Button size="sm" type="button" variant="ghost" onClick={() => void copyUpdateRecoveryText(error, '已复制更新错误。')}>
                   <ClipboardCopy className="h-4 w-4" />
                   复制错误
                 </Button>
                 {recoveryHint?.showFallbackDownload && (
                   <>
-                    <Button size="sm" type="button" variant="ghost" onClick={() => void navigator.clipboard.writeText(updaterFallbackDownloadUrl)}>
+                    <Button size="sm" type="button" variant="ghost" onClick={() => void copyUpdateRecoveryText(updaterFallbackDownloadUrl, '已复制备用下载链接。')}>
                       <ClipboardCopy className="h-4 w-4" />
                       复制备用链接
                     </Button>
@@ -153,6 +167,7 @@ export function SettingsUpdateSection({ onOpenDatabaseRestore, onRevealBackup }:
                   </>
                 )}
               </div>
+              {recoveryActionMessage && <div className="text-xs text-emerald-200">{recoveryActionMessage}</div>}
             </div>
           )}
           <div className="flex flex-wrap justify-end gap-2">

@@ -45,8 +45,13 @@ test('startup update notice exposes fallback download link after install errors'
   assert.match(notice, /target="_blank"/);
   assert.match(notice, /rel="noreferrer"/);
   assert.match(notice, /复制错误/);
-  assert.match(notice, /navigator\.clipboard\.writeText\(error\)/);
-  assert.match(notice, /navigator\.clipboard\.writeText\(updaterFallbackDownloadUrl\)/);
+  assert.match(notice, /navigator\.clipboard\.writeText\(text\)/);
+  assert.match(notice, /copyUpdateRecoveryText\(error/);
+  assert.match(notice, /copyUpdateRecoveryText\(updaterFallbackDownloadUrl/);
+  assert.match(notice, /copyUpdateRecoveryText/);
+  assert.match(notice, /已复制更新错误。/);
+  assert.match(notice, /已复制备用下载链接。/);
+  assert.match(notice, /recoveryActionMessage/);
 });
 
 test('startup update notice uses recovery hints and reports restart failures', () => {
@@ -90,6 +95,19 @@ test('startup update notice can reveal or copy pre-update backup path', () => {
   assert.match(app, /backupActionMessage=\{app\.startupUpdater\.backupActionMessage\}/);
   assert.match(app, /onRevealBackup=\{app\.startupUpdater\.revealStartupBackupPath\}/);
   assert.match(app, /onCopyBackupPath=\{app\.startupUpdater\.copyStartupBackupPath\}/);
+});
+
+test('startup update notice links failed update backups to database restore workflow', () => {
+  const notice = read('src/app/AppUpdateNotice.tsx');
+  const app = read('src/app/App.tsx');
+  const controller = read('src/app/useAppController.ts');
+
+  assert.match(notice, /onOpenDatabaseRestore/);
+  assert.match(notice, /去恢复数据库/);
+  assert.match(notice, /backupInfo && error/);
+  assert.match(app, /onOpenDatabaseRestore=\{app\.openDatabaseRestore\}/);
+  assert.match(controller, /openDatabaseRestore/);
+  assert.match(controller, /openSettings\('local', 'database-restore'\)/);
 });
 
 test('startup updater prevents duplicate install requests while an install is in flight', () => {

@@ -110,6 +110,10 @@ export function useAppController() {
     setView('settings');
   }, []);
 
+  const openDatabaseRestore = useCallback(() => {
+    openSettings('local', 'database-restore');
+  }, [openSettings]);
+
   const consumeAddRequest = useCallback(() => setAddRequestKey(null), []);
 
   useAppKeyboardShortcuts({ focusLibrarySearch, refresh, requestAddGame, setView });
@@ -128,6 +132,7 @@ export function useAppController() {
     openLibrary,
     openMaintenance,
     openMetadata,
+    openDatabaseRestore,
     openSaves,
     openScanner,
     openSettings,

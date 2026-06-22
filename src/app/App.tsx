@@ -48,6 +48,7 @@ export function App() {
           onCopyBackupPath={app.startupUpdater.copyStartupBackupPath}
           onDismiss={app.startupUpdater.dismissStartupUpdate}
           onInstall={app.startupUpdater.installStartupUpdate}
+          onOpenDatabaseRestore={app.openDatabaseRestore}
           onRevealBackup={app.startupUpdater.revealStartupBackupPath}
           onRestart={app.startupUpdater.restartStartupUpdate}
         />

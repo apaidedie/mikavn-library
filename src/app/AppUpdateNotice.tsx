@@ -1,6 +1,7 @@
-import { ClipboardCopy, Download, ExternalLink, FolderOpen, RotateCw, X } from 'lucide-react';
+import { ClipboardCopy, Download, ExternalLink, FolderOpen, RotateCcw, RotateCw, X } from 'lucide-react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { createUpdaterRecoveryHint, updaterFallbackDownloadUrl, type UpdateProtectionBackupInfo, type UpdaterCheckResult } from '@/services/updaterModel';
+import { createUpdaterRecoveryHint, formatUpdaterError, updaterFallbackDownloadUrl, type UpdateProtectionBackupInfo, type UpdaterCheckResult } from '@/services/updaterModel';
 
 type AppUpdateNoticeProps = {
   notice: Extract<UpdaterCheckResult, { kind: 'available' }>;
@@ -14,6 +15,7 @@ type AppUpdateNoticeProps = {
   onInstall: () => void;
   onCopyBackupPath: () => void;
   onRevealBackup: () => void;
+  onOpenDatabaseRestore: () => void;
   onRestart: () => void;
 };
 
@@ -28,10 +30,22 @@ export function AppUpdateNotice({
   onCopyBackupPath,
   onDismiss,
   onInstall,
+  onOpenDatabaseRestore,
   onRevealBackup,
   onRestart,
 }: AppUpdateNoticeProps) {
+  const [recoveryActionMessage, setRecoveryActionMessage] = useState<string | null>(null);
   const recoveryHint = createUpdaterRecoveryHint(error);
+
+  const copyUpdateRecoveryText = async (text: string, successMessage: string) => {
+    setRecoveryActionMessage(null);
+    try {
+      await navigator.clipboard.writeText(text);
+      setRecoveryActionMessage(successMessage);
+    } catch (error) {
+      setRecoveryActionMessage(`复制失败：${formatUpdaterError(error).replace(/^更新失败：/, '')}`);
+    }
+  };
 
   return (
     <div className="border-b border-emerald-300/20 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-50">
@@ -63,13 +77,13 @@ export function AppUpdateNotice({
           {error && <p className="mt-1 select-text text-xs text-rose-100">{error}</p>}
           {error && (
             <div className="mt-1 flex flex-wrap gap-2">
-              <button className="inline-flex items-center gap-1 text-xs text-emerald-50 underline underline-offset-2" type="button" onClick={() => void navigator.clipboard.writeText(error)}>
+              <button className="inline-flex items-center gap-1 text-xs text-emerald-50 underline underline-offset-2" type="button" onClick={() => void copyUpdateRecoveryText(error, '已复制更新错误。')}>
                 <ClipboardCopy className="h-3.5 w-3.5" />
                 复制错误
               </button>
               {recoveryHint?.showFallbackDownload && (
                 <>
-                  <button className="inline-flex items-center gap-1 text-xs text-emerald-50 underline underline-offset-2" type="button" onClick={() => void navigator.clipboard.writeText(updaterFallbackDownloadUrl)}>
+                  <button className="inline-flex items-center gap-1 text-xs text-emerald-50 underline underline-offset-2" type="button" onClick={() => void copyUpdateRecoveryText(updaterFallbackDownloadUrl, '已复制备用下载链接。')}>
                     <ClipboardCopy className="h-3.5 w-3.5" />
                     复制备用链接
                   </button>
@@ -79,8 +93,15 @@ export function AppUpdateNotice({
                   </a>
                 </>
               )}
+              {backupInfo && error && (
+                <button className="inline-flex items-center gap-1 text-xs text-emerald-50 underline underline-offset-2" type="button" onClick={onOpenDatabaseRestore}>
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  去恢复数据库
+                </button>
+              )}
             </div>
           )}
+          {recoveryActionMessage && <p className="mt-1 text-xs text-emerald-100">{recoveryActionMessage}</p>}
         </div>
         <div className="flex shrink-0 gap-2">
           {installed ? (
