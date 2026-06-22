@@ -52,6 +52,31 @@ impl Database {
         self.metadata_match_repository().match_status(job_id)
     }
 
+    pub fn missing_metadata_game_ids(&self) -> DbResult<Vec<String>> {
+        let mut stmt = self.conn.prepare(
+            r#"
+            SELECT id
+            FROM games
+            WHERE NOT (
+              TRIM(COALESCE(description, '')) <> ''
+              AND TRIM(COALESCE(release_date, '')) <> ''
+              AND (TRIM(COALESCE(developer, '')) <> '' OR TRIM(COALESCE(brand, '')) <> '')
+              AND TRIM(COALESCE(cover_image, '')) <> ''
+              AND (
+                TRIM(COALESCE(vndb_id, '')) <> ''
+                OR TRIM(COALESCE(bangumi_id, '')) <> ''
+                OR TRIM(COALESCE(dlsite_id, '')) <> ''
+                OR TRIM(COALESCE(fanza_id, '')) <> ''
+                OR TRIM(COALESCE(ymgal_id, '')) <> ''
+              )
+            )
+            ORDER BY updated_at DESC, title ASC
+            "#,
+        )?;
+        let rows = stmt.query_map([], |row| row.get(0))?;
+        Ok(rows.collect::<Result<Vec<_>, _>>()?)
+    }
+
     pub fn list_field_locks(&self, game_id: String) -> DbResult<Vec<FieldLock>> {
         self.get_game(game_id.clone())?;
         self.metadata_id_repository().list_field_locks(game_id)

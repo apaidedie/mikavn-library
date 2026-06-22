@@ -29,7 +29,7 @@
     "test:scanner-page-model": "node --test scripts/scanner-page-model.test.cjs",
     "test:batch-metadata-page-model": "node --test scripts/batch-metadata-page-model.test.cjs",
     "test:saves-page-model": "node --test scripts/saves-page-model.test.cjs",
-    "test:maintenance-image-health": "node --test scripts/maintenance-image-health.test.cjs",
+    "test:maintenance-image-health": "node --test scripts/maintenance-image-health.test.cjs scripts/maintenance-queue-actions.test.cjs",
     "test:diagnostic-export": "node --test scripts/diagnostic-export.test.cjs scripts/dashboard-diagnostic-export.test.cjs",
     "test:library-performance": "node --test scripts/cover-image-performance.test.cjs scripts/library-filter-performance.test.cjs",
     "release:check": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/release/check-release-metadata.ps1",

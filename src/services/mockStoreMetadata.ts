@@ -225,6 +225,16 @@ export function createMockStoreMetadata({ readGames, getGame, updateGame, listFi
     return job;
   };
 
+  const batchMatchMissingMetadata = async (): Promise<BatchMatchJob | null> => {
+    const gameIds = readGames()
+      .map(ensureGameDefaults)
+      .filter((game) => !hasCompleteMetadata(game))
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.title.localeCompare(b.title))
+      .map((game) => game.id);
+
+    return gameIds.length > 0 ? batchMatchMetadata(gameIds) : null;
+  };
+
   return {
     searchMetadata,
     validateSearchQuery,
@@ -232,6 +242,7 @@ export function createMockStoreMetadata({ readGames, getGame, updateGame, listFi
     matchMetadataForGame,
     applyMetadataToGame,
     batchMatchMetadata,
+    batchMatchMissingMetadata,
 
     getBatchMatchStatus(jobId: string): Promise<BatchMatchStatus> {
       const raw = localStorage.getItem(BATCH_KEY);

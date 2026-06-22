@@ -149,6 +149,7 @@ pub fn run() {
             commands::metadata::set_field_lock,
             commands::metadata::set_field_locks,
             commands::metadata::batch_match_metadata,
+            commands::metadata::batch_match_missing_metadata,
             commands::metadata::preview_description_image_repair,
             commands::metadata::repair_description_images,
             commands::metadata::preview_artwork_repair,

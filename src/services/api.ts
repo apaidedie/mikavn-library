@@ -332,6 +332,10 @@ export const api = {
     return command<BatchMatchJob>('batch_match_metadata', { gameIds }, () => mockStore.batchMatchMetadata(gameIds));
   },
 
+  batchMatchMissingMetadata() {
+    return command<BatchMatchJob | null>('batch_match_missing_metadata', undefined, () => mockStore.batchMatchMissingMetadata());
+  },
+
   previewDescriptionImageRepair(options: DescriptionImageRepairOptions = {}) {
     return command<DescriptionImageRepairPreview>('preview_description_image_repair', { options }, () => mockStore.previewDescriptionImageRepair(options));
   },

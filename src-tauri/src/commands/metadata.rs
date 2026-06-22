@@ -123,6 +123,18 @@ pub fn batch_match_metadata(
 }
 
 #[tauri::command]
+pub fn batch_match_missing_metadata(
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> DbResult<Option<BatchMatchJob>> {
+    let db = state.db()?;
+    let Some((job, _)) = metadata::enqueue_missing_metadata_batch_match(app, &db)? else {
+        return Ok(None);
+    };
+    Ok(Some(job))
+}
+
+#[tauri::command]
 pub fn preview_description_image_repair(
     state: State<'_, AppState>,
     options: DescriptionImageRepairOptions,

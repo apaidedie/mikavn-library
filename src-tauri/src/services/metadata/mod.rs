@@ -372,6 +372,21 @@ pub fn enqueue_batch_match_metadata(
     Ok((job, task))
 }
 
+pub fn missing_metadata_game_ids(db: &Database) -> DbResult<Vec<String>> {
+    db.missing_metadata_game_ids()
+}
+
+pub fn enqueue_missing_metadata_batch_match(
+    app: AppHandle,
+    db: &Database,
+) -> DbResult<Option<(BatchMatchJob, TaskRecord)>> {
+    let game_ids = missing_metadata_game_ids(db)?;
+    if game_ids.is_empty() {
+        return Ok(None);
+    }
+    enqueue_batch_match_metadata(app, db, game_ids).map(Some)
+}
+
 fn build_metadata_update_input(
     app: &AppHandle,
     metadata: &NormalizedMetadata,
@@ -520,6 +535,9 @@ fn process_match_game(db: &Database, job_id: &str, game_id: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::db::models::AddGameInput;
+    use rusqlite::params;
+    use uuid::Uuid;
 
     #[test]
     fn metadata_update_respects_selected_locked_fields() {
@@ -555,6 +573,69 @@ mod tests {
         assert_eq!(detail_cache_key("VNDB", "V123"), "detail:vndb:v123");
     }
 
+    #[test]
+    fn missing_metadata_game_ids_selects_incomplete_games_in_update_order() {
+        let db = test_db();
+
+        let complete = db
+            .add_game(AddGameInput {
+                title: "Complete VN".to_string(),
+                install_path: "D:\\Games\\Complete VN".to_string(),
+                description: Some("Story".to_string()),
+                release_date: Some("2026-01-01".to_string()),
+                developer: Some("Studio".to_string()),
+                cover_image: Some("cover.jpg".to_string()),
+                vndb_id: Some("v1".to_string()),
+                ..empty_game_input()
+            })
+            .unwrap();
+        let missing_description = db
+            .add_game(AddGameInput {
+                title: "Missing Description".to_string(),
+                install_path: "D:\\Games\\Missing Description".to_string(),
+                release_date: Some("2026-01-01".to_string()),
+                developer: Some("Studio".to_string()),
+                cover_image: Some("cover.jpg".to_string()),
+                vndb_id: Some("v2".to_string()),
+                ..empty_game_input()
+            })
+            .unwrap();
+        let missing_external_id = db
+            .add_game(AddGameInput {
+                title: "Missing External ID".to_string(),
+                install_path: "D:\\Games\\Missing External ID".to_string(),
+                description: Some("Story".to_string()),
+                release_date: Some("2026-01-01".to_string()),
+                developer: Some("Studio".to_string()),
+                cover_image: Some("cover.jpg".to_string()),
+                ..empty_game_input()
+            })
+            .unwrap();
+
+        db.conn
+            .execute(
+                "UPDATE games SET updated_at = ?2 WHERE id = ?1",
+                params![complete.id, "2026-01-01T00:00:00Z"],
+            )
+            .unwrap();
+        db.conn
+            .execute(
+                "UPDATE games SET updated_at = ?2 WHERE id = ?1",
+                params![missing_description.id, "2026-01-03T00:00:00Z"],
+            )
+            .unwrap();
+        db.conn
+            .execute(
+                "UPDATE games SET updated_at = ?2 WHERE id = ?1",
+                params![missing_external_id.id, "2026-01-02T00:00:00Z"],
+            )
+            .unwrap();
+
+        let ids = missing_metadata_game_ids(&db).unwrap();
+
+        assert_eq!(ids, vec![missing_description.id, missing_external_id.id]);
+    }
+
     #[cfg(test)]
     fn build_metadata_update_input_for_test(
         metadata: &NormalizedMetadata,
@@ -572,6 +653,44 @@ mod tests {
             input.tags = Some(metadata.tags.clone());
         }
         input
+    }
+
+    fn test_db() -> Database {
+        let path = std::env::temp_dir().join(format!("mikavn-metadata-test-{}.db", Uuid::new_v4()));
+        Database::new_from_path(path).unwrap()
+    }
+
+    fn empty_game_input() -> AddGameInput {
+        AddGameInput {
+            title: String::new(),
+            original_title: None,
+            aliases: None,
+            developer: None,
+            publisher: None,
+            brand: None,
+            release_date: None,
+            description: None,
+            notes: None,
+            tags: None,
+            genres: None,
+            rating: None,
+            age_rating: None,
+            play_status: None,
+            favorite: None,
+            hidden: None,
+            install_path: String::new(),
+            executable_path: None,
+            working_directory: None,
+            launch_args: None,
+            cover_image: None,
+            banner_image: None,
+            background_image: None,
+            vndb_id: None,
+            bangumi_id: None,
+            dlsite_id: None,
+            fanza_id: None,
+            ymgal_id: None,
+        }
     }
 }
 

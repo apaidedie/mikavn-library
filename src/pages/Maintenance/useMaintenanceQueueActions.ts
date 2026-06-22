@@ -25,15 +25,13 @@ export function useMaintenanceQueueActions({ loadDiagnostics, loadMaintenanceTas
     setError(null);
     setMessage(null);
     try {
-      const candidates = await api.listGames({ metadataStatus: 'needs_metadata', sortBy: 'updated_at', sortDirection: 'desc' });
-      const gameIds = candidates.map((game) => game.id);
-      if (gameIds.length === 0) {
+      const job = await api.batchMatchMissingMetadata();
+      if (!job) {
         setMessage({ text: '没有需要批量匹配元数据的条目。' });
         await loadDiagnostics();
         return;
       }
-      const job = await api.batchMatchMetadata(gameIds);
-      const text = `已创建批量元数据匹配任务：${formatCount(gameIds.length)} 个条目。`;
+      const text = `已创建批量元数据匹配任务：${formatCount(job.total)} 个条目。`;
       setMessage({ text, taskId: job.taskId ?? null });
       await loadMaintenanceTasks({ quiet: true });
       if (!await refreshHistoryForTaskType('metadata.batch_match', { onlyIfLoaded: true }) && job.taskId) onOpenTasks?.(job.taskId);
