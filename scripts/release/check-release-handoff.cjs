@@ -175,12 +175,19 @@ function manualRiskChecklistSummary(checklist) {
   };
 }
 
-function blockingReleaseRisks({ signingStatus, manualRiskChecklist }) {
+function blockingReleaseRisks({ signingStatus, manualRiskChecklist, largeLibraryPerformanceWarnings = 0 }) {
   const risks = [];
   if (signingStatus === 'documented-unsigned') {
     risks.push({
       code: 'unsigned-windows-artifacts',
       message: 'Windows artifacts are documented as unsigned; public release should use a trusted signing certificate.',
+    });
+  }
+  if (largeLibraryPerformanceWarnings > 0) {
+    risks.push({
+      code: 'large-library-performance-warnings',
+      message: `Large-library smoke recorded ${largeLibraryPerformanceWarnings} performance warning(s); inspect the large-library report before public release.`,
+      warningCount: largeLibraryPerformanceWarnings,
     });
   }
   if (manualRiskChecklist.pending > 0) {
@@ -246,7 +253,7 @@ function checkReleaseHandoff(options = {}) {
   requireTokens(checklist, REQUIRED_CHECKLIST_TOKENS, 'manual risk checklist');
   const manualRiskChecklist = manualRiskChecklistSummary(checklist);
   const manualRiskStatus = manualRiskChecklist.pending === 0 ? 'passed' : 'checklist-pending';
-  const blockingRisks = blockingReleaseRisks({ signingStatus, manualRiskChecklist });
+  const blockingRisks = blockingReleaseRisks({ signingStatus, manualRiskChecklist, largeLibraryPerformanceWarnings });
   if (options.requirePublicReady) requireNoBlockingReleaseRisks(blockingRisks);
 
   return {

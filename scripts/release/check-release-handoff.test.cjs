@@ -242,6 +242,43 @@ test('check-release-handoff CLI can require public release readiness', () => {
   assert.match(result.stderr, /release handoff has blocking public release risk\(s\): unsigned-windows-artifacts/);
 });
 
+test('checkReleaseHandoff treats large-library performance warnings as public release blockers', () => {
+  const { releaseDir } = createHandoff({
+    reportLines: [
+      '- `npm run release:signing:require`: passed.',
+    ],
+  });
+  const reportPath = path.join(releaseDir, 'RELEASE_VALIDATION_REPORT.md');
+  fs.writeFileSync(
+    reportPath,
+    fs.readFileSync(reportPath, 'utf8')
+      .replace('Large library performance warnings: 0.', 'Large library performance warnings: 2.')
+      .replace('- `npm run release:signing:check`: artifacts are `NotSigned`.', '- `npm run release:signing:check`: signed true.')
+      .replace('- `npm run release:signing:require`: failed as expected because the artifacts are not signed with a valid trusted certificate.', '- `npm run release:signing:require`: passed.'),
+  );
+  const checklistPath = path.join(releaseDir, 'MANUAL_RISK_PASS_CHECKLIST.md');
+  fs.writeFileSync(
+    checklistPath,
+    fs.readFileSync(checklistPath, 'utf8')
+      .replaceAll('- [ ]', '- [x]')
+      .replace(/^(- \[x\] .+?)$/gm, '$1 Evidence: verified during release smoke.'),
+  );
+
+  const reportOnly = checkReleaseHandoff({ releaseDir });
+  assert.deepEqual(reportOnly.blockingReleaseRisks, [
+    {
+      code: 'large-library-performance-warnings',
+      message: 'Large-library smoke recorded 2 performance warning(s); inspect the large-library report before public release.',
+      warningCount: 2,
+    },
+  ]);
+
+  assert.throws(
+    () => checkReleaseHandoff({ releaseDir, requirePublicReady: true }),
+    /release handoff has blocking public release risk\(s\): large-library-performance-warnings/,
+  );
+});
+
 test('checkReleaseHandoff rejects checked manual risk items without evidence', () => {
   const { releaseDir } = createHandoff();
   const checklistPath = path.join(releaseDir, 'MANUAL_RISK_PASS_CHECKLIST.md');
