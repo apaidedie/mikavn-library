@@ -59,7 +59,7 @@ export function restoreModeLabel(mode: SaveRestoreMode | string) {
 export function restoreConfirmationMessage(mode: SaveRestoreMode, preview: SaveRestorePreview) {
   const summary = `${restoreModeLabel(mode)}恢复预览：新增 ${formatCount(preview.newFiles)} 个，覆盖 ${formatCount(preview.overwrittenFiles)} 个，${mode === 'mirror' ? `清理当前 ${formatCount(preview.removedFiles)} 个` : `保留当前 ${formatCount(preview.keptFiles)} 个`}。`;
   const warning = mode === 'mirror'
-    ? '镜像恢复会先创建保护备份，然后清空当前存档目录内容，再复制备份内容。此操作只作用于已登记存档目录。'
+    ? '镜像恢复会先创建保护备份，然后清理当前存档目录中不在备份内的文件，再复制备份内容。此操作只作用于已登记存档目录。'
     : '合并恢复会先创建保护备份，然后复制备份内容并覆盖同名存档文件，当前目录里的其它文件会保留。';
   return `${summary}\n\n${warning}\n\n确认继续吗？`;
 }
