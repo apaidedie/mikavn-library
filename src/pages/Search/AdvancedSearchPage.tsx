@@ -12,7 +12,13 @@ import type { Game } from '@/types/game';
 import type { AdvancedSearchResult, SavedSearch, SearchQueryValidation } from '@/types/metadata';
 import { errorMessage } from '@/utils/errorMessage';
 import { formatPlayTime } from '@/utils/time';
-import { formatAdvancedSearchResultDescription } from './advancedSearchPageModel';
+import {
+  advancedSearchResultRenderBatchSize,
+  formatAdvancedSearchRenderedResultSummary,
+  formatAdvancedSearchResultDescription,
+  nextAdvancedSearchVisibleResultLimit,
+  visibleAdvancedSearchResults,
+} from './advancedSearchPageModel';
 
 const quickSearches = [
   { label: '高分作品', description: '评分 80 以上', query: 'rating>=80' },
@@ -35,10 +41,13 @@ export function AdvancedSearchPage({ refreshKey, onOpenGame }: { refreshKey: num
   const [saved, setSaved] = useState<SavedSearch[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [visibleResultLimit, setVisibleResultLimit] = useState(advancedSearchResultRenderBatchSize);
   const validationRequestRef = useRef(0);
   const searchRequestRef = useRef(0);
 
   const resultGames = result?.games ?? [];
+  const visibleResultGames = visibleAdvancedSearchResults(resultGames, visibleResultLimit);
+  const renderedResultSummary = formatAdvancedSearchRenderedResultSummary({ visible: visibleResultGames.length, loaded: resultGames.length });
   const clauses = validation?.clauses ?? result?.clauses ?? [];
   const valid = validation?.valid ?? true;
   const canSave = valid && query.trim().length > 0;
@@ -94,6 +103,7 @@ export function AdvancedSearchPage({ refreshKey, onOpenGame }: { refreshKey: num
       const next = await api.searchGamesAdvanced({ query: nextQuery, sortBy: nextSortBy, sortDirection: nextSortDirection, limit: 200 });
       if (requestId !== searchRequestRef.current) return;
       setResult(next);
+      setVisibleResultLimit(advancedSearchResultRenderBatchSize);
       setValidation({ valid: next.errors.length === 0, errors: next.errors, clauses: next.clauses });
     } catch (reason) {
       if (requestId !== searchRequestRef.current) return;
@@ -134,6 +144,10 @@ export function AdvancedSearchPage({ refreshKey, onOpenGame }: { refreshKey: num
     setQuery(item.query);
     setName(item.name);
     void runSearch(item.query);
+  }
+
+  function showMoreResults() {
+    setVisibleResultLimit(nextAdvancedSearchVisibleResultLimit(visibleResultLimit, resultGames.length));
   }
 
   return (
@@ -235,9 +249,17 @@ export function AdvancedSearchPage({ refreshKey, onOpenGame }: { refreshKey: num
               ) : resultGames.length === 0 ? (
                 <EmptyState className="flex min-h-[24rem] items-center justify-center">没有匹配条目。</EmptyState>
               ) : (
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                  {resultGames.map((game) => <GameResultCard key={game.id} game={game} onOpen={() => onOpenGame?.(game.id)} />)}
-                </div>
+                <>
+                  {renderedResultSummary && (
+                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-white/10 bg-black/[0.10] px-3 py-2">
+                      <div className="text-xs text-slate-400">{renderedResultSummary}</div>
+                      <Button className="h-7 px-2 text-xs" size="sm" variant="ghost" onClick={showMoreResults}>显示更多</Button>
+                    </div>
+                  )}
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                    {visibleResultGames.map((game) => <GameResultCard key={game.id} game={game} onOpen={() => onOpenGame?.(game.id)} />)}
+                  </div>
+                </>
               )}
             </PanelContent>
           </Panel>
