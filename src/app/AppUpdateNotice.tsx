@@ -115,6 +115,12 @@ export function AppUpdateNotice({
               {installing ? '安装中' : '下载并安装'}
             </Button>
           )}
+          <Button asChild size="sm" type="button" variant="outline">
+            <a href={updaterFallbackDownloadUrl} rel="noreferrer" target="_blank">
+              <ExternalLink className="h-4 w-4" />
+              手动下载最新版
+            </a>
+          </Button>
           <Button aria-label="本次忽略" onClick={onDismiss} size="icon" title="本次忽略" type="button" variant="ghost">
             <X className="h-4 w-4" />
           </Button>

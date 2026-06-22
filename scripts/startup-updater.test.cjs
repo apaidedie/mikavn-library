@@ -54,6 +54,17 @@ test('startup update notice exposes fallback download link after install errors'
   assert.match(notice, /recoveryActionMessage/);
 });
 
+test('startup update notice keeps a public manual download link visible before failures', () => {
+  const notice = read('src/app/AppUpdateNotice.tsx');
+  const manualDownloadIndex = notice.indexOf('手动下载最新版');
+  const errorBlockIndex = notice.indexOf('{error &&');
+
+  assert.ok(manualDownloadIndex > -1, 'startup update notice must expose a manual public download link');
+  assert.ok(errorBlockIndex > -1, 'error-specific fallback block should still exist');
+  assert.ok(manualDownloadIndex > errorBlockIndex, 'manual public download link should be rendered outside the error-only fallback block');
+  assert.match(notice, /href=\{updaterFallbackDownloadUrl\}/);
+});
+
 test('startup update notice uses recovery hints and reports restart failures', () => {
   const hook = read('src/app/useStartupUpdater.ts');
   const notice = read('src/app/AppUpdateNotice.tsx');
