@@ -1,11 +1,15 @@
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::sync::OnceLock;
 use std::thread;
 
 use tauri::AppHandle;
 
-use crate::db::models::{ExternalIdRecord, Game, GameFilter, TaskRecord, UpdateGameInput};
+use crate::db::models::{
+    DescriptionImageProviderIdRow, DescriptionImageRepairCandidateRow, Game, TaskRecord,
+    UpdateGameInput,
+};
 use crate::db::{Database, DbError, DbResult};
 use crate::infrastructure::logger;
 use crate::infrastructure::paths::AppPaths;
@@ -359,50 +363,39 @@ fn repair_candidates(
     db: &Database,
     options: &RepairRunOptions,
 ) -> DbResult<Vec<DescriptionImageRepairCandidate>> {
-    let games = db.list_games(GameFilter {
-        sort_by: Some("updated_at".to_string()),
-        sort_direction: Some("desc".to_string()),
-        ..GameFilter::default()
-    })?;
-    Ok(games
+    let provider_rows =
+        description_provider_rows_by_game(db.list_description_image_provider_id_rows()?);
+    Ok(db
+        .list_description_image_repair_candidate_rows()?
         .into_iter()
-        .filter(description_needs_images)
-        .filter_map(|game| candidate_from_game(db, game, &options.provider))
+        .filter(|row| description_needs_images_from_value(row.description.as_deref()))
+        .filter_map(|row| {
+            let rows = provider_rows.get(&row.id).map_or(&[][..], Vec::as_slice);
+            candidate_from_row(row, rows, &options.provider)
+        })
         .collect())
 }
 
-fn candidate_from_game(
-    db: &Database,
-    game: Game,
+fn candidate_from_row(
+    row: DescriptionImageRepairCandidateRow,
+    provider_rows: &[DescriptionImageProviderIdRow],
     provider_filter: &str,
 ) -> Option<DescriptionImageRepairCandidate> {
     if provider_filter == "all" || provider_filter == "dlsite" {
-        if let Some(id) = game_provider_id(
-            db,
-            &game,
-            "dlsite",
-            |game| game.dlsite_id.as_deref(),
-            is_dlsite_id,
-        ) {
+        if let Some(id) = provider_id_from_rows(provider_rows, "dlsite", is_dlsite_id) {
             return Some(DescriptionImageRepairCandidate {
-                game_id: game.id,
-                title: game.title,
+                game_id: row.id,
+                title: row.title,
                 provider: "dlsite".to_string(),
                 provider_id: id.to_uppercase(),
             });
         }
     }
     if provider_filter == "all" || provider_filter == "fanza" {
-        if let Some(id) = game_provider_id(
-            db,
-            &game,
-            "fanza",
-            |game| game.fanza_id.as_deref(),
-            is_fanza_id,
-        ) {
+        if let Some(id) = provider_id_from_rows(provider_rows, "fanza", is_fanza_id) {
             return Some(DescriptionImageRepairCandidate {
-                game_id: game.id,
-                title: game.title,
+                game_id: row.id,
+                title: row.title,
                 provider: "fanza".to_string(),
                 provider_id: id.to_lowercase(),
             });
@@ -411,38 +404,37 @@ fn candidate_from_game(
     None
 }
 
-fn game_provider_id(
-    db: &Database,
-    game: &Game,
-    provider: &str,
-    game_field: impl Fn(&Game) -> Option<&str>,
-    is_valid: impl Fn(&str) -> bool,
-) -> Option<String> {
-    if let Some(id) = game_field(game).map(str::trim).filter(|id| is_valid(id)) {
-        return Some(id.to_string());
+fn description_provider_rows_by_game(
+    rows: Vec<DescriptionImageProviderIdRow>,
+) -> HashMap<String, Vec<DescriptionImageProviderIdRow>> {
+    let mut grouped: HashMap<String, Vec<DescriptionImageProviderIdRow>> = HashMap::new();
+    for row in rows {
+        grouped.entry(row.game_id.clone()).or_default().push(row);
     }
-    db.list_external_ids(game.id.clone())
-        .ok()?
-        .into_iter()
-        .find_map(|record| external_id_for_provider(record, provider, &is_valid))
+    grouped
 }
 
-fn external_id_for_provider(
-    record: ExternalIdRecord,
+fn provider_id_from_rows(
+    rows: &[DescriptionImageProviderIdRow],
     provider: &str,
-    is_valid: &impl Fn(&str) -> bool,
+    is_valid: impl Fn(&str) -> bool,
 ) -> Option<String> {
-    let id = record.external_id.trim();
-    if record.provider.trim().eq_ignore_ascii_case(provider) && is_valid(id) {
-        Some(id.to_string())
-    } else {
-        None
-    }
+    rows.iter().find_map(|row| {
+        let id = row.external_id.trim();
+        if row.provider.trim().eq_ignore_ascii_case(provider) && is_valid(id) {
+            Some(id.to_string())
+        } else {
+            None
+        }
+    })
 }
 
 fn description_needs_images(game: &Game) -> bool {
-    game.description
-        .as_deref()
+    description_needs_images_from_value(game.description.as_deref())
+}
+
+fn description_needs_images_from_value(description: Option<&str>) -> bool {
+    description
         .map(|description| {
             !description.trim().is_empty() && !has_description_image_token(description)
         })
@@ -567,6 +559,54 @@ fn normalize_options(options: DescriptionImageRepairOptions) -> DbResult<RepairR
 mod tests {
     use super::*;
 
+    fn test_db() -> Database {
+        let path = std::env::temp_dir().join(format!(
+            "mikavn-description-image-repair-test-{}.db",
+            uuid::Uuid::new_v4()
+        ));
+        Database::new_from_path(path).unwrap()
+    }
+
+    fn game_with_description(description: Option<&str>) -> Game {
+        Game {
+            id: "game".to_string(),
+            title: "Game".to_string(),
+            original_title: None,
+            aliases: Vec::new(),
+            developer: None,
+            publisher: None,
+            brand: None,
+            release_date: None,
+            description: description.map(ToString::to_string),
+            notes: None,
+            tags: Vec::new(),
+            genres: Vec::new(),
+            rating: None,
+            age_rating: None,
+            play_status: "planned".to_string(),
+            favorite: false,
+            hidden: false,
+            install_path: "D:\\Games\\Game".to_string(),
+            executable_path: None,
+            working_directory: None,
+            launch_args: None,
+            path_status: "unknown".to_string(),
+            last_path_checked_at: None,
+            cover_image: None,
+            banner_image: None,
+            background_image: None,
+            vndb_id: None,
+            bangumi_id: None,
+            dlsite_id: None,
+            fanza_id: None,
+            ymgal_id: None,
+            total_play_seconds: 0,
+            last_played_at: None,
+            created_at: String::new(),
+            updated_at: String::new(),
+        }
+    }
+
     #[test]
     fn description_image_tokens_extract_markdown_and_urls() {
         let tokens = description_image_tokens(
@@ -645,5 +685,30 @@ mod tests {
         assert_eq!(options.limit, MAX_LIMIT);
         assert_eq!(options.max_images, MAX_IMAGES);
         assert!(options.retry_attempted);
+    }
+
+    #[test]
+    fn description_preview_reads_normalized_external_ids_from_lightweight_rows() {
+        let db = test_db();
+        db.insert_imported_game_record(game_with_description(Some("只有文字简介。")))
+            .unwrap();
+        db.upsert_external_id("game", "dlsite", "RJ01234567", Some("manual"), None)
+            .unwrap();
+
+        let preview = preview_description_image_repair(
+            &db,
+            DescriptionImageRepairOptions {
+                provider: Some("dlsite".to_string()),
+                limit: Some(10),
+                max_images: Some(3),
+                retry_attempted: None,
+            },
+        )
+        .unwrap();
+
+        assert_eq!(preview.total_candidates, 1);
+        assert_eq!(preview.candidates[0].game_id, "game");
+        assert_eq!(preview.candidates[0].provider, "dlsite");
+        assert_eq!(preview.candidates[0].provider_id, "RJ01234567");
     }
 }

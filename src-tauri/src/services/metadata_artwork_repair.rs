@@ -1,10 +1,13 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::thread;
 
 use tauri::AppHandle;
 
-use crate::db::models::{ExternalIdRecord, Game, GameFilter, TaskRecord, UpdateGameInput};
+use crate::db::models::{
+    ArtworkProviderIdRow, ArtworkRepairCandidateRow, ExternalIdRecord, Game, TaskRecord,
+    UpdateGameInput,
+};
 use crate::db::{Database, DbError, DbResult};
 use crate::infrastructure::logger;
 use crate::infrastructure::paths::AppPaths;
@@ -137,17 +140,14 @@ pub fn diagnose_artwork_repair(
     options: ArtworkRepairOptions,
 ) -> DbResult<ArtworkRepairDiagnosis> {
     let run_options = normalize_options(options)?;
-    let games = db.list_games(GameFilter {
-        sort_by: Some("updated_at".to_string()),
-        sort_direction: Some("desc".to_string()),
-        ..GameFilter::default()
-    })?;
+    let rows = db.list_artwork_repair_candidate_rows()?;
+    let provider_rows = provider_rows_by_game(db.list_artwork_provider_id_rows()?);
     let mut total_missing_games = 0usize;
     let mut total_missing_fields = 0usize;
     let mut items = Vec::new();
 
-    for game in games {
-        let missing_fields = missing_artwork_fields(&game, &run_options.fields);
+    for row in rows {
+        let missing_fields = missing_artwork_fields_from_row(&row, &run_options.fields);
         if missing_fields.is_empty() {
             continue;
         }
@@ -156,8 +156,17 @@ pub fn diagnose_artwork_repair(
         if items.len() >= run_options.limit {
             continue;
         }
-        let providers = provider_refs_for_game(db, &game, &run_options.providers)?;
-        items.push(diagnose_artwork_item(db, &game, missing_fields, providers));
+        let providers = provider_refs_from_rows(
+            provider_rows.get(&row.id).map_or(&[][..], Vec::as_slice),
+            &run_options.providers,
+        );
+        items.push(diagnose_artwork_item(
+            db,
+            &row.id,
+            &row.title,
+            missing_fields,
+            providers,
+        ));
     }
 
     let diagnosed_games = items.len();
@@ -476,14 +485,15 @@ fn cached_artwork_from_provider(
 
 fn diagnose_artwork_item(
     db: &Database,
-    game: &Game,
+    game_id: &str,
+    title: &str,
     missing_fields: Vec<String>,
     providers: Vec<ArtworkProviderRef>,
 ) -> ArtworkRepairDiagnosisItem {
     if providers.is_empty() {
         return ArtworkRepairDiagnosisItem {
-            game_id: game.id.clone(),
-            title: game.title.clone(),
+            game_id: game_id.to_string(),
+            title: title.to_string(),
             missing_fields,
             providers,
             provider_results: Vec::new(),
@@ -548,8 +558,8 @@ fn diagnose_artwork_item(
     };
 
     ArtworkRepairDiagnosisItem {
-        game_id: game.id.clone(),
-        title: game.title.clone(),
+        game_id: game_id.to_string(),
+        title: title.to_string(),
         missing_fields,
         providers,
         provider_results,
@@ -562,24 +572,24 @@ fn artwork_candidates(
     db: &Database,
     options: &ArtworkRunOptions,
 ) -> DbResult<Vec<ArtworkRepairCandidate>> {
-    let games = db.list_games(GameFilter {
-        sort_by: Some("updated_at".to_string()),
-        sort_direction: Some("desc".to_string()),
-        ..GameFilter::default()
-    })?;
+    let rows = db.list_artwork_repair_candidate_rows()?;
+    let provider_rows = provider_rows_by_game(db.list_artwork_provider_id_rows()?);
     let mut candidates = Vec::new();
-    for game in games {
-        let missing_fields = missing_artwork_fields(&game, &options.fields);
+    for row in rows {
+        let missing_fields = missing_artwork_fields_from_row(&row, &options.fields);
         if missing_fields.is_empty() {
             continue;
         }
-        let providers = provider_refs_for_game(db, &game, &options.providers)?;
+        let providers = provider_refs_from_rows(
+            provider_rows.get(&row.id).map_or(&[][..], Vec::as_slice),
+            &options.providers,
+        );
         if providers.is_empty() {
             continue;
         }
         candidates.push(ArtworkRepairCandidate {
-            game_id: game.id,
-            title: game.title,
+            game_id: row.id,
+            title: row.title,
             missing_fields,
             providers,
         });
@@ -588,19 +598,70 @@ fn artwork_candidates(
 }
 
 fn missing_artwork_fields(game: &Game, fields: &[String]) -> Vec<String> {
+    missing_artwork_fields_from_values(
+        game.cover_image.as_deref(),
+        game.banner_image.as_deref(),
+        game.background_image.as_deref(),
+        fields,
+    )
+}
+
+fn missing_artwork_fields_from_row(
+    row: &ArtworkRepairCandidateRow,
+    fields: &[String],
+) -> Vec<String> {
+    missing_artwork_fields_from_values(
+        row.cover_image.as_deref(),
+        row.banner_image.as_deref(),
+        row.background_image.as_deref(),
+        fields,
+    )
+}
+
+fn missing_artwork_fields_from_values(
+    cover_image: Option<&str>,
+    banner_image: Option<&str>,
+    background_image: Option<&str>,
+    fields: &[String],
+) -> Vec<String> {
     let mut missing = Vec::new();
-    if fields.iter().any(|field| field == "cover") && is_empty(game.cover_image.as_deref()) {
+    if fields.iter().any(|field| field == "cover") && is_empty(cover_image) {
         missing.push("cover".to_string());
     }
-    if fields.iter().any(|field| field == "banner") && is_empty(game.banner_image.as_deref()) {
+    if fields.iter().any(|field| field == "banner") && is_empty(banner_image) {
         missing.push("banner".to_string());
     }
-    if fields.iter().any(|field| field == "background")
-        && is_empty(game.background_image.as_deref())
-    {
+    if fields.iter().any(|field| field == "background") && is_empty(background_image) {
         missing.push("background".to_string());
     }
     missing
+}
+
+fn provider_rows_by_game(
+    rows: Vec<ArtworkProviderIdRow>,
+) -> HashMap<String, Vec<ArtworkProviderIdRow>> {
+    let mut grouped: HashMap<String, Vec<ArtworkProviderIdRow>> = HashMap::new();
+    for row in rows {
+        grouped.entry(row.game_id.clone()).or_default().push(row);
+    }
+    grouped
+}
+
+fn provider_refs_from_rows(
+    rows: &[ArtworkProviderIdRow],
+    provider_order: &[String],
+) -> Vec<ArtworkProviderRef> {
+    let mut refs = Vec::new();
+    let mut seen = HashSet::new();
+    for provider in provider_order {
+        for row in rows
+            .iter()
+            .filter(|row| row.provider.trim().eq_ignore_ascii_case(provider))
+        {
+            push_artwork_provider_row_ref(&mut refs, &mut seen, row);
+        }
+    }
+    refs
 }
 
 fn provider_refs_for_game(
@@ -666,6 +727,24 @@ fn push_external_provider_ref(
 ) {
     let provider = record.provider.trim().to_lowercase();
     let id = record.external_id.trim();
+    let valid = match provider.as_str() {
+        "vndb" => is_vndb_id(id),
+        "dlsite" => is_dlsite_id(id),
+        "fanza" => is_fanza_id(id),
+        _ => false,
+    };
+    if valid {
+        push_normalized_provider_ref(refs, seen, &provider, id);
+    }
+}
+
+fn push_artwork_provider_row_ref(
+    refs: &mut Vec<ArtworkProviderRef>,
+    seen: &mut HashSet<(String, String)>,
+    row: &ArtworkProviderIdRow,
+) {
+    let provider = row.provider.trim().to_lowercase();
+    let id = row.external_id.trim();
     let valid = match provider.as_str() {
         "vndb" => is_vndb_id(id),
         "dlsite" => is_dlsite_id(id),
@@ -798,6 +877,14 @@ fn normalize_fields(input: Option<Vec<String>>) -> DbResult<Vec<String>> {
 mod tests {
     use super::*;
 
+    fn test_db() -> Database {
+        let path = std::env::temp_dir().join(format!(
+            "mikavn-artwork-repair-test-{}.db",
+            uuid::Uuid::new_v4()
+        ));
+        Database::new_from_path(path).unwrap()
+    }
+
     fn game_with_artwork(
         cover: Option<&str>,
         banner: Option<&str>,
@@ -891,7 +978,8 @@ mod tests {
                 uuid::Uuid::new_v4()
             )))
             .unwrap(),
-            &game,
+            &game.id,
+            &game.title,
             vec!["cover".to_string(), "banner".to_string()],
             Vec::new(),
         );
@@ -940,5 +1028,39 @@ mod tests {
         assert!(is_vndb_id("v123"));
         assert!(is_vndb_id("V123"));
         assert!(!is_vndb_id("x123"));
+    }
+
+    #[test]
+    fn artwork_preview_reads_normalized_external_ids_from_lightweight_rows() {
+        let db = test_db();
+        db.insert_imported_game_record(game_with_artwork_and_ids(
+            None,
+            Some("banner.png"),
+            Some("background.png"),
+            None,
+            None,
+            None,
+        ))
+        .unwrap();
+        db.upsert_external_id("game", "dlsite", "RJ01234567", Some("manual"), None)
+            .unwrap();
+
+        let preview = preview_artwork_repair(
+            &db,
+            ArtworkRepairOptions {
+                providers: Some(vec!["dlsite".to_string()]),
+                fields: Some(vec!["cover".to_string()]),
+                limit: Some(10),
+                retry_attempted: None,
+            },
+        )
+        .unwrap();
+
+        assert_eq!(preview.total_candidates, 1);
+        assert_eq!(preview.total_missing_fields, 1);
+        assert_eq!(preview.candidates[0].game_id, "game");
+        assert_eq!(preview.candidates[0].missing_fields, vec!["cover"]);
+        assert_eq!(preview.candidates[0].providers[0].provider, "dlsite");
+        assert_eq!(preview.candidates[0].providers[0].provider_id, "RJ01234567");
     }
 }

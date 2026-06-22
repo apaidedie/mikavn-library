@@ -1,6 +1,7 @@
 use crate::db::models::{
-    BatchMatchJob, BatchMatchStatus, DuplicateExternalIdAuditRow, ExternalIdRecord, FieldLock,
-    Game, MetadataSourceRecord,
+    ArtworkProviderIdRow, ArtworkRepairCandidateRow, BatchMatchJob, BatchMatchStatus,
+    DescriptionImageProviderIdRow, DescriptionImageRepairCandidateRow, DuplicateExternalIdAuditRow,
+    ExternalIdRecord, FieldLock, Game, MetadataSourceRecord,
 };
 use crate::db::{Database, DbResult};
 use crate::repositories::metadata_matches::InsertMatchResultInput;
@@ -166,6 +167,130 @@ impl Database {
                 title: row.get(3)?,
                 install_path: row.get(4)?,
                 source: row.get(5)?,
+            })
+        })?;
+        Ok(rows.collect::<Result<Vec<_>, _>>()?)
+    }
+
+    pub fn list_artwork_repair_candidate_rows(&self) -> DbResult<Vec<ArtworkRepairCandidateRow>> {
+        let mut stmt = self.conn.prepare(
+            r#"
+            SELECT id, title, cover_image, banner_image, background_image FROM games
+            WHERE TRIM(COALESCE(cover_image, '')) = ''
+               OR TRIM(COALESCE(banner_image, '')) = ''
+               OR TRIM(COALESCE(background_image, '')) = ''
+            ORDER BY updated_at DESC, title ASC
+            "#,
+        )?;
+        let rows = stmt.query_map([], |row| {
+            Ok(ArtworkRepairCandidateRow {
+                id: row.get(0)?,
+                title: row.get(1)?,
+                cover_image: row.get(2)?,
+                banner_image: row.get(3)?,
+                background_image: row.get(4)?,
+            })
+        })?;
+        Ok(rows.collect::<Result<Vec<_>, _>>()?)
+    }
+
+    pub fn list_artwork_provider_id_rows(&self) -> DbResult<Vec<ArtworkProviderIdRow>> {
+        let missing_artwork_where = r#"
+            TRIM(COALESCE(g.cover_image, '')) = ''
+            OR TRIM(COALESCE(g.banner_image, '')) = ''
+            OR TRIM(COALESCE(g.background_image, '')) = ''
+        "#;
+        let sql = format!(
+            r#"
+            SELECT game_id, provider, external_id
+            FROM (
+              SELECT g.id AS game_id, 'vndb' AS provider, g.vndb_id AS external_id
+              FROM games g
+              WHERE {missing_artwork_where}
+              UNION ALL
+              SELECT g.id AS game_id, 'dlsite' AS provider, g.dlsite_id AS external_id
+              FROM games g
+              WHERE {missing_artwork_where}
+              UNION ALL
+              SELECT g.id AS game_id, 'fanza' AS provider, g.fanza_id AS external_id
+              FROM games g
+              WHERE {missing_artwork_where}
+              UNION ALL
+              SELECT e.game_id, e.provider, e.external_id
+              FROM external_ids e
+              INNER JOIN games g ON g.id = e.game_id
+              WHERE ({missing_artwork_where})
+                AND LOWER(TRIM(e.provider)) IN ('vndb', 'dlsite', 'fanza')
+            )
+            WHERE TRIM(COALESCE(provider, '')) <> ''
+              AND TRIM(COALESCE(external_id, '')) <> ''
+            ORDER BY game_id ASC, provider ASC, external_id ASC
+            "#
+        );
+        let mut stmt = self.conn.prepare(&sql)?;
+        let rows = stmt.query_map([], |row| {
+            Ok(ArtworkProviderIdRow {
+                game_id: row.get(0)?,
+                provider: row.get(1)?,
+                external_id: row.get(2)?,
+            })
+        })?;
+        Ok(rows.collect::<Result<Vec<_>, _>>()?)
+    }
+
+    pub fn list_description_image_repair_candidate_rows(
+        &self,
+    ) -> DbResult<Vec<DescriptionImageRepairCandidateRow>> {
+        let mut stmt = self.conn.prepare(
+            r#"
+            SELECT id, title, description FROM games
+            WHERE TRIM(COALESCE(description, '')) <> ''
+            ORDER BY updated_at DESC, title ASC
+            "#,
+        )?;
+        let rows = stmt.query_map([], |row| {
+            Ok(DescriptionImageRepairCandidateRow {
+                id: row.get(0)?,
+                title: row.get(1)?,
+                description: row.get(2)?,
+            })
+        })?;
+        Ok(rows.collect::<Result<Vec<_>, _>>()?)
+    }
+
+    pub fn list_description_image_provider_id_rows(
+        &self,
+    ) -> DbResult<Vec<DescriptionImageProviderIdRow>> {
+        let description_where = "TRIM(COALESCE(g.description, '')) <> ''";
+        let sql = format!(
+            r#"
+            SELECT game_id, provider, external_id
+            FROM (
+              SELECT g.id AS game_id, 'dlsite' AS provider, g.dlsite_id AS external_id
+              FROM games g
+              WHERE {description_where}
+              UNION ALL
+              SELECT g.id AS game_id, 'fanza' AS provider, g.fanza_id AS external_id
+              FROM games g
+              WHERE {description_where}
+              UNION ALL
+              SELECT e.game_id, e.provider, e.external_id
+              FROM external_ids e
+              INNER JOIN games g ON g.id = e.game_id
+              WHERE {description_where}
+                AND LOWER(TRIM(e.provider)) IN ('dlsite', 'fanza')
+            )
+            WHERE TRIM(COALESCE(provider, '')) <> ''
+              AND TRIM(COALESCE(external_id, '')) <> ''
+            ORDER BY game_id ASC, provider ASC, external_id ASC
+            "#
+        );
+        let mut stmt = self.conn.prepare(&sql)?;
+        let rows = stmt.query_map([], |row| {
+            Ok(DescriptionImageProviderIdRow {
+                game_id: row.get(0)?,
+                provider: row.get(1)?,
+                external_id: row.get(2)?,
             })
         })?;
         Ok(rows.collect::<Result<Vec<_>, _>>()?)

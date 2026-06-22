@@ -340,6 +340,36 @@ pub struct DuplicateExternalIdAuditRow {
     pub source: String,
 }
 
+#[derive(Debug, Clone)]
+pub struct ArtworkRepairCandidateRow {
+    pub id: String,
+    pub title: String,
+    pub cover_image: Option<String>,
+    pub banner_image: Option<String>,
+    pub background_image: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ArtworkProviderIdRow {
+    pub game_id: String,
+    pub provider: String,
+    pub external_id: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct DescriptionImageRepairCandidateRow {
+    pub id: String,
+    pub title: String,
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct DescriptionImageProviderIdRow {
+    pub game_id: String,
+    pub provider: String,
+    pub external_id: String,
+}
+
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DuplicateGameMergeOptions {

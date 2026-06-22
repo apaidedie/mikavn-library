@@ -214,6 +214,20 @@ test('maintenance image health ui links missing artwork findings to repair actio
   assert.match(content, /onStartArtworkRepair=\{queueActions\.startArtworkRepair\}/);
 });
 
+test('artwork repair candidate discovery uses lightweight backend rows', () => {
+  const service = fs.readFileSync('src-tauri/src/services/metadata_artwork_repair.rs', 'utf8');
+  const metadataDb = fs.readFileSync('src-tauri/src/db/metadata_ext.rs', 'utf8');
+
+  assert.doesNotMatch(service, /db\.list_games\(GameFilter/);
+  assert.match(service, /ArtworkRepairCandidateRow/);
+  assert.match(service, /list_artwork_repair_candidate_rows/);
+  assert.match(service, /list_artwork_provider_id_rows/);
+  assert.match(metadataDb, /pub fn list_artwork_repair_candidate_rows/);
+  assert.match(metadataDb, /SELECT id, title, cover_image, banner_image, background_image FROM games/);
+  assert.match(metadataDb, /pub fn list_artwork_provider_id_rows/);
+  assert.match(metadataDb, /FROM external_ids/);
+});
+
 test('maintenance image health ui links broken image references to audit details', () => {
   const panel = fs.readFileSync('src/pages/Maintenance/MaintenanceImageAuditPanel.tsx', 'utf8');
 
@@ -655,6 +669,21 @@ test('description image repair history collects unique legacy source lookups', (
     { provider: 'fanza', providerId: 'ABC_123' },
     { provider: 'fanza', providerId: 'ABC_456' },
   ]);
+});
+
+test('description image repair candidate discovery uses lightweight backend rows', () => {
+  const service = fs.readFileSync('src-tauri/src/services/metadata_description_images.rs', 'utf8');
+  const metadataDb = fs.readFileSync('src-tauri/src/db/metadata_ext.rs', 'utf8');
+
+  assert.doesNotMatch(service, /db\.list_games\(GameFilter/);
+  assert.doesNotMatch(service, /db\.list_external_ids\(game\.id\.clone\(\)\)/);
+  assert.match(service, /DescriptionImageRepairCandidateRow/);
+  assert.match(service, /list_description_image_repair_candidate_rows/);
+  assert.match(service, /list_description_image_provider_id_rows/);
+  assert.match(metadataDb, /pub fn list_description_image_repair_candidate_rows/);
+  assert.match(metadataDb, /SELECT id, title, description FROM games/);
+  assert.match(metadataDb, /pub fn list_description_image_provider_id_rows/);
+  assert.match(metadataDb, /FROM external_ids/);
 });
 
 test('maintenance description history only loads games for legacy task logs', () => {
