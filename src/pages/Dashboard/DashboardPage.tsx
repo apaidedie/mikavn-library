@@ -63,7 +63,7 @@ export function DashboardPage({ refreshKey, onOpenGame, onAddGame, onOpenScanner
         errors.push(`本地自检暂时不可用：${errorMessage(reason)}`);
         if (!cancelled) setSectionErrors([...errors]);
       });
-    api.listGames({ status: 'playing', sortBy: 'last_played_at', sortDirection: 'desc' })
+    api.listGames({ status: 'playing', sortBy: 'last_played_at', sortDirection: 'desc', limit: 24 })
       .then((next) => !cancelled && setPlayingGames(next))
       .catch((reason: unknown) => {
         errors.push(`继续游玩列表暂时不可用：${errorMessage(reason)}`);

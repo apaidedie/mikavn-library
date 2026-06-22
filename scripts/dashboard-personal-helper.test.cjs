@@ -205,3 +205,9 @@ test('deriveDatabaseBackupStatus reports missing, fresh, and stale local backups
     latestBackupAt: '2026-05-20T00:00:00.000Z',
   });
 });
+
+test('dashboard continue query keeps playing-game payload bounded', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Dashboard', 'DashboardPage.tsx'), 'utf8');
+
+  assert.match(source, /api\.listGames\(\{ status: 'playing', sortBy: 'last_played_at', sortDirection: 'desc', limit: 24 \}\)/);
+});
