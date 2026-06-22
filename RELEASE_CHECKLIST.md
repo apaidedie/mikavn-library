@@ -9,7 +9,7 @@ Use this checklist before packaging or sharing a build. The app is Windows-first
 - Check version alignment across `package.json`, `package-lock.json`, `src-tauri/Cargo.toml`, and `src-tauri/tauri.conf.json`.
 - Run `npm run release:check`; this verifies version alignment, required release metadata, license consistency, and the hardened Tauri security baseline (explicit CSP, prototype freezing, and scoped asset protocol). Before a public GitHub release, run `npm run release:check:strict` so repository-link placeholders are checked without relying on npm argument forwarding.
 - For a full local release candidate pass, run `npm run release:validate:strict`. When browser smoke, large smoke, Tauri build, install smoke, portable app-data smoke, real-data readonly smoke, and desktop smoke were already verified separately, run `npm run release:validate:core` to repeat the strict non-smoke core checks.
-- Run `npm run test:release-scripts`, `npm run test:playwright-scripts`, `npm run test:updater-release`, `npm run test:diagnostic-export`, and `npm run test:library-performance` when release tooling, updater wiring, diagnostic export, library performance, or smoke runners change.
+- Run `npm run test:release-scripts`, `npm run test:playwright-scripts`, `npm run test:updater-release`, `npm run test:diagnostic-export`, `npm run test:data-safety`, and `npm run test:library-performance` when release tooling, updater wiring, diagnostic export, data safety, library performance, or smoke runners change.
 
 ## 2. Automated Checks
 
@@ -26,6 +26,7 @@ npm run test:release-scripts
 npm run test:playwright-scripts
 npm run test:updater-release
 npm run test:diagnostic-export
+npm run test:data-safety
 npm run test:library-performance
 npm run build
 ```
@@ -96,7 +97,7 @@ After copying the release executable, installer, `SHA256SUMS.txt`, `RELEASE_VALI
 - `npm run tauri:build` produces the NSIS installer under `src-tauri/target/release/bundle/nsis/`.
 - Before public sharing, follow `docs/CODE_SIGNING.md`: sign with a trusted certificate, then run `npm run release:signing:require`.
 - If signed artifacts are recopied into `output/release/<version>-windows-x64/`, regenerate `SHA256SUMS.txt` and rerun `npm run release:handoff:check`.
-- GitHub tag releases are handled by `.github/workflows/release.yml`; tag versions should use `vMAJOR.MINOR.PATCH`, such as `v0.1.0`. The release workflow runs `npm run test:release-scripts`, `npm run test:playwright-scripts`, `npm run test:updater-release`, `npm run test:diagnostic-export`, `npm run test:library-performance`, `npm run smoke:install`, `npm run smoke:portable-data`, and `npm run smoke:desktop` after strict metadata checks and before uploading installer artifacts, then uploads the isolated clean-install, portable app-data, and desktop smoke reports under `output/clean-install-smoke/`, `output/portable-app-data-smoke/`, and `output/desktop-smoke/`.
+- GitHub tag releases are handled by `.github/workflows/release.yml`; tag versions should use `vMAJOR.MINOR.PATCH`, such as `v0.1.0`. The release workflow runs `npm run test:release-scripts`, `npm run test:playwright-scripts`, `npm run test:updater-release`, `npm run test:diagnostic-export`, `npm run test:data-safety`, `npm run test:library-performance`, `npm run smoke:install`, `npm run smoke:portable-data`, and `npm run smoke:desktop` after strict metadata checks and before uploading installer artifacts, then uploads the isolated clean-install, portable app-data, and desktop smoke reports under `output/clean-install-smoke/`, `output/portable-app-data-smoke/`, and `output/desktop-smoke/`.
 - Ensure GitHub secrets `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` are present before tagging an updater-capable release. The updater public key is committed in `src-tauri/tauri.conf.json`; the private key and password must stay outside the repository.
 - Confirm the release contains `latest.json`, the NSIS installer, and the installer `.sig` file.
 - Before relying on the updater for daily use, install the previous version, run Settings -> 检查更新, install the new version, restart, and verify `app-data`, `mikavn.db`, `images`, `cache`, `logs`, and `save-backups` still exist.

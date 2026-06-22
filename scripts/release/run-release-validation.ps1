@@ -30,6 +30,7 @@ try {
     npm run test:playwright-scripts
     npm run test:updater-release
     npm run test:diagnostic-export
+    npm run test:data-safety
     npm run test:library-performance
     npm run test:image-src
   }
