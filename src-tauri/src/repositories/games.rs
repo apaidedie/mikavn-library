@@ -35,6 +35,9 @@ impl<'a> GameRepository<'a> {
         let tag = trim_optional(filter.tag);
         let developer = trim_optional(filter.developer);
         let metadata_status = trim_optional(filter.metadata_status);
+        let external_provider =
+            trim_optional(filter.external_provider).map(|value| value.to_lowercase());
+        let external_id = trim_optional(filter.external_id).map(|value| value.to_lowercase());
         let sort_by = filter.sort_by.unwrap_or_else(|| "updated_at".to_string());
         let desc = filter.sort_direction.unwrap_or_else(|| "desc".to_string()) != "asc";
         let limit = filter.limit.map(|value| value.clamp(1, 500));
@@ -98,6 +101,16 @@ impl<'a> GameRepository<'a> {
         {
             query_clauses.push("path_status = ?".to_string());
             query_params.push(Value::Text(path_status));
+        }
+
+        if let (Some(external_provider), Some(external_id)) =
+            (external_provider.as_ref(), external_id.as_ref())
+        {
+            query_clauses.push(
+                "EXISTS(SELECT 1 FROM external_ids WHERE external_ids.game_id = games.id AND LOWER(external_ids.provider) = ? AND LOWER(TRIM(external_ids.external_id)) = ?)".to_string(),
+            );
+            query_params.push(Value::Text(external_provider.clone()));
+            query_params.push(Value::Text(external_id.clone()));
         }
 
         if let Some(ids) = collection_game_ids {

@@ -48,6 +48,8 @@ export type GameFilter = {
   metadataStatus?: 'all' | 'complete' | 'needs_metadata' | 'missing_description' | 'missing_cover' | 'missing_banner' | 'missing_background' | 'missing_artwork' | 'missing_description_image' | 'missing_external_id' | string;
   pathStatus?: 'all' | 'unknown' | 'ok' | 'incomplete' | 'broken' | string;
   collectionId?: string;
+  externalProvider?: 'vndb' | 'dlsite' | 'fanza' | 'bangumi' | 'ymgal' | string;
+  externalId?: string;
   sortBy?: 'title' | 'created_at' | 'updated_at' | 'last_played_at' | 'release_date' | 'rating';
   sortDirection?: 'asc' | 'desc';
   limit?: number;

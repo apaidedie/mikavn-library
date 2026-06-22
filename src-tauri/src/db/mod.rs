@@ -633,6 +633,41 @@ mod tests {
     }
 
     #[test]
+    fn game_filter_matches_exact_external_ids_case_insensitively() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch("PRAGMA foreign_keys = ON;").unwrap();
+        let db = Database { conn };
+        db.migrate().unwrap();
+
+        let dlsite_game = db
+            .add_game(AddGameInput {
+                title: "DLsite Source".to_string(),
+                install_path: "D:\\Games\\DLsite Source".to_string(),
+                dlsite_id: Some("RJ01000001".to_string()),
+                ..empty_game_input()
+            })
+            .unwrap();
+        db.add_game(AddGameInput {
+            title: "Other Source".to_string(),
+            install_path: "D:\\Games\\Other Source".to_string(),
+            fanza_id: Some("RJ01000001".to_string()),
+            ..empty_game_input()
+        })
+        .unwrap();
+
+        let games = db
+            .list_games(GameFilter {
+                external_provider: Some("DLSITE".to_string()),
+                external_id: Some("rj01000001".to_string()),
+                ..Default::default()
+            })
+            .unwrap();
+
+        assert_eq!(games.len(), 1);
+        assert_eq!(games[0].id, dlsite_game.id);
+    }
+
+    #[test]
     fn game_notes_persist_and_update_without_metadata_fields() {
         let conn = Connection::open_in_memory().unwrap();
         conn.execute_batch("PRAGMA foreign_keys = ON;").unwrap();

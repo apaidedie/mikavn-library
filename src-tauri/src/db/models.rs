@@ -120,6 +120,8 @@ pub struct GameFilter {
     pub metadata_status: Option<String>,
     pub path_status: Option<String>,
     pub collection_id: Option<String>,
+    pub external_provider: Option<String>,
+    pub external_id: Option<String>,
     pub sort_by: Option<String>,
     pub sort_direction: Option<String>,
     pub limit: Option<i64>,

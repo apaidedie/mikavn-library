@@ -130,6 +130,8 @@ export const mockStore = {
     const status = filter.status;
     const tag = filter.tag?.trim().toLocaleLowerCase();
     const developer = filter.developer?.trim().toLocaleLowerCase();
+    const externalProvider = filter.externalProvider?.trim().toLocaleLowerCase();
+    const externalId = filter.externalId?.trim().toLocaleLowerCase();
     const collectionGameIds = filter.collectionId ? new Set(readCollectionLinks().filter((link) => link.collectionId === filter.collectionId).map((link) => link.gameId)) : null;
     const sortBy = filter.sortBy ?? 'updated_at';
     const sortDirection = filter.sortDirection ?? 'desc';
@@ -152,7 +154,8 @@ export const mockStore = {
         const matchesMetadata = metadataStatusMatches(game, filter.metadataStatus);
         const matchesPathStatus = !filter.pathStatus || filter.pathStatus === 'all' || game.pathStatus === filter.pathStatus;
         const matchesCollection = !collectionGameIds || collectionGameIds.has(game.id);
-        return matchesQuery && matchesStatus && matchesTag && matchesDeveloper && matchesFavorite && matchesHidden && matchesMetadata && matchesPathStatus && matchesCollection;
+        const matchesExternalId = !externalProvider || !externalId || mockGameExternalId(game, externalProvider)?.trim().toLocaleLowerCase() === externalId;
+        return matchesQuery && matchesStatus && matchesTag && matchesDeveloper && matchesFavorite && matchesHidden && matchesMetadata && matchesPathStatus && matchesCollection && matchesExternalId;
       })
       .sort((a, b) => {
         const pick = (game: Game) => {
@@ -246,3 +249,12 @@ export const mockStore = {
   },
 
 };
+
+function mockGameExternalId(game: Game, provider: string) {
+  if (provider === 'vndb') return game.vndbId;
+  if (provider === 'bangumi') return game.bangumiId;
+  if (provider === 'dlsite') return game.dlsiteId;
+  if (provider === 'fanza') return game.fanzaId;
+  if (provider === 'ymgal') return game.ymgalId;
+  return null;
+}

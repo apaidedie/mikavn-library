@@ -641,15 +641,34 @@ test('description image repair history still resolves legacy provider-only logs 
   assert.equal(summary.updated[0].gameId, 'game-description');
 });
 
+test('description image repair history collects unique legacy source lookups', () => {
+  const { collectDescriptionImageRepairSourceLookups } = loadDescriptionImageRepairResultPanel();
+  const lookups = collectDescriptionImageRepairSourceLookups(taskDetail([
+    '已修复：dlsite RJ01000001，插入 1 张图片。',
+    '跳过：fanza:ABC_123，已有简介图片。',
+    '简介图片修复候选：dlsite:RJ01000001，fanza:ABC_456',
+    '已修复：自包含标题 [game-description]，dlsite RJ999999，插入 1 张图片。',
+  ]).logs);
+
+  assert.deepEqual(lookups, [
+    { provider: 'dlsite', providerId: 'RJ01000001' },
+    { provider: 'fanza', providerId: 'ABC_123' },
+    { provider: 'fanza', providerId: 'ABC_456' },
+  ]);
+});
+
 test('maintenance description history only loads games for legacy task logs', () => {
   const actions = fs.readFileSync('src/pages/Maintenance/useMaintenanceHistoryActions.ts', 'utf8');
   const rust = fs.readFileSync('src-tauri/src/services/metadata_description_images.rs', 'utf8');
   const mock = fs.readFileSync('src/services/mockStoreArtworkRepair.ts', 'utf8');
 
-  assert.match(actions, /descriptionImageRepairLogsNeedSourceLookup/);
+  assert.match(actions, /collectDescriptionImageRepairSourceLookups/);
   assert.match(actions, /const details = await Promise\.all\(tasks\.map\(async \(task\) => api\.getTaskDetail\(task\.id\)\)\)/);
-  assert.match(actions, /const needsSourceLookup = details\.some\(\(detail\) => descriptionImageRepairLogsNeedSourceLookup\(detail\.logs\)\)/);
-  assert.match(actions, /needsSourceLookup\s*\?\s*await api\.listGames\(\{ sortBy: 'updated_at', sortDirection: 'desc' \}\)\s*:\s*\[\]/);
+  assert.match(actions, /const sourceLookups = uniqueDescriptionSourceLookups\(details\.flatMap\(\(detail\) => collectDescriptionImageRepairSourceLookups\(detail\.logs\)\)\)/);
+  assert.match(actions, /externalProvider: lookup\.provider/);
+  assert.match(actions, /externalId: lookup\.providerId/);
+  assert.match(actions, /limit: 5/);
+  assert.doesNotMatch(actions, /api\.listGames\(\{ sortBy: 'updated_at', sortDirection: 'desc' \}\)/);
   assert.match(rust, /"已修复：\{\} \[\{\}\]，\{\} \{\}，插入 \{\} 张图片。"/);
   assert.match(mock, /`已修复：\$\{candidate\.title\} \[\$\{candidate\.gameId\}\]，\$\{candidate\.provider\} \$\{candidate\.providerId\}，插入 1 张图片。`/);
 });

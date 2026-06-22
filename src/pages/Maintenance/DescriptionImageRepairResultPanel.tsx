@@ -22,6 +22,10 @@ export type DescriptionImageRepairTaskSummary = {
   skipped: DescriptionImageRepairLogSummary[];
   failed: DescriptionImageRepairLogSummary[];
 };
+export type DescriptionImageRepairSourceLookup = {
+  provider: string;
+  providerId: string;
+};
 
 export function DescriptionImageRepairTaskRow({ actionBusy = false, summary, onOpenGame, onOpenTask, onRetryTask }: { actionBusy?: boolean; summary: DescriptionImageRepairTaskSummary; onOpenGame?: (gameId: string) => void; onOpenTask?: (taskId?: string | null) => void; onRetryTask?: (taskId: string) => void }) {
   const task = summary.task;
@@ -80,9 +84,23 @@ export function summarizeDescriptionImageRepairTask(detail: TaskDetail, games: G
 }
 
 export function descriptionImageRepairLogsNeedSourceLookup(logs: TaskLogEntry[]) {
-  const messages = logs.map((log) => log.message.trim()).filter(Boolean);
-  if (messages.some(isSelfContainedDescriptionImageRepairLog)) return false;
-  return messages.some((message) => isLegacyDescriptionImageRepairLog(message) || /^简介图片修复候选：/.test(message) || /\b(?:dlsite|fanza):[^\s，,。]+/i.test(message));
+  return collectDescriptionImageRepairSourceLookups(logs).length > 0;
+}
+
+export function collectDescriptionImageRepairSourceLookups(logs: TaskLogEntry[]) {
+  const seen = new Set<string>();
+  const lookups: DescriptionImageRepairSourceLookup[] = [];
+
+  for (const log of logs) {
+    for (const lookup of descriptionImageRepairSourceLookupsFromMessage(log.message.trim())) {
+      const key = descriptionSourceKey(lookup.provider, lookup.providerId);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      lookups.push(lookup);
+    }
+  }
+
+  return lookups;
 }
 
 export function filterDescriptionImageRepairSummary(summary: DescriptionImageRepairTaskSummary, query: string, statusFilter: string, providerFilter: string): DescriptionImageRepairTaskSummary {
@@ -206,6 +224,33 @@ function parseDescriptionImageRepairLog(log: TaskLogEntry, sourceIndex: Map<stri
   return [];
 }
 
+function descriptionImageRepairSourceLookupsFromMessage(message: string): DescriptionImageRepairSourceLookup[] {
+  if (!message || isSelfContainedDescriptionImageRepairLog(message)) return [];
+
+  const legacy = message.match(/^(?:已修复|跳过|失败)：([a-zA-Z0-9_-]+)[:\s]+([^\s，,。]+)，/);
+  if (legacy) {
+    return [descriptionImageRepairSourceLookup(legacy[1], legacy[2])];
+  }
+
+  const candidates = message.match(/^简介图片修复候选：(.+)$/);
+  if (candidates) {
+    return candidates[1]
+      .split(/[，,]/)
+      .map((token) => token.trim().match(/^([a-zA-Z0-9_-]+):([^\s，,。]+)$/))
+      .filter((match): match is RegExpMatchArray => Boolean(match))
+      .map((match) => descriptionImageRepairSourceLookup(match[1], match[2]));
+  }
+
+  return [...message.matchAll(/\b(dlsite|fanza):([^\s，,。]+)/gi)].map((match) => descriptionImageRepairSourceLookup(match[1], match[2]));
+}
+
+function descriptionImageRepairSourceLookup(provider: string, providerId: string): DescriptionImageRepairSourceLookup {
+  return {
+    provider: provider.trim().toLowerCase(),
+    providerId: providerId.trim(),
+  };
+}
+
 function descriptionImageRepairLogItem(status: DescriptionImageRepairLogStatus, provider: string, providerId: string, sourceIndex: Map<string, Game>, message: string, imageCount: number | null = null, source?: { title: string; gameId?: string | null }): DescriptionImageRepairLogSummary {
   const normalizedProvider = provider.trim().toLowerCase();
   const normalizedProviderId = providerId.trim();
@@ -223,10 +268,6 @@ function descriptionImageRepairLogItem(status: DescriptionImageRepairLogStatus, 
 
 function isSelfContainedDescriptionImageRepairLog(message: string) {
   return /^(?:已修复|跳过|失败)：.+ \[[^\]]+\]，[a-zA-Z0-9_-]+[:\s]+[^\s，,。]+，/.test(message);
-}
-
-function isLegacyDescriptionImageRepairLog(message: string) {
-  return /^(?:已修复|跳过|失败)：[a-zA-Z0-9_-]+[:\s]+[^\s，,。]+，/.test(message);
 }
 
 function matchesDescriptionImageRepairLog(item: DescriptionImageRepairLogSummary, query: string, statusFilter: string, providerFilter: string) {

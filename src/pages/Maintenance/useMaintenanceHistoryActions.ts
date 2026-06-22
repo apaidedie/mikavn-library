@@ -1,9 +1,10 @@
 import { useCallback, useRef, useState } from 'react';
 import { api } from '@/services/api';
+import type { Game } from '@/types/game';
 import { errorMessage } from '@/utils/errorMessage';
 import { summarizeArtworkRepairTask, type ArtworkRepairTaskSummary } from './ArtworkRepairResultPanel';
 import type { BatchMatchHistorySummary } from './BatchMatchResultPanel';
-import { descriptionImageRepairLogsNeedSourceLookup, summarizeDescriptionImageRepairTask, type DescriptionImageRepairTaskSummary } from './DescriptionImageRepairResultPanel';
+import { collectDescriptionImageRepairSourceLookups, summarizeDescriptionImageRepairTask, type DescriptionImageRepairSourceLookup, type DescriptionImageRepairTaskSummary } from './DescriptionImageRepairResultPanel';
 import { summarizeDuplicateAuditTask, type DuplicateAuditTaskSummary } from './DuplicateAuditResultPanel';
 import { formatCount } from './MaintenancePageParts';
 
@@ -78,8 +79,9 @@ export function useMaintenanceHistoryActions({ setError, setMessage }: UseMainte
     try {
       const tasks = (await api.listTasks(100)).filter((task) => task.taskType === 'metadata.description_image_repair').slice(0, 5);
       const details = await Promise.all(tasks.map(async (task) => api.getTaskDetail(task.id)));
-      const needsSourceLookup = details.some((detail) => descriptionImageRepairLogsNeedSourceLookup(detail.logs));
-      const games = needsSourceLookup ? await api.listGames({ sortBy: 'updated_at', sortDirection: 'desc' }) : [];
+      const sourceLookups = uniqueDescriptionSourceLookups(details.flatMap((detail) => collectDescriptionImageRepairSourceLookups(detail.logs)));
+      const gameGroups = await Promise.all(sourceLookups.map((lookup) => api.listGames({ externalProvider: lookup.provider, externalId: lookup.providerId, sortBy: 'updated_at', sortDirection: 'desc', limit: 5 })));
+      const games = uniqueDescriptionSourceGames(gameGroups.flat());
       const summaries = details.map((detail) => summarizeDescriptionImageRepairTask(detail, games));
       setDescriptionHistory(summaries);
       descriptionHistoryLoadedRef.current = true;
@@ -189,4 +191,27 @@ export function useMaintenanceHistoryActions({ setError, setMessage }: UseMainte
     setDuplicateAuditHistoryProvider,
     setDuplicateAuditHistoryQuery,
   };
+}
+
+function uniqueDescriptionSourceLookups(lookups: DescriptionImageRepairSourceLookup[]) {
+  const seen = new Set<string>();
+  const unique: DescriptionImageRepairSourceLookup[] = [];
+  for (const lookup of lookups) {
+    const key = `${lookup.provider.trim().toLowerCase()}:${lookup.providerId.trim().toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(lookup);
+  }
+  return unique;
+}
+
+function uniqueDescriptionSourceGames(games: Game[]) {
+  const seen = new Set<string>();
+  const unique: Game[] = [];
+  for (const game of games) {
+    if (seen.has(game.id)) continue;
+    seen.add(game.id);
+    unique.push(game);
+  }
+  return unique;
 }

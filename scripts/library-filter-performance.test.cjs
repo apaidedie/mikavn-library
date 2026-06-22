@@ -59,6 +59,23 @@ test('game list filters expose and apply a bounded result limit', () => {
   assert.match(mockStore, /games\.slice\(0, limit\)/);
 });
 
+test('game list filters support exact external id lookups without broad text search', () => {
+  const frontendTypes = fs.readFileSync('src/types/game.ts', 'utf8');
+  const rustModels = fs.readFileSync('src-tauri/src/db/models.rs', 'utf8');
+  const repository = fs.readFileSync('src-tauri/src/repositories/games.rs', 'utf8');
+  const mockStore = fs.readFileSync('src/services/mockStore.ts', 'utf8');
+
+  assert.match(frontendTypes, /externalProvider\?: 'vndb' \| 'dlsite' \| 'fanza' \| 'bangumi' \| 'ymgal' \| string/);
+  assert.match(frontendTypes, /externalId\?: string/);
+  assert.match(rustModels, /pub external_provider: Option<String>/);
+  assert.match(rustModels, /pub external_id: Option<String>/);
+  assert.match(repository, /LOWER\(external_ids\.provider\) = \?/);
+  assert.match(repository, /LOWER\(TRIM\(external_ids\.external_id\)\) = \?/);
+  assert.match(repository, /EXISTS\(SELECT 1 FROM external_ids/);
+  assert.match(mockStore, /filter\.externalProvider/);
+  assert.match(mockStore, /filter\.externalId/);
+});
+
 test('collections add-game search uses a limited stale-safe query', () => {
   const source = fs.readFileSync('src/pages/Collections/CollectionsPage.tsx', 'utf8');
 
