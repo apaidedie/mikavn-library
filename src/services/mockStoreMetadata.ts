@@ -83,6 +83,10 @@ export function externalIdCount(game: Game) {
   return [game.vndbId, game.bangumiId, game.dlsiteId, game.fanzaId, game.ymgalId].filter((value) => value?.trim()).length;
 }
 
+export function hasMissingAnyExternalId(game: Game) {
+  return [game.vndbId, game.bangumiId, game.dlsiteId, game.fanzaId, game.ymgalId].some((value) => !value?.trim());
+}
+
 export function hasCompleteMetadata(game: Game) {
   const hasDeveloper = Boolean(game.developer?.trim() || game.brand?.trim());
   return Boolean(game.description?.trim() && game.releaseDate?.trim() && hasDeveloper && game.coverImage?.trim() && externalIdCount(game) > 0);
@@ -103,6 +107,7 @@ export function metadataStatusMatches(game: Game, status?: string) {
   if (status === 'missing_artwork') return !game.coverImage?.trim() || !game.bannerImage?.trim() || !game.backgroundImage?.trim();
   if (status === 'missing_description_image') return Boolean((game.dlsiteId?.trim() || game.fanzaId?.trim()) && !hasMockDescriptionImage(game.description));
   if (status === 'missing_external_id') return externalIdCount(game) === 0;
+  if (status === 'missing_any_external_id') return hasMissingAnyExternalId(game);
   if (status === 'needs_metadata') return !complete;
   return true;
 }

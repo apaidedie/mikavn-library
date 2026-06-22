@@ -35,6 +35,7 @@ impl<'a> GameRepository<'a> {
         let tag = trim_optional(filter.tag);
         let developer = trim_optional(filter.developer);
         let metadata_status = trim_optional(filter.metadata_status);
+        let metadata_status_key = metadata_status.as_deref().map(metadata_status_key);
         let external_provider =
             trim_optional(filter.external_provider).map(|value| value.to_lowercase());
         let external_id = trim_optional(filter.external_id).map(|value| value.to_lowercase());
@@ -101,6 +102,13 @@ impl<'a> GameRepository<'a> {
         {
             query_clauses.push("path_status = ?".to_string());
             query_params.push(Value::Text(path_status));
+        }
+
+        if matches!(metadata_status_key.as_deref(), Some("missinganyexternalid")) {
+            query_clauses.push(
+                "(TRIM(COALESCE(vndb_id, '')) = '' OR TRIM(COALESCE(bangumi_id, '')) = '' OR TRIM(COALESCE(dlsite_id, '')) = '' OR TRIM(COALESCE(fanza_id, '')) = '' OR TRIM(COALESCE(ymgal_id, '')) = '')"
+                    .to_string(),
+            );
         }
 
         if let (Some(external_provider), Some(external_id)) =
@@ -549,6 +557,7 @@ fn metadata_status_matches(game: &Game, status: &str) -> bool {
             has_provider_id(game) && !has_description_image(&game.description)
         }
         "missingexternalid" => external_id_count(game) == 0,
+        "missinganyexternalid" => has_missing_any_external_id(game),
         "needsmetadata" | "missing" => !has_complete_metadata(game),
         _ => true,
     }
@@ -601,6 +610,18 @@ fn external_id_count(game: &Game) -> usize {
     .flatten()
     .filter(|value| !value.trim().is_empty())
     .count()
+}
+
+fn has_missing_any_external_id(game: &Game) -> bool {
+    [
+        game.vndb_id.as_deref(),
+        game.bangumi_id.as_deref(),
+        game.dlsite_id.as_deref(),
+        game.fanza_id.as_deref(),
+        game.ymgal_id.as_deref(),
+    ]
+    .into_iter()
+    .any(|value| value.map(|item| item.trim().is_empty()).unwrap_or(true))
 }
 
 pub(crate) fn game_from_row(row: &Row<'_>) -> rusqlite::Result<Game> {

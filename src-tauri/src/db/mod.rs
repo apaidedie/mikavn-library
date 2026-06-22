@@ -668,6 +668,78 @@ mod tests {
     }
 
     #[test]
+    fn game_filter_matches_missing_any_external_id_without_broad_metadata_status() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch("PRAGMA foreign_keys = ON;").unwrap();
+        let db = Database { conn };
+        db.migrate().unwrap();
+
+        db.add_game(AddGameInput {
+            title: "Full IDs Missing Text".to_string(),
+            install_path: "D:\\Games\\Full IDs Missing Text".to_string(),
+            vndb_id: Some("v1".to_string()),
+            bangumi_id: Some("b1".to_string()),
+            dlsite_id: Some("RJ01000001".to_string()),
+            fanza_id: Some("d_0100001".to_string()),
+            ymgal_id: Some("y1".to_string()),
+            ..empty_game_input()
+        })
+        .unwrap();
+        let missing_all = db
+            .add_game(AddGameInput {
+                title: "Missing All IDs".to_string(),
+                install_path: "D:\\Games\\Missing All IDs".to_string(),
+                ..empty_game_input()
+            })
+            .unwrap();
+        let missing_one = db
+            .add_game(AddGameInput {
+                title: "Missing One ID".to_string(),
+                install_path: "D:\\Games\\Missing One ID".to_string(),
+                vndb_id: Some("v2".to_string()),
+                bangumi_id: Some("b2".to_string()),
+                dlsite_id: Some("RJ01000002".to_string()),
+                fanza_id: Some("d_0100002".to_string()),
+                ..empty_game_input()
+            })
+            .unwrap();
+
+        let missing_any = db
+            .list_games(GameFilter {
+                metadata_status: Some("missing_any_external_id".to_string()),
+                sort_by: Some("title".to_string()),
+                sort_direction: Some("asc".to_string()),
+                ..Default::default()
+            })
+            .unwrap();
+
+        assert_eq!(
+            missing_any
+                .iter()
+                .map(|game| game.id.as_str())
+                .collect::<Vec<_>>(),
+            vec![missing_all.id.as_str(), missing_one.id.as_str()]
+        );
+
+        let missing_all_only = db
+            .list_games(GameFilter {
+                metadata_status: Some("missing_external_id".to_string()),
+                sort_by: Some("title".to_string()),
+                sort_direction: Some("asc".to_string()),
+                ..Default::default()
+            })
+            .unwrap();
+
+        assert_eq!(
+            missing_all_only
+                .iter()
+                .map(|game| game.id.as_str())
+                .collect::<Vec<_>>(),
+            vec![missing_all.id.as_str()]
+        );
+    }
+
+    #[test]
     fn game_notes_persist_and_update_without_metadata_fields() {
         let conn = Connection::open_in_memory().unwrap();
         conn.execute_batch("PRAGMA foreign_keys = ON;").unwrap();

@@ -81,7 +81,7 @@ export function useBatchMetadataPageActions(refreshKey: number, queuePresetReque
   async function loadGames() {
     const requestId = ++loadGamesRequestRef.current;
     try {
-      const nextGames = await api.listGames({ sortBy: 'updated_at', sortDirection: 'desc' });
+      const nextGames = await api.listGames({ metadataStatus: 'missing_any_external_id', sortBy: 'updated_at', sortDirection: 'desc' });
       if (requestId !== loadGamesRequestRef.current) return;
       setGames(nextGames);
     } catch (reason) {

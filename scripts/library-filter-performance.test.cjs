@@ -76,6 +76,16 @@ test('game list filters support exact external id lookups without broad text sea
   assert.match(mockStore, /filter\.externalId/);
 });
 
+test('game list filters support missing any external id metadata status for batch queues', () => {
+  const frontendTypes = fs.readFileSync('src/types/game.ts', 'utf8');
+  const repository = fs.readFileSync('src-tauri/src/repositories/games.rs', 'utf8');
+  const mockMetadata = fs.readFileSync('src/services/mockStoreMetadata.ts', 'utf8');
+
+  assert.match(frontendTypes, /missing_any_external_id/);
+  assert.match(repository, /missinganyexternalid/);
+  assert.match(mockMetadata, /missing_any_external_id/);
+});
+
 test('collections add-game search uses a limited stale-safe query', () => {
   const source = fs.readFileSync('src/pages/Collections/CollectionsPage.tsx', 'utf8');
 

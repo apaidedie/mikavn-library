@@ -174,6 +174,13 @@ test('batch metadata actions ignore stale async loads and status polls', () => {
   assert.doesNotMatch(source, /\.then\(setStatus\)/);
 });
 
+test('batch metadata actions load only games missing any external id', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Metadata', 'useBatchMetadataPageActions.ts'), 'utf8');
+
+  assert.match(source, /api\.listGames\(\{\s*metadataStatus: 'missing_any_external_id',\s*sortBy: 'updated_at',\s*sortDirection: 'desc'\s*\}\)/s);
+  assert.doesNotMatch(source, /api\.listGames\(\{\s*sortBy: 'updated_at',\s*sortDirection: 'desc'\s*\}\)/s);
+});
+
 test('batch metadata queue panel renders through a bounded window helper', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Metadata', 'BatchMetadataQueuePanel.tsx'), 'utf8');
 

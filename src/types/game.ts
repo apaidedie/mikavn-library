@@ -45,7 +45,7 @@ export type GameFilter = {
   developer?: string;
   favorite?: boolean;
   hidden?: boolean;
-  metadataStatus?: 'all' | 'complete' | 'needs_metadata' | 'missing_description' | 'missing_cover' | 'missing_banner' | 'missing_background' | 'missing_artwork' | 'missing_description_image' | 'missing_external_id' | string;
+  metadataStatus?: 'all' | 'complete' | 'needs_metadata' | 'missing_description' | 'missing_cover' | 'missing_banner' | 'missing_background' | 'missing_artwork' | 'missing_description_image' | 'missing_external_id' | 'missing_any_external_id' | string;
   pathStatus?: 'all' | 'unknown' | 'ok' | 'incomplete' | 'broken' | string;
   collectionId?: string;
   externalProvider?: 'vndb' | 'dlsite' | 'fanza' | 'bangumi' | 'ymgal' | string;
