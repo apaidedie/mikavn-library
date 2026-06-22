@@ -36,16 +36,17 @@ impl<'a> GameRepository<'a> {
         let developer = trim_optional(filter.developer);
         let metadata_status = trim_optional(filter.metadata_status);
         let metadata_status_key = metadata_status.as_deref().map(metadata_status_key);
+        let metadata_status_sql_clause = metadata_status_key
+            .as_deref()
+            .and_then(metadata_status_sql_condition);
         let external_provider =
             trim_optional(filter.external_provider).map(|value| value.to_lowercase());
         let external_id = trim_optional(filter.external_id).map(|value| value.to_lowercase());
         let sort_by = filter.sort_by.unwrap_or_else(|| "updated_at".to_string());
         let desc = filter.sort_direction.unwrap_or_else(|| "desc".to_string()) != "asc";
         let limit = filter.limit.map(|value| value.clamp(1, 500));
-        let metadata_status_can_limit_in_sql = matches!(
-            metadata_status_key.as_deref(),
-            None | Some("missinganyexternalid")
-        );
+        let metadata_status_can_limit_in_sql =
+            metadata_status.is_none() || metadata_status_sql_clause.is_some();
         let sql_limit = if tag.is_none() && metadata_status_can_limit_in_sql {
             limit
         } else {
@@ -108,11 +109,8 @@ impl<'a> GameRepository<'a> {
             query_params.push(Value::Text(path_status));
         }
 
-        if matches!(metadata_status_key.as_deref(), Some("missinganyexternalid")) {
-            query_clauses.push(
-                "(TRIM(COALESCE(vndb_id, '')) = '' OR TRIM(COALESCE(bangumi_id, '')) = '' OR TRIM(COALESCE(dlsite_id, '')) = '' OR TRIM(COALESCE(fanza_id, '')) = '' OR TRIM(COALESCE(ymgal_id, '')) = '')"
-                    .to_string(),
-            );
+        if let Some(condition) = metadata_status_sql_clause {
+            query_clauses.push(condition);
         }
 
         if let (Some(external_provider), Some(external_id)) =
@@ -567,6 +565,83 @@ fn metadata_status_matches(game: &Game, status: &str) -> bool {
     }
 }
 
+fn metadata_status_sql_condition(status_key: &str) -> Option<String> {
+    let condition = match status_key {
+        "complete" => complete_metadata_sql_condition(),
+        "missingdescription" => empty_text_sql_condition("description"),
+        "missingcover" => empty_text_sql_condition("cover_image"),
+        "missingbanner" => empty_text_sql_condition("banner_image"),
+        "missingbackground" => empty_text_sql_condition("background_image"),
+        "missingartwork" => format!(
+            "({} OR {} OR {})",
+            empty_text_sql_condition("cover_image"),
+            empty_text_sql_condition("banner_image"),
+            empty_text_sql_condition("background_image")
+        ),
+        "missingdescriptionimage" => missing_description_image_sql_condition(),
+        "missingexternalid" => format!(
+            "({} AND {} AND {} AND {} AND {})",
+            empty_text_sql_condition("vndb_id"),
+            empty_text_sql_condition("bangumi_id"),
+            empty_text_sql_condition("dlsite_id"),
+            empty_text_sql_condition("fanza_id"),
+            empty_text_sql_condition("ymgal_id")
+        ),
+        "missinganyexternalid" => format!(
+            "({} OR {} OR {} OR {} OR {})",
+            empty_text_sql_condition("vndb_id"),
+            empty_text_sql_condition("bangumi_id"),
+            empty_text_sql_condition("dlsite_id"),
+            empty_text_sql_condition("fanza_id"),
+            empty_text_sql_condition("ymgal_id")
+        ),
+        "needsmetadata" | "missing" => format!("NOT ({})", complete_metadata_sql_condition()),
+        _ => return None,
+    };
+    Some(condition)
+}
+
+fn complete_metadata_sql_condition() -> String {
+    format!(
+        "({} AND {} AND ({} OR {}) AND {} AND ({} OR {} OR {} OR {} OR {}))",
+        non_empty_text_sql_condition("description"),
+        non_empty_text_sql_condition("release_date"),
+        non_empty_text_sql_condition("developer"),
+        non_empty_text_sql_condition("brand"),
+        non_empty_text_sql_condition("cover_image"),
+        non_empty_text_sql_condition("vndb_id"),
+        non_empty_text_sql_condition("bangumi_id"),
+        non_empty_text_sql_condition("dlsite_id"),
+        non_empty_text_sql_condition("fanza_id"),
+        non_empty_text_sql_condition("ymgal_id")
+    )
+}
+
+fn missing_description_image_sql_condition() -> String {
+    let description = "LOWER(COALESCE(description, ''))";
+    format!(
+        "(({} OR {}) AND NOT ({} LIKE '%![%' OR {} LIKE '%<img%' OR {} LIKE '%[img]%' OR {} LIKE '%.jpg%' OR {} LIKE '%.jpeg%' OR {} LIKE '%.png%' OR {} LIKE '%.webp%' OR {} LIKE '%.gif%'))",
+        non_empty_text_sql_condition("dlsite_id"),
+        non_empty_text_sql_condition("fanza_id"),
+        description,
+        description,
+        description,
+        description,
+        description,
+        description,
+        description,
+        description,
+    )
+}
+
+fn empty_text_sql_condition(column: &str) -> String {
+    format!("TRIM(COALESCE({column}, '')) = ''")
+}
+
+fn non_empty_text_sql_condition(column: &str) -> String {
+    format!("TRIM(COALESCE({column}, '')) <> ''")
+}
+
 fn metadata_status_key(value: &str) -> String {
     value.to_lowercase().replace([' ', '　', '-', '_'], "")
 }
@@ -669,4 +744,36 @@ pub(crate) fn game_from_row(row: &Row<'_>) -> rusqlite::Result<Game> {
         created_at: row.get("created_at")?,
         updated_at: row.get("updated_at")?,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn metadata_status_sql_condition_covers_known_metadata_filters() {
+        for status in [
+            "complete",
+            "needs_metadata",
+            "missing_description",
+            "missing_cover",
+            "missing_banner",
+            "missing_background",
+            "missing_artwork",
+            "missing_description_image",
+            "missing_external_id",
+            "missing_any_external_id",
+        ] {
+            let key = metadata_status_key(status);
+            assert!(
+                metadata_status_sql_condition(&key).is_some(),
+                "{status} should be safe to prefilter in SQL"
+            );
+        }
+    }
+
+    #[test]
+    fn metadata_status_sql_condition_ignores_unknown_filters() {
+        assert!(metadata_status_sql_condition("notarealstatus").is_none());
+    }
 }

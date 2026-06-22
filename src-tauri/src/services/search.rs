@@ -42,11 +42,7 @@ pub fn search_games(db: &Database, input: AdvancedSearchInput) -> DbResult<Advan
         });
     }
 
-    let mut games = db.list_games(GameFilter {
-        sort_by: input.sort_by.clone(),
-        sort_direction: input.sort_direction.clone(),
-        ..Default::default()
-    })?;
+    let mut games = db.list_games(advanced_search_prefilter(&input, &parsed.clauses))?;
 
     let collection_ids = collection_scoped_game_ids(db, &parsed.clauses)?;
     if !parsed.clauses.is_empty() {
@@ -95,6 +91,74 @@ pub fn update_saved_search(
 
 pub fn delete_saved_search(db: &Database, id: String) -> DbResult<()> {
     db.delete_saved_search(id)
+}
+
+fn advanced_search_prefilter(input: &AdvancedSearchInput, clauses: &[ParsedClause]) -> GameFilter {
+    let mut filter = GameFilter {
+        sort_by: input.sort_by.clone(),
+        sort_direction: input.sort_direction.clone(),
+        ..Default::default()
+    };
+
+    for parsed in required_prefilter_clauses(clauses) {
+        if parsed.clause.negated {
+            continue;
+        }
+        if parsed.clause.kind != "field" {
+            continue;
+        }
+
+        match parsed.clause.field.as_deref() {
+            Some("status") if filter.status.is_none() => {
+                if let Some(status) = canonical_play_status(&parsed.clause.value) {
+                    filter.status = Some(status);
+                }
+            }
+            Some("meta") if filter.metadata_status.is_none() => {
+                if let Some(status) = canonical_metadata_status(&parsed.clause.value) {
+                    filter.metadata_status = Some(status);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    filter
+}
+
+fn required_prefilter_clauses(clauses: &[ParsedClause]) -> &[ParsedClause] {
+    let start = clauses
+        .iter()
+        .rposition(|item| item.logic_before == Logic::Or)
+        .map(|index| index + 1)
+        .unwrap_or(0);
+    &clauses[start..]
+}
+
+fn canonical_play_status(value: &str) -> Option<String> {
+    let status = normalize_text(value);
+    matches!(
+        status.as_str(),
+        "planned" | "playing" | "completed" | "paused" | "archived"
+    )
+    .then_some(status)
+}
+
+fn canonical_metadata_status(value: &str) -> Option<String> {
+    let key = metadata_status_key(value);
+    let canonical = match key.as_str() {
+        "complete" => "complete",
+        "needsmetadata" | "missing" => "missing",
+        "missingdescription" => "missing_description",
+        "missingcover" => "missing_cover",
+        "missingbanner" => "missing_banner",
+        "missingbackground" => "missing_background",
+        "missingartwork" => "missing_artwork",
+        "missingdescriptionimage" => "missing_description_image",
+        "missingexternalid" => "missing_external_id",
+        _ => return None,
+    };
+    Some(canonical.to_string())
 }
 
 struct ParsedQuery {
@@ -582,6 +646,48 @@ mod tests {
         let result = validate_query("foo:bar");
         assert!(!result.valid);
         assert!(result.errors[0].contains("unsupported"));
+    }
+
+    #[test]
+    fn advanced_search_prefilter_uses_only_safe_required_clauses() {
+        let parsed = parse_query("status:playing meta:missing_artwork rating>=80");
+        let filter = advanced_search_prefilter(
+            &AdvancedSearchInput {
+                query: parsed.cleaned_query.clone(),
+                sort_by: Some("rating".to_string()),
+                sort_direction: Some("desc".to_string()),
+                limit: Some(200),
+            },
+            &parsed.clauses,
+        );
+
+        assert_eq!(filter.status.as_deref(), Some("playing"));
+        assert_eq!(filter.metadata_status.as_deref(), Some("missing_artwork"));
+        assert_eq!(filter.sort_by.as_deref(), Some("rating"));
+        assert_eq!(filter.sort_direction.as_deref(), Some("desc"));
+        assert_eq!(filter.limit, None);
+    }
+
+    #[test]
+    fn advanced_search_prefilter_preserves_or_and_fuzzy_field_semantics() {
+        let parsed = parse_query("status:playing OR status:planned tag:love dev:Key 星");
+        let filter = advanced_search_prefilter(
+            &AdvancedSearchInput {
+                query: parsed.cleaned_query.clone(),
+                sort_by: Some("title".to_string()),
+                sort_direction: Some("asc".to_string()),
+                limit: None,
+            },
+            &parsed.clauses,
+        );
+
+        assert_eq!(filter.status, None);
+        assert_eq!(filter.metadata_status, None);
+        assert_eq!(filter.query, None);
+        assert_eq!(filter.tag, None);
+        assert_eq!(filter.developer, None);
+        assert_eq!(filter.sort_by.as_deref(), Some("title"));
+        assert_eq!(filter.sort_direction.as_deref(), Some("asc"));
     }
 
     #[test]
