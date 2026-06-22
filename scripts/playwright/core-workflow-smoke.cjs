@@ -264,7 +264,7 @@ async function main() {
     const databaseBackupTask = afterDatabaseBackupTasks.find((item) => item.taskType === 'database.backup');
     const databaseBackupPayload = JSON.parse(databaseBackupTask?.retryPayload || '{}');
     if (!databaseBackupTask?.retryable || databaseBackupPayload.path !== 'mikavn-backup-' + now.slice(0, 10) + '.db') throw new Error('database backup task did not persist retry options for the selected target path');
-    await page.getByRole('button', { name: /安排恢复/ }).click();
+    await page.getByRole('button', { name: /恢复数据库/ }).click();
     await expectText(page, /数据库恢复任务已创建/);
     await page.getByRole('button', { name: /刷新/ }).first().click();
     await expectText(page, /mock-1\.log|localStorage:\/\/task|最近日志|还没有诊断日志/);

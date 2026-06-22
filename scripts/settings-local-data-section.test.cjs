@@ -15,6 +15,9 @@ test('local data settings exposes clear backup and restore entry', () => {
   assert.match(source, /数据库备份与恢复/);
   assert.match(source, /打开备份目录/);
   assert.match(source, /最近备份/);
+  assert.match(source, />恢复数据库<\/Button>/);
+  assert.doesNotMatch(source, />安排恢复<\/Button>/);
+  assert.match(source, /安排下次启动恢复/);
   assert.match(source, /下次启动/);
   assert.match(source, /保护备份/);
 });
