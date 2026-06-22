@@ -91,7 +91,7 @@ export function useMaintenanceDuplicateMergeActions({ loadDiagnostics, setError,
   const mergeDuplicateGroup = useCallback(async () => {
     if (!mergePreview || !selectedDuplicateGroup || !mergeTargetId || mergeSourceIds.length === 0) return;
     const target = selectedDuplicateGroup.games.find((game) => game.gameId === mergeTargetId);
-    if (!window.confirm(`把 ${mergeSourceIds.length} 条重复游戏并入「${target?.title ?? mergeTargetId}」？源游戏记录会删除，但关联数据会先迁移。`)) return;
+    if (!window.confirm(`把 ${mergeSourceIds.length} 条重复游戏并入「${target?.title ?? mergeTargetId}」？\n\n只会删除 MikaVN 数据库中的源游戏记录，不会删除真实游戏文件或游戏目录；关联数据会先迁移到保留记录。确认继续？`)) return;
     setMergeLoading(true);
     setError(null);
     setMessage(null);
