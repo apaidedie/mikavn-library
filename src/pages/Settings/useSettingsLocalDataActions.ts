@@ -134,10 +134,14 @@ export function useSettingsLocalDataActions({ onSaved, setError, setMessage }: U
     try {
       const path = await chooseDatabaseRestorePath();
       if (!path) return;
-      const ok = window.confirm('恢复会在下次启动前替换当前 mikavn.db；应用会先创建保护备份。不会删除真实游戏文件，也不会删除图片缓存或存档备份。确认安排恢复吗？');
+      const selectedBackupName = path.split(/[/\\]/).pop() || path;
+      const ok = window.confirm(`将恢复的备份：${selectedBackupName}
+完整路径：${path}
+
+恢复会在下次启动前替换当前 mikavn.db；应用会先创建保护备份。不会删除真实游戏文件，也不会删除图片缓存或存档备份。确认安排恢复吗？`);
       if (!ok) return;
       const task = await api.restoreDatabaseBackup(path);
-      setMessage({ text: `数据库恢复任务已创建：${task.id}。请重启应用以应用恢复。`, taskId: task.id });
+      setMessage({ text: `数据库恢复任务已创建：${task.id}。已安排下次启动恢复：${selectedBackupName}。请重启应用以应用恢复。`, taskId: task.id });
     } catch (reason) {
       setError(errorMessage(reason));
     }
