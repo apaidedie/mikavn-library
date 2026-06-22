@@ -90,7 +90,7 @@ export function CollectionsPage({ refreshKey, onOpenGame, onChanged }: Collectio
   };
 
   const removeCollection = async (collection: GameCollection) => {
-    if (!window.confirm(`删除合集「${collection.name}」？这只删除合集关系，不会删除游戏记录。`)) return;
+    if (!window.confirm(`删除合集「${collection.name}」？这只删除合集关系，不会删除游戏记录，也不会删除真实游戏文件。`)) return;
     setError(null);
     try {
       await api.deleteCollection(collection.id);
