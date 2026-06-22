@@ -70,6 +70,22 @@ test('advanced search result rendering is staged for large result sets', () => {
   assert.equal(formatAdvancedSearchRenderedResultSummary({ visible: 42, loaded: 42 }), null);
 });
 
+test('advanced search feedback visibility never leaks zero-length error counts', () => {
+  const { shouldRenderAdvancedSearchFeedback } = loadAdvancedSearchPageModel();
+
+  assert.equal(shouldRenderAdvancedSearchFeedback({ error: null, validationErrorCount: 0 }), false);
+  assert.equal(shouldRenderAdvancedSearchFeedback({ error: '', validationErrorCount: 0 }), false);
+  assert.equal(shouldRenderAdvancedSearchFeedback({ error: '搜索失败', validationErrorCount: 0 }), true);
+  assert.equal(shouldRenderAdvancedSearchFeedback({ error: null, validationErrorCount: 2 }), true);
+});
+
+test('advanced search page uses boolean feedback visibility instead of numeric JSX conditions', () => {
+  const source = fs.readFileSync('src/pages/Search/AdvancedSearchPage.tsx', 'utf8');
+
+  assert.match(source, /shouldRenderAdvancedSearchFeedback/);
+  assert.doesNotMatch(source, /\(error \|\| validation\?\.errors\.length\) &&/);
+});
+
 test('advanced search page renders the bounded result description helper', () => {
   const source = fs.readFileSync('src/pages/Search/AdvancedSearchPage.tsx', 'utf8');
 

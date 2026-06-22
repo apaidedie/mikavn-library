@@ -17,6 +17,7 @@ import {
   formatAdvancedSearchRenderedResultSummary,
   formatAdvancedSearchResultDescription,
   nextAdvancedSearchVisibleResultLimit,
+  shouldRenderAdvancedSearchFeedback,
   visibleAdvancedSearchResults,
 } from './advancedSearchPageModel';
 
@@ -56,6 +57,10 @@ export function AdvancedSearchPage({ refreshKey, onOpenGame }: { refreshKey: num
     total: result.total,
     visible: resultGames.length,
   } : null);
+  const showSearchFeedback = shouldRenderAdvancedSearchFeedback({
+    error,
+    validationErrorCount: validation?.errors.length ?? 0,
+  });
 
   useEffect(() => {
     void loadSavedSearches();
@@ -158,7 +163,7 @@ export function AdvancedSearchPage({ refreshKey, onOpenGame }: { refreshKey: num
           description="用标题、会社、标签或快捷条件筛选本地库。需要时再使用高级语法。"
           actions={<Button disabled={loading || !valid} onClick={() => void runSearch()}><Search className="h-4 w-4" />搜索</Button>}
         />
-        {(error || validation?.errors.length) && (
+        {showSearchFeedback && (
           <div className="space-y-2">
             {error && <Notice tone="error">{error}</Notice>}
             {validation?.errors.map((item) => <Notice key={item} tone="warning">{item}</Notice>)}

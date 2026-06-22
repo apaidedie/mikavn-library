@@ -24,6 +24,10 @@ export function formatAdvancedSearchRenderedResultSummary(result: { visible: num
   return `已渲染 ${formatCount(result.visible)} / ${formatCount(result.loaded)} 个结果卡片，继续显示会逐步加载更多图片`;
 }
 
+export function shouldRenderAdvancedSearchFeedback(input: { error?: string | null; validationErrorCount?: number | null }) {
+  return Boolean(input.error || (input.validationErrorCount ?? 0) > 0);
+}
+
 function formatCount(value: number) {
   return new Intl.NumberFormat('zh-CN').format(value);
 }
