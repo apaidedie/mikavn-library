@@ -265,6 +265,15 @@ test('getLibraryRenderIdentity changes when the current result window changes', 
   assert.equal(getLibraryRenderIdentity([game({ id: 'a' }), game({ id: 'c' })]), '2:a:c');
 });
 
+test('getLibraryRenderIdentity changes when middle results change under the same boundaries', () => {
+  const { getLibraryRenderIdentity } = loadLibraryPageModel();
+
+  assert.notEqual(
+    getLibraryRenderIdentity([game({ id: 'a' }), game({ id: 'b' }), game({ id: 'c' })]),
+    getLibraryRenderIdentity([game({ id: 'a' }), game({ id: 'x' }), game({ id: 'c' })]),
+  );
+});
+
 test('buildLibraryGameLookup supports constant-time selected game lookups for large libraries', () => {
   const { buildLibraryGameLookup } = loadLibraryPageModel();
   const games = Array.from({ length: 5000 }, (_, index) => game({ id: `game-${index}` }));

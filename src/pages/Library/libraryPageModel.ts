@@ -41,7 +41,11 @@ export function buildLibraryGameIndexLookup(games: Game[]) {
 }
 
 export function getLibraryRenderIdentity(games: Game[]) {
-  return `${games.length}:${games[0]?.id ?? ''}:${games[games.length - 1]?.id ?? ''}`;
+  if (games.length <= 2) {
+    return `${games.length}:${games[0]?.id ?? ''}:${games[games.length - 1]?.id ?? ''}`;
+  }
+  const middle = games[Math.floor(games.length / 2)]?.id ?? '';
+  return `${games.length}:${games[0]?.id ?? ''}:${middle}:${games[games.length - 1]?.id ?? ''}`;
 }
 
 export function groupLibraryGames(games: Game[], statusLabels: Record<PlayStatus, string>): LibraryGameGroup[] {
