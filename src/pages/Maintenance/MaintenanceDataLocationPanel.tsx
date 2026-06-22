@@ -1,34 +1,26 @@
 import { FileArchive, HardDrive, ShieldCheck, Trash2 } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Panel, PanelContent, PanelHeader, SoftRow } from '@/components/ui/page';
 import type { AppDataDiagnostics } from '@/types/archive';
-import type { AssetCacheCleanupResult } from '@/types/game';
-import { CompactStat, PathRow, StorageStat, dataDirSourceLabel, formatBytes } from './MaintenancePageParts';
+import { PathRow, StorageStat, dataDirSourceLabel } from './MaintenancePageParts';
 
 export function MaintenanceDataLocationPanel({
-  assetCleanupLoading,
-  assetCleanupPreview,
   cleanupLoading,
   diagnostics,
   diagnosticExportLoading,
-  onCleanupAssetCache,
   onCleanupDatabaseBackups,
   onCopyPath,
   onExportDiagnosticPackage,
-  onPreviewAssetCacheCleanup,
+  onOpenImageHealth,
   onRevealPath,
 }: {
-  assetCleanupLoading: boolean;
-  assetCleanupPreview: AssetCacheCleanupResult | null;
   cleanupLoading: boolean;
   diagnostics: AppDataDiagnostics | null;
   diagnosticExportLoading: boolean;
-  onCleanupAssetCache: () => void;
   onCleanupDatabaseBackups: () => void;
   onCopyPath: (label: string, path: string) => void;
   onExportDiagnosticPackage: () => void;
-  onPreviewAssetCacheCleanup: () => void;
+  onOpenImageHealth: () => void;
   onRevealPath: (path: string) => void;
 }) {
   const database = diagnostics?.database;
@@ -58,24 +50,13 @@ export function MaintenanceDataLocationPanel({
         <SoftRow className="grid gap-3 px-3 py-3 xl:grid-cols-[minmax(0,1fr)_auto]">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-slate-100">
-              <span>图片缓存清理</span>
-              <Badge>先预览</Badge>
+              <span>图片缓存维护</span>
             </div>
-            <div className="mt-1 text-xs leading-5 text-slate-500">只清理未被主图、媒体图库或简介本地图引用的 app-data/images 文件。</div>
-            {assetCleanupPreview ? (
-              <div className="mt-3 grid gap-2 sm:grid-cols-4">
-                <CompactStat label="扫描文件" value={assetCleanupPreview.scannedFiles} />
-                <CompactStat label="可清理" value={assetCleanupPreview.removedFiles} tone={assetCleanupPreview.removedFiles > 0 ? 'warn' : 'ok'} />
-                <CompactStat label="可释放" value={formatBytes(assetCleanupPreview.removedBytes)} tone={assetCleanupPreview.removedBytes > 0 ? 'warn' : 'ok'} />
-                <CompactStat label="保留文件" value={assetCleanupPreview.keptFiles} />
-              </div>
-            ) : (
-              <div className="mt-2 text-xs text-slate-600">预览会扫描图片缓存，不会删除文件。</div>
-            )}
+            <div className="mt-1 text-xs leading-5 text-slate-500">图片缓存整理统一走图片健康检查；一键安全整理只移动未被数据库引用的缓存问题到隔离区，不会永久删除文件。</div>
+            <div className="mt-2 text-xs text-slate-600">请先到图片健康查看孤儿图片、重复内容、无效图片、过大图片和类型不匹配项，再按隔离区 manifest.json 保留可恢复路径。</div>
           </div>
           <div className="flex shrink-0 flex-wrap items-start gap-2 xl:justify-end">
-            <Button disabled={assetCleanupLoading || !diagnostics} size="sm" variant="outline" onClick={onPreviewAssetCacheCleanup}><ShieldCheck className="h-4 w-4" />{assetCleanupLoading ? '检查中' : '预览'}</Button>
-            <Button disabled={assetCleanupLoading || !diagnostics || (assetCleanupPreview ? assetCleanupPreview.removedFiles === 0 : false)} size="sm" variant="danger" onClick={onCleanupAssetCache}><Trash2 className="h-4 w-4" />{assetCleanupLoading ? '处理中' : '清理'}</Button>
+            <Button disabled={!diagnostics} size="sm" variant="outline" onClick={onOpenImageHealth}><ShieldCheck className="h-4 w-4" />转到图片健康</Button>
           </div>
         </SoftRow>
       </PanelContent>

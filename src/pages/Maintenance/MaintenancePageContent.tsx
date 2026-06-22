@@ -58,6 +58,10 @@ export function MaintenancePageContent({ dataActions, duplicateMergeActions, his
       + database.cDriveImageRefsCount
       + database.playniteImageRefsCount
     : 0;
+  const openImageHealth = () => {
+    imageAuditRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    if (!inspectionActions.imageHealth && !inspectionActions.imageHealthLoading) void inspectionActions.loadImageHealth();
+  };
 
   return (
     <>
@@ -74,16 +78,13 @@ export function MaintenancePageContent({ dataActions, duplicateMergeActions, his
       />
 
       <MaintenanceDataLocationPanel
-        assetCleanupLoading={dataActions.assetCleanupLoading}
-        assetCleanupPreview={dataActions.assetCleanupPreview}
         cleanupLoading={dataActions.cleanupLoading}
         diagnostics={dataActions.diagnostics}
         diagnosticExportLoading={dataActions.diagnosticExportLoading}
-        onCleanupAssetCache={dataActions.cleanupAssetCache}
         onCleanupDatabaseBackups={dataActions.cleanupDatabaseBackups}
         onCopyPath={(label, path) => void dataActions.copyPath(label, path)}
         onExportDiagnosticPackage={dataActions.exportDiagnosticPackage}
-        onPreviewAssetCacheCleanup={dataActions.previewAssetCacheCleanup}
+        onOpenImageHealth={openImageHealth}
         onRevealPath={(path) => void dataActions.revealPath(path)}
       />
 
