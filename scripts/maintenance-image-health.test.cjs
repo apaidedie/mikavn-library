@@ -549,6 +549,28 @@ test('image health action hint explains disabled maintenance actions', () => {
       contentTypeMismatchRefs: 2,
     },
   };
+  const orphanOnlyReport = {
+    summary: {
+      orphanFiles: 2,
+      missingLocalRefs: 0,
+      invalidImageRefs: 0,
+      cDriveRefs: 0,
+      playniteRefs: 0,
+      externalLegacyRefs: 0,
+      missingArtworkGames: 0,
+    },
+  };
+  const artworkOnlyReport = {
+    summary: {
+      orphanFiles: 0,
+      missingLocalRefs: 0,
+      invalidImageRefs: 0,
+      cDriveRefs: 0,
+      playniteRefs: 0,
+      externalLegacyRefs: 0,
+      missingArtworkGames: 3,
+    },
+  };
 
   assert.equal(
     getImageHealthActionHint({ report: null, loading: false }),
@@ -560,7 +582,15 @@ test('image health action hint explains disabled maintenance actions', () => {
   );
   assert.equal(
     getImageHealthActionHint({ report: brokenOnlyReport, loading: false }),
-    '没有可补全的媒体缺图；没有可整理的孤儿图片。',
+    '可查看失效引用；没有可补全的媒体缺图；没有可整理的孤儿图片。',
+  );
+  assert.equal(
+    getImageHealthActionHint({ report: orphanOnlyReport, loading: false }),
+    '可整理孤儿图片；没有需要逐条审计的失效引用；没有可补全的媒体缺图。',
+  );
+  assert.equal(
+    getImageHealthActionHint({ report: artworkOnlyReport, loading: false }),
+    '可诊断或补全媒体缺图；没有需要逐条审计的失效引用；没有可整理的孤儿图片。',
   );
   assert.equal(
     getImageHealthActionHint({ report: duplicateOnlyReport, loading: false }),

@@ -141,19 +141,22 @@ export function getImageHealthActionHint({ report, loading }: { report: ImageHea
 
   if (!hasOrphans && !hasArtworkGaps && !hasBrokenRefs && !hasDuplicateCache && !hasOversizedImages && !hasContentTypeMismatchImages) return '当前图片健康检查没有发现需要处理的图片问题。';
 
-  const disabledReasons = [];
-  if (hasDuplicateContent) disabledReasons.push('可整理重复内容中的未引用副本');
-  if (hasInvalidUnreferencedImages) disabledReasons.push('可整理未引用的无效图片');
-  if (hasOversizedUnreferencedImages) disabledReasons.push('可整理未引用的过大图片');
-  if (hasOversizedImages && !hasOversizedUnreferencedImages) disabledReasons.push('过大图片仍被数据库引用，需压缩、重新抓取或人工确认');
-  if (hasContentTypeMismatchUnreferenced) disabledReasons.push('可整理未引用的类型不匹配图片');
-  if (hasContentTypeMismatchImages && !hasContentTypeMismatchUnreferenced) disabledReasons.push('类型不匹配图片仍被数据库引用，需重新抓取或人工确认');
-  if (hasDuplicateFileNames) disabledReasons.push('重复文件名需要人工确认内容是否相同');
-  if (!hasBrokenRefs) disabledReasons.push('没有需要逐条审计的失效引用');
-  if (!hasArtworkGaps) disabledReasons.push('没有可补全的媒体缺图');
-  if (!hasOrphans) disabledReasons.push('没有可整理的孤儿图片');
+  const actionHints = [];
+  if (hasDuplicateContent) actionHints.push('可整理重复内容中的未引用副本');
+  if (hasInvalidUnreferencedImages) actionHints.push('可整理未引用的无效图片');
+  if (hasOversizedUnreferencedImages) actionHints.push('可整理未引用的过大图片');
+  if (hasOversizedImages && !hasOversizedUnreferencedImages) actionHints.push('过大图片仍被数据库引用，需压缩、重新抓取或人工确认');
+  if (hasContentTypeMismatchUnreferenced) actionHints.push('可整理未引用的类型不匹配图片');
+  if (hasContentTypeMismatchImages && !hasContentTypeMismatchUnreferenced) actionHints.push('类型不匹配图片仍被数据库引用，需重新抓取或人工确认');
+  if (hasDuplicateFileNames) actionHints.push('重复文件名需要人工确认内容是否相同');
+  if (hasOrphans) actionHints.push('可整理孤儿图片');
+  if (hasBrokenRefs) actionHints.push('可查看失效引用');
+  if (hasArtworkGaps) actionHints.push('可诊断或补全媒体缺图');
+  if (!hasBrokenRefs) actionHints.push('没有需要逐条审计的失效引用');
+  if (!hasArtworkGaps) actionHints.push('没有可补全的媒体缺图');
+  if (!hasOrphans) actionHints.push('没有可整理的孤儿图片');
 
-  return disabledReasons.length ? `${disabledReasons.join('；')}。` : '可处理项目已点亮，建议按提示逐项处理。';
+  return actionHints.length ? `${actionHints.join('；')}。` : '可处理项目已点亮，建议按提示逐项处理。';
 }
 
 function formatCount(value: number) {
