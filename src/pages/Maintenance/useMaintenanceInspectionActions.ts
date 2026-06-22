@@ -215,7 +215,7 @@ export function useMaintenanceInspectionActions({ setError, setMessage }: UseMai
       mismatchUnreferencedCount,
     ].filter((count) => count > 0).length;
     const confirmed = window.confirm(
-      `将批量整理 ${formatCount(totalIssueKinds)} 类未被数据库引用的图片缓存问题。\n\n包含孤儿图片、重复内容中的未引用副本、未引用无效图片、未引用过大图片和未引用类型不匹配图片。仍被数据库引用的图片、缺封面和失效引用不会被移动。隔离区会写入 manifest.json，必要时可以按清单找回原路径。确认继续？`,
+      `将批量整理 ${formatCount(totalIssueKinds)} 类未被数据库引用的图片缓存问题。\n\n预计处理：\n- 孤儿图片：${formatCount(orphanCount)} 个\n- 重复内容：${formatCount(duplicateGroupCount)} 组\n- 无效图片：${formatCount(invalidUnreferencedCount)} 个\n- 过大图片：${formatCount(oversizedUnreferencedCount)} 个\n- 类型不匹配：${formatCount(mismatchUnreferencedCount)} 个\n\n包含孤儿图片、重复内容中的未引用副本、未引用无效图片、未引用过大图片和未引用类型不匹配图片。仍被数据库引用的图片、缺封面和失效引用不会被移动。隔离区会写入 manifest.json，必要时可以按清单找回原路径。确认继续？`,
     );
     if (!confirmed) return;
 

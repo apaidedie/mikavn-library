@@ -330,6 +330,11 @@ test('maintenance image health batch cleanup confirms once and calls only safe c
   assert.match(batchSource, /window\.confirm/);
   assert.match(batchSource, /if \(!confirmed\) return/);
   assert.match(batchSource, /未被数据库引用/);
+  assert.match(batchSource, /孤儿图片：\$\{formatCount\(orphanCount\)\}/);
+  assert.match(batchSource, /重复内容：\$\{formatCount\(duplicateGroupCount\)\} 组/);
+  assert.match(batchSource, /无效图片：\$\{formatCount\(invalidUnreferencedCount\)\}/);
+  assert.match(batchSource, /过大图片：\$\{formatCount\(oversizedUnreferencedCount\)\}/);
+  assert.match(batchSource, /类型不匹配：\$\{formatCount\(mismatchUnreferencedCount\)\}/);
   assert.match(batchSource, /api\.quarantineOrphanImages/);
   assert.match(batchSource, /api\.quarantineDuplicateContentImages/);
   assert.match(batchSource, /api\.quarantineInvalidImageCacheFiles/);
