@@ -224,6 +224,13 @@ async function main() {
         await page.getByText('媒体健康').first().waitFor({ timeout: 5000 });
         await page.getByText('媒体完整').first().waitFor({ timeout: 5000 });
         await page.getByText('1 张引用').first().waitFor({ timeout: 5000 });
+        await page.getByRole('button', { name: /复制图片诊断/ }).click();
+        const copiedImageDiagnostic = await page.evaluate(() => navigator.clipboard.readText());
+        if (!copiedImageDiagnostic.includes('MikaVN 图片诊断')) throw new Error('image diagnostic copy did not include the diagnostic header');
+        if (!copiedImageDiagnostic.includes('游戏：星之终途 (qa-1)')) throw new Error('image diagnostic copy did not include the current game');
+        if (!copiedImageDiagnostic.includes('简介图片：1 张引用')) throw new Error('image diagnostic copy did not include description image count');
+        if (!copiedImageDiagnostic.includes('维护入口：维护中心 -> 图片健康 / 图片引用审计')) throw new Error('image diagnostic copy did not include the maintenance entry hint');
+        await page.getByText('已复制图片诊断信息。').first().waitFor({ timeout: 5000 });
         const descriptionImages = page.locator('section').filter({ hasText: '简介' }).locator('figure img');
         await assertImagesLoaded(descriptionImages, 'library detail description image');
         await page.getByText('媒体图库').first().waitFor({ timeout: 5000 });
