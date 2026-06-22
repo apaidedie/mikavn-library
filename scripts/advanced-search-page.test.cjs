@@ -78,6 +78,9 @@ test('advanced search page supports saved search create update apply and safe de
   assert.match(source, /api\.updateSavedSearch\(activeSaved\.id, \{ name: searchName, query: query\.trim\(\), description: null \}\)/);
   assert.match(source, /function applySavedSearch\(item: SavedSearch\)/);
   assert.match(source, /void runSearch\(item\.query\)/);
-  assert.match(source, /删除保存搜索「\$\{item\.name\}」？不会影响任何游戏记录。/);
+  assert.match(source, /删除保存搜索「\$\{item\.name\}」/);
+  assert.match(source, /只删除保存的搜索条件/);
+  assert.match(source, /不会删除游戏记录/);
+  assert.match(source, /不会删除真实游戏文件/);
   assert.match(source, /api\.deleteSavedSearch\(item\.id\)/);
 });

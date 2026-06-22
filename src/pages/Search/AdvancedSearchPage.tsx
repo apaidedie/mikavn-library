@@ -121,7 +121,7 @@ export function AdvancedSearchPage({ refreshKey, onOpenGame }: { refreshKey: num
   }
 
   async function deleteSavedSearch(item: SavedSearch) {
-    if (!window.confirm(`删除保存搜索「${item.name}」？不会影响任何游戏记录。`)) return;
+    if (!window.confirm(`删除保存搜索「${item.name}」？这只删除保存的搜索条件，不会删除游戏记录，也不会删除真实游戏文件。`)) return;
     try {
       await api.deleteSavedSearch(item.id);
       await loadSavedSearches();
