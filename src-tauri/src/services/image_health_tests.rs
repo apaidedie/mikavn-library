@@ -229,6 +229,30 @@ fn quarantine_oversized_image_cache_files_moves_only_unreferenced_large_files() 
 }
 
 #[test]
+fn image_health_report_counts_referenced_oversized_images_as_issue_refs() {
+    let root = std::env::temp_dir().join(format!("mikavn-image-oversized-{}", Uuid::new_v4()));
+    let paths = AppPaths::from_root(root.clone()).unwrap();
+    fs::create_dir_all(paths.images()).unwrap();
+    let oversized = paths.images().join("large.jpg");
+    fs::write(&oversized, b"\xFF\xD8\xFFlarge-referenced").unwrap();
+    create_health_db(&paths.database(), &oversized.to_string_lossy(), "", "");
+
+    let report = get_image_health_report_with_paths(
+        &paths,
+        ImageHealthReportOptions {
+            oversized_bytes: Some(8),
+            sample_limit: None,
+        },
+    )
+    .unwrap();
+
+    assert_eq!(report.summary.oversized_files, 1);
+    assert_eq!(report.summary.oversized_image_refs, 1);
+    assert_eq!(report.summary.issue_image_refs, 1);
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
 fn quarantine_content_type_mismatch_files_moves_only_unreferenced_mismatches() {
     let root = std::env::temp_dir().join(format!(
         "mikavn-image-mismatch-quarantine-{}",
