@@ -183,7 +183,7 @@ fn redact_json_value(value: &mut Value) {
 }
 
 fn diagnostic_summary(diagnostics: &diagnostics::AppDataDiagnostics, app_version: &str) -> String {
-    format!(
+    let mut summary = format!(
         "# MikaVN Diagnostic Summary\n\n- 应用版本：{}\n- 数据目录来源：{}\n- 数据库 quick_check：{}\n- 游戏数量：{}\n- 媒体资产：{}\n- 图片文件：{}\n- 日志文件：{}\n- 数据库备份：{}\n- 警告数量：{}\n",
         app_version,
         diagnostics.data_dir_source,
@@ -198,7 +198,22 @@ fn diagnostic_summary(diagnostics: &diagnostics::AppDataDiagnostics, app_version
         diagnostics.logs.file_count,
         diagnostics.database_backups.file_count,
         diagnostics.warnings.len()
-    )
+    );
+    if !diagnostics.warnings.is_empty() {
+        summary.push_str("\n## 警告摘要\n\n");
+        for warning in diagnostics.warnings.iter().take(5) {
+            summary.push_str("- ");
+            summary.push_str(warning);
+            summary.push('\n');
+        }
+        if diagnostics.warnings.len() > 5 {
+            summary.push_str(&format!(
+                "- 还有 {} 条警告，见 diagnostics.json。\n",
+                diagnostics.warnings.len() - 5
+            ));
+        }
+    }
+    summary
 }
 
 fn zip_generated_files(

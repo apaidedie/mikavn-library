@@ -361,6 +361,71 @@ fn diagnostic_export_summary_reports_core_counts() {
 }
 
 #[test]
+fn diagnostic_export_summary_lists_warning_samples() {
+    let root = std::env::temp_dir().join(format!(
+        "mikavn-diagnostic-warning-summary-{}",
+        Uuid::new_v4()
+    ));
+    let paths = AppPaths::from_root(root.join("app-data")).unwrap();
+    let missing_cover = paths.images().join("missing-cover.jpg");
+    let conn = Connection::open(paths.database()).unwrap();
+    conn.execute_batch(
+        r#"
+        PRAGMA user_version = 13;
+        CREATE TABLE games (
+          id TEXT PRIMARY KEY,
+          title TEXT NOT NULL,
+          cover_image TEXT,
+          play_status TEXT NOT NULL DEFAULT 'unplayed',
+          favorite INTEGER NOT NULL DEFAULT 0,
+          hidden INTEGER NOT NULL DEFAULT 0,
+          path_status TEXT NOT NULL DEFAULT 'unknown',
+          play_time_minutes INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE TABLE game_assets (
+          id TEXT PRIMARY KEY,
+          game_id TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          path TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE TABLE metadata_sources (
+          id TEXT PRIMARY KEY,
+          game_id TEXT NOT NULL,
+          provider TEXT NOT NULL,
+          provider_id TEXT NOT NULL,
+          fetched_at TEXT NOT NULL,
+          raw_json TEXT NOT NULL
+        );
+        CREATE TABLE external_ids (
+          id TEXT PRIMARY KEY,
+          game_id TEXT NOT NULL,
+          provider TEXT NOT NULL,
+          provider_id TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        "#,
+    )
+    .unwrap();
+    conn.execute(
+        "INSERT INTO games (id, title, cover_image, created_at, updated_at) VALUES ('game-1', 'Missing Cover VN', ?1, '2026-06-21T00:00:00Z', '2026-06-21T00:00:00Z')",
+        [missing_cover.to_string_lossy().to_string()],
+    )
+    .unwrap();
+
+    let report = export_diagnostic_package_with_paths(&paths, "test".to_string()).unwrap();
+    let summary = read_zip_entry(std::path::Path::new(&report.path), "summary.md");
+
+    assert!(summary.contains("## 警告摘要"));
+    assert!(summary.contains("- 有 1 条本地图片引用找不到文件。"));
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
 fn diagnostics_counts_maintenance_metrics() {
     let root = std::env::temp_dir().join(format!("mikavn-diagnostics-{}", Uuid::new_v4()));
     let paths = AppPaths::from_root(root.join("app-data")).unwrap();
