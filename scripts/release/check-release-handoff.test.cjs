@@ -35,6 +35,7 @@ function createHandoff(overrides = {}) {
     '# MikaVN Library 0.1.1 Local Release Validation',
     '## Automated Checks',
     '- `npm run release:validate:core`: passed.',
+    '- `npm run build`: passed.',
     '- `npm run test:diagnostic-export`: passed. Covers diagnostic export package, startup self-check warning notice, and dashboard error diagnostic export.',
     '- `npm run smoke:browser`: passed.',
     '- `npm run smoke:large`: passed.',
@@ -429,6 +430,30 @@ test('checkReleaseHandoff requires diagnostic export and startup self-check evid
   assert.throws(
     () => checkReleaseHandoff({ releaseDir }),
     /release validation report is missing required token: .*npm run test:diagnostic-export/,
+  );
+});
+
+test('checkReleaseHandoff requires production frontend build evidence in the validation report', () => {
+  const { releaseDir } = createHandoff();
+  const reportPath = path.join(releaseDir, 'RELEASE_VALIDATION_REPORT.md');
+  const report = fs.readFileSync(reportPath, 'utf8');
+  fs.writeFileSync(reportPath, report.replace('- `npm run build`: passed.\n', ''));
+
+  assert.throws(
+    () => checkReleaseHandoff({ releaseDir }),
+    /release validation report is missing required token: .*npm run build/,
+  );
+});
+
+test('checkReleaseHandoff rejects production frontend build evidence that is not marked passed', () => {
+  const { releaseDir } = createHandoff();
+  const reportPath = path.join(releaseDir, 'RELEASE_VALIDATION_REPORT.md');
+  const report = fs.readFileSync(reportPath, 'utf8');
+  fs.writeFileSync(reportPath, report.replace('- `npm run build`: passed.', '- `npm run build`: not run.'));
+
+  assert.throws(
+    () => checkReleaseHandoff({ releaseDir }),
+    /release validation report must mark required command as passed: npm run build/,
   );
 });
 
