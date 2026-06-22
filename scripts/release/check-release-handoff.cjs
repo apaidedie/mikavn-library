@@ -4,6 +4,8 @@ const path = require('path');
 
 const REQUIRED_REPORT_TOKENS = [
   'npm run release:validate:core',
+  'npm run test:diagnostic-export',
+  'startup self-check warning notice',
   'npm run smoke:browser',
   'npm run smoke:large',
   'Large library performance warnings',
@@ -51,6 +53,7 @@ const REQUIRED_CHECKLIST_TOKENS = [
 
 const REQUIRED_PASSED_COMMANDS = [
   'npm run release:validate:core',
+  'npm run test:diagnostic-export',
   'npm run smoke:browser',
   'npm run smoke:large',
   'npm run smoke:install',
