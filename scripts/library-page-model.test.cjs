@@ -150,7 +150,7 @@ test('formatLibraryBulkConfirmation summarizes the selected batch before writing
 
   assert.equal(
     formatLibraryBulkConfirmation(1234, '移出合集：Backlog'),
-    '确认对 1,234 个游戏执行批量操作：移出合集：Backlog？\n此操作只修改 MikaVN 数据库记录，不会删除真实游戏文件。',
+    '确认对当前筛选范围内已选的 1,234 个游戏执行批量操作：移出合集：Backlog？\n此操作只修改 MikaVN 数据库记录，不会删除真实游戏文件。',
   );
 });
 

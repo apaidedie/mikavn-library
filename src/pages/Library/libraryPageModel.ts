@@ -103,7 +103,7 @@ export function formatLibraryLoadMoreLabel(visibleCount: number, totalCount: num
 }
 
 export function formatLibraryBulkConfirmation(count: number, label: string) {
-  return `确认对 ${formatLibraryCount(count)} 个游戏执行批量操作：${label}？\n此操作只修改 MikaVN 数据库记录，不会删除真实游戏文件。`;
+  return `确认对当前筛选范围内已选的 ${formatLibraryCount(count)} 个游戏执行批量操作：${label}？\n此操作只修改 MikaVN 数据库记录，不会删除真实游戏文件。`;
 }
 
 export function formatLibraryBulkSelectionConfirmation(count: number) {
