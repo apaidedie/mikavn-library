@@ -110,6 +110,24 @@ function parseSha256Sums(contents) {
   return entries;
 }
 
+function requireFile(releaseDir, fileName, label) {
+  const filePath = path.join(releaseDir, fileName);
+  if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
+    throw new Error(`release handoff is missing ${label}: ${fileName}`);
+  }
+  return { fileName, filePath, sizeBytes: fs.statSync(filePath).size };
+}
+
+function checkedSha256(filePath, fileName, sums) {
+  const expected = sums.get(fileName);
+  if (!expected) throw new Error(`SHA256SUMS.txt is missing ${fileName}`);
+  const actual = sha256File(filePath);
+  if (actual !== expected) {
+    throw new Error(`checksum mismatch for ${fileName}: ${actual} !== ${expected}`);
+  }
+  return actual;
+}
+
 function requireTokens(contents, tokens, label) {
   const missing = tokens.filter((token) => !contents.includes(token));
   if (missing.length > 0) {
@@ -214,6 +232,37 @@ function blockingReleaseRisks({ signingStatus, manualRiskChecklist, buildMode, l
   return risks;
 }
 
+function requireUpdaterArtifacts({ releaseDir, installerName, sums }) {
+  const signatureArtifact = requireFile(releaseDir, `${installerName}.sig`, 'required updater artifact');
+  const latestArtifact = requireFile(releaseDir, 'latest.json', 'required updater artifact');
+  const signatureSha256 = checkedSha256(signatureArtifact.filePath, signatureArtifact.fileName, sums);
+  const latestSha256 = checkedSha256(latestArtifact.filePath, latestArtifact.fileName, sums);
+  const signature = fs.readFileSync(signatureArtifact.filePath, 'utf8').trim();
+  let metadata;
+  try {
+    metadata = JSON.parse(fs.readFileSync(latestArtifact.filePath, 'utf8'));
+  } catch (error) {
+    throw new Error(`updater metadata artifact is not valid JSON: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  if (metadata.platforms?.['windows-x86_64']?.signature !== signature) {
+    throw new Error('updater metadata signature does not match installer .sig artifact');
+  }
+  const metadataUrl = String(metadata.platforms?.['windows-x86_64']?.url || '');
+  const acceptableInstallerNames = [
+    installerName,
+    encodeURIComponent(installerName),
+    installerName.replace(/\s+/g, '.'),
+  ];
+  if (!acceptableInstallerNames.some((name) => metadataUrl.includes(name))) {
+    throw new Error(`updater metadata URL must reference installer artifact: ${installerName}`);
+  }
+
+  return [
+    { ...signatureArtifact, sha256: signatureSha256 },
+    { ...latestArtifact, sha256: latestSha256 },
+  ];
+}
+
 function requireNoBlockingReleaseRisks(risks) {
   if (risks.length === 0) return;
   throw new Error(`release handoff has blocking public release risk(s): ${risks.map((risk) => risk.code).join(', ')}`);
@@ -235,24 +284,13 @@ function checkReleaseHandoff(options = {}) {
     throw new Error(`release handoff directory not found: ${releaseDir}`);
   }
 
-  const requiredFiles = requiredReleaseFiles().map((fileName) => {
-    const filePath = path.join(releaseDir, fileName);
-    if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
-      throw new Error(`release handoff is missing required file: ${fileName}`);
-    }
-    return { fileName, filePath, sizeBytes: fs.statSync(filePath).size };
-  });
+  const requiredFiles = requiredReleaseFiles().map((fileName) => requireFile(releaseDir, fileName, 'required file'));
 
   const sums = parseSha256Sums(fs.readFileSync(path.join(releaseDir, 'SHA256SUMS.txt'), 'utf8'));
   const artifacts = requiredFiles
     .filter((item) => item.fileName.endsWith('.exe'))
     .map((item) => {
-      const expected = sums.get(item.fileName);
-      if (!expected) throw new Error(`SHA256SUMS.txt is missing ${item.fileName}`);
-      const actual = sha256File(item.filePath);
-      if (actual !== expected) {
-        throw new Error(`checksum mismatch for ${item.fileName}: ${actual} !== ${expected}`);
-      }
+      const actual = checkedSha256(item.filePath, item.fileName, sums);
       return { fileName: item.fileName, sizeBytes: item.sizeBytes, sha256: actual };
     });
 
@@ -262,6 +300,14 @@ function checkReleaseHandoff(options = {}) {
   const buildMode = buildModeFromReport(report);
   const signingStatus = signingStatusFromReport(report);
   const largeLibraryPerformanceWarnings = largeLibraryWarningCountFromReport(report);
+  const installerArtifact = artifacts.find((artifact) => artifact.fileName.endsWith('_x64-setup.exe'));
+  const updaterArtifacts = buildMode === 'updater-capable'
+    ? requireUpdaterArtifacts({
+      releaseDir,
+      installerName: installerArtifact.fileName,
+      sums,
+    })
+    : [];
 
   const checklist = fs.readFileSync(path.join(releaseDir, 'MANUAL_RISK_PASS_CHECKLIST.md'), 'utf8');
   requireTokens(checklist, REQUIRED_CHECKLIST_TOKENS, 'manual risk checklist');
@@ -273,6 +319,7 @@ function checkReleaseHandoff(options = {}) {
   return {
     releaseDir,
     artifacts,
+    updaterArtifacts,
     requiredFiles,
     buildMode,
     signingStatus,
@@ -291,6 +338,7 @@ if (require.main === module) {
     console.log(JSON.stringify({
       releaseDir: result.releaseDir,
       artifacts: result.artifacts,
+      updaterArtifacts: result.updaterArtifacts,
       requiredFiles: result.requiredFiles.length,
       buildMode: result.buildMode,
       signingStatus: result.signingStatus,

@@ -24,13 +24,29 @@ function createHandoff(overrides = {}) {
   const releaseDir = path.join(root, 'output', 'release', `${version}-windows-x64`);
   const exe = Buffer.from('exe');
   const installer = Buffer.from('installer');
-  writeFile(path.join(releaseDir, 'mikavn-library.exe'), exe);
-  writeFile(path.join(releaseDir, installerName), installer);
-  writeFile(path.join(releaseDir, 'SHA256SUMS.txt'), [
+  const installerSignature = Buffer.from('installer-signature');
+  const latestJson = Buffer.from(JSON.stringify({
+    version: `v${version}`,
+    platforms: {
+      'windows-x86_64': {
+        signature: installerSignature.toString('utf8'),
+        url: `https://github.com/apaidedie/mikavn-library/releases/download/v${version}/${installerName}`,
+      },
+    },
+  }, null, 2));
+  const checksumEntries = [
     `${sha256(exe)}  mikavn-library.exe`,
     `${sha256(installer)}  ${installerName}`,
-    '',
-  ].join('\n'));
+  ];
+  writeFile(path.join(releaseDir, 'mikavn-library.exe'), exe);
+  writeFile(path.join(releaseDir, installerName), installer);
+  if (!overrides.localTauriBuildOnly && overrides.includeUpdaterArtifacts !== false) {
+    writeFile(path.join(releaseDir, `${installerName}.sig`), installerSignature);
+    writeFile(path.join(releaseDir, 'latest.json'), latestJson);
+    checksumEntries.push(`${sha256(installerSignature)}  ${installerName}.sig`);
+    checksumEntries.push(`${sha256(latestJson)}  latest.json`);
+  }
+  writeFile(path.join(releaseDir, 'SHA256SUMS.txt'), [...checksumEntries, ''].join('\n'));
   const reportLines = [
     '# MikaVN Library 0.1.1 Local Release Validation',
     '## Automated Checks',
@@ -312,6 +328,53 @@ test('checkReleaseHandoff treats local-only builds as public release blockers ev
   assert.throws(
     () => checkReleaseHandoff({ releaseDir, requirePublicReady: true }),
     /release handoff has blocking public release risk\(s\): not-updater-capable/,
+  );
+});
+
+test('checkReleaseHandoff rejects updater-capable handoff without updater metadata artifacts', () => {
+  const { releaseDir } = createHandoff({ includeUpdaterArtifacts: false });
+
+  assert.throws(
+    () => checkReleaseHandoff({ releaseDir }),
+    /release handoff is missing required updater artifact: .*\.sig/,
+  );
+});
+
+test('checkReleaseHandoff rejects updater metadata signature drift', () => {
+  const { releaseDir } = createHandoff();
+  const latestJsonPath = path.join(releaseDir, 'latest.json');
+  const latestJson = JSON.parse(fs.readFileSync(latestJsonPath, 'utf8'));
+  latestJson.platforms['windows-x86_64'].signature = 'different-signature';
+  const latestJsonBuffer = Buffer.from(JSON.stringify(latestJson, null, 2));
+  fs.writeFileSync(latestJsonPath, latestJsonBuffer);
+  const sumsPath = path.join(releaseDir, 'SHA256SUMS.txt');
+  fs.writeFileSync(
+    sumsPath,
+    fs.readFileSync(sumsPath, 'utf8').replace(/[a-f0-9]{64}  latest\.json/, `${sha256(latestJsonBuffer)}  latest.json`),
+  );
+
+  assert.throws(
+    () => checkReleaseHandoff({ releaseDir }),
+    /updater metadata signature does not match installer \.sig artifact/,
+  );
+});
+
+test('checkReleaseHandoff rejects updater metadata URL that does not reference the installer artifact', () => {
+  const { releaseDir } = createHandoff();
+  const latestJsonPath = path.join(releaseDir, 'latest.json');
+  const latestJson = JSON.parse(fs.readFileSync(latestJsonPath, 'utf8'));
+  latestJson.platforms['windows-x86_64'].url = 'https://github.com/apaidedie/mikavn-library/releases/download/v0.0.0/old-installer.exe';
+  const latestJsonBuffer = Buffer.from(JSON.stringify(latestJson, null, 2));
+  fs.writeFileSync(latestJsonPath, latestJsonBuffer);
+  const sumsPath = path.join(releaseDir, 'SHA256SUMS.txt');
+  fs.writeFileSync(
+    sumsPath,
+    fs.readFileSync(sumsPath, 'utf8').replace(/[a-f0-9]{64}  latest\.json/, `${sha256(latestJsonBuffer)}  latest.json`),
+  );
+
+  assert.throws(
+    () => checkReleaseHandoff({ releaseDir }),
+    /updater metadata URL must reference installer artifact/,
   );
 });
 
