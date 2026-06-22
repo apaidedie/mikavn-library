@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { CoverImage } from '@/components/ui/cover';
@@ -8,6 +8,7 @@ import { PLAY_STATUS_LABEL } from '@/types/game';
 import { cn } from '@/utils/cn';
 import {
   formatLibraryLoadMoreLabel,
+  buildLibraryGameIndexLookup,
   getLibraryRenderIdentity,
   getLibraryRenderWindow,
   groupLibraryGames,
@@ -29,6 +30,7 @@ type LibraryGameNavProps = {
 
 export function GameList({ blurCovers, bulkMode, games, onSelect, onToggleSelection, selectedId, selectedIds }: LibraryGameNavProps) {
   const renderIdentity = getLibraryRenderIdentity(games);
+  const gameIndexLookup = useMemo(() => buildLibraryGameIndexLookup(games), [games]);
   const [renderState, setRenderState] = useState({ identity: renderIdentity, count: libraryListInitialRenderCount });
   const renderCount = renderState.identity === renderIdentity ? renderState.count : libraryListInitialRenderCount;
 
@@ -36,7 +38,7 @@ export function GameList({ blurCovers, bulkMode, games, onSelect, onToggleSelect
     return <EmptyLibrary />;
   }
 
-  const renderWindow = getLibraryRenderWindow(games, renderCount, selectedId);
+  const renderWindow = getLibraryRenderWindow(games, renderCount, selectedId, gameIndexLookup);
   const groups = [
     ...(renderWindow.selectedGame ? [{ id: 'selected' as const, label: '当前选中', games: [renderWindow.selectedGame] }] : []),
     ...groupLibraryGames(renderWindow.primaryGames, PLAY_STATUS_LABEL),
@@ -79,6 +81,7 @@ export function GameList({ blurCovers, bulkMode, games, onSelect, onToggleSelect
 
 export function GameGrid({ blurCovers, bulkMode, games, onSelect, onToggleSelection, selectedId, selectedIds }: LibraryGameNavProps) {
   const renderIdentity = getLibraryRenderIdentity(games);
+  const gameIndexLookup = useMemo(() => buildLibraryGameIndexLookup(games), [games]);
   const [renderState, setRenderState] = useState({ identity: renderIdentity, count: libraryGridInitialRenderCount });
   const renderCount = renderState.identity === renderIdentity ? renderState.count : libraryGridInitialRenderCount;
 
@@ -86,7 +89,7 @@ export function GameGrid({ blurCovers, bulkMode, games, onSelect, onToggleSelect
     return <EmptyLibrary />;
   }
 
-  const renderWindow = getLibraryRenderWindow(games, renderCount, selectedId);
+  const renderWindow = getLibraryRenderWindow(games, renderCount, selectedId, gameIndexLookup);
 
   return (
     <div className="space-y-3">

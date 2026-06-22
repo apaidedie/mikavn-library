@@ -276,6 +276,31 @@ test('buildLibraryGameLookup supports constant-time selected game lookups for la
   assert.equal(lookup.has('missing-game'), false);
 });
 
+test('buildLibraryGameIndexLookup supports constant-time selected index lookups for large libraries', () => {
+  const { buildLibraryGameIndexLookup } = loadLibraryPageModel();
+  const games = Array.from({ length: 5000 }, (_, index) => game({ id: `game-${index}` }));
+
+  const lookup = buildLibraryGameIndexLookup(games);
+
+  assert.equal(lookup.size, 5000);
+  assert.equal(lookup.get('game-4000'), 4000);
+  assert.equal(lookup.has('missing-game'), false);
+});
+
+test('getLibraryRenderWindow can use a precomputed selected index lookup', () => {
+  const { buildLibraryGameIndexLookup, getLibraryRenderWindow } = loadLibraryPageModel();
+  const games = Array.from({ length: 5000 }, (_, index) => game({ id: `game-${index}` }));
+  const lookup = buildLibraryGameIndexLookup(games);
+
+  const window = getLibraryRenderWindow(games, 240, 'game-4000', lookup);
+
+  assert.equal(window.primaryGames.length, 240);
+  assert.equal(window.selectedGame?.id, 'game-4000');
+  assert.equal(window.selectedIndex, 4000);
+  assert.equal(window.renderedCount, 241);
+  assert.equal(window.selectedPinned, true);
+});
+
 test('LibraryPage uses a memoized game lookup for selected state', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Library', 'LibraryPage.tsx'), 'utf8');
 
@@ -287,7 +312,11 @@ test('LibraryPage uses a memoized game lookup for selected state', () => {
 test('library nav renders through the bounded render window helper', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Library', 'LibraryGameNav.tsx'), 'utf8');
 
+  assert.match(source, /buildLibraryGameIndexLookup/);
+  assert.match(source, /useMemo\(\(\) => buildLibraryGameIndexLookup\(games\), \[games\]\)/);
   assert.match(source, /getLibraryRenderWindow/);
+  assert.match(source, /getLibraryRenderWindow\(games, renderCount, selectedId, gameIndexLookup\)/);
+  assert.doesNotMatch(source, /games\.findIndex/);
   assert.doesNotMatch(source, /games\.slice\(0, visibleCount\)/);
 });
 

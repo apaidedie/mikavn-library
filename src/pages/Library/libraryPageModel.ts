@@ -32,6 +32,14 @@ export function buildLibraryGameLookup(games: Game[]) {
   return lookup;
 }
 
+export function buildLibraryGameIndexLookup(games: Game[]) {
+  const lookup = new Map<string, number>();
+  games.forEach((game, index) => {
+    lookup.set(game.id, index);
+  });
+  return lookup;
+}
+
 export function getLibraryRenderIdentity(games: Game[]) {
   return `${games.length}:${games[0]?.id ?? ''}:${games[games.length - 1]?.id ?? ''}`;
 }
@@ -70,9 +78,9 @@ export function getLibraryVisibleCount(totalCount: number, renderCount: number, 
   return Math.min(totalCount, Math.max(current, Math.min(selectedTarget, librarySelectedRenderExpansionCap)));
 }
 
-export function getLibraryRenderWindow(games: Game[], renderCount: number, selectedId: string | null): LibraryRenderWindow {
+export function getLibraryRenderWindow(games: Game[], renderCount: number, selectedId: string | null, selectedIndexLookup?: ReadonlyMap<string, number>): LibraryRenderWindow {
   const primaryCount = Math.max(0, Math.min(games.length, renderCount));
-  const selectedIndex = selectedId ? games.findIndex((game) => game.id === selectedId) : -1;
+  const selectedIndex = selectedId ? selectedIndexLookup?.get(selectedId) ?? games.findIndex((game) => game.id === selectedId) : -1;
   const selectedPinned = selectedIndex >= primaryCount;
   const selectedGame = selectedPinned ? games[selectedIndex] ?? null : null;
 
