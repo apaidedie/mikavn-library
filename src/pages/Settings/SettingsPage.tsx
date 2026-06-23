@@ -78,6 +78,7 @@ export function SettingsPage({ tabRequest, onAccentPreview, onThemePreview, onSa
               libraryRoots={settings.libraryRoots}
               localData={settings.localData}
               restoreFocusKey={tabRequest?.section === 'database-restore' ? tabRequest.key : 0}
+              selfCheckFocusKey={tabRequest?.section === 'local-data-check' ? tabRequest.key : 0}
               settings={settings}
             />
           </TabsContent>

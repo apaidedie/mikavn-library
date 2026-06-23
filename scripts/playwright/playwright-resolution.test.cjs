@@ -67,6 +67,14 @@ test('large smoke warmup timeout is configurable and long enough for cold Vite t
   assert.match(source, /page\.goto\(baseUrl,\s*\{\s*waitUntil: 'domcontentloaded',\s*timeout: warmupTimeoutMs\s*\}\)/s);
 });
 
+test('vite dev server watcher ignores generated smoke and build artifacts', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', '..', 'vite.config.ts'), 'utf8');
+
+  assert.match(source, /\*\*\/src-tauri\/\*\*/);
+  assert.match(source, /\*\*\/output\/\*\*/);
+  assert.match(source, /\*\*\/dist\/\*\*/);
+});
+
 test('large smoke defaults to a real-library-scale sample size', () => {
   const source = fs.readFileSync(path.join(__dirname, 'large-library-smoke.cjs'), 'utf8');
   const defaultMatch = source.match(/MIKAVN_LARGE_LIBRARY_COUNT \|\| '(\d+)'/);

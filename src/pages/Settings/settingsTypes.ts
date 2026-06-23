@@ -1,5 +1,5 @@
 export type SettingsTab = 'appearance' | 'sources' | 'local';
-export type SettingsSection = 'database-restore';
+export type SettingsSection = 'database-restore' | 'local-data-check';
 
 export type SettingsForm = {
   provider_vndb_enabled: boolean;

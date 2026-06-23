@@ -87,7 +87,7 @@ export function SettingsLocalDataSection({
           </div>
         </div>
       </ConfigItem>
-      <ConfigItem title="数据目录自检" description="读取当前应用数据目录、数据库完整性、图片引用和备份文件状态。">
+      <ConfigItem id="local-data-check-section" title="数据目录自检" description="读取当前应用数据目录、数据库完整性、图片引用和备份文件状态。">
         <div className="flex max-w-[42rem] flex-col items-end gap-2 text-right">
           <div className="flex flex-wrap justify-end gap-2">
             <Button disabled={diagnosticsLoading} variant="outline" onClick={onLoadDiagnostics}><RefreshCw className="h-4 w-4" />{diagnosticsLoading ? '检查中' : '刷新自检'}</Button>

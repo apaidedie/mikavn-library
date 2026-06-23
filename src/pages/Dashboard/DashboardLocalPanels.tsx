@@ -89,6 +89,7 @@ export function LocalSafetyPanel({
             </div>
             <div className="flex flex-wrap gap-2">
               <Button size="sm" variant="outline" onClick={() => onOpenSettings?.('local', 'database-restore')}>备份与恢复</Button>
+              {backupStatus.level === 'large' && <Button size="sm" variant="outline" onClick={() => onOpenSettings?.('local', 'local-data-check')}>清理旧备份</Button>}
               <Button size="sm" variant="secondary" onClick={() => onOpenSettings?.('local', 'database-restore')}><RotateCcw className="h-4 w-4" />恢复数据库</Button>
             </div>
           </SoftRow>

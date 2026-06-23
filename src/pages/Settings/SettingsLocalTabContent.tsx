@@ -16,14 +16,23 @@ type SettingsLocalTabContentProps = {
   libraryRoots: ReturnType<typeof useSettingsLibraryRoots>;
   localData: ReturnType<typeof useSettingsLocalDataActions>;
   restoreFocusKey?: number;
+  selfCheckFocusKey?: number;
   settings: ReturnType<typeof useSettingsPageActions>;
 };
 
-export function SettingsLocalTabContent({ form, libraryRoots, localData, restoreFocusKey = 0, settings }: SettingsLocalTabContentProps) {
+export function SettingsLocalTabContent({ form, libraryRoots, localData, restoreFocusKey = 0, selfCheckFocusKey = 0, settings }: SettingsLocalTabContentProps) {
   const actions = settings.actions;
+  const scrollToLocalDataCheck = () => {
+    document.getElementById('local-data-check-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
   const scrollToDatabaseRestore = () => {
     document.getElementById('database-restore-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
+
+  useEffect(() => {
+    if (!selfCheckFocusKey) return;
+    window.requestAnimationFrame(scrollToLocalDataCheck);
+  }, [selfCheckFocusKey]);
 
   useEffect(() => {
     if (!restoreFocusKey) return;
