@@ -1,0 +1,6 @@
+# Generated and local build output. Keep ripgrep-based code audits focused on source.
+node_modules/
+dist/
+output/
+src-tauri/target/
+src-tauri/gen/schemas/
