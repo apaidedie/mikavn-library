@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Panel, PanelContent, PanelHeader, SoftRow } from '@/components/ui/page';
 import type { ImageCacheFileIssue, ImageDuplicateContentGroup, ImageDuplicateNameGroup, ImageHealthReport, ImageReferenceAudit } from '@/types/archive';
 import { ImageAuditDetailPanel, matchesImageAuditItem } from './ImageAuditDetailPanel';
-import { getImageHealthActionHint } from './maintenanceImageHealthModel';
+import { formatImageHealthReferenceSplit, getImageHealthActionHint } from './maintenanceImageHealthModel';
 
 export const MaintenanceImageAuditPanel = forwardRef<HTMLElement, {
   audit: ImageReferenceAudit | null;
@@ -205,9 +205,9 @@ function ImageHealthSummaryPanel({
         <ImageHealthStat label="旧导入缓存" value={summary?.legacyAppDataImportRefs ?? 0} />
         <ImageHealthStat label="重复文件名" tone={(summary?.duplicateFileNameGroups ?? 0) > 0 ? 'warn' : 'ok'} value={summary?.duplicateFileNameGroups ?? 0} />
         <ImageHealthStat label="重复内容" tone={(summary?.duplicateContentGroups ?? 0) > 0 ? 'warn' : 'ok'} value={summary?.duplicateContentGroups ?? 0} />
-        <ImageHealthStat label="过大图片" tone={(summary?.oversizedFiles ?? 0) > 0 ? 'warn' : 'ok'} value={summary?.oversizedFiles ?? 0} />
-        <ImageHealthStat label="无效图片" tone={(summary?.invalidImageFiles ?? 0) > 0 ? 'warn' : 'ok'} value={summary?.invalidImageFiles ?? 0} />
-        <ImageHealthStat label="类型不匹配" tone={(summary?.contentTypeMismatchFiles ?? 0) > 0 ? 'warn' : 'ok'} value={summary?.contentTypeMismatchFiles ?? 0} />
+        <ImageHealthStat label="过大图片" detail={formatImageHealthReferenceSplit(summary?.oversizedFiles, summary?.oversizedImageRefs)} tone={(summary?.oversizedFiles ?? 0) > 0 ? 'warn' : 'ok'} value={summary?.oversizedFiles ?? 0} />
+        <ImageHealthStat label="无效图片" detail={formatImageHealthReferenceSplit(summary?.invalidImageFiles, summary?.invalidImageRefs)} tone={(summary?.invalidImageFiles ?? 0) > 0 ? 'warn' : 'ok'} value={summary?.invalidImageFiles ?? 0} />
+        <ImageHealthStat label="类型不匹配" detail={formatImageHealthReferenceSplit(summary?.contentTypeMismatchFiles, summary?.contentTypeMismatchRefs)} tone={(summary?.contentTypeMismatchFiles ?? 0) > 0 ? 'warn' : 'ok'} value={summary?.contentTypeMismatchFiles ?? 0} />
       </div>
       {report?.recommendations.length ? (
         <div className="space-y-1">

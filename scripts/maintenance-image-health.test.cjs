@@ -329,6 +329,23 @@ test('image health summary can be copied as a compact diagnostic text', () => {
   assert.match(message, /2\. 再整理未引用缓存。/);
 });
 
+test('image health model formats referenced and safely cleanable cache counts', () => {
+  const { formatImageHealthReferenceSplit } = loadMaintenanceImageHealthModel();
+
+  assert.equal(formatImageHealthReferenceSplit(8, 3), '未引用可整理 5 · 仍被引用 3');
+  assert.equal(formatImageHealthReferenceSplit(2, 5), '未引用可整理 0 · 仍被引用 5');
+  assert.equal(formatImageHealthReferenceSplit(undefined, undefined), '未引用可整理 0 · 仍被引用 0');
+});
+
+test('maintenance image health ui distinguishes referenced cache issues from safe cleanup counts', () => {
+  const panel = fs.readFileSync('src/pages/Maintenance/MaintenanceImageAuditPanel.tsx', 'utf8');
+
+  assert.match(panel, /formatImageHealthReferenceSplit/);
+  assert.match(panel, /formatImageHealthReferenceSplit\(summary\?\.oversizedFiles, summary\?\.oversizedImageRefs\)/);
+  assert.match(panel, /formatImageHealthReferenceSplit\(summary\?\.invalidImageFiles, summary\?\.invalidImageRefs\)/);
+  assert.match(panel, /formatImageHealthReferenceSplit\(summary\?\.contentTypeMismatchFiles, summary\?\.contentTypeMismatchRefs\)/);
+});
+
 test('maintenance image health ui can copy the current health summary', () => {
   const panel = fs.readFileSync('src/pages/Maintenance/MaintenanceImageAuditPanel.tsx', 'utf8');
   const actions = fs.readFileSync('src/pages/Maintenance/useMaintenanceInspectionActions.ts', 'utf8');

@@ -114,6 +114,12 @@ export function formatImageHealthSummaryMarkdown(report: Pick<ImageHealthReport,
   return lines.join('\n');
 }
 
+export function formatImageHealthReferenceSplit(total?: number | null, referenced?: number | null) {
+  const referencedCount = Math.max(0, referenced ?? 0);
+  const cleanableCount = Math.max(0, (total ?? 0) - referencedCount);
+  return `未引用可整理 ${formatCount(cleanableCount)} · 仍被引用 ${formatCount(referencedCount)}`;
+}
+
 export function getImageHealthActionHint({ report, loading }: { report: ImageHealthActionHintReport | null; loading: boolean }) {
   if (loading) return '正在检查图片健康，完成后会更新可用操作。';
   if (!report) return '先检查图片健康后，再查看失效引用、诊断缺图或安全整理孤儿图片。';
