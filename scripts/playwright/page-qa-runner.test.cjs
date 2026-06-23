@@ -14,6 +14,7 @@ const maintenanceCasesPath = path.join(__dirname, 'page-qa-maintenance-cases.cjs
 const reportsCasesPath = path.join(__dirname, 'page-qa-reports-cases.cjs');
 const savesCasesPath = path.join(__dirname, 'page-qa-saves-cases.cjs');
 const settingsCasesPath = path.join(__dirname, 'page-qa-settings-cases.cjs');
+const tasksCasesPath = path.join(__dirname, 'page-qa-tasks-cases.cjs');
 
 test('page QA routes asset cache maintenance through image health', () => {
   const source = fs.readFileSync(sourcePath, 'utf8');
@@ -220,4 +221,21 @@ test('settings page QA cases live in a focused local safety scenario module', ()
   assert.match(settingsSource, /tray pending hint should clear after saving settings/);
   assert.doesNotMatch(source, /\['settings-local-privacy-backup'/);
   assert.doesNotMatch(source, /\['settings-tray-disabled-toggle'/);
+});
+
+test('task page QA cases live in a focused diagnostics scenario module', () => {
+  const source = fs.readFileSync(sourcePath, 'utf8');
+
+  assert.ok(fs.existsSync(tasksCasesPath), 'task page scenario module should exist');
+  const tasksSource = fs.readFileSync(tasksCasesPath, 'utf8');
+
+  assert.match(source, /page-qa-tasks-cases\.cjs/);
+  assert.match(source, /await runTaskPageQaCases\(browser\);/);
+  assert.match(tasksSource, /tasks-retry-shows-result-under-filters/);
+  assert.match(tasksSource, /tasks-running-failed-expanded/);
+  assert.match(tasksSource, /task page completed result should not show retry action/);
+  assert.match(tasksSource, /task page retry did not recreate the batch match task with the original game IDs/);
+  assert.match(tasksSource, /readTaskRetryPayload/);
+  assert.doesNotMatch(source, /tasks-retry-shows-result-under-filters/);
+  assert.doesNotMatch(source, /tasks-running-failed-expanded/);
 });

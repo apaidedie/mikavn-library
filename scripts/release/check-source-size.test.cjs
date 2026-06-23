@@ -88,6 +88,7 @@ test('default source budgets cover frontend, Rust service, and smoke runner hot 
     'scripts/playwright/page-qa-reports-cases.cjs',
     'scripts/playwright/page-qa-saves-cases.cjs',
     'scripts/playwright/page-qa-settings-cases.cjs',
+    'scripts/playwright/page-qa-tasks-cases.cjs',
     'scripts/playwright/page-qa-fixtures.cjs',
   ]) {
     assert.match(watchedPaths, new RegExp(expectedPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
@@ -107,6 +108,7 @@ test('page QA runner budget keeps shared helpers outside the scenario file', () 
   const savesBudget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('scripts/playwright/page-qa-saves-cases.cjs'));
   const settingsBudget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('scripts/playwright/page-qa-settings-cases.cjs'));
   const scannerBudget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('scripts/playwright/page-qa-scanner-cases.cjs'));
+  const tasksBudget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('scripts/playwright/page-qa-tasks-cases.cjs'));
 
   assert.ok(runnerBudget);
   assert.ok(helperBudget);
@@ -120,7 +122,9 @@ test('page QA runner budget keeps shared helpers outside the scenario file', () 
   assert.ok(savesBudget);
   assert.ok(settingsBudget);
   assert.ok(scannerBudget);
+  assert.ok(tasksBudget);
   assert.ok(runnerBudget.maxBytes <= 44 * 1024);
+  assert.ok(runnerBudget.maxLines <= 260);
   assert.ok(helperBudget.maxLines <= 240);
   assert.ok(advancedSearchBudget.maxLines <= 80);
   assert.ok(collectionsBudget.maxLines <= 100);
@@ -132,6 +136,7 @@ test('page QA runner budget keeps shared helpers outside the scenario file', () 
   assert.ok(savesBudget.maxLines <= 100);
   assert.ok(settingsBudget.maxLines <= 120);
   assert.ok(scannerBudget.maxLines <= 180);
+  assert.ok(tasksBudget.maxLines <= 220);
 });
 
 test('page QA runner delegates broad workflow cases to focused scenario modules', () => {
@@ -146,6 +151,7 @@ test('page QA runner delegates broad workflow cases to focused scenario modules'
   const savesCasesPath = path.join(__dirname, '..', '..', 'scripts', 'playwright', 'page-qa-saves-cases.cjs');
   const settingsCasesPath = path.join(__dirname, '..', '..', 'scripts', 'playwright', 'page-qa-settings-cases.cjs');
   const scannerCasesPath = path.join(__dirname, '..', '..', 'scripts', 'playwright', 'page-qa-scanner-cases.cjs');
+  const tasksCasesPath = path.join(__dirname, '..', '..', 'scripts', 'playwright', 'page-qa-tasks-cases.cjs');
 
   assert.match(runner, /const \{ advancedSearchPageQaCases \} = require\('\.\/page-qa-advanced-search-cases\.cjs'\);/);
   assert.match(runner, /const \{ collectionsPageQaCases \} = require\('\.\/page-qa-collections-cases\.cjs'\);/);
@@ -157,6 +163,7 @@ test('page QA runner delegates broad workflow cases to focused scenario modules'
   assert.match(runner, /const \{ savesPageQaCases \} = require\('\.\/page-qa-saves-cases\.cjs'\);/);
   assert.match(runner, /const \{ settingsPageQaCases \} = require\('\.\/page-qa-settings-cases\.cjs'\);/);
   assert.match(runner, /const \{ runScannerPageQaCases \} = require\('\.\/page-qa-scanner-cases\.cjs'\);/);
+  assert.match(runner, /const \{ runTaskPageQaCases \} = require\('\.\/page-qa-tasks-cases\.cjs'\);/);
   assert.match(runner, /\.\.\.advancedSearchPageQaCases,/);
   assert.match(runner, /\.\.\.collectionsPageQaCases,/);
   assert.match(runner, /\.\.\.dashboardPageQaCases,/);
@@ -167,6 +174,7 @@ test('page QA runner delegates broad workflow cases to focused scenario modules'
   assert.match(runner, /\.\.\.savesPageQaCases,/);
   assert.match(runner, /\.\.\.settingsPageQaCases,/);
   assert.match(runner, /await runScannerPageQaCases\(browser\);/);
+  assert.match(runner, /await runTaskPageQaCases\(browser\);/);
   assert.doesNotMatch(runner, /advanced-search-results/);
   assert.doesNotMatch(runner, /collections-populated/);
   assert.doesNotMatch(runner, /collections-create-add-remove-delete/);
@@ -184,6 +192,8 @@ test('page QA runner delegates broad workflow cases to focused scenario modules'
   assert.doesNotMatch(runner, /settings-tray-disabled-toggle/);
   assert.doesNotMatch(runner, /scanner-skip-import-audit/);
   assert.doesNotMatch(runner, /scanner-duplicate-import-audit/);
+  assert.doesNotMatch(runner, /tasks-retry-shows-result-under-filters/);
+  assert.doesNotMatch(runner, /tasks-running-failed-expanded/);
   assert.ok(fs.existsSync(advancedSearchCasesPath));
   assert.ok(fs.existsSync(collectionsCasesPath));
   assert.ok(fs.existsSync(dashboardCasesPath));
@@ -194,6 +204,7 @@ test('page QA runner delegates broad workflow cases to focused scenario modules'
   assert.ok(fs.existsSync(savesCasesPath));
   assert.ok(fs.existsSync(settingsCasesPath));
   assert.ok(fs.existsSync(scannerCasesPath));
+  assert.ok(fs.existsSync(tasksCasesPath));
 });
 
 test('maintenance page budget keeps page-level orchestration small', () => {
