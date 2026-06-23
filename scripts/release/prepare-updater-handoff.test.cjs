@@ -41,7 +41,7 @@ function writePassingReport(releaseDir) {
     '- `npm run smoke:portable-data`: passed.',
     '- `npm run smoke:real-data:readonly`: passed. `quick_check` ok; image header samples ok.',
     '- `npm run smoke:real-install:update`: passed. Real install counts preserved; verified database backup created under manual-install-smoke.',
-    `- Lower-version updater rehearsal: passed. previous version: ${previousPatchVersion(version)}. current version: ${version}. Updated through the in-app updater, restarted, and verified app-data.`,
+    `- Lower-version updater rehearsal: passed. previous version: ${previousPatchVersion(version)}. current version: ${version}. Updated through the in-app updater, restarted, verified app-data, and SQLite quick_check ok.`,
     '- Target install directory: `E:\\MikaVN Library`.',
     '- Post-install SQLite `quick_check`: ok.',
     '- Real installed exe: `E:\\MikaVN Library\\mikavn-library.exe`.',

@@ -218,6 +218,9 @@ function lowerVersionUpdaterRehearsalFromReport(report, expectedCurrentVersion) 
   if (!normalizedLine.includes('restart') || !normalizedLine.includes('app-data')) {
     throw new Error('release validation report must record lower-version updater rehearsal restart and app-data verification');
   }
+  if (!normalizedLine.includes('quick_check') || !/\b(ok|passed)\b/.test(normalizedLine)) {
+    throw new Error('release validation report must record lower-version updater rehearsal SQLite quick_check ok');
+  }
   const previousVersion = parseSemanticVersion(match[1], 'previous version');
   const currentVersion = parseSemanticVersion(match[2], 'current version');
   const expectedCurrent = parseSemanticVersion(expectedCurrentVersion, 'current release version');

@@ -46,7 +46,7 @@ Or, equivalently, the expanded validation chain:
 - `npm run smoke:desktop`
 
 CI also gates `npm run smoke:browser` and `npm run smoke:large`, and uploads browser, Vite, and desktop smoke artifacts for review. Local release candidates should also pass `npm run smoke:install`, `npm run smoke:portable-data`, `npm run smoke:real-data:readonly`, and `npm run smoke:real-install:update` so the NSIS installer lifecycle, executable-adjacent app-data behavior, existing real library data health, and verified database backup under `manual-install-smoke` are covered before sharing.
-When preparing `RELEASE_VALIDATION_REPORT.md`, record `Large library performance warnings: <count>` and `Topbar quick search: <ms>ms, budget <ms>ms` from `output/playwright/large-library-current/large-library-report.json` so release handoff captures timing regressions and the main search entry latency even when the smoke stays within hard budgets. Also record `Lower-version updater rehearsal: passed. previous version: <version>. current version: <version>.` with app-data verification after restart.
+When preparing `RELEASE_VALIDATION_REPORT.md`, record `Large library performance warnings: <count>` and `Topbar quick search: <ms>ms, budget <ms>ms` from `output/playwright/large-library-current/large-library-report.json` so release handoff captures timing regressions and the main search entry latency even when the smoke stays within hard budgets. Also record `Lower-version updater rehearsal: passed. previous version: <version>. current version: <version>.` with app-data verification after restart and SQLite `quick_check` ok.
 
 Recommended manual smoke coverage is listed in `RELEASE_CHECKLIST.md`.
 

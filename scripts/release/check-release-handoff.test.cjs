@@ -68,7 +68,7 @@ function createHandoff(overrides = {}) {
     '- `npm run smoke:portable-data`: passed.',
     '- `npm run smoke:real-data:readonly`: passed. `quick_check` ok; image header samples ok.',
     '- `npm run smoke:real-install:update`: passed. Real install counts preserved; verified database backup created under manual-install-smoke.',
-    `- Lower-version updater rehearsal: passed. previous version: ${previousVersion}. current version: ${version}. Updated through the in-app updater, restarted, and verified app-data.`,
+    `- Lower-version updater rehearsal: passed. previous version: ${previousVersion}. current version: ${version}. Updated through the in-app updater, restarted, verified app-data, and SQLite quick_check ok.`,
     '- Target install directory: `E:\\MikaVN Library`.',
     '- Post-install SQLite `quick_check`: ok.',
     '- Real installed exe: `E:\\MikaVN Library\\mikavn-library.exe`.',
@@ -575,12 +575,27 @@ test('checkReleaseHandoff requires lower-version updater rehearsal to verify app
   const report = fs.readFileSync(reportPath, 'utf8');
   fs.writeFileSync(
     reportPath,
-    report.replace(/Updated through the in-app updater, restarted, and verified app-data\./, 'Updated through the in-app updater.'),
+    report.replace(/Updated through the in-app updater, restarted, verified app-data, and SQLite quick_check ok\./, 'Updated through the in-app updater.'),
   );
 
   assert.throws(
     () => checkReleaseHandoff({ releaseDir }),
     /release validation report must record lower-version updater rehearsal restart and app-data verification/,
+  );
+});
+
+test('checkReleaseHandoff requires lower-version updater rehearsal to verify database quick_check', () => {
+  const { releaseDir } = createHandoff();
+  const reportPath = path.join(releaseDir, 'RELEASE_VALIDATION_REPORT.md');
+  const report = fs.readFileSync(reportPath, 'utf8');
+  fs.writeFileSync(
+    reportPath,
+    report.replace(/, and SQLite quick_check ok/, ''),
+  );
+
+  assert.throws(
+    () => checkReleaseHandoff({ releaseDir }),
+    /release validation report must record lower-version updater rehearsal SQLite quick_check ok/,
   );
 });
 
