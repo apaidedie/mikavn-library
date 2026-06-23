@@ -8,6 +8,7 @@ function compactLargeLibraryReport(report, timestamp = new Date().toISOString())
     timings: {
       libraryLoadMs: Number(report.timings?.libraryLoadMs || 0),
       detailSwitchMs: Number(report.timings?.detailSwitchMs || 0),
+      quickSearchMs: Number(report.timings?.quickSearchMs || 0),
       searchMs: Number(report.timings?.searchMs || 0),
     },
     renderedRows: {
@@ -37,7 +38,7 @@ function numberDelta(current, previous) {
 function buildLargeLibrarySmokeDelta(current, previous) {
   if (!previous) {
     return {
-      timings: { libraryLoadMs: 0, detailSwitchMs: 0, searchMs: 0 },
+      timings: { libraryLoadMs: 0, detailSwitchMs: 0, quickSearchMs: 0, searchMs: 0 },
       renderedRows: { initial: 0, afterLoadMore: 0 },
     };
   }
@@ -45,6 +46,7 @@ function buildLargeLibrarySmokeDelta(current, previous) {
     timings: {
       libraryLoadMs: numberDelta(current.timings.libraryLoadMs, previous.timings?.libraryLoadMs),
       detailSwitchMs: numberDelta(current.timings.detailSwitchMs, previous.timings?.detailSwitchMs),
+      quickSearchMs: numberDelta(current.timings.quickSearchMs, previous.timings?.quickSearchMs),
       searchMs: numberDelta(current.timings.searchMs, previous.timings?.searchMs),
     },
     renderedRows: {
@@ -60,7 +62,7 @@ function buildLargeLibrarySmokeWarnings(current, previous, options = {}) {
   const minRatio = Number(options.minRatio ?? 0.25);
   const minRowDelta = Number(options.minRowDelta ?? 240);
   const minRowRatio = Number(options.minRowRatio ?? 0.5);
-  const timingMetrics = ['libraryLoadMs', 'detailSwitchMs', 'searchMs'];
+  const timingMetrics = ['libraryLoadMs', 'detailSwitchMs', 'quickSearchMs', 'searchMs'];
   const rowMetrics = ['initial', 'afterLoadMore'];
   const warnings = [];
 

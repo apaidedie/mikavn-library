@@ -14,6 +14,7 @@ const now = new Date().toISOString();
 const gameCount = Number.parseInt(process.env.MIKAVN_LARGE_LIBRARY_COUNT || '4500', 10);
 const libraryLoadBudgetMs = Number.parseInt(process.env.MIKAVN_LARGE_LIBRARY_LOAD_BUDGET_MS || '12000', 10);
 const detailSwitchBudgetMs = Number.parseInt(process.env.MIKAVN_LARGE_LIBRARY_DETAIL_BUDGET_MS || '3000', 10);
+const quickSearchBudgetMs = Number.parseInt(process.env.MIKAVN_LARGE_LIBRARY_QUICK_SEARCH_BUDGET_MS || '5000', 10);
 const searchBudgetMs = Number.parseInt(process.env.MIKAVN_LARGE_LIBRARY_SEARCH_BUDGET_MS || '8000', 10);
 
 const settings = {
@@ -166,7 +167,7 @@ async function main() {
       searchCount: expectedSearchCount,
       detailSwitchTargetId: detailSwitchTarget.id,
     },
-    budgets: { libraryLoadBudgetMs, detailSwitchBudgetMs, searchBudgetMs },
+    budgets: { libraryLoadBudgetMs, detailSwitchBudgetMs, quickSearchBudgetMs, searchBudgetMs },
     renderedRows: {},
     timings: {},
   };
@@ -190,6 +191,12 @@ async function main() {
       const expandedRows = await page.locator('.game-nav-row').count();
       report.renderedRows.afterLoadMore = expandedRows;
       if (expandedRows <= visibleRows) throw new Error(`expected load more to increase row count, got ${visibleRows} -> ${expandedRows}`);
+      report.timings.quickSearchMs = await measure('library topbar quick search', quickSearchBudgetMs, async () => {
+        await page.getByRole('textbox', { name: '搜索游戏' }).fill('终途');
+        await page.getByText(formatLargeSmokeGameTotal(expectedTargetCount)).first().waitFor({ timeout: quickSearchBudgetMs });
+        await page.getByText('大型库性能样本 26 终途').first().waitFor({ timeout: 5000 });
+      });
+      await page.screenshot({ path: path.join(outDir, 'large-library-quick-search.png'), fullPage: true });
       await page.locator('aside').getByRole('button', { name: /筛选/ }).click();
       await page.getByPlaceholder('标签').fill('性能目标');
       await page.getByText(formatLargeSmokeGameTotal(expectedTargetCount)).first().waitFor({ timeout: 5000 });
@@ -210,6 +217,7 @@ async function main() {
       await context.close();
       console.log(`OK large library list ${formatLargeSmokeCount(gameCount)} entries in ${report.timings.libraryLoadMs}ms`);
       console.log(`OK large library detail switch in ${report.timings.detailSwitchMs}ms`);
+      console.log(`OK large library topbar quick search in ${report.timings.quickSearchMs}ms`);
     }
 
     {
