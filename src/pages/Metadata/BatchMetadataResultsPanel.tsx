@@ -1,4 +1,5 @@
 import { CheckCircle2, ChevronDown, StopCircle } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,7 +8,14 @@ import { MetricTile, Panel, PanelContent, PanelHeader, SoftRow } from '@/compone
 import { Select } from '@/components/ui/select';
 import type { ApplyMetadataFields, BatchMatchResult, BatchMatchStatus, MetadataSearchResult } from '@/types/metadata';
 import { friendlyMetadataError } from '@/utils/metadataErrors';
-import { getBatchMetadataCandidate, providerLabel, type BatchMetadataResultCounts } from './batchMetadataPageModel';
+import {
+  batchMetadataResultInitialRenderCount,
+  batchMetadataResultRenderBatchSize,
+  getBatchMetadataCandidate,
+  getBatchMetadataResultRenderWindow,
+  providerLabel,
+  type BatchMetadataResultCounts,
+} from './batchMetadataPageModel';
 
 type BatchMetadataResultsPanelProps = {
   appliedIds: string[];
@@ -35,6 +43,20 @@ type BatchMetadataResultsPanelProps = {
 };
 
 export function BatchMetadataResultsPanel({ appliedIds, applyingIds, expandedIds, fields, filteredApplicableResults, filteredResults, loading, onApplyAll, onApplyResult, onCancel, onChooseCandidate, onResetResultFilters, onResultQueryChange, onResultStatusFilterChange, onToggleExpanded, onWriteFilterChange, resultCounts, resultQuery, resultStatusFilter, selectedCandidates, status, writeFilter }: BatchMetadataResultsPanelProps) {
+  const resultFilterKey = `${resultStatusFilter}\n${writeFilter}\n${resultQuery}`;
+  const [resultVisibleState, setResultVisibleState] = useState({ count: batchMetadataResultInitialRenderCount, filterKey: resultFilterKey });
+  const visibleCount = resultVisibleState.filterKey === resultFilterKey ? resultVisibleState.count : batchMetadataResultInitialRenderCount;
+  const { visibleResults, hasMore, renderedCount, totalCount } = useMemo(
+    () => getBatchMetadataResultRenderWindow(filteredResults, visibleCount),
+    [filteredResults, visibleCount],
+  );
+  const loadMoreResults = () => {
+    setResultVisibleState((current) => ({
+      count: (current.filterKey === resultFilterKey ? current.count : batchMetadataResultInitialRenderCount) + batchMetadataResultRenderBatchSize,
+      filterKey: resultFilterKey,
+    }));
+  };
+
   return (
     <Panel>
       <PanelHeader
@@ -94,7 +116,16 @@ export function BatchMetadataResultsPanel({ appliedIds, applyingIds, expandedIds
                   <span>当前筛选没有匹配结果。</span>
                   <Button size="sm" variant="outline" onClick={onResetResultFilters}>重置筛选</Button>
                 </EmptyState>
-              ) : filteredResults.map((result) => <BatchMetadataResultRow appliedIds={appliedIds} applyingIds={applyingIds} expandedIds={expandedIds} fields={fields} key={result.id} result={result} selectedCandidates={selectedCandidates} onApplyResult={onApplyResult} onChooseCandidate={onChooseCandidate} onToggleExpanded={onToggleExpanded} />)}
+              ) : (
+                <>
+                  {visibleResults.map((result) => <BatchMetadataResultRow appliedIds={appliedIds} applyingIds={applyingIds} expandedIds={expandedIds} fields={fields} key={result.id} result={result} selectedCandidates={selectedCandidates} onApplyResult={onApplyResult} onChooseCandidate={onChooseCandidate} onToggleExpanded={onToggleExpanded} />)}
+                  {hasMore && (
+                    <Button className="w-full justify-center" size="sm" variant="outline" onClick={loadMoreResults}>
+                      加载更多 {renderedCount} / {totalCount}
+                    </Button>
+                  )}
+                </>
+              )}
             </div>
           </>
         )}

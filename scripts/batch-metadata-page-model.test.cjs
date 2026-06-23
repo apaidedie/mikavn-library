@@ -160,6 +160,28 @@ test('batch metadata queue render window keeps large queues bounded', () => {
   assert.equal(emptyWindow.hasMore, false);
 });
 
+test('batch metadata result render window keeps large result sets bounded', () => {
+  const {
+    batchMetadataResultInitialRenderCount,
+    batchMetadataResultRenderBatchSize,
+    getBatchMetadataResultRenderWindow,
+  } = loadBatchMetadataPageModel();
+  const results = Array.from({ length: 420 }, (_, index) => result({ id: `result-${index}`, status: 'success' }));
+
+  const initialWindow = getBatchMetadataResultRenderWindow(results, batchMetadataResultInitialRenderCount);
+  const expandedWindow = getBatchMetadataResultRenderWindow(results, batchMetadataResultInitialRenderCount + batchMetadataResultRenderBatchSize);
+  const emptyWindow = getBatchMetadataResultRenderWindow([], batchMetadataResultInitialRenderCount);
+
+  assert.equal(batchMetadataResultInitialRenderCount, 120);
+  assert.equal(batchMetadataResultRenderBatchSize, 120);
+  assert.equal(initialWindow.visibleResults.length, 120);
+  assert.equal(initialWindow.renderedCount, 120);
+  assert.equal(initialWindow.totalCount, 420);
+  assert.equal(initialWindow.hasMore, true);
+  assert.equal(expandedWindow.visibleResults.length, 240);
+  assert.equal(emptyWindow.hasMore, false);
+});
+
 test('batch metadata actions ignore stale async loads and status polls', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Metadata', 'useBatchMetadataPageActions.ts'), 'utf8');
 
@@ -189,5 +211,18 @@ test('batch metadata queue panel renders through a bounded window helper', () =>
   assert.match(source, /const \{ visibleGames, hasMore, renderedCount, totalCount \} = useMemo/);
   assert.match(source, /visibleGames\.map\(\(game\)/);
   assert.match(source, /onSelectIds\(filteredIncompleteGames\.map\(\(game\) => game\.id\)\)/);
+  assert.match(source, /加载更多/);
+});
+
+test('batch metadata results panel renders through a bounded window helper', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Metadata', 'BatchMetadataResultsPanel.tsx'), 'utf8');
+
+  assert.match(source, /batchMetadataResultInitialRenderCount/);
+  assert.match(source, /batchMetadataResultRenderBatchSize/);
+  assert.match(source, /getBatchMetadataResultRenderWindow/);
+  assert.match(source, /const resultFilterKey = `\$\{resultStatusFilter\}\\n\$\{writeFilter\}\\n\$\{resultQuery\}`/);
+  assert.match(source, /const \{ visibleResults, hasMore, renderedCount, totalCount \} = useMemo/);
+  assert.match(source, /visibleResults\.map\(\(result\)/);
+  assert.doesNotMatch(source, /filteredResults\.map\(\(result\)/);
   assert.match(source, /加载更多/);
 });
