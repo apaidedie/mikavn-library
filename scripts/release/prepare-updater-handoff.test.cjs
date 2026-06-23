@@ -11,6 +11,11 @@ const { prepareUpdaterHandoff } = require('./prepare-updater-handoff.cjs');
 const repoRoot = path.resolve(__dirname, '..', '..');
 const { version } = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
 
+function previousPatchVersion(value) {
+  const parts = value.split('.').map((part) => Number(part));
+  return `${parts[0]}.${parts[1]}.${Math.max(0, parts[2] - 1)}`;
+}
+
 function writeFile(filePath, contents) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, contents);
@@ -36,7 +41,7 @@ function writePassingReport(releaseDir) {
     '- `npm run smoke:portable-data`: passed.',
     '- `npm run smoke:real-data:readonly`: passed. `quick_check` ok; image header samples ok.',
     '- `npm run smoke:real-install:update`: passed. Real install counts preserved; verified database backup created under manual-install-smoke.',
-    '- Lower-version updater rehearsal: passed. Installed previous version, updated through the in-app updater to current version, restarted, and verified app-data.',
+    `- Lower-version updater rehearsal: passed. previous version: ${previousPatchVersion(version)}. current version: ${version}. Updated through the in-app updater, restarted, and verified app-data.`,
     '- Target install directory: `E:\\MikaVN Library`.',
     '- Post-install SQLite `quick_check`: ok.',
     '- Real installed exe: `E:\\MikaVN Library\\mikavn-library.exe`.',

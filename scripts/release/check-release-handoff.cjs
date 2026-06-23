@@ -190,6 +190,43 @@ function topbarQuickSearchMsFromReport(report) {
   return Number(match[1].replace(/,/g, ''));
 }
 
+function parseSemanticVersion(value, label) {
+  const match = /^v?(\d+)\.(\d+)\.(\d+)$/.exec(String(value).trim());
+  if (!match) throw new Error(`release validation report must record a semantic ${label}: ${value}`);
+  return {
+    normalized: `${Number(match[1])}.${Number(match[2])}.${Number(match[3])}`,
+    parts: [Number(match[1]), Number(match[2]), Number(match[3])],
+  };
+}
+
+function compareSemanticVersions(left, right) {
+  for (let index = 0; index < left.parts.length; index += 1) {
+    if (left.parts[index] < right.parts[index]) return -1;
+    if (left.parts[index] > right.parts[index]) return 1;
+  }
+  return 0;
+}
+
+function lowerVersionUpdaterRehearsalFromReport(report, expectedCurrentVersion) {
+  const match = /Lower-version updater rehearsal:\s*passed\.[^\r\n]*previous version:\s*(v?\d+\.\d+\.\d+)[^\r\n]*current version:\s*(v?\d+\.\d+\.\d+)/i.exec(report);
+  if (!match) {
+    throw new Error('release validation report must record lower-version updater rehearsal previous and current semantic versions');
+  }
+  const previousVersion = parseSemanticVersion(match[1], 'previous version');
+  const currentVersion = parseSemanticVersion(match[2], 'current version');
+  const expectedCurrent = parseSemanticVersion(expectedCurrentVersion, 'current release version');
+  if (currentVersion.normalized !== expectedCurrent.normalized) {
+    throw new Error(`lower-version updater rehearsal current version must match release version: ${currentVersion.normalized} !== ${expectedCurrent.normalized}`);
+  }
+  if (compareSemanticVersions(previousVersion, currentVersion) >= 0) {
+    throw new Error(`lower-version updater rehearsal previous version must be lower than current version: ${previousVersion.normalized} >= ${currentVersion.normalized}`);
+  }
+  return {
+    previousVersion: previousVersion.normalized,
+    currentVersion: currentVersion.normalized,
+  };
+}
+
 function cleanRiskCode(value) {
   return value
     .trim()
@@ -367,6 +404,7 @@ function checkReleaseHandoff(options = {}) {
   const signingCertificatePreflight = signingCertificatePreflightFromReport(report);
   const largeLibraryPerformanceWarnings = largeLibraryWarningCountFromReport(report);
   const topbarQuickSearchMs = topbarQuickSearchMsFromReport(report);
+  const lowerVersionUpdaterRehearsal = lowerVersionUpdaterRehearsalFromReport(report, readReleaseMetadata().version);
   const installerArtifact = artifacts.find((artifact) => artifact.fileName.endsWith('_x64-setup.exe'));
   const updaterArtifacts = buildMode === 'updater-capable'
     ? requireUpdaterArtifacts({
@@ -399,6 +437,7 @@ function checkReleaseHandoff(options = {}) {
     signingCertificatePreflight,
     largeLibraryPerformanceWarnings,
     topbarQuickSearchMs,
+    lowerVersionUpdaterRehearsal,
     manualRiskStatus,
     manualRiskChecklist,
     blockingReleaseRisks: blockingRisks,
@@ -420,6 +459,7 @@ if (require.main === module) {
       signingCertificatePreflight: result.signingCertificatePreflight,
       largeLibraryPerformanceWarnings: result.largeLibraryPerformanceWarnings,
       topbarQuickSearchMs: result.topbarQuickSearchMs,
+      lowerVersionUpdaterRehearsal: result.lowerVersionUpdaterRehearsal,
       manualRiskStatus: result.manualRiskStatus,
       manualRiskChecklist: result.manualRiskChecklist,
       blockingReleaseRisks: result.blockingReleaseRisks,

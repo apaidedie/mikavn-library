@@ -17,9 +17,15 @@ function sha256(contents) {
   return crypto.createHash('sha256').update(contents).digest('hex');
 }
 
+function previousPatchVersion(version) {
+  const parts = version.split('.').map((part) => Number(part));
+  return `${parts[0]}.${parts[1]}.${Math.max(0, parts[2] - 1)}`;
+}
+
 function createHandoff(overrides = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'mikavn-release-handoff-'));
   const version = overrides.version || JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'package.json'), 'utf8')).version;
+  const previousVersion = overrides.previousVersion || previousPatchVersion(version);
   const installerName = overrides.installerName || `MikaVN Library_${version}_x64-setup.exe`;
   const releaseDir = path.join(root, 'output', 'release', `${version}-windows-x64`);
   const exe = Buffer.from('exe');
@@ -62,7 +68,7 @@ function createHandoff(overrides = {}) {
     '- `npm run smoke:portable-data`: passed.',
     '- `npm run smoke:real-data:readonly`: passed. `quick_check` ok; image header samples ok.',
     '- `npm run smoke:real-install:update`: passed. Real install counts preserved; verified database backup created under manual-install-smoke.',
-    '- Lower-version updater rehearsal: passed. Installed previous version, updated through the in-app updater to current version, restarted, and verified app-data.',
+    `- Lower-version updater rehearsal: passed. previous version: ${previousVersion}. current version: ${version}. Updated through the in-app updater, restarted, and verified app-data.`,
     '- Target install directory: `E:\\MikaVN Library`.',
     '- Post-install SQLite `quick_check`: ok.',
     '- Real installed exe: `E:\\MikaVN Library\\mikavn-library.exe`.',
@@ -111,11 +117,11 @@ function createHandoff(overrides = {}) {
     '- [ ] Saved search.',
     ...(overrides.checklistLines || []),
   ].join('\n'));
-  return { releaseDir, root };
+  return { previousVersion, releaseDir, root, version };
 }
 
 test('checkReleaseHandoff accepts complete artifacts, checksums, reports, and checklist', () => {
-  const { releaseDir } = createHandoff();
+  const { previousVersion, releaseDir, version } = createHandoff();
 
   const result = checkReleaseHandoff({ releaseDir });
 
@@ -125,6 +131,10 @@ test('checkReleaseHandoff accepts complete artifacts, checksums, reports, and ch
   assert.equal(result.signingStatus, 'documented-unsigned');
   assert.equal(result.buildMode, 'updater-capable');
   assert.equal(result.topbarQuickSearchMs, 210);
+  assert.deepEqual(result.lowerVersionUpdaterRehearsal, {
+    currentVersion: version,
+    previousVersion,
+  });
   assert.equal(result.manualRiskStatus, 'checklist-pending');
   assert.deepEqual(result.blockingReleaseRisks, [
     {
@@ -550,7 +560,7 @@ test('checkReleaseHandoff requires lower-version updater rehearsal evidence in t
   const report = fs.readFileSync(reportPath, 'utf8');
   fs.writeFileSync(
     reportPath,
-    report.replace('- Lower-version updater rehearsal: passed. Installed previous version, updated through the in-app updater to current version, restarted, and verified app-data.\n', ''),
+    report.replace(/- Lower-version updater rehearsal: passed\..+\n/, ''),
   );
 
   assert.throws(
