@@ -4,6 +4,7 @@ import { DiagnosticExportPathActions } from '@/components/diagnostics/Diagnostic
 import { Button } from '@/components/ui/button';
 import { Notice } from '@/components/ui/notice';
 import { api } from '@/services/api';
+import { redactDiagnosticText } from '@/utils/diagnosticRedaction';
 import { errorMessage } from '@/utils/errorMessage';
 
 type AppErrorBoundaryState = {
@@ -33,7 +34,7 @@ export class AppErrorBoundary extends Component<{ children: ReactNode }, AppErro
       this.state.componentStack ? `Component stack:\n${this.state.componentStack}` : '',
     ].filter(Boolean).join('\n\n');
     try {
-      await navigator.clipboard.writeText(summary);
+      await navigator.clipboard.writeText(redactDiagnosticText(summary));
       this.setState({ exportMessage: '错误摘要已复制。' });
     } catch (reason) {
       this.setState({ exportMessage: `复制错误摘要失败：${errorMessage(reason)}` });

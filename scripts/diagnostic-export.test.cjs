@@ -1,6 +1,25 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const test = require('node:test');
+const path = require('node:path');
+const ts = require('typescript');
+
+function loadDiagnosticRedaction() {
+  const sourcePath = path.join(__dirname, '..', 'src', 'utils', 'diagnosticRedaction.ts');
+  const source = fs.readFileSync(sourcePath, 'utf8');
+  const transpiled = ts.transpileModule(source, {
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2022,
+      esModuleInterop: true,
+    },
+  }).outputText;
+
+  const module = { exports: {} };
+  const fn = new Function('module', 'exports', transpiled);
+  fn(module, module.exports);
+  return module.exports;
+}
 
 test('diagnostic export command is registered and exposed through api', () => {
   const lib = fs.readFileSync('src-tauri/src/lib.rs', 'utf8');
@@ -64,6 +83,7 @@ test('global app error boundary exposes diagnostic package export after render c
   assert.match(boundary, /copyErrorSummary/);
   assert.match(boundary, /复制错误摘要/);
   assert.match(boundary, /navigator\.clipboard\.writeText/);
+  assert.match(boundary, /redactDiagnosticText\(summary\)/);
 });
 
 test('global app error boundary can reveal or copy exported diagnostic path', () => {
@@ -156,8 +176,23 @@ test('startup self-check warning notice can copy a concise diagnostic summary', 
   assert.match(notice, /copyStartupSelfCheckSummary/);
   assert.match(notice, /MikaVN 启动自检摘要/);
   assert.match(notice, /startupSelfCheckWarnings\.join\('\\n'\)/);
-  assert.match(notice, /navigator\.clipboard\.writeText\(summary\)/);
+  assert.match(notice, /navigator\.clipboard\.writeText\(redactDiagnosticText\(summary\)\)/);
   assert.match(notice, /复制自检摘要/);
   assert.match(notice, /自检摘要已复制。/);
   assert.match(notice, /复制自检摘要失败/);
+});
+
+test('frontend diagnostic redaction removes secrets and Windows user names before clipboard copy', () => {
+  const { redactDiagnosticText } = loadDiagnosticRedaction();
+  const text = [
+    String.raw`Error: token:abc password=hunter2 API_KEY=secret`,
+    String.raw`at run (C:\Users\alice\AppData\Local\MikaVN\main.js:12:3)`,
+    String.raw`at query (C:/Users/bob/AppData/Roaming/MikaVN/token-cache.json:1:1)`,
+  ].join('\n');
+  const redacted = redactDiagnosticText(text);
+
+  assert.match(redacted, /\[redacted\]/);
+  assert.match(redacted, /C:\\Users\\\[user\]\\AppData/);
+  assert.match(redacted, /C:\/Users\/\[user\]\/AppData/);
+  assert.doesNotMatch(redacted, /abc|hunter2|secret|alice|bob/);
 });

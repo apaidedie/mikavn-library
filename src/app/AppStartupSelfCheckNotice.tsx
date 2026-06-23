@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { DiagnosticExportPathActions } from '@/components/diagnostics/DiagnosticExportPathActions';
 import { Button } from '@/components/ui/button';
 import { Notice } from '@/components/ui/notice';
+import { redactDiagnosticText } from '@/utils/diagnosticRedaction';
 import { errorMessage } from '@/utils/errorMessage';
 
 type AppStartupSelfCheckNoticeProps = {
@@ -51,7 +52,7 @@ export function AppStartupSelfCheckNotice({
       error ? `错误：${error}` : startupSelfCheckWarnings.join('\n'),
     ].filter(Boolean).join('\n');
     try {
-      await navigator.clipboard.writeText(summary);
+      await navigator.clipboard.writeText(redactDiagnosticText(summary));
       setDiagnosticCopyMessage('自检摘要已复制。');
     } catch (reason) {
       setDiagnosticCopyMessage(`复制自检摘要失败：${errorMessage(reason)}`);
