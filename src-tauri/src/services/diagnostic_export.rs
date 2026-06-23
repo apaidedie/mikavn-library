@@ -174,12 +174,44 @@ fn redact_json_value(value: &mut Value) {
             }
         }
         Value::Object(map) => {
-            for item in map.values_mut() {
-                redact_json_value(item);
+            for (key, item) in map.iter_mut() {
+                if is_sensitive_json_key(key) {
+                    *item = Value::String("[redacted]".to_string());
+                } else {
+                    redact_json_value(item);
+                }
             }
         }
         _ => {}
     }
+}
+
+fn is_sensitive_json_key(key: &str) -> bool {
+    let normalized = key
+        .chars()
+        .filter(|character| !matches!(character, '_' | '-'))
+        .flat_map(char::to_lowercase)
+        .collect::<String>();
+
+    matches!(
+        normalized.as_str(),
+        "authorization"
+            | "apikey"
+            | "accesstoken"
+            | "refreshtoken"
+            | "clientsecret"
+            | "authtoken"
+            | "idtoken"
+            | "privatekey"
+            | "signingkey"
+            | "sessionid"
+            | "session"
+            | "cookie"
+            | "jwt"
+            | "secret"
+            | "token"
+            | "password"
+    )
 }
 
 fn diagnostic_summary(diagnostics: &diagnostics::AppDataDiagnostics, app_version: &str) -> String {
@@ -234,4 +266,40 @@ fn zip_generated_files(
     }
     writer.finish()?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::*;
+
+    #[test]
+    fn diagnostic_export_redacts_structured_secret_fields_by_key() {
+        let mut value = json!({
+            "api_key": "plain-api-secret",
+            "authorization": "Bearer plain-bearer-secret",
+            "nested": {
+                "session_id": "plain-session-secret",
+                "private_key": "plain-private-secret"
+            },
+            "items": [
+                {
+                    "client_secret": "plain-client-secret"
+                }
+            ],
+            "title": "Safe VN"
+        });
+
+        redact_json_value(&mut value);
+        let output = value.to_string();
+
+        assert!(output.contains("[redacted]"));
+        assert!(!output.contains("plain-api-secret"));
+        assert!(!output.contains("plain-bearer-secret"));
+        assert!(!output.contains("plain-session-secret"));
+        assert!(!output.contains("plain-private-secret"));
+        assert!(!output.contains("plain-client-secret"));
+        assert!(output.contains("Safe VN"));
+    }
 }
