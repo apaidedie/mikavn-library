@@ -43,6 +43,34 @@ function currentSourceCommit(repoRoot) {
   return commit.toLowerCase();
 }
 
+function currentSourceCommitTimeMs(repoRoot) {
+  const result = childProcess.spawnSync('git', ['show', '-s', '--format=%ct', 'HEAD'], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+  });
+  if (result.status !== 0) {
+    const message = (result.stderr || result.stdout || '').trim();
+    throw new Error(`failed to read current Git commit time: ${message || `exit ${result.status}`}`);
+  }
+  const timestampSeconds = Number(result.stdout.trim());
+  if (!Number.isFinite(timestampSeconds) || timestampSeconds <= 0) {
+    throw new Error(`current Git commit time is invalid: ${result.stdout.trim()}`);
+  }
+  return timestampSeconds * 1000;
+}
+
+function assertArtifactsFresh(repoRoot, artifacts) {
+  const commitTimeMs = currentSourceCommitTimeMs(repoRoot);
+  const staleArtifacts = artifacts
+    .filter((artifact) => fs.statSync(artifact.filePath).mtimeMs + 1000 < commitTimeMs)
+    .map((artifact) => artifact.label);
+  if (staleArtifacts.length > 0) {
+    throw new Error(
+      `Release artifacts are older than the current source commit: ${staleArtifacts.join(', ')}. Run npm run tauri:build before preparing updater handoff.`,
+    );
+  }
+}
+
 function upsertSourceCommitInReport(reportPath, commit) {
   if (!fs.existsSync(reportPath)) return;
   const report = fs.readFileSync(reportPath, 'utf8');
@@ -128,6 +156,11 @@ function prepareUpdaterHandoff(options = {}) {
 
   ensureFile(releaseExePath, 'Release executable');
   ensureFile(signaturePath, 'Missing updater signature');
+  assertArtifactsFresh(repoRoot, [
+    { label: 'release executable', filePath: releaseExePath },
+    { label: 'NSIS installer', filePath: installer.filePath },
+    { label: 'updater signature', filePath: signaturePath },
+  ]);
 
   const releaseExeTarget = path.join(releaseDir, 'mikavn-library.exe');
   const installerTarget = path.join(releaseDir, installerName);

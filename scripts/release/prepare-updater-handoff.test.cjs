@@ -194,3 +194,25 @@ test('prepareUpdaterHandoff rejects installers without updater signatures', () =
     /Missing updater signature/,
   );
 });
+
+test('prepareUpdaterHandoff rejects artifacts older than the current source commit', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'mikavn-updater-handoff-'));
+  const releaseExePath = path.join(tempRoot, 'target', 'release', 'mikavn-library.exe');
+  const bundleDir = path.join(tempRoot, 'target', 'release', 'bundle', 'nsis');
+  const releaseDir = path.join(tempRoot, 'output', 'release', `${version}-windows-x64`);
+  const installerPath = path.join(bundleDir, `MikaVN Library_${version}_x64-setup.exe`);
+  const signaturePath = `${installerPath}.sig`;
+  const staleTime = new Date('2000-01-01T00:00:00Z');
+
+  writeFile(releaseExePath, 'desktop-exe');
+  writeFile(installerPath, 'installer');
+  writeFile(signaturePath, 'signed-updater-payload');
+  fs.utimesSync(releaseExePath, staleTime, staleTime);
+  fs.utimesSync(installerPath, staleTime, staleTime);
+  fs.utimesSync(signaturePath, staleTime, staleTime);
+
+  assert.throws(
+    () => prepareUpdaterHandoff({ bundleDir, releaseDir, releaseExePath, repoRoot }),
+    /Release artifacts are older than the current source commit/,
+  );
+});
