@@ -274,6 +274,16 @@ test('maintenance image health ui exposes one-click safe cleanup wording', () =>
   assert.doesNotMatch(panel, /一键永久删除/);
 });
 
+test('maintenance image health ui surfaces cache storage size and safe reclaim size', () => {
+  const panel = fs.readFileSync('src/pages/Maintenance/MaintenanceImageAuditPanel.tsx', 'utf8');
+
+  assert.match(panel, /缓存体积/);
+  assert.match(panel, /formatBytes\(cache\?\.totalBytes \?\? 0\)/);
+  assert.match(panel, /孤儿体积/);
+  assert.match(panel, /formatBytes\(cache\?\.orphanBytes \?\? 0\)/);
+  assert.match(panel, /可安全整理的孤儿缓存体积/);
+});
+
 test('image health summary can be copied as a compact diagnostic text', () => {
   const { formatImageHealthSummaryMarkdown } = loadMaintenanceImageHealthModel();
   const message = formatImageHealthSummaryMarkdown({

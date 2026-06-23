@@ -194,6 +194,8 @@ function ImageHealthSummaryPanel({
       </div>
       <div className="text-xs text-slate-500" data-image-health-action-hint>{actionHint}</div>
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5 xl:grid-cols-12">
+        <ImageHealthStat label="缓存体积" value={formatBytes(cache?.totalBytes ?? 0)} />
+        <ImageHealthStat label="孤儿体积" detail="可安全整理的孤儿缓存体积" tone={(cache?.orphanBytes ?? 0) > 0 ? 'warn' : 'ok'} value={formatBytes(cache?.orphanBytes ?? 0)} />
         <ImageHealthStat label="缓存图片" value={summary?.imageFiles ?? report?.cache.fileCount ?? 0} />
         <ImageHealthStat label="孤儿图片" tone={(summary?.orphanFiles ?? 0) > 0 ? 'warn' : 'ok'} value={summary?.orphanFiles ?? 0} />
         <ImageHealthStat label="缺失引用" tone={(summary?.missingLocalRefs ?? 0) > 0 ? 'warn' : 'ok'} value={summary?.missingLocalRefs ?? 0} />
@@ -233,12 +235,14 @@ function ImageHealthSummaryPanel({
   );
 }
 
-function ImageHealthStat({ label, value, tone = 'neutral' }: { label: string; value: number; tone?: 'neutral' | 'ok' | 'warn' }) {
+function ImageHealthStat({ detail, label, value, tone = 'neutral' }: { detail?: string; label: string; value: number | string; tone?: 'neutral' | 'ok' | 'warn' }) {
   const toneClass = tone === 'ok' ? 'text-emerald-200' : tone === 'warn' ? 'text-amber-200' : 'text-slate-200';
+  const displayValue = typeof value === 'number' ? new Intl.NumberFormat('zh-CN').format(value) : value;
   return (
     <div className="rounded-md border border-white/10 bg-black/[0.10] px-3 py-2">
       <div className="text-[11px] text-slate-500">{label}</div>
-      <div className={`mt-1 font-mono text-sm ${toneClass}`}>{new Intl.NumberFormat('zh-CN').format(value)}</div>
+      <div className={`mt-1 font-mono text-sm ${toneClass}`}>{displayValue}</div>
+      {detail ? <div className="mt-1 text-[11px] text-slate-600">{detail}</div> : null}
     </div>
   );
 }
