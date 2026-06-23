@@ -185,7 +185,9 @@ test('startup self-check warning notice can copy a concise diagnostic summary', 
 test('frontend diagnostic redaction removes secrets and Windows user names before clipboard copy', () => {
   const { redactDiagnosticText } = loadDiagnosticRedaction();
   const text = [
-    String.raw`Error: token:abc password=hunter2 API_KEY=secret`,
+    String.raw`Error: token:abc password=hunter2 API_KEY=apiSecretValue`,
+    String.raw`OAuth: access_token=access123 refresh_token=refresh456 client_secret=client789`,
+    String.raw`Header: Authorization: Bearer bearer-token-value`,
     String.raw`at run (C:\Users\alice\AppData\Local\MikaVN\main.js:12:3)`,
     String.raw`at query (C:/Users/bob/AppData/Roaming/MikaVN/token-cache.json:1:1)`,
   ].join('\n');
@@ -194,5 +196,5 @@ test('frontend diagnostic redaction removes secrets and Windows user names befor
   assert.match(redacted, /\[redacted\]/);
   assert.match(redacted, /C:\\Users\\\[user\]\\AppData/);
   assert.match(redacted, /C:\/Users\/\[user\]\/AppData/);
-  assert.doesNotMatch(redacted, /abc|hunter2|secret|alice|bob/);
+  assert.doesNotMatch(redacted, /abc|hunter2|apiSecretValue|access123|refresh456|client789|bearer-token-value|alice|bob/);
 });

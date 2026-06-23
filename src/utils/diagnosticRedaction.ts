@@ -6,7 +6,7 @@ export function redactDiagnosticText(value: string) {
 
 function redactSecretValues(value: string) {
   return value
-    .replace(/\b(api_key|apikey|token|password)\b(\s*[:=]\s*)([^\s,;]+)/gi, (_match, key: string, separator: string) => `${key}${separator}${REDACTED}`)
+    .replace(/\b(api[_-]?key|apiKey|access[_-]?token|accessToken|refresh[_-]?token|refreshToken|client[_-]?secret|clientSecret|token|password)\b(\s*[:=]\s*)([^\s,;]+)/gi, (_match, key: string, separator: string) => `${key}${separator}${REDACTED}`)
     .replace(/\b(authorization)\b(\s*[:=]\s*)(?:Bearer\s+)?[^\s,;]+/gi, (_match, key: string, separator: string) => `${key}${separator}${REDACTED}`);
 }
 
