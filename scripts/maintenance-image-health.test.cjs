@@ -106,8 +106,12 @@ function readImageHealthSummaryPanelSource() {
   return fs.readFileSync('src/pages/Maintenance/ImageHealthSummaryPanel.tsx', 'utf8');
 }
 
+function readImageHealthSamplePanelsSource() {
+  return fs.readFileSync('src/pages/Maintenance/ImageHealthSamplePanels.tsx', 'utf8');
+}
+
 function readImageHealthUiSource() {
-  return `${readMaintenanceImageAuditPanelSource()}\n${readImageHealthSummaryPanelSource()}`;
+  return `${readMaintenanceImageAuditPanelSource()}\n${readImageHealthSummaryPanelSource()}\n${readImageHealthSamplePanelsSource()}`;
 }
 
 test('maintenance image health summary rendering is split from the audit shell', () => {
@@ -119,7 +123,20 @@ test('maintenance image health summary rendering is split from the audit shell',
   assert.doesNotMatch(panel, /function ImageHealthSummaryPanel/);
   assert.match(summary, /function ImageHealthSummaryPanel/);
   assert.match(summary, /整理全部安全项/);
-  assert.match(summary, /ImageHealthDuplicateContentSamples/);
+  assert.match(summary, /ImageHealthSamplePanels/);
+});
+
+test('maintenance image health sample rendering is split from the summary panel', () => {
+  const summary = readImageHealthSummaryPanelSource();
+  const samples = readImageHealthSamplePanelsSource();
+
+  assert.match(summary, /import \{ ImageHealthSamplePanels \}/);
+  assert.match(summary, /<ImageHealthSamplePanels/);
+  assert.doesNotMatch(summary, /function ImageHealthFileSamples/);
+  assert.doesNotMatch(summary, /function ImageHealthDuplicateContentSamples/);
+  assert.match(samples, /export function ImageHealthSamplePanels/);
+  assert.match(samples, /function ImageHealthDuplicateContentSamples/);
+  assert.match(samples, /joinImageCachePath/);
 });
 
 test('image health commands are registered and exposed through api', () => {

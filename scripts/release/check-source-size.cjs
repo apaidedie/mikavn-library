@@ -75,7 +75,12 @@ const DEFAULT_SOURCE_BUDGETS = [
   {
     filePath: path.resolve(__dirname, '..', '..', 'src', 'pages', 'Maintenance', 'ImageHealthSummaryPanel.tsx'),
     maxBytes: 28 * 1024,
-    maxLines: 260,
+    maxLines: 170,
+  },
+  {
+    filePath: path.resolve(__dirname, '..', '..', 'src', 'pages', 'Maintenance', 'ImageHealthSamplePanels.tsx'),
+    maxBytes: 20 * 1024,
+    maxLines: 140,
   },
   {
     filePath: path.resolve(__dirname, '..', '..', 'src', 'pages', 'Maintenance', 'ImageAuditDetailPanel.tsx'),
