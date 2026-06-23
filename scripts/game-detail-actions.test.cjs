@@ -21,6 +21,18 @@ test('game detail hook ignores stale async responses from previously selected ga
   assert.match(source, /return \(\) => \{\s*cancelled = true;\s*\}/s);
 });
 
+test('game detail defers play session history until the records tab is active', () => {
+  const detail = fs.readFileSync('src/pages/Library/GameDetail.tsx', 'utf8');
+  const actions = fs.readFileSync('src/pages/Library/useGameDetailActions.ts', 'utf8');
+
+  assert.match(detail, /const \[activeTab, setActiveTab\] = useState\('overview'\)/);
+  assert.match(detail, /useGameDetailActions\(\{ game, onChanged, onDeleted, loadPlaySessions: activeTab === 'records' \}\)/);
+  assert.match(detail, /<Tabs value=\{activeTab\} onValueChange=\{setActiveTab\}/);
+  assert.match(actions, /loadPlaySessions = false/);
+  assert.match(actions, /if \(!loadPlaySessions\) return/);
+  assert.match(actions, /\}, \[game\?\.id, loadPlaySessions\]\)/);
+});
+
 test('game detail delete confirmation names the game and explains record-only impact', () => {
   const source = fs.readFileSync('src/pages/Library/useGameDetailActions.ts', 'utf8');
 

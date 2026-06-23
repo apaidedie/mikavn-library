@@ -32,6 +32,13 @@ test('library detail hero decodes images asynchronously', () => {
   assert.match(source, /fetchPriority="high"/);
 });
 
+test('library detail hero keeps decorative background lower priority than the primary cover', () => {
+  const source = fs.readFileSync('src/pages/Library/GameDetailHero.tsx', 'utf8');
+
+  assert.match(source, /<img alt=""[\s\S]*fetchPriority="low"[\s\S]*loading="lazy"[\s\S]*src=\{heroImage\}/);
+  assert.match(source, /<CoverImage[\s\S]*fetchPriority="high"[\s\S]*loading="eager"[\s\S]*src=\{game\.coverImage\}/);
+});
+
 test('library detail hero hides failed background images and retries when the image changes', () => {
   const source = fs.readFileSync('src/pages/Library/GameDetailHero.tsx', 'utf8');
 

@@ -12,11 +12,12 @@ export type TaskMessage = { text: string; taskId?: string | null };
 
 type UseGameDetailActionsOptions = {
   game: Game | null;
+  loadPlaySessions?: boolean;
   onDeleted: () => void;
   onChanged?: (game: Game) => void;
 };
 
-export function useGameDetailActions({ game, onChanged, onDeleted }: UseGameDetailActionsOptions) {
+export function useGameDetailActions({ game, loadPlaySessions = false, onChanged, onDeleted }: UseGameDetailActionsOptions) {
   const [message, setMessage] = useState<TaskMessage | null>(null);
   const [profiles, setProfiles] = useState<LaunchProfile[]>([]);
   const [sessions, setSessions] = useState<PlaySession[]>([]);
@@ -49,6 +50,15 @@ export function useGameDetailActions({ game, onChanged, onDeleted }: UseGameDeta
         if (cancelled) return;
         setMessage({ text: errorMessage(reason) });
       });
+    return () => {
+      cancelled = true;
+    };
+  }, [game?.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!game) return;
+    if (!loadPlaySessions) return;
     api.listPlaySessions(game.id)
       .then((items) => {
         if (cancelled) return;
@@ -61,7 +71,7 @@ export function useGameDetailActions({ game, onChanged, onDeleted }: UseGameDeta
     return () => {
       cancelled = true;
     };
-  }, [game?.id]);
+  }, [game?.id, loadPlaySessions]);
 
   const launch = async () => {
     if (!game) return;
@@ -69,7 +79,7 @@ export function useGameDetailActions({ game, onChanged, onDeleted }: UseGameDeta
     try {
       await api.launchGameWithProfile(game.id, selectedProfile?.id);
       setMessage({ text: '已发送启动请求。游戏退出后会自动累计时长。' });
-      api.listPlaySessions(game.id).then(setSessions).catch(() => undefined);
+      if (loadPlaySessions) api.listPlaySessions(game.id).then(setSessions).catch(() => undefined);
     } catch (reason) {
       setMessage({ text: errorMessage(reason) });
     }

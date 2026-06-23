@@ -1,4 +1,5 @@
 import { Copy, NotebookText, Save } from 'lucide-react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/notice';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -24,7 +25,8 @@ type GameDetailProps = {
 };
 
 export function GameDetail({ game, onEdit, onDeleted, onChanged, onOpenMaintenance, onOpenTasks, blurCover = false }: GameDetailProps) {
-  const detail = useGameDetailActions({ game, onChanged, onDeleted });
+  const [activeTab, setActiveTab] = useState('overview');
+  const detail = useGameDetailActions({ game, onChanged, onDeleted, loadPlaySessions: activeTab === 'records' });
   const actions = detail.actions;
 
   if (!game) {
@@ -52,7 +54,7 @@ export function GameDetail({ game, onEdit, onDeleted, onChanged, onOpenMaintenan
       <div className="relative z-10">
         {detail.message && <div className="mx-7 mt-5"><TaskNotice message={detail.message.text} taskId={detail.message.taskId} onOpenTask={onOpenTasks} /></div>}
 
-        <Tabs defaultValue="overview" className="gap-0">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="gap-0">
           <TabsList className="sticky top-0 z-20 w-full justify-start border-b border-white/10 bg-[rgb(var(--app-bg-rgb)/0.90)] px-7 pt-3 backdrop-blur-xl">
             <TabsTrigger value="overview">概览</TabsTrigger>
             <TabsTrigger value="records">记录</TabsTrigger>

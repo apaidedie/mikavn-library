@@ -33,7 +33,7 @@ export function GameDetailHero({ blurCover, game, onEdit, onLaunch, onRemove, se
     <>
       {shouldRenderHeroImage && (
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <img alt="" className={cn('absolute inset-x-0 top-0 h-[520px] w-full object-cover opacity-55', blurCover && 'scale-105 blur-md')} decoding="async" fetchPriority="high" loading="eager" src={heroImage} onError={() => setFailedHeroImage(heroImage)} />
+          <img alt="" className={cn('absolute inset-x-0 top-0 h-[520px] w-full object-cover opacity-55', blurCover && 'scale-105 blur-md')} decoding="async" fetchPriority="low" loading="lazy" src={heroImage} onError={() => setFailedHeroImage(heroImage)} />
           <div className="absolute inset-x-0 top-0 h-[560px] bg-[linear-gradient(180deg,rgba(29,36,47,0.12),rgb(var(--app-bg-rgb))_86%),linear-gradient(90deg,rgb(var(--app-bg-rgb))_0%,rgb(var(--app-bg-rgb)/0.78)_32%,rgb(var(--app-bg-rgb)/0.34)_70%,rgb(var(--app-bg-rgb)/0.72)_100%)]" />
           <div className="absolute inset-0 bg-[rgb(var(--app-bg-rgb)/0.34)]" />
         </div>
