@@ -55,6 +55,20 @@ test('local data settings keeps backup and restore entry visible before diagnost
   assert.doesNotMatch(quickEntry, />手动备份<\/Button>/);
 });
 
+test('local data backup entry explains automatic protection strategy', () => {
+  const source = read('src/pages/Settings/SettingsLocalDataSection.tsx');
+  const quickEntryIndex = source.indexOf('title="备份与恢复入口"');
+  const diagnosticsIndex = source.indexOf('title="数据目录自检"');
+  const quickEntry = source.slice(quickEntryIndex, diagnosticsIndex);
+
+  assert.match(quickEntry, /自动保护策略/);
+  assert.match(quickEntry, /最多每 24 小时/);
+  assert.match(quickEntry, /保留最新 30 个/);
+  assert.match(quickEntry, /90 天内/);
+  assert.match(quickEntry, /更新安装前强制创建数据库备份/);
+  assert.match(quickEntry, /备份失败会取消安装/);
+});
+
 test('database backup cleanup policy is centralized and visible before cleanup', () => {
   const policyPath = 'src/utils/databaseBackupCleanupPolicy.ts';
   assert.ok(fs.existsSync(path.join(repoRoot, policyPath)), 'database backup cleanup policy should live in shared utils');

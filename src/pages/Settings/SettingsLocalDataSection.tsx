@@ -77,6 +77,9 @@ export function SettingsLocalDataSection({
       <ConfigItem title="备份与恢复入口" description="常用数据安全操作放在最上方；恢复只安排下次启动，不会删除真实游戏文件。">
         <div className="flex max-w-[42rem] flex-col items-end gap-2 text-right">
           <div className="text-xs text-slate-500">恢复前会自动创建保护备份；需要确认路径和备份数量时先刷新自检。</div>
+          <div className="text-xs text-slate-500">
+            自动保护策略：启动时最多每 24 小时创建一次数据库备份，自动备份清理保留最新 30 个和 90 天内备份；更新安装前强制创建数据库备份，备份失败会取消安装。
+          </div>
           <div className="flex flex-wrap justify-end gap-2">
             <Button disabled={diagnosticsLoading} variant="outline" onClick={onLoadDiagnostics}><RefreshCw className="h-4 w-4" />{diagnosticsLoading ? '检查中' : '刷新自检'}</Button>
             <Button variant="secondary" onClick={onBackupDatabase}><Download className="h-4 w-4" />立即备份</Button>
