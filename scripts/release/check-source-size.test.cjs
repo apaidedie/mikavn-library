@@ -79,6 +79,8 @@ test('default source budgets cover frontend, Rust service, and smoke runner hot 
     'src-tauri/src/db/game_merge_ext.rs',
     'scripts/playwright/page-qa-runner.cjs',
     'scripts/playwright/page-qa-runner-helpers.cjs',
+    'scripts/playwright/page-qa-dashboard-cases.cjs',
+    'scripts/playwright/page-qa-scanner-cases.cjs',
     'scripts/playwright/page-qa-fixtures.cjs',
   ]) {
     assert.match(watchedPaths, new RegExp(expectedPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
@@ -88,11 +90,34 @@ test('default source budgets cover frontend, Rust service, and smoke runner hot 
 test('page QA runner budget keeps shared helpers outside the scenario file', () => {
   const runnerBudget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('scripts/playwright/page-qa-runner.cjs'));
   const helperBudget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('scripts/playwright/page-qa-runner-helpers.cjs'));
+  const dashboardBudget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('scripts/playwright/page-qa-dashboard-cases.cjs'));
+  const scannerBudget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('scripts/playwright/page-qa-scanner-cases.cjs'));
 
   assert.ok(runnerBudget);
   assert.ok(helperBudget);
-  assert.ok(runnerBudget.maxBytes <= 112 * 1024);
+  assert.ok(dashboardBudget);
+  assert.ok(scannerBudget);
+  assert.ok(runnerBudget.maxBytes <= 96 * 1024);
   assert.ok(helperBudget.maxLines <= 240);
+  assert.ok(dashboardBudget.maxLines <= 140);
+  assert.ok(scannerBudget.maxLines <= 180);
+});
+
+test('page QA runner delegates broad workflow cases to focused scenario modules', () => {
+  const runner = fs.readFileSync(path.join(__dirname, '..', '..', 'scripts', 'playwright', 'page-qa-runner.cjs'), 'utf8');
+  const dashboardCasesPath = path.join(__dirname, '..', '..', 'scripts', 'playwright', 'page-qa-dashboard-cases.cjs');
+  const scannerCasesPath = path.join(__dirname, '..', '..', 'scripts', 'playwright', 'page-qa-scanner-cases.cjs');
+
+  assert.match(runner, /const \{ dashboardPageQaCases \} = require\('\.\/page-qa-dashboard-cases\.cjs'\);/);
+  assert.match(runner, /const \{ runScannerPageQaCases \} = require\('\.\/page-qa-scanner-cases\.cjs'\);/);
+  assert.match(runner, /\.\.\.dashboardPageQaCases,/);
+  assert.match(runner, /await runScannerPageQaCases\(browser\);/);
+  assert.doesNotMatch(runner, /dashboard-task-shortcuts/);
+  assert.doesNotMatch(runner, /dashboard-mobile/);
+  assert.doesNotMatch(runner, /scanner-skip-import-audit/);
+  assert.doesNotMatch(runner, /scanner-duplicate-import-audit/);
+  assert.ok(fs.existsSync(dashboardCasesPath));
+  assert.ok(fs.existsSync(scannerCasesPath));
 });
 
 test('maintenance page budget keeps page-level orchestration small', () => {

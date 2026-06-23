@@ -5,6 +5,7 @@ const test = require('node:test');
 
 const sourcePath = path.join(__dirname, 'page-qa-runner.cjs');
 const helperPath = path.join(__dirname, 'page-qa-runner-helpers.cjs');
+const dashboardCasesPath = path.join(__dirname, 'page-qa-dashboard-cases.cjs');
 
 test('page QA routes asset cache maintenance through image health', () => {
   const source = fs.readFileSync(sourcePath, 'utf8');
@@ -48,10 +49,11 @@ test('page QA returns from image health with a disambiguated library nav helper'
 
 test('dashboard populated QA returns home before taking dashboard screenshot', () => {
   const source = fs.readFileSync(sourcePath, 'utf8');
+  const dashboardSource = fs.readFileSync(dashboardCasesPath, 'utf8');
   const helper = fs.readFileSync(helperPath, 'utf8');
-  const caseStart = source.indexOf("['dashboard-populated'");
-  const nextCase = source.indexOf("['dashboard-task-shortcuts'", caseStart);
-  const dashboardCase = source.slice(caseStart, nextCase);
+  const caseStart = dashboardSource.indexOf("['dashboard-populated'");
+  const nextCase = dashboardSource.indexOf("['dashboard-task-shortcuts'", caseStart);
+  const dashboardCase = dashboardSource.slice(caseStart, nextCase);
   const afterRestoreClick = dashboardCase.slice(dashboardCase.indexOf("getByRole('button', { name: /恢复数据库/ }).click()"));
 
   assert.match(helper, /async function openHome\(page\)/);

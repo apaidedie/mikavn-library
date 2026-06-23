@@ -194,13 +194,23 @@ const DEFAULT_SOURCE_BUDGETS = [
   },
   {
     filePath: path.resolve(__dirname, '..', '..', 'scripts', 'playwright', 'page-qa-runner.cjs'),
-    maxBytes: 112 * 1024,
+    maxBytes: 96 * 1024,
     maxLines: 1350,
   },
   {
     filePath: path.resolve(__dirname, '..', '..', 'scripts', 'playwright', 'page-qa-runner-helpers.cjs'),
     maxBytes: 24 * 1024,
     maxLines: 240,
+  },
+  {
+    filePath: path.resolve(__dirname, '..', '..', 'scripts', 'playwright', 'page-qa-dashboard-cases.cjs'),
+    maxBytes: 18 * 1024,
+    maxLines: 140,
+  },
+  {
+    filePath: path.resolve(__dirname, '..', '..', 'scripts', 'playwright', 'page-qa-scanner-cases.cjs'),
+    maxBytes: 24 * 1024,
+    maxLines: 180,
   },
   {
     filePath: path.resolve(__dirname, '..', '..', 'scripts', 'playwright', 'page-qa-fixtures.cjs'),

@@ -16,15 +16,15 @@ const {
   tasks,
 } = require('./page-qa-fixtures.cjs');
 const { assertImagesLoaded } = require('./image-render-assertions.cjs');
+const { dashboardPageQaCases } = require('./page-qa-dashboard-cases.cjs');
+const { runScannerPageQaCases } = require('./page-qa-scanner-cases.cjs');
 const {
   baseUrl,
   clickMaintenanceStart,
   descriptionRepairRow,
   expectDescriptionRepairRowHidden,
   expectDescriptionRepairRowVisible,
-  expectNoHorizontalOverflow,
   launchPageQaBrowser,
-  openHome,
   openLibrary,
   readTaskRetryPayload,
   runCase,
@@ -36,72 +36,7 @@ async function main() {
   const browser = await launchPageQaBrowser();
   try {
     const cases = [
-      ['dashboard-populated', 'dashboard', {}, async (page) => {
-        for (const text of ['今日状态', '继续游玩', '需要关注', '本地安全', '添加游戏', '扫描入库', '想玩', '维护', '本地设置']) {
-          await page.getByText(text, { exact: false }).first().waitFor({ timeout: 5000 });
-        }
-        await page.locator('section').filter({ hasText: '继续游玩' }).first().locator('button').filter({ hasText: '星之终途' }).first().click();
-        await page.getByText('末世旅途题材的短篇视觉小说。这里用于成熟 V1 页面 QA。').first().waitFor({ timeout: 5000 });
-        await openHome(page);
-        await page.getByText('今日状态').first().waitFor({ timeout: 5000 });
-        await page.locator('section').filter({ hasText: '今日状态' }).first().getByRole('button', { name: /维护/ }).click();
-        await page.getByText('维护中心').first().waitFor({ timeout: 5000 });
-        await openHome(page);
-        await page.getByText('今日状态').first().waitFor({ timeout: 5000 });
-        await page.locator('section').filter({ hasText: '今日状态' }).first().getByRole('button', { name: /本地设置/ }).click();
-        await page.waitForFunction(() => [...document.querySelectorAll('[role="tab"]')].some((tab) => tab.textContent?.includes('备份与本地') && tab.getAttribute('data-state') === 'active'), null, { timeout: 5000 });
-        await openHome(page);
-        await page.getByText('本地安全').first().waitFor({ timeout: 5000 });
-        await page.locator('section').filter({ hasText: '本地安全' }).first().getByRole('button', { name: /恢复数据库/ }).click();
-        await page.waitForFunction(() => [...document.querySelectorAll('[role="tab"]')].some((tab) => tab.textContent?.includes('备份与本地') && tab.getAttribute('data-state') === 'active'), null, { timeout: 5000 });
-        await page.getByText('数据目录自检').first().waitFor({ timeout: 5000 });
-        await openHome(page);
-        await page.getByText('今日状态').first().waitFor({ timeout: 5000 });
-      }],
-      ['dashboard-task-shortcuts', 'dashboard', { games: [...games, descriptionRepairGame], tasks: [descriptionImageRepairFailedTask, fanzaDescriptionImageRepairTask, ...tasks], taskLogs }, async (page) => {
-        await page.getByText('近期任务').first().waitFor({ timeout: 5000 });
-        await page.getByText('最近结果').first().waitFor({ timeout: 5000 });
-        await page.getByText('简介图片修复失败：DLsite 暂不可用').first().waitFor({ timeout: 5000 });
-        await page.getByText('简介图片修复完成：更新 1 个条目，插入 1 张图片，跳过 0 个，失败 0 个。').first().waitFor({ timeout: 5000 });
-        const dashboardResultsPanel = page.locator('[aria-label="首页最近任务结果"]');
-        await dashboardResultsPanel.locator('[data-task-result-id="qa-task-description-image-failed"]').getByRole('button', { name: /重试/ }).waitFor({ timeout: 5000 });
-        if (await dashboardResultsPanel.locator('[data-task-result-id="qa-task-description-image-fanza"]').getByRole('button', { name: /重试/ }).count() > 0) throw new Error('dashboard completed result should not show retry action');
-        await page.getByRole('button', { name: /需处理\s+3/ }).click();
-        await page.getByText('任务队列').first().waitFor({ timeout: 5000 });
-        if (await page.getByLabel('任务状态筛选').inputValue() !== 'attention') throw new Error('dashboard attention shortcut did not select attention task filter');
-        await page.getByText('简介图片修复失败：DLsite 暂不可用').first().waitFor({ timeout: 5000 });
-        if (await page.getByText('正在匹配 2 个游戏').count() > 0) throw new Error('running task should be hidden after dashboard attention shortcut');
-        await openHome(page);
-        await page.getByText('近期任务').first().waitFor({ timeout: 5000 });
-        await page.getByRole('button', { name: /进行中\s+1/ }).click();
-        await page.getByText('任务队列').first().waitFor({ timeout: 5000 });
-        if (await page.getByLabel('任务状态筛选').inputValue() !== 'active') throw new Error('dashboard running shortcut did not select active task filter');
-        await page.getByText('正在匹配 2 个游戏').first().waitFor({ timeout: 5000 });
-        if (await page.getByText('扫描失败：路径不存在').count() > 0) throw new Error('failed task should be hidden after dashboard running shortcut');
-        await openHome(page);
-        await page.getByText('近期任务').first().waitFor({ timeout: 5000 });
-        await page.getByRole('button', { name: /已完成\s+1/ }).click();
-        await page.getByText('任务队列').first().waitFor({ timeout: 5000 });
-        if (await page.getByLabel('任务状态筛选').inputValue() !== 'completed') throw new Error('dashboard completed shortcut did not select completed task filter');
-        await page.getByText('简介图片修复完成：更新 1 个条目，插入 1 张图片，跳过 0 个，失败 0 个。').first().waitFor({ timeout: 5000 });
-        if (await page.getByText('扫描失败：路径不存在').count() > 0) throw new Error('failed task should be hidden after dashboard completed shortcut');
-        await openHome(page);
-        await page.getByText('近期任务').first().waitFor({ timeout: 5000 });
-        await dashboardResultsPanel.locator('[data-task-result-id="qa-task-description-image-failed"]').getByRole('button', { name: /重试/ }).click();
-        await page.getByText('任务队列').first().waitFor({ timeout: 5000 });
-        await page.getByText(/浏览器预览已修复 1 个条目的简介图片/).first().waitFor({ timeout: 5000 });
-      }],
-      ['dashboard-mobile', 'dashboard', {}, async (page) => {
-        await page.getByText('今日状态').first().waitFor({ timeout: 5000 });
-        await page.locator('section').filter({ hasText: '今日状态' }).first().getByRole('button', { name: /添加游戏/ }).waitFor({ timeout: 5000 });
-        await expectNoHorizontalOverflow(page, 'dashboard mobile');
-        await page.locator('section').filter({ hasText: '今日状态' }).first().getByRole('button', { name: /本地设置/ }).click();
-        await page.waitForFunction(() => [...document.querySelectorAll('[role="tab"]')].some((tab) => tab.textContent?.includes('备份与本地') && tab.getAttribute('data-state') === 'active'), null, { timeout: 5000 });
-        await expectNoHorizontalOverflow(page, 'dashboard mobile settings shortcut');
-        await openHome(page);
-        await page.getByText('今日状态').first().waitFor({ timeout: 5000 });
-        await expectNoHorizontalOverflow(page, 'dashboard mobile after returning home');
-      }, { viewport: { width: 390, height: 844 } }],
+      ...dashboardPageQaCases,
       ['library-populated-detail-artwork', 'library', {}, async (page) => {
         await page.getByText('图片下方的正文也应该继续显示。').first().waitFor({ timeout: 5000 });
         await page.getByText('媒体健康').first().waitFor({ timeout: 5000 });
@@ -837,119 +772,7 @@ async function main() {
       if (!savedState.some((item) => item.name === '高分全年龄')) throw new Error('advanced search page QA deleted an unrelated saved search');
     });
 
-    await runCase(browser, 'scanner-conflict-review', 'scanner', {}, async (page) => {
-      await page.getByPlaceholder(/例如/).fill('D:\\Games\\VN');
-      await page.getByRole('button', { name: /复制扫描目录/ }).click();
-      const copiedScannerPath = await page.evaluate(() => navigator.clipboard.readText());
-      if (copiedScannerPath !== 'D:\\Games\\VN') throw new Error('scanner path copy did not write the expected path');
-      await page.getByText('已复制扫描目录路径。').first().waitFor({ timeout: 5000 });
-      await page.getByRole('button', { name: /开始扫描/ }).click();
-      await page.getByText(/冲突/).first().waitFor({ timeout: 5000 });
-      const mergeRow = page.locator('label').filter({ hasText: '星之终途' }).first();
-      await mergeRow.getByRole('button', { name: /复制候选安装目录/ }).click();
-      const copiedCandidateInstallPath = await page.evaluate(() => navigator.clipboard.readText());
-      if (copiedCandidateInstallPath !== 'D:\\Games\\VN\\星之终途') throw new Error('scanner candidate install path copy did not write the expected path');
-      await page.getByText('已复制候选安装目录路径。').first().waitFor({ timeout: 5000 });
-      await mergeRow.getByRole('button', { name: /复制候选启动程序/ }).click();
-      const copiedCandidateExecutablePath = await page.evaluate(() => navigator.clipboard.readText());
-      if (copiedCandidateExecutablePath !== 'D:\\Games\\VN\\星之终途\\stella.exe') throw new Error('scanner candidate executable path copy did not write the expected path');
-      await page.getByText('已复制候选启动程序路径。').first().waitFor({ timeout: 5000 });
-      await mergeRow.getByRole('checkbox').check();
-      await mergeRow.locator('select').selectOption('merge');
-      await page.getByText(/将更新 星之终途/).first().waitFor({ timeout: 5000 });
-      await page.getByRole('button', { name: /导入选中/ }).click();
-      await page.getByText(/导入处理完成：新增 0、合并 1、替换 0、副本 0、跳过 0/).first().waitFor({ timeout: 5000 });
-      await page.getByText('导入审计').first().waitFor({ timeout: 5000 });
-      await page.getByLabel('导入审计动作筛选').selectOption('merge');
-      await page.getByText(/已合并到现有记录/).first().waitFor({ timeout: 5000 });
-      const mergeAuditRow = page.locator('.rounded-md').filter({ hasText: '已合并到现有记录' }).first();
-      await mergeAuditRow.getByRole('button', { name: /复制审计安装目录/ }).click();
-      const copiedAuditInstallPath = await page.evaluate(() => navigator.clipboard.readText());
-      if (copiedAuditInstallPath !== 'D:\\Games\\VN\\星之终途') throw new Error('scanner audit install path copy did not write the expected path');
-      await page.getByText('已复制审计安装目录路径。').first().waitFor({ timeout: 5000 });
-      await page.getByText(/记录 ID：qa-1/).first().waitFor({ timeout: 5000 });
-      await page.getByLabel('导入审计搜索').fill('星之终途');
-      await page.getByText(/当前显示 1 \/ 1 条处理明细/).first().waitFor({ timeout: 5000 });
-      const mergedGames = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.games') || '[]'));
-      const mergedGame = mergedGames.find((game) => game.id === 'qa-1');
-      if (!mergedGame?.installPath.includes('D:\\Games\\VN\\星之终途')) throw new Error('page QA scanner merge did not keep the expected merged install path');
-      if (!mergedGame?.aliases.includes('[汉化硬盘版] 星之终途 v1.02')) throw new Error('page QA scanner merge did not retain candidate aliases');
-      if (!mergedGame?.aliases.includes('星之终途')) throw new Error('page QA scanner merge did not retain existing title as alias');
-    });
-
-    await runCase(browser, 'scanner-skip-import-audit', 'scanner', {}, async (page) => {
-      await page.getByPlaceholder(/例如/).fill('D:\\Games\\VN');
-      await page.getByRole('button', { name: /开始扫描/ }).click();
-      await page.getByText(/冲突/).first().waitFor({ timeout: 5000 });
-      const beforeSkipGames = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.games') || '[]'));
-      const skipRow = page.locator('label').filter({ hasText: '星之终途' }).first();
-      await skipRow.getByRole('checkbox').check();
-      if (await skipRow.locator('select').inputValue() !== 'skip') throw new Error('scanner conflict candidate should default to skip');
-      await page.getByRole('button', { name: /导入选中/ }).click();
-      await page.getByText(/导入处理完成：新增 0、合并 0、替换 0、副本 0、跳过 1/).first().waitFor({ timeout: 5000 });
-      await page.getByText('导入审计').first().waitFor({ timeout: 5000 });
-      await page.getByLabel('导入审计动作筛选').selectOption('skip');
-      await page.getByText(/已跳过与现有记录冲突的候选/).first().waitFor({ timeout: 5000 });
-      const skipAuditRow = page.locator('.rounded-md').filter({ hasText: '已跳过与现有记录冲突的候选' }).first();
-      if (await skipAuditRow.getByText(/记录 ID：/).count() > 0) throw new Error('scanner skip audit row should not show a written game record ID');
-      await page.getByText(/冲突原因：安装目录已存在|冲突原因：标题相同/).first().waitFor({ timeout: 5000 });
-      const afterSkipGames = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.games') || '[]'));
-      if (afterSkipGames.length !== beforeSkipGames.length) throw new Error('scanner skip should not add or delete game records');
-      const skippedOriginal = afterSkipGames.find((game) => game.id === 'qa-1');
-      if (!skippedOriginal?.aliases.includes('[汉化硬盘版] 星之终途 v1.02') || skippedOriginal.aliases.includes('星之终途')) throw new Error('scanner skip should not merge candidate aliases into the existing record');
-    });
-
-    await runCase(browser, 'scanner-replace-import-audit', 'scanner', {}, async (page) => {
-      await page.getByPlaceholder(/例如/).fill('D:\\Games\\VN');
-      await page.getByRole('button', { name: /开始扫描/ }).click();
-      await page.getByText(/冲突/).first().waitFor({ timeout: 5000 });
-      const replaceRow = page.locator('label').filter({ hasText: '天使☆騒々 RE-BOOT!' }).first();
-      await replaceRow.getByRole('checkbox').check();
-      await replaceRow.locator('select').selectOption('replace');
-      await page.getByText(/高风险：覆盖已有记录/).first().waitFor({ timeout: 5000 });
-      await page.getByRole('button', { name: /导入选中/ }).click();
-      await page.getByText(/导入处理完成：新增 0、合并 0、替换 1、副本 0、跳过 0/).first().waitFor({ timeout: 5000 });
-      await page.getByText('导入审计').first().waitFor({ timeout: 5000 });
-      await page.getByLabel('导入审计动作筛选').selectOption('replace');
-      await page.getByText(/已替换现有数据库记录/).first().waitFor({ timeout: 5000 });
-      await page.getByText(/冲突原因：标题相同|冲突原因：安装目录已存在/).first().waitFor({ timeout: 5000 });
-      await page.getByText(/记录 ID：qa-2/).first().waitFor({ timeout: 5000 });
-      await page.getByLabel('导入审计搜索').fill('qa-2');
-      await page.getByText(/当前显示 1 \/ 1 条处理明细/).first().waitFor({ timeout: 5000 });
-      await page.getByLabel('导入审计搜索').fill('不存在的审计项');
-      await page.getByText('当前筛选没有明细。').first().waitFor({ timeout: 5000 });
-      await page.getByRole('button', { name: /重置审计/ }).click();
-      const replacedGames = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.games') || '[]'));
-      const replacedGame = replacedGames.find((game) => game.id === 'qa-2');
-      if (!replacedGame?.installPath.includes('D:\\Games\\VN\\ゆずソフト\\天使騒々')) throw new Error('page QA scanner replace did not update the expected install path');
-      if (replacedGame?.title !== '天使☆騒々 RE-BOOT!') throw new Error('page QA scanner replace did not update the existing record title');
-      if (!replacedGame?.aliases.includes('[230428][ゆずソフト] 天使☆騒々 RE-BOOT!')) throw new Error('page QA scanner replace did not update aliases from the candidate');
-    });
-
-    await runCase(browser, 'scanner-duplicate-import-audit', 'scanner', {}, async (page) => {
-      await page.getByPlaceholder(/例如/).fill('D:\\Games\\VN');
-      await page.getByRole('button', { name: /开始扫描/ }).click();
-      await page.getByText(/冲突/).first().waitFor({ timeout: 5000 });
-      const duplicateRow = page.locator('label').filter({ hasText: '星之终途' }).first();
-      await duplicateRow.getByRole('checkbox').check();
-      await duplicateRow.locator('select').selectOption('duplicate');
-      await page.getByText(/会新建一条独立记录/).first().waitFor({ timeout: 5000 });
-      await page.getByRole('button', { name: /导入选中/ }).click();
-      await page.getByText(/导入处理完成：新增 0、合并 0、替换 0、副本 1、跳过 0/).first().waitFor({ timeout: 5000 });
-      await page.getByText('导入审计').first().waitFor({ timeout: 5000 });
-      await page.getByLabel('导入审计搜索').fill('星之终途');
-      await page.getByText(/当前显示 1 \/ 1 条处理明细/).first().waitFor({ timeout: 5000 });
-      await page.getByRole('button', { name: /重置审计/ }).click();
-      await page.getByLabel('导入审计动作筛选').selectOption('duplicate');
-      await page.getByText(/已作为副本导入/).first().waitFor({ timeout: 5000 });
-      await page.getByText(/冲突原因：安装目录已存在|冲突原因：标题相同/).first().waitFor({ timeout: 5000 });
-      await page.getByText(/D:\\Games\\VN\\星之终途/).first().waitFor({ timeout: 5000 });
-      const duplicateGames = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.games') || '[]'));
-      const starGames = duplicateGames.filter((game) => game.title === '星之终途');
-      if (duplicateGames.length !== games.length + 1) throw new Error('page QA scanner duplicate did not add exactly one game');
-      if (starGames.length !== 2) throw new Error('page QA scanner duplicate did not keep both original and duplicate records');
-      if (!starGames.some((game) => game.aliases.includes('[汉化硬盘版] 星之终途 v1.02'))) throw new Error('page QA scanner duplicate did not persist candidate aliases');
-    });
+    await runScannerPageQaCases(browser);
 
     await runCase(browser, 'tasks-retry-shows-result-under-filters', 'tasks', { games: [...games, descriptionRepairGame], tasks: [descriptionImageRepairFailedTask, fanzaDescriptionImageRepairTask, ...tasks], taskLogs }, async (page) => {
       await page.getByText('任务概览').first().waitFor({ timeout: 5000 });

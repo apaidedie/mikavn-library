@@ -1,0 +1,120 @@
+const { games } = require('./page-qa-fixtures.cjs');
+const { runCase } = require('./page-qa-runner-helpers.cjs');
+
+async function runScannerPageQaCases(browser) {
+  await runCase(browser, 'scanner-conflict-review', 'scanner', {}, async (page) => {
+    await page.getByPlaceholder(/例如/).fill('D:\\Games\\VN');
+    await page.getByRole('button', { name: /复制扫描目录/ }).click();
+    const copiedScannerPath = await page.evaluate(() => navigator.clipboard.readText());
+    if (copiedScannerPath !== 'D:\\Games\\VN') throw new Error('scanner path copy did not write the expected path');
+    await page.getByText('已复制扫描目录路径。').first().waitFor({ timeout: 5000 });
+    await page.getByRole('button', { name: /开始扫描/ }).click();
+    await page.getByText(/冲突/).first().waitFor({ timeout: 5000 });
+    const mergeRow = page.locator('label').filter({ hasText: '星之终途' }).first();
+    await mergeRow.getByRole('button', { name: /复制候选安装目录/ }).click();
+    const copiedCandidateInstallPath = await page.evaluate(() => navigator.clipboard.readText());
+    if (copiedCandidateInstallPath !== 'D:\\Games\\VN\\星之终途') throw new Error('scanner candidate install path copy did not write the expected path');
+    await page.getByText('已复制候选安装目录路径。').first().waitFor({ timeout: 5000 });
+    await mergeRow.getByRole('button', { name: /复制候选启动程序/ }).click();
+    const copiedCandidateExecutablePath = await page.evaluate(() => navigator.clipboard.readText());
+    if (copiedCandidateExecutablePath !== 'D:\\Games\\VN\\星之终途\\stella.exe') throw new Error('scanner candidate executable path copy did not write the expected path');
+    await page.getByText('已复制候选启动程序路径。').first().waitFor({ timeout: 5000 });
+    await mergeRow.getByRole('checkbox').check();
+    await mergeRow.locator('select').selectOption('merge');
+    await page.getByText(/将更新 星之终途/).first().waitFor({ timeout: 5000 });
+    await page.getByRole('button', { name: /导入选中/ }).click();
+    await page.getByText(/导入处理完成：新增 0、合并 1、替换 0、副本 0、跳过 0/).first().waitFor({ timeout: 5000 });
+    await page.getByText('导入审计').first().waitFor({ timeout: 5000 });
+    await page.getByLabel('导入审计动作筛选').selectOption('merge');
+    await page.getByText(/已合并到现有记录/).first().waitFor({ timeout: 5000 });
+    const mergeAuditRow = page.locator('.rounded-md').filter({ hasText: '已合并到现有记录' }).first();
+    await mergeAuditRow.getByRole('button', { name: /复制审计安装目录/ }).click();
+    const copiedAuditInstallPath = await page.evaluate(() => navigator.clipboard.readText());
+    if (copiedAuditInstallPath !== 'D:\\Games\\VN\\星之终途') throw new Error('scanner audit install path copy did not write the expected path');
+    await page.getByText('已复制审计安装目录路径。').first().waitFor({ timeout: 5000 });
+    await page.getByText(/记录 ID：qa-1/).first().waitFor({ timeout: 5000 });
+    await page.getByLabel('导入审计搜索').fill('星之终途');
+    await page.getByText(/当前显示 1 \/ 1 条处理明细/).first().waitFor({ timeout: 5000 });
+    const mergedGames = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.games') || '[]'));
+    const mergedGame = mergedGames.find((game) => game.id === 'qa-1');
+    if (!mergedGame?.installPath.includes('D:\\Games\\VN\\星之终途')) throw new Error('page QA scanner merge did not keep the expected merged install path');
+    if (!mergedGame?.aliases.includes('[汉化硬盘版] 星之终途 v1.02')) throw new Error('page QA scanner merge did not retain candidate aliases');
+    if (!mergedGame?.aliases.includes('星之终途')) throw new Error('page QA scanner merge did not retain existing title as alias');
+  });
+
+  await runCase(browser, 'scanner-skip-import-audit', 'scanner', {}, async (page) => {
+    await page.getByPlaceholder(/例如/).fill('D:\\Games\\VN');
+    await page.getByRole('button', { name: /开始扫描/ }).click();
+    await page.getByText(/冲突/).first().waitFor({ timeout: 5000 });
+    const beforeSkipGames = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.games') || '[]'));
+    const skipRow = page.locator('label').filter({ hasText: '星之终途' }).first();
+    await skipRow.getByRole('checkbox').check();
+    if (await skipRow.locator('select').inputValue() !== 'skip') throw new Error('scanner conflict candidate should default to skip');
+    await page.getByRole('button', { name: /导入选中/ }).click();
+    await page.getByText(/导入处理完成：新增 0、合并 0、替换 0、副本 0、跳过 1/).first().waitFor({ timeout: 5000 });
+    await page.getByText('导入审计').first().waitFor({ timeout: 5000 });
+    await page.getByLabel('导入审计动作筛选').selectOption('skip');
+    await page.getByText(/已跳过与现有记录冲突的候选/).first().waitFor({ timeout: 5000 });
+    const skipAuditRow = page.locator('.rounded-md').filter({ hasText: '已跳过与现有记录冲突的候选' }).first();
+    if (await skipAuditRow.getByText(/记录 ID：/).count() > 0) throw new Error('scanner skip audit row should not show a written game record ID');
+    await page.getByText(/冲突原因：安装目录已存在|冲突原因：标题相同/).first().waitFor({ timeout: 5000 });
+    const afterSkipGames = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.games') || '[]'));
+    if (afterSkipGames.length !== beforeSkipGames.length) throw new Error('scanner skip should not add or delete game records');
+    const skippedOriginal = afterSkipGames.find((game) => game.id === 'qa-1');
+    if (!skippedOriginal?.aliases.includes('[汉化硬盘版] 星之终途 v1.02') || skippedOriginal.aliases.includes('星之终途')) throw new Error('scanner skip should not merge candidate aliases into the existing record');
+  });
+
+  await runCase(browser, 'scanner-replace-import-audit', 'scanner', {}, async (page) => {
+    await page.getByPlaceholder(/例如/).fill('D:\\Games\\VN');
+    await page.getByRole('button', { name: /开始扫描/ }).click();
+    await page.getByText(/冲突/).first().waitFor({ timeout: 5000 });
+    const replaceRow = page.locator('label').filter({ hasText: '天使☆騒々 RE-BOOT!' }).first();
+    await replaceRow.getByRole('checkbox').check();
+    await replaceRow.locator('select').selectOption('replace');
+    await page.getByText(/高风险：覆盖已有记录/).first().waitFor({ timeout: 5000 });
+    await page.getByRole('button', { name: /导入选中/ }).click();
+    await page.getByText(/导入处理完成：新增 0、合并 0、替换 1、副本 0、跳过 0/).first().waitFor({ timeout: 5000 });
+    await page.getByText('导入审计').first().waitFor({ timeout: 5000 });
+    await page.getByLabel('导入审计动作筛选').selectOption('replace');
+    await page.getByText(/已替换现有数据库记录/).first().waitFor({ timeout: 5000 });
+    await page.getByText(/冲突原因：标题相同|冲突原因：安装目录已存在/).first().waitFor({ timeout: 5000 });
+    await page.getByText(/记录 ID：qa-2/).first().waitFor({ timeout: 5000 });
+    await page.getByLabel('导入审计搜索').fill('qa-2');
+    await page.getByText(/当前显示 1 \/ 1 条处理明细/).first().waitFor({ timeout: 5000 });
+    await page.getByLabel('导入审计搜索').fill('不存在的审计项');
+    await page.getByText('当前筛选没有明细。').first().waitFor({ timeout: 5000 });
+    await page.getByRole('button', { name: /重置审计/ }).click();
+    const replacedGames = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.games') || '[]'));
+    const replacedGame = replacedGames.find((game) => game.id === 'qa-2');
+    if (!replacedGame?.installPath.includes('D:\\Games\\VN\\ゆずソフト\\天使騒々')) throw new Error('page QA scanner replace did not update the expected install path');
+    if (replacedGame?.title !== '天使☆騒々 RE-BOOT!') throw new Error('page QA scanner replace did not update the existing record title');
+    if (!replacedGame?.aliases.includes('[230428][ゆずソフト] 天使☆騒々 RE-BOOT!')) throw new Error('page QA scanner replace did not update aliases from the candidate');
+  });
+
+  await runCase(browser, 'scanner-duplicate-import-audit', 'scanner', {}, async (page) => {
+    await page.getByPlaceholder(/例如/).fill('D:\\Games\\VN');
+    await page.getByRole('button', { name: /开始扫描/ }).click();
+    await page.getByText(/冲突/).first().waitFor({ timeout: 5000 });
+    const duplicateRow = page.locator('label').filter({ hasText: '星之终途' }).first();
+    await duplicateRow.getByRole('checkbox').check();
+    await duplicateRow.locator('select').selectOption('duplicate');
+    await page.getByText(/会新建一条独立记录/).first().waitFor({ timeout: 5000 });
+    await page.getByRole('button', { name: /导入选中/ }).click();
+    await page.getByText(/导入处理完成：新增 0、合并 0、替换 0、副本 1、跳过 0/).first().waitFor({ timeout: 5000 });
+    await page.getByText('导入审计').first().waitFor({ timeout: 5000 });
+    await page.getByLabel('导入审计搜索').fill('星之终途');
+    await page.getByText(/当前显示 1 \/ 1 条处理明细/).first().waitFor({ timeout: 5000 });
+    await page.getByRole('button', { name: /重置审计/ }).click();
+    await page.getByLabel('导入审计动作筛选').selectOption('duplicate');
+    await page.getByText(/已作为副本导入/).first().waitFor({ timeout: 5000 });
+    await page.getByText(/冲突原因：安装目录已存在|冲突原因：标题相同/).first().waitFor({ timeout: 5000 });
+    await page.getByText(/D:\\Games\\VN\\星之终途/).first().waitFor({ timeout: 5000 });
+    const duplicateGames = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.games') || '[]'));
+    const starGames = duplicateGames.filter((game) => game.title === '星之终途');
+    if (duplicateGames.length !== games.length + 1) throw new Error('page QA scanner duplicate did not add exactly one game');
+    if (starGames.length !== 2) throw new Error('page QA scanner duplicate did not keep both original and duplicate records');
+    if (!starGames.some((game) => game.aliases.includes('[汉化硬盘版] 星之终途 v1.02'))) throw new Error('page QA scanner duplicate did not persist candidate aliases');
+  });
+}
+
+module.exports = { runScannerPageQaCases };
