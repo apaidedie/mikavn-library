@@ -3,7 +3,8 @@ import { Copy, Image, ListChecks, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Panel, PanelContent, PanelHeader, SoftRow } from '@/components/ui/page';
 import type { ImageCacheFileIssue, ImageDuplicateContentGroup, ImageDuplicateNameGroup, ImageHealthReport, ImageReferenceAudit } from '@/types/archive';
-import { ImageAuditDetailPanel, matchesImageAuditItem } from './ImageAuditDetailPanel';
+import { ImageAuditDetailPanel } from './ImageAuditDetailPanel';
+import { matchesImageAuditItem } from './imageAuditDetailModel';
 import { formatImageHealthReferenceSplit, getImageHealthActionHint } from './maintenanceImageHealthModel';
 
 export const MaintenanceImageAuditPanel = forwardRef<HTMLElement, {

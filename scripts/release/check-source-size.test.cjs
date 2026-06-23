@@ -63,6 +63,8 @@ test('default source budgets cover frontend, Rust service, and smoke runner hot 
     'src/pages/Scanner/ScannerPage.tsx',
     'src/pages/Metadata/BatchMetadataPage.tsx',
     'src/pages/Saves/SavesPage.tsx',
+    'src/pages/Maintenance/ImageAuditDetailPanel.tsx',
+    'src/pages/Maintenance/imageAuditDetailModel.ts',
     'src-tauri/src/services/archives.rs',
     'src-tauri/src/services/backups.rs',
     'src-tauri/src/services/diagnostics.rs',
@@ -197,6 +199,16 @@ test('settings page budget keeps local data actions outside page component', () 
 
   assert.ok(budget);
   assert.ok(budget.maxLines <= 180);
+});
+
+test('image audit detail budgets keep derivation outside the TSX component', () => {
+  const panelBudget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('src/pages/Maintenance/ImageAuditDetailPanel.tsx'));
+  const modelBudget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('src/pages/Maintenance/imageAuditDetailModel.ts'));
+
+  assert.ok(panelBudget);
+  assert.ok(modelBudget);
+  assert.ok(panelBudget.maxLines <= 240);
+  assert.ok(modelBudget.maxLines <= 180);
 });
 
 test('image health service budget keeps tests outside the production scanner module', () => {
