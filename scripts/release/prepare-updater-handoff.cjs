@@ -1,4 +1,5 @@
 const crypto = require('node:crypto');
+const childProcess = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -24,6 +25,32 @@ function writeFile(filePath, contents) {
 function copyFile(sourcePath, targetPath) {
   fs.mkdirSync(path.dirname(targetPath), { recursive: true });
   fs.copyFileSync(sourcePath, targetPath);
+}
+
+function currentSourceCommit(repoRoot) {
+  const result = childProcess.spawnSync('git', ['rev-parse', 'HEAD'], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+  });
+  if (result.status !== 0) {
+    const message = (result.stderr || result.stdout || '').trim();
+    throw new Error(`failed to read current Git commit: ${message || `exit ${result.status}`}`);
+  }
+  const commit = result.stdout.trim();
+  if (!/^[a-f0-9]{40}$/i.test(commit)) {
+    throw new Error(`current Git commit is not a full SHA-1 hash: ${commit}`);
+  }
+  return commit.toLowerCase();
+}
+
+function upsertSourceCommitInReport(reportPath, commit) {
+  if (!fs.existsSync(reportPath)) return;
+  const report = fs.readFileSync(reportPath, 'utf8');
+  const line = `- Source commit: ${commit}.`;
+  const nextReport = /Source commit:\s*[a-f0-9]{40}\b/i.test(report)
+    ? report.replace(/- Source commit:\s*[a-f0-9]{40}\.?/i, line)
+    : report.replace(/^(#[^\r\n]*(?:\r?\n)?)/, `$1${line}\n`);
+  fs.writeFileSync(reportPath, nextReport);
 }
 
 function readReleaseMetadata(repoRoot) {
@@ -107,10 +134,12 @@ function prepareUpdaterHandoff(options = {}) {
   const signatureTarget = path.join(releaseDir, signatureName);
   const latestJsonTarget = path.join(releaseDir, 'latest.json');
   const shaTarget = path.join(releaseDir, 'SHA256SUMS.txt');
+  const validationReportPath = path.join(releaseDir, 'RELEASE_VALIDATION_REPORT.md');
 
   copyFile(releaseExePath, releaseExeTarget);
   copyFile(installer.filePath, installerTarget);
   copyFile(signaturePath, signatureTarget);
+  upsertSourceCommitInReport(validationReportPath, currentSourceCommit(repoRoot));
 
   const signature = fs.readFileSync(signaturePath, 'utf8').trim();
   const notes = fs.existsSync(notesPath) ? fs.readFileSync(notesPath, 'utf8') : '';

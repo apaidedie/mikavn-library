@@ -26,6 +26,13 @@ function previousPatchVersion(version) {
   return `${parts[0]}.${parts[1]}.${Math.max(0, parts[2] - 1)}`;
 }
 
+function currentHeadCommit() {
+  return childProcess.execFileSync('git', ['rev-parse', 'HEAD'], {
+    cwd: path.join(__dirname, '..', '..'),
+    encoding: 'utf8',
+  }).trim();
+}
+
 function markReportSigned(releaseDir) {
   const reportPath = path.join(releaseDir, 'RELEASE_VALIDATION_REPORT.md');
   fs.writeFileSync(
@@ -108,6 +115,7 @@ function createHandoff(overrides = {}) {
   writeFile(path.join(releaseDir, 'SHA256SUMS.txt'), [...checksumEntries, ''].join('\n'));
   const reportLines = [
     '# MikaVN Library 0.1.1 Local Release Validation',
+    `- Source commit: ${overrides.sourceCommit || currentHeadCommit()}.`,
     '## Automated Checks',
     '- `npm run release:validate:core`: passed.',
     '- `npm run build`: passed.',
@@ -183,6 +191,11 @@ test('checkReleaseHandoff accepts complete artifacts, checksums, reports, and ch
   assert.equal(result.requiredFiles.length, 5);
   assert.equal(result.signingStatus, 'documented-unsigned');
   assert.equal(result.buildMode, 'updater-capable');
+  assert.deepEqual(result.sourceCommit, {
+    current: currentHeadCommit(),
+    recorded: currentHeadCommit(),
+    status: 'matched',
+  });
   assert.equal(result.topbarQuickSearchMs, 210);
   assert.deepEqual(result.lowerVersionUpdaterRehearsal, {
     currentVersion: version,
@@ -290,6 +303,48 @@ test('checkReleaseHandoff marks manual risk checklist passed when all items are 
     ],
     pendingItems: [],
   });
+});
+
+test('checkReleaseHandoff records stale source commit as a blocking release risk', () => {
+  const staleCommit = '0'.repeat(40);
+  const { releaseDir } = createHandoff({ sourceCommit: staleCommit });
+  markChecklistPassed(releaseDir);
+
+  const result = checkReleaseHandoff({ releaseDir });
+
+  assert.deepEqual(result.sourceCommit, {
+    current: currentHeadCommit(),
+    recorded: staleCommit,
+    status: 'mismatch',
+  });
+  assert.match(
+    result.blockingReleaseRisks.map((risk) => risk.code).join(','),
+    /source-commit-mismatch/,
+  );
+  assert.throws(
+    () => checkReleaseHandoff({ releaseDir, requirePublicReady: true }),
+    /release handoff has blocking public release risk\(s\): .*source-commit-mismatch/,
+  );
+});
+
+test('checkReleaseHandoff records missing source commit as a blocking release risk', () => {
+  const { releaseDir } = createHandoff();
+  markChecklistPassed(releaseDir);
+  const reportPath = path.join(releaseDir, 'RELEASE_VALIDATION_REPORT.md');
+  const report = fs.readFileSync(reportPath, 'utf8');
+  fs.writeFileSync(reportPath, report.replace(/- Source commit: [a-f0-9]{40}\.\n/, ''));
+
+  const result = checkReleaseHandoff({ releaseDir });
+
+  assert.deepEqual(result.sourceCommit, {
+    current: currentHeadCommit(),
+    recorded: null,
+    status: 'missing',
+  });
+  assert.match(
+    result.blockingReleaseRisks.map((risk) => risk.code).join(','),
+    /source-commit-unverified/,
+  );
 });
 
 test('checkReleaseHandoff public-ready mode rejects blocking release risks', () => {

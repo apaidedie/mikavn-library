@@ -92,6 +92,22 @@ function readReleaseMetadata(repoRoot = path.resolve(__dirname, '..', '..')) {
   };
 }
 
+function currentSourceCommit(repoRoot = path.resolve(__dirname, '..', '..')) {
+  const result = childProcess.spawnSync('git', ['rev-parse', 'HEAD'], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+  });
+  if (result.status !== 0) {
+    const message = (result.stderr || result.stdout || '').trim();
+    throw new Error(`failed to read current Git commit: ${message || `exit ${result.status}`}`);
+  }
+  const commit = result.stdout.trim();
+  if (!/^[a-f0-9]{40}$/i.test(commit)) {
+    throw new Error(`current Git commit is not a full SHA-1 hash: ${commit}`);
+  }
+  return commit.toLowerCase();
+}
+
 function publicInstallerName(productName, version) {
   return `${productName.trim().replace(/\s+/g, '.')}_${version}_x64-setup.exe`;
 }
@@ -195,6 +211,20 @@ function topbarQuickSearchMsFromReport(report) {
     throw new Error('release validation report must record a numeric topbar quick search timing');
   }
   return Number(match[1].replace(/,/g, ''));
+}
+
+function sourceCommitFromReport(report, repoRoot = path.resolve(__dirname, '..', '..')) {
+  const current = currentSourceCommit(repoRoot);
+  const match = /Source commit:\s*([a-f0-9]{40})\b/i.exec(report);
+  if (!match) {
+    return { current, recorded: null, status: 'missing' };
+  }
+  const recorded = match[1].toLowerCase();
+  return {
+    current,
+    recorded,
+    status: recorded === current ? 'matched' : 'mismatch',
+  };
 }
 
 function parseSemanticVersion(value, label) {
@@ -369,8 +399,23 @@ function blockingReleaseRisks({
   manualRiskChecklist,
   buildMode,
   largeLibraryPerformanceWarnings = 0,
+  sourceCommit,
 }) {
   const risks = [];
+  if (sourceCommit?.status === 'missing') {
+    risks.push({
+      code: 'source-commit-unverified',
+      message: 'Release validation report does not record the Git commit used to build the handoff artifacts.',
+      currentCommit: sourceCommit.current,
+    });
+  } else if (sourceCommit?.status === 'mismatch') {
+    risks.push({
+      code: 'source-commit-mismatch',
+      message: 'Release validation report Git commit does not match the current source checkout.',
+      currentCommit: sourceCommit.current,
+      recordedCommit: sourceCommit.recorded,
+    });
+  }
   if (buildMode !== 'updater-capable') {
     risks.push({
       code: 'not-updater-capable',
@@ -558,6 +603,7 @@ function checkReleaseHandoff(options = {}) {
   const buildMode = buildModeFromReport(report);
   const signingStatus = signingStatusFromReport(report);
   const signingCertificatePreflight = signingCertificatePreflightFromReport(report);
+  const sourceCommit = sourceCommitFromReport(report);
   const largeLibraryPerformanceWarnings = largeLibraryWarningCountFromReport(report);
   const topbarQuickSearchMs = topbarQuickSearchMsFromReport(report);
   const lowerVersionUpdaterRehearsal = lowerVersionUpdaterRehearsalFromReport(report, readReleaseMetadata().version, releaseDir);
@@ -580,6 +626,7 @@ function checkReleaseHandoff(options = {}) {
     manualRiskChecklist,
     buildMode,
     largeLibraryPerformanceWarnings,
+    sourceCommit,
   });
   if (options.requirePublicReady && blockingRisks.length === 0) {
     let publicReleaseAssets;
@@ -607,6 +654,7 @@ function checkReleaseHandoff(options = {}) {
     buildMode,
     signingStatus,
     signingCertificatePreflight,
+    sourceCommit,
     largeLibraryPerformanceWarnings,
     topbarQuickSearchMs,
     lowerVersionUpdaterRehearsal,
@@ -629,6 +677,7 @@ if (require.main === module) {
       buildMode: result.buildMode,
       signingStatus: result.signingStatus,
       signingCertificatePreflight: result.signingCertificatePreflight,
+      sourceCommit: result.sourceCommit,
       largeLibraryPerformanceWarnings: result.largeLibraryPerformanceWarnings,
       topbarQuickSearchMs: result.topbarQuickSearchMs,
       lowerVersionUpdaterRehearsal: result.lowerVersionUpdaterRehearsal,
