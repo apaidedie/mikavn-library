@@ -4,7 +4,7 @@ import { DiagnosticExportPathActions } from '@/components/diagnostics/Diagnostic
 import { Button } from '@/components/ui/button';
 import { ConfigItem, ConfigSection } from '@/components/ui/config-item';
 import { checkForAppUpdate, installAppUpdate, restartAfterUpdate, type AppUpdateHandle } from '@/services/updater';
-import { createUpdaterRecoveryHint, formatUpdaterError, formatUpdaterInstallProgress, updaterFallbackDownloadUrl, type UpdaterCheckResult } from '@/services/updaterModel';
+import { createUpdaterRecoveryHint, formatUpdaterError, formatUpdaterInstallProgress, formatUpdaterRecoveryText, updaterFallbackDownloadUrl, type UpdaterCheckResult } from '@/services/updaterModel';
 
 type InstallState = 'idle' | 'checking' | 'available' | 'up_to_date' | 'installing' | 'installed' | 'failed' | 'unavailable';
 
@@ -164,7 +164,7 @@ export function SettingsUpdateSection({
               )}
               <textarea className="min-h-16 w-[min(42rem,calc(100vw-3rem))] rounded-md bg-black/30 p-2 text-xs text-rose-100" readOnly value={error} />
               <div className="flex flex-wrap justify-end gap-2">
-                <Button size="sm" type="button" variant="ghost" onClick={() => void copyUpdateRecoveryText(error, '已复制更新错误。')}>
+                <Button size="sm" type="button" variant="ghost" onClick={() => void copyUpdateRecoveryText(formatUpdaterRecoveryText({ errorText: error, backup: backupInfo }), '已复制更新错误。')}>
                   <ClipboardCopy className="h-4 w-4" />
                   复制错误
                 </Button>

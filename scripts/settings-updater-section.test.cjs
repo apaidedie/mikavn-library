@@ -75,7 +75,9 @@ test('settings update failure offers public fallback download link', () => {
   assert.match(source, /rel="noreferrer"/);
   assert.match(source, /复制错误/);
   assert.match(source, /navigator\.clipboard\.writeText\(text\)/);
-  assert.match(source, /copyUpdateRecoveryText\(error/);
+  assert.doesNotMatch(source, /copyUpdateRecoveryText\(error/);
+  assert.match(source, /formatUpdaterRecoveryText/);
+  assert.match(source, /copyUpdateRecoveryText\(formatUpdaterRecoveryText\(\{ errorText: error, backup: backupInfo \}\), '已复制更新错误。'\)/);
   assert.match(source, /copyUpdateRecoveryText\(updaterFallbackDownloadUrl/);
   assert.match(source, /copyUpdateRecoveryText/);
   assert.match(source, /已复制更新错误。/);

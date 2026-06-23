@@ -46,7 +46,9 @@ test('startup update notice exposes fallback download link after install errors'
   assert.match(notice, /rel="noreferrer"/);
   assert.match(notice, /复制错误/);
   assert.match(notice, /navigator\.clipboard\.writeText\(text\)/);
-  assert.match(notice, /copyUpdateRecoveryText\(error/);
+  assert.doesNotMatch(notice, /copyUpdateRecoveryText\(error/);
+  assert.match(notice, /formatUpdaterRecoveryText/);
+  assert.match(notice, /copyUpdateRecoveryText\(formatUpdaterRecoveryText\(\{ errorText: error, backup: backupInfo \}\), '已复制更新错误。'\)/);
   assert.match(notice, /copyUpdateRecoveryText\(updaterFallbackDownloadUrl/);
   assert.match(notice, /copyUpdateRecoveryText/);
   assert.match(notice, /已复制更新错误。/);

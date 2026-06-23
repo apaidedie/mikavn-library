@@ -122,6 +122,40 @@ export function createUpdaterRecoveryHint(errorText: string | null | undefined):
   };
 }
 
+export function formatUpdaterRecoveryText({
+  errorText,
+  backup,
+  fallbackDownloadUrl = updaterFallbackDownloadUrl,
+}: {
+  errorText: string | null | undefined;
+  backup?: Partial<UpdateProtectionBackupInfo> | null;
+  fallbackDownloadUrl?: string;
+}) {
+  const normalizedError = String(errorText ?? '').trim() || '未知更新错误';
+  const recoveryHint = createUpdaterRecoveryHint(normalizedError);
+  const lines = [
+    '# MikaVN 更新故障摘要',
+    '',
+    `错误：${normalizedError}`,
+  ];
+
+  if (recoveryHint) {
+    lines.push(
+      `故障类型：${recoveryHint.title}`,
+      `处理建议：${recoveryHint.guidance}`,
+    );
+    if (recoveryHint.showFallbackDownload) lines.push(`备用下载：${fallbackDownloadUrl}`);
+  }
+
+  if (backup?.fileName || backup?.path) {
+    lines.push('', '## 更新前数据库备份');
+    if (backup.fileName) lines.push(`更新前数据库备份：${backup.fileName}`);
+    if (backup.path) lines.push(`备份路径：${backup.path}`);
+  }
+
+  return lines.join('\n');
+}
+
 export function formatUpdaterInstallProgress(progress: UpdaterInstallProgress | null): string | null {
   if (!progress) return null;
   if (progress.phase === 'backing_up') return '正在创建更新前数据库备份...';

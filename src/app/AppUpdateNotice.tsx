@@ -2,7 +2,7 @@ import { ClipboardCopy, Download, ExternalLink, FileArchive, FolderOpen, RotateC
 import { useState } from 'react';
 import { DiagnosticExportPathActions } from '@/components/diagnostics/DiagnosticExportPathActions';
 import { Button } from '@/components/ui/button';
-import { createUpdaterRecoveryHint, formatUpdaterError, updaterFallbackDownloadUrl, type UpdateProtectionBackupInfo, type UpdaterCheckResult } from '@/services/updaterModel';
+import { createUpdaterRecoveryHint, formatUpdaterError, formatUpdaterRecoveryText, updaterFallbackDownloadUrl, type UpdateProtectionBackupInfo, type UpdaterCheckResult } from '@/services/updaterModel';
 
 type AppUpdateNoticeProps = {
   notice: Extract<UpdaterCheckResult, { kind: 'available' }>;
@@ -90,7 +90,7 @@ export function AppUpdateNotice({
           {error && <p className="mt-1 select-text text-xs text-rose-100">{error}</p>}
           {error && (
             <div className="mt-1 flex flex-wrap gap-2">
-              <button className="inline-flex items-center gap-1 text-xs text-emerald-50 underline underline-offset-2" type="button" onClick={() => void copyUpdateRecoveryText(error, '已复制更新错误。')}>
+              <button className="inline-flex items-center gap-1 text-xs text-emerald-50 underline underline-offset-2" type="button" onClick={() => void copyUpdateRecoveryText(formatUpdaterRecoveryText({ errorText: error, backup: backupInfo }), '已复制更新错误。')}>
                 <ClipboardCopy className="h-3.5 w-3.5" />
                 复制错误
               </button>

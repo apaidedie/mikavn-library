@@ -85,6 +85,33 @@ test('updater recovery hints explain backup, signature, download, and restart fa
   });
 });
 
+test('updater recovery text bundles error guidance fallback link and backup evidence', () => {
+  const { formatUpdaterRecoveryText, updaterFallbackDownloadUrl } = loadModel();
+  const text = formatUpdaterRecoveryText({
+    errorText: '更新失败：download failed',
+    backup: {
+      fileName: 'before-update.db',
+      path: 'E:\\MikaVN Library\\app-data\\database-backups\\update-protection\\before-update.db',
+    },
+  });
+
+  assert.match(text, /MikaVN 更新故障摘要/);
+  assert.match(text, /错误：更新失败：download failed/);
+  assert.match(text, /故障类型：下载或安装没有完成。/);
+  assert.match(text, /处理建议：已创建的更新前备份会保留；可以重试，或打开备用下载页面手动安装。/);
+  assert.match(text, new RegExp(`备用下载：${updaterFallbackDownloadUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
+  assert.match(text, /更新前数据库备份：before-update\.db/);
+  assert.match(text, /备份路径：E:\\MikaVN Library\\app-data\\database-backups\\update-protection\\before-update\.db/);
+});
+
+test('updater recovery text does not suggest manual installer after backup failure', () => {
+  const { formatUpdaterRecoveryText, updaterFallbackDownloadUrl } = loadModel();
+  const text = formatUpdaterRecoveryText({ errorText: '更新前数据库备份失败，已取消安装。' });
+
+  assert.match(text, /更新已取消，数据库没有被替换。/);
+  assert.doesNotMatch(text, new RegExp(updaterFallbackDownloadUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+});
+
 test('install progress formatter reports backup, download percent, and install phases', () => {
   const { formatUpdaterInstallProgress } = loadModel();
 
