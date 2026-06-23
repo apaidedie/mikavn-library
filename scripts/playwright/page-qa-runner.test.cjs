@@ -71,3 +71,16 @@ test('maintenance result QA verifies game shortcuts leave the library as the cur
   assert.match(afterGameShortcut, /getByRole\('button', \{ name: '游戏库' \}\)[\s\S]*getAttribute\('aria-current'\)/);
   assert.match(afterGameShortcut, /getByRole\('button', \{ name: '维护' \}\)[\s\S]*getAttribute\('aria-current'\)/);
 });
+
+test('settings local path QA lives in helper instead of the main runner', () => {
+  const source = fs.readFileSync(sourcePath, 'utf8');
+  const helper = fs.readFileSync(helperPath, 'utf8');
+
+  assert.match(helper, /async function verifySettingsLocalDataPathActions\(page\)/);
+  assert.match(helper, /目录位置速览/);
+  assert.match(helper, /复制全部目录路径/);
+  assert.match(helper, /打开诊断日志/);
+  assert.match(source, /verifySettingsLocalDataPathActions\(page\)/);
+  assert.doesNotMatch(source, /const copiedDirectorySummary = await page\.evaluate/);
+  assert.doesNotMatch(source, /const copiedDiagnosticLogPath = await page\.evaluate/);
+});

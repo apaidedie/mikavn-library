@@ -150,6 +150,39 @@ async function expectNoHorizontalOverflow(page, label) {
   throw new Error(`${label} has horizontal overflow: ${overflow}px ${JSON.stringify(wideElements)}`);
 }
 
+async function verifySettingsLocalDataPathActions(page) {
+  await page.getByText('目录位置速览').first().waitFor({ timeout: 5000 });
+  await page.getByText('E:\\MikaVN Library\\app-data\\images').first().waitFor({ timeout: 5000 });
+  await page.getByText('E:\\MikaVN Library\\app-data\\cache').first().waitFor({ timeout: 5000 });
+  await page.getByText('E:\\MikaVN Library\\app-data\\save-backups').first().waitFor({ timeout: 5000 });
+  await page.getByText('E:\\MikaVN Library\\app-data\\logs').first().waitFor({ timeout: 5000 });
+  await page.getByText('E:\\MikaVN Library\\app-data').first().waitFor({ timeout: 5000 });
+  const databaseLocationRow = page.locator('.motion-soft-row').filter({ hasText: '数据库位置' }).filter({ hasText: 'E:\\MikaVN Library\\app-data\\mikavn.db' }).first();
+  await databaseLocationRow.getByRole('button', { name: /复制数据库位置/ }).click();
+  const copiedDatabaseLocation = await page.evaluate(() => navigator.clipboard.readText());
+  if (copiedDatabaseLocation !== 'E:\\MikaVN Library\\app-data\\mikavn.db') throw new Error('database location copy did not write the expected path');
+  await page.getByText('已复制数据库位置路径。').first().waitFor({ timeout: 5000 });
+  await page.getByRole('button', { name: /复制数据根目录/ }).first().click();
+  const copiedDataDir = await page.evaluate(() => navigator.clipboard.readText());
+  if (copiedDataDir !== 'E:\\MikaVN Library\\app-data') throw new Error('directory copy did not write the expected app data path');
+  await page.getByText('已复制数据根目录路径。').first().waitFor({ timeout: 5000 });
+  await page.getByRole('button', { name: /打开数据根目录/ }).first().click();
+  await page.getByText('已打开数据根目录。').first().waitFor({ timeout: 5000 });
+  await page.getByRole('button', { name: /复制全部目录路径/ }).first().click();
+  const copiedDirectorySummary = await page.evaluate(() => navigator.clipboard.readText());
+  if (!copiedDirectorySummary.includes('数据根目录\tE:\\MikaVN Library\\app-data')) throw new Error('directory summary copy is missing the app data path');
+  if (!copiedDirectorySummary.includes('图片目录\tE:\\MikaVN Library\\app-data\\images')) throw new Error('directory summary copy is missing the image directory path');
+  if (!copiedDirectorySummary.includes('数据库备份\tE:\\MikaVN Library\\app-data')) throw new Error('directory summary copy is missing the database backup directory path');
+  await page.getByText('已复制 7 个目录路径。').first().waitFor({ timeout: 5000 });
+  const diagnosticLogRow = page.locator('.rounded-lg').filter({ hasText: 'mock-1.log' }).filter({ hasText: 'localStorage://task/qa-task-failed' }).first();
+  await diagnosticLogRow.getByRole('button', { name: /复制诊断日志 mock-1\.log/ }).click();
+  const copiedDiagnosticLogPath = await page.evaluate(() => navigator.clipboard.readText());
+  if (copiedDiagnosticLogPath !== 'localStorage://task/qa-task-failed') throw new Error('diagnostic log copy did not write the expected path');
+  await page.getByText('已复制诊断日志路径。').first().waitFor({ timeout: 5000 });
+  await diagnosticLogRow.getByRole('button', { name: /打开诊断日志 mock-1\.log/ }).click();
+  await page.getByText('已打开诊断日志。').first().waitFor({ timeout: 5000 });
+}
+
 async function launchPageQaBrowser() {
   return chromium.launch(browserLaunchOptions());
 }
@@ -166,5 +199,6 @@ module.exports = {
   openLibrary,
   readTaskRetryPayload,
   runCase,
+  verifySettingsLocalDataPathActions,
   waitForImageHealthWorkflow,
 };
