@@ -48,6 +48,15 @@ pub fn list_collection_games(
 }
 
 #[tauri::command]
+pub fn list_game_collections(
+    state: State<'_, AppState>,
+    game_id: String,
+) -> DbResult<Vec<GameCollection>> {
+    let db = state.db()?;
+    collection_service::list_game_collections(&db, game_id)
+}
+
+#[tauri::command]
 pub fn add_game_to_collection(
     state: State<'_, AppState>,
     collection_id: String,

@@ -107,6 +107,7 @@ pub fn run() {
             commands::collections::update_collection,
             commands::collections::delete_collection,
             commands::collections::list_collection_games,
+            commands::collections::list_game_collections,
             commands::collections::add_game_to_collection,
             commands::collections::remove_game_from_collection,
             commands::filesystem::reveal_path,

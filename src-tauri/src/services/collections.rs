@@ -27,6 +27,10 @@ pub fn list_collection_games(db: &Database, collection_id: String) -> DbResult<V
     db.list_collection_games(collection_id)
 }
 
+pub fn list_game_collections(db: &Database, game_id: String) -> DbResult<Vec<GameCollection>> {
+    db.list_game_collections(game_id)
+}
+
 pub fn add_game_to_collection(
     db: &Database,
     collection_id: String,

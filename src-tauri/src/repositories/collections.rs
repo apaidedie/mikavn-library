@@ -84,6 +84,22 @@ impl<'a> CollectionRepository<'a> {
         Ok(rows.collect::<Result<Vec<_>, _>>()?)
     }
 
+    pub fn list_game_collections(&self, game_id: String) -> DbResult<Vec<GameCollection>> {
+        let mut stmt = self.conn.prepare(
+            r#"
+            SELECT c.id, c.name, c.description, c.color, COUNT(all_cg.game_id) AS game_count, c.created_at, c.updated_at
+            FROM collections c
+            INNER JOIN collection_games cg ON cg.collection_id = c.id
+            LEFT JOIN collection_games all_cg ON all_cg.collection_id = c.id
+            WHERE cg.game_id = ?1
+            GROUP BY c.id, c.name, c.description, c.color, c.created_at, c.updated_at
+            ORDER BY c.updated_at DESC
+            "#,
+        )?;
+        let rows = stmt.query_map(params![game_id], collection_from_row)?;
+        Ok(rows.collect::<Result<Vec<_>, _>>()?)
+    }
+
     pub fn add_game_to_collection(
         &self,
         collection_id: String,

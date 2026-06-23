@@ -76,6 +76,12 @@ export function createMockStoreCollections(readGames: () => Game[]) {
       return Promise.resolve(readGames().map(ensureGameDefaults).filter((game) => ids.has(game.id)));
     },
 
+    listGameCollections(gameId: string) {
+      const ids = new Set(readCollectionLinks().filter((link) => link.gameId === gameId).map((link) => link.collectionId));
+      const collections = withCollectionCounts().filter((collection) => ids.has(collection.id));
+      return Promise.resolve(collections.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)));
+    },
+
     addGameToCollection(collectionId: string, gameId: string) {
       const collection = readCollections().find((item) => item.id === collectionId);
       if (!collection) return Promise.reject(new Error('Collection not found'));

@@ -124,6 +124,10 @@ export const api = {
     return command<Game[]>('list_collection_games', { collectionId }, () => mockStore.listCollectionGames(collectionId));
   },
 
+  listGameCollections(gameId: string) {
+    return command<GameCollection[]>('list_game_collections', { gameId }, () => mockStore.listGameCollections(gameId));
+  },
+
   addGameToCollection(collectionId: string, gameId: string) {
     return command<CollectionGameLink>('add_game_to_collection', { collectionId, gameId }, () => mockStore.addGameToCollection(collectionId, gameId));
   },

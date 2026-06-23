@@ -29,6 +29,11 @@ impl Database {
             .list_collection_games(collection_id)
     }
 
+    pub fn list_game_collections(&self, game_id: String) -> DbResult<Vec<GameCollection>> {
+        self.get_game(game_id.clone())?;
+        self.collection_repository().list_game_collections(game_id)
+    }
+
     pub fn add_game_to_collection(
         &self,
         collection_id: String,

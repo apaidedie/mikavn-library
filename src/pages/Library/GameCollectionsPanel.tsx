@@ -66,13 +66,12 @@ export function GameCollectionsPanel({ game, onEdit }: { game: Game; onEdit: () 
 
   async function refresh() {
     try {
-      const nextCollections = await api.listCollections();
-      const linked = await Promise.all(nextCollections.map(async (collection) => {
-        const games = await api.listCollectionGames(collection.id);
-        return games.some((item) => item.id === game.id) ? collection : null;
-      }));
+      const [nextCollections, linked] = await Promise.all([
+        api.listCollections(),
+        api.listGameCollections(game.id),
+      ]);
       setCollections(nextCollections);
-      setLinkedCollections(linked.filter(Boolean) as GameCollection[]);
+      setLinkedCollections(linked);
     } catch (reason) {
       setMessage(errorMessage(reason));
     }
