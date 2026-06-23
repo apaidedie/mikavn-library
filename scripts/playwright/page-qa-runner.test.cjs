@@ -8,6 +8,7 @@ const helperPath = path.join(__dirname, 'page-qa-runner-helpers.cjs');
 const dashboardCasesPath = path.join(__dirname, 'page-qa-dashboard-cases.cjs');
 const libraryCasesPath = path.join(__dirname, 'page-qa-library-cases.cjs');
 const maintenanceCasesPath = path.join(__dirname, 'page-qa-maintenance-cases.cjs');
+const savesCasesPath = path.join(__dirname, 'page-qa-saves-cases.cjs');
 
 test('page QA routes asset cache maintenance through image health', () => {
   const source = fs.readFileSync(sourcePath, 'utf8');
@@ -121,4 +122,17 @@ test('maintenance page QA cases live in a focused scenario module', () => {
   assert.doesNotMatch(source, /\['maintenance-health-metadata-match'/);
   assert.doesNotMatch(source, /\['maintenance-health-artwork-repair'/);
   assert.doesNotMatch(source, /\['maintenance-health-duplicate-id-audit'/);
+});
+
+test('saves page QA cases live in a focused data-safety scenario module', () => {
+  const source = fs.readFileSync(sourcePath, 'utf8');
+  const savesSource = fs.readFileSync(savesCasesPath, 'utf8');
+
+  assert.match(source, /page-qa-saves-cases\.cjs/);
+  assert.match(source, /\.\.\.savesPageQaCases/);
+  assert.match(savesSource, /saves-backup-restore/);
+  assert.match(savesSource, /保护备份/);
+  assert.match(savesSource, /page QA save restore flows did not create protection backup records/);
+  assert.match(savesSource, /page QA mirror save restore task did not log the protection backup/);
+  assert.doesNotMatch(source, /\['saves-backup-restore'/);
 });
