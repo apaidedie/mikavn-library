@@ -1,4 +1,5 @@
 import { CalendarDays, Clock3, Edit3, Play, Star, Trash2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CoverImage } from '@/components/ui/cover';
@@ -21,12 +22,18 @@ type GameDetailHeroProps = {
 
 export function GameDetailHero({ blurCover, game, onEdit, onLaunch, onRemove, selectedProfile }: GameDetailHeroProps) {
   const heroImage = imageSrc(game.backgroundImage || game.bannerImage || game.coverImage);
+  const [failedHeroImage, setFailedHeroImage] = useState<string | null>(null);
+  const shouldRenderHeroImage = heroImage && failedHeroImage !== heroImage;
+
+  useEffect(() => {
+    setFailedHeroImage(null);
+  }, [heroImage]);
 
   return (
     <>
-      {heroImage && (
+      {shouldRenderHeroImage && (
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <img alt="" className={cn('absolute inset-x-0 top-0 h-[520px] w-full object-cover opacity-55', blurCover && 'scale-105 blur-md')} decoding="async" fetchPriority="high" loading="eager" src={heroImage} />
+          <img alt="" className={cn('absolute inset-x-0 top-0 h-[520px] w-full object-cover opacity-55', blurCover && 'scale-105 blur-md')} decoding="async" fetchPriority="high" loading="eager" src={heroImage} onError={() => setFailedHeroImage(heroImage)} />
           <div className="absolute inset-x-0 top-0 h-[560px] bg-[linear-gradient(180deg,rgba(29,36,47,0.12),rgb(var(--app-bg-rgb))_86%),linear-gradient(90deg,rgb(var(--app-bg-rgb))_0%,rgb(var(--app-bg-rgb)/0.78)_32%,rgb(var(--app-bg-rgb)/0.34)_70%,rgb(var(--app-bg-rgb)/0.72)_100%)]" />
           <div className="absolute inset-0 bg-[rgb(var(--app-bg-rgb)/0.34)]" />
         </div>
