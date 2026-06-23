@@ -61,7 +61,7 @@ function createHandoff(overrides = {}) {
     '- `npm run smoke:install`: passed.',
     '- `npm run smoke:portable-data`: passed.',
     '- `npm run smoke:real-data:readonly`: passed. `quick_check` ok; image header samples ok.',
-    '- `npm run smoke:real-install:update`: passed. Real install counts preserved.',
+    '- `npm run smoke:real-install:update`: passed. Real install counts preserved; verified database backup created under manual-install-smoke.',
     '- Target install directory: `E:\\MikaVN Library`.',
     '- Post-install SQLite `quick_check`: ok.',
     '- Real installed exe: `E:\\MikaVN Library\\mikavn-library.exe`.',
@@ -517,11 +517,29 @@ test('checkReleaseHandoff requires real install update smoke evidence in the val
   const { releaseDir } = createHandoff();
   const reportPath = path.join(releaseDir, 'RELEASE_VALIDATION_REPORT.md');
   const report = fs.readFileSync(reportPath, 'utf8');
-  fs.writeFileSync(reportPath, report.replace('- `npm run smoke:real-install:update`: passed. Real install counts preserved.\n', ''));
+  fs.writeFileSync(reportPath, report.replace('- `npm run smoke:real-install:update`: passed. Real install counts preserved; verified database backup created under manual-install-smoke.\n', ''));
 
   assert.throws(
     () => checkReleaseHandoff({ releaseDir }),
     /release validation report is missing required token: .*npm run smoke:real-install:update/,
+  );
+});
+
+test('checkReleaseHandoff requires real install update evidence to mention verified database backup', () => {
+  const { releaseDir } = createHandoff();
+  const reportPath = path.join(releaseDir, 'RELEASE_VALIDATION_REPORT.md');
+  const report = fs.readFileSync(reportPath, 'utf8');
+  fs.writeFileSync(
+    reportPath,
+    report.replace(
+      '- `npm run smoke:real-install:update`: passed. Real install counts preserved; verified database backup created under manual-install-smoke.',
+      '- `npm run smoke:real-install:update`: passed. Real install counts preserved.',
+    ),
+  );
+
+  assert.throws(
+    () => checkReleaseHandoff({ releaseDir }),
+    /release validation report is missing required token: .*verified database backup/,
   );
 });
 

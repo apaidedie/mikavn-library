@@ -16,6 +16,7 @@ const REQUIRED_REPORT_TOKENS = [
   'npm run smoke:portable-data',
   'npm run smoke:real-data:readonly',
   'npm run smoke:real-install:update',
+  'verified database backup',
   'Target install directory',
   'Post-install SQLite `quick_check`: ok',
   'Real installed exe',
