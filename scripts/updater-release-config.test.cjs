@@ -128,6 +128,8 @@ test('release handoff prepare script is wired into package and metadata gates', 
   assert.match(gate, /release:handoff:prepare-updater/);
   assert.match(gate, /prepare-updater-handoff\.test\.cjs/);
   assert.match(gate, /Source commit/);
+  assert.match(gate, /Release artifacts are older than the current source commit/);
+  assert.match(gate, /updater signature/);
   assert.match(template, /Source commit: <git commit>/);
   assert.match(template, /git rev-parse HEAD/);
 });

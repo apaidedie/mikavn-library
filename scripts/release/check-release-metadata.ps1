@@ -235,6 +235,8 @@ $requiredScriptFiles = @(
   "scripts\release\check-source-size.test.cjs",
   "scripts\release\check-release-handoff.cjs",
   "scripts\release\check-release-handoff.test.cjs",
+  "scripts\release\prepare-updater-handoff.cjs",
+  "scripts\release\prepare-updater-handoff.test.cjs",
   "scripts\diagnostic-export.test.cjs",
   "scripts\playwright\playwright-resolution.cjs",
   "scripts\playwright\playwright-resolution.test.cjs"
@@ -259,6 +261,7 @@ $readme = Get-Content -LiteralPath (Join-Path $repoRoot "README.md") -Raw
 $releaseChecklist = Get-Content -LiteralPath (Join-Path $repoRoot "RELEASE_CHECKLIST.md") -Raw
 $ciWorkflow = Get-Content -LiteralPath (Join-Path $repoRoot ".github\workflows\ci.yml") -Raw
 $releaseWorkflow = Get-Content -LiteralPath (Join-Path $repoRoot ".github\workflows\release.yml") -Raw
+$prepareUpdaterHandoffScript = Get-Content -LiteralPath (Join-Path $repoRoot "scripts\release\prepare-updater-handoff.cjs") -Raw
 $releaseNotesTemplate = Get-Content -LiteralPath (Join-Path $repoRoot "docs\RELEASE_NOTES_TEMPLATE.md") -Raw
 $releaseNotes011 = Get-Content -LiteralPath (Join-Path $repoRoot "docs\RELEASE_NOTES_0.1.1.md") -Raw
 $codeSigningDoc = Get-Content -LiteralPath (Join-Path $repoRoot "docs\CODE_SIGNING.md") -Raw
@@ -344,6 +347,11 @@ foreach ($token in @("npm run release:check:strict", "npm run test:release-scrip
 foreach ($token in @("TAURI_SIGNING_PRIVATE_KEY", "Require updater signing secrets", "Create updater metadata", "latest.json", "*.sig")) {
   if (!$releaseWorkflow.Contains($token)) {
     throw "Release workflow must include updater token '$token'."
+  }
+}
+foreach ($token in @("currentSourceCommitTimeMs", "Release artifacts are older than the current source commit", "updater signature")) {
+  if (!$prepareUpdaterHandoffScript.Contains($token)) {
+    throw "prepare-updater-handoff.cjs must keep stale artifact guard token '$token'."
   }
 }
 if ($releaseWorkflow.IndexOf("npm run smoke:install") -lt $releaseWorkflow.IndexOf("npm run tauri:build")) {
