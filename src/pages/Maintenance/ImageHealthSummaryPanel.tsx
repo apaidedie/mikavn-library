@@ -4,7 +4,7 @@ import { SoftRow } from '@/components/ui/page';
 import type { ImageHealthReport } from '@/types/archive';
 import { formatBytes } from './MaintenancePageParts';
 import { ImageHealthSamplePanels } from './ImageHealthSamplePanels';
-import { formatImageHealthReferenceSplit, getImageHealthActionHint } from './maintenanceImageHealthModel';
+import { formatImageHealthReferenceSplit, formatImageSafeCachePlanSummary, getImageHealthActionHint } from './maintenanceImageHealthModel';
 
 export function ImageHealthSummaryPanel({
   artworkDiagnosisLoading,
@@ -61,6 +61,7 @@ export function ImageHealthSummaryPanel({
     || summary.externalLegacyRefs > 0
   ));
   const actionHint = getImageHealthActionHint({ report, loading });
+  const safeCachePlanSummary = summary ? formatImageSafeCachePlanSummary(summary) : null;
   const cache = report?.cache;
 
   return (
@@ -87,6 +88,7 @@ export function ImageHealthSummaryPanel({
         </div>
       </div>
       <div className="text-xs text-slate-500" data-image-health-action-hint>{actionHint}</div>
+      {safeCachePlanSummary ? <div className="text-xs text-slate-500" data-image-safe-cache-plan>{safeCachePlanSummary}</div> : null}
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5 xl:grid-cols-12">
         <ImageHealthStat label="缓存体积" value={formatBytes(cache?.totalBytes ?? 0)} />
         <ImageHealthStat label="孤儿体积" detail="可安全整理的孤儿缓存体积" tone={(cache?.orphanBytes ?? 0) > 0 ? 'warn' : 'ok'} value={formatBytes(cache?.orphanBytes ?? 0)} />

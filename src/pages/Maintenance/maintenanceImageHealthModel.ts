@@ -23,6 +23,18 @@ type ImageHealthActionHintReport = {
   >>;
 };
 
+type ImageSafeCachePlanSummary = Partial<Pick<
+  ImageHealthReport['summary'],
+  | 'orphanFiles'
+  | 'invalidImageFiles'
+  | 'invalidImageRefs'
+  | 'duplicateContentGroups'
+  | 'oversizedFiles'
+  | 'oversizedImageRefs'
+  | 'contentTypeMismatchFiles'
+  | 'contentTypeMismatchRefs'
+>>;
+
 export function formatImageQuarantineCompletionMessage(
   result: Pick<ImageQuarantineReport, 'movedFiles' | 'skippedFiles'>,
   report: Pick<ImageHealthReport, 'summary'>,
@@ -77,6 +89,38 @@ export function formatImageSafeCacheBatchCompletionMessage(
   const remainingMismatch = Math.max(0, report.summary.contentTypeMismatchFiles - report.summary.contentTypeMismatchRefs);
   const remainingOversized = Math.max(0, report.summary.oversizedFiles - report.summary.oversizedImageRefs);
   return `批量安全整理完成：已移动 ${formatCount(moved)} 个未引用缓存文件到隔离区${skipped}；复查剩余孤儿 ${formatCount(report.summary.orphanFiles)} 个、重复内容 ${formatCount(report.summary.duplicateContentGroups)} 组、未引用坏图 ${formatCount(remainingInvalid)} 个、未引用大图 ${formatCount(remainingOversized)} 个、未引用类型不匹配 ${formatCount(remainingMismatch)} 个。${quarantineRecoveryHint}`;
+}
+
+export function formatImageSafeCachePlanSummary(summary: ImageSafeCachePlanSummary) {
+  const invalidReferenced = summary.invalidImageRefs ?? 0;
+  const oversizedReferenced = summary.oversizedImageRefs ?? 0;
+  const mismatchReferenced = summary.contentTypeMismatchRefs ?? 0;
+  const cleanable = [
+    { count: summary.orphanFiles ?? 0, label: '孤儿图片', unit: '个' },
+    { count: summary.duplicateContentGroups ?? 0, label: '重复内容', unit: '组' },
+    { count: Math.max(0, (summary.invalidImageFiles ?? 0) - invalidReferenced), label: '未引用无效图片', unit: '个' },
+    { count: Math.max(0, (summary.oversizedFiles ?? 0) - oversizedReferenced), label: '未引用过大图片', unit: '个' },
+    { count: Math.max(0, (summary.contentTypeMismatchFiles ?? 0) - mismatchReferenced), label: '未引用类型不匹配', unit: '个' },
+  ].filter((item) => item.count > 0);
+  const skipped = [
+    { count: invalidReferenced, label: '无效图片', unit: '个' },
+    { count: oversizedReferenced, label: '过大图片', unit: '个' },
+    { count: mismatchReferenced, label: '类型不匹配', unit: '个' },
+  ].filter((item) => item.count > 0);
+
+  const cleanableText = cleanable.map((item) => `${item.label} ${formatCount(item.count)} ${item.unit}`).join('、');
+  const skippedText = skipped.map((item) => `${item.label} ${formatCount(item.count)} ${item.unit}`).join('、');
+
+  if (!cleanable.length && skipped.length) {
+    return `没有可一键整理的未引用缓存问题；仍被数据库引用的${skippedText}会保留给补图、重新抓取或人工确认。`;
+  }
+  if (!cleanable.length) {
+    return '没有可一键整理的未引用缓存问题。';
+  }
+  if (!skipped.length) {
+    return `一键安全整理将处理：${cleanableText}。`;
+  }
+  return `一键安全整理将处理：${cleanableText}；会跳过仍被数据库引用的${skippedText}。`;
 }
 
 export function formatImageHealthSummaryMarkdown(report: Pick<ImageHealthReport, 'generatedAt' | 'recommendations' | 'summary'> & { cache?: Partial<Pick<ImageHealthReport['cache'], 'rootPath' | 'totalBytes' | 'orphanBytes' | 'oversizedBytes' | 'invalidImageBytes' | 'contentTypeMismatchBytes'>> | null }) {

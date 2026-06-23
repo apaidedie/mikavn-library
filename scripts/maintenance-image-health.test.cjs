@@ -638,6 +638,37 @@ test('safe cache batch completion message summarizes moved files and refreshed i
   assert.equal(message, '批量安全整理完成：已移动 5 个未引用缓存文件到隔离区；跳过 3 个；复查剩余孤儿 1 个、重复内容 2 组、未引用坏图 3 个、未引用大图 1 个、未引用类型不匹配 2 个。隔离区 manifest.json 可用于按原路径找回。');
 });
 
+test('safe cache plan summary lists cleanable and skipped referenced image work', () => {
+  const { formatImageSafeCachePlanSummary } = loadMaintenanceImageHealthModel();
+
+  assert.equal(
+    formatImageSafeCachePlanSummary({
+      orphanFiles: 12,
+      duplicateContentGroups: 2,
+      invalidImageFiles: 5,
+      invalidImageRefs: 1,
+      oversizedFiles: 7,
+      oversizedImageRefs: 3,
+      contentTypeMismatchFiles: 4,
+      contentTypeMismatchRefs: 1,
+    }),
+    '一键安全整理将处理：孤儿图片 12 个、重复内容 2 组、未引用无效图片 4 个、未引用过大图片 4 个、未引用类型不匹配 3 个；会跳过仍被数据库引用的无效图片 1 个、过大图片 3 个、类型不匹配 1 个。',
+  );
+  assert.equal(
+    formatImageSafeCachePlanSummary({
+      orphanFiles: 0,
+      duplicateContentGroups: 0,
+      invalidImageFiles: 2,
+      invalidImageRefs: 2,
+      oversizedFiles: 0,
+      oversizedImageRefs: 0,
+      contentTypeMismatchFiles: 0,
+      contentTypeMismatchRefs: 0,
+    }),
+    '没有可一键整理的未引用缓存问题；仍被数据库引用的无效图片 2 个会保留给补图、重新抓取或人工确认。',
+  );
+});
+
 test('image health action hint explains disabled maintenance actions', () => {
   const { getImageHealthActionHint } = loadMaintenanceImageHealthModel();
   const cleanReport = {
@@ -763,6 +794,9 @@ test('maintenance image health ui renders the action availability hint', () => {
   assert.match(panel, /getImageHealthActionHint/);
   assert.match(panel, /data-image-health-action-hint/);
   assert.match(panel, /\{actionHint\}/);
+  assert.match(panel, /formatImageSafeCachePlanSummary/);
+  assert.match(panel, /data-image-safe-cache-plan/);
+  assert.match(panel, /\{safeCachePlanSummary\}/);
 });
 
 test('description image repair history parses self-contained logs without a game index', () => {
