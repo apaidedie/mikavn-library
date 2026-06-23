@@ -5,7 +5,7 @@ let startupAppDataDiagnosticsPromise: Promise<AppDataDiagnostics> | null = null;
 
 export function getStartupAppDataDiagnostics() {
   if (!startupAppDataDiagnosticsPromise) {
-    startupAppDataDiagnosticsPromise = api.getAppDataDiagnostics().catch((reason) => {
+    startupAppDataDiagnosticsPromise = api.getStartupAppDataDiagnostics().catch((reason) => {
       startupAppDataDiagnosticsPromise = null;
       throw reason;
     });

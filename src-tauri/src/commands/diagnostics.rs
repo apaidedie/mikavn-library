@@ -17,6 +17,11 @@ pub fn get_app_data_diagnostics(app: AppHandle) -> DbResult<AppDataDiagnostics> 
 }
 
 #[tauri::command]
+pub fn get_startup_app_data_diagnostics(app: AppHandle) -> DbResult<AppDataDiagnostics> {
+    diagnostics::get_startup_app_data_diagnostics(&app)
+}
+
+#[tauri::command]
 pub fn export_diagnostic_package(app: AppHandle) -> DbResult<DiagnosticExportReport> {
     diagnostic_export::export_diagnostic_package(&app)
 }

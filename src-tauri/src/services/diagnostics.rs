@@ -181,6 +181,13 @@ pub fn get_app_data_diagnostics(app: &AppHandle) -> DbResult<AppDataDiagnostics>
     get_app_data_diagnostics_with_paths(&paths, data_dir_source)
 }
 
+pub fn get_startup_app_data_diagnostics(app: &AppHandle) -> DbResult<AppDataDiagnostics> {
+    let resolution = AppPaths::resolve_from_app(app)?;
+    let data_dir_source = resolution.source.as_str().to_string();
+    let paths = AppPaths::from_root(resolution.root)?;
+    get_startup_app_data_diagnostics_with_paths(&paths, data_dir_source)
+}
+
 pub fn audit_image_references(
     app: &AppHandle,
     options: ImageReferenceAuditOptions,
@@ -291,6 +298,53 @@ pub(crate) fn get_app_data_diagnostics_with_paths(
     })
 }
 
+pub(crate) fn get_startup_app_data_diagnostics_with_paths(
+    paths: &AppPaths,
+    data_dir_source: String,
+) -> DbResult<AppDataDiagnostics> {
+    let database = startup_database_health(paths)?;
+    let images = lightweight_directory_stats(&paths.images());
+    let cache = lightweight_directory_stats(&paths.cache());
+    let logs = lightweight_directory_stats(&paths.logs());
+    let save_backups = lightweight_directory_stats(&paths.save_backups());
+    let database_backups = backups::database_backup_summary(paths)?;
+    let mut warnings = Vec::new();
+
+    let root_text = paths.root().to_string_lossy().to_string();
+    if looks_like_c_drive_path(&root_text) {
+        warnings.push("当前应用数据目录仍在 C 盘。".to_string());
+    }
+    if !database.exists {
+        warnings.push("未找到 mikavn.db。".to_string());
+    } else if !database.quick_check_ok {
+        warnings.push(format!(
+            "数据库 quick_check 异常：{}",
+            database.quick_check.as_deref().unwrap_or("unknown")
+        ));
+    }
+    if database_backups.file_count > DATABASE_BACKUP_WARNING_FILE_COUNT
+        || database_backups.total_bytes > DATABASE_BACKUP_WARNING_TOTAL_BYTES
+    {
+        warnings.push(format!(
+            "数据库备份已有 {} 个，占用 {}；建议在本地数据页运行“清理旧备份”释放空间。",
+            database_backups.file_count,
+            format_bytes_compact(database_backups.total_bytes)
+        ));
+    }
+
+    Ok(AppDataDiagnostics {
+        app_data_dir: root_text,
+        data_dir_source,
+        database,
+        images,
+        cache,
+        logs,
+        save_backups,
+        database_backups,
+        warnings,
+    })
+}
+
 fn format_bytes_compact(value: u64) -> String {
     const UNITS: [&str; 5] = ["B", "KB", "MB", "GB", "TB"];
     let mut amount = value as f64;
@@ -372,6 +426,50 @@ fn database_health(paths: &AppPaths) -> DbResult<DatabaseHealth> {
     Ok(health)
 }
 
+fn startup_database_health(paths: &AppPaths) -> DbResult<DatabaseHealth> {
+    let database_path = paths.database();
+    let exists = database_path.is_file();
+    let size_bytes = fs::metadata(&database_path)
+        .map(|item| item.len())
+        .unwrap_or(0);
+    let mut health = DatabaseHealth {
+        path: database_path.to_string_lossy().to_string(),
+        exists,
+        size_bytes,
+        user_version: None,
+        quick_check: None,
+        quick_check_ok: false,
+        foreign_key_issues: 0,
+        game_count: 0,
+        asset_count: 0,
+        image_refs_count: 0,
+        local_image_refs_count: 0,
+        missing_image_refs_count: 0,
+        c_drive_image_refs_count: 0,
+        playnite_image_refs_count: 0,
+        metadata_coverage: MetadataCoverageHealth::default(),
+        description_images: DescriptionImageHealth::default(),
+        external_ids: ExternalIdHealth::default(),
+        path_status: PathStatusHealth::default(),
+    };
+    if !exists {
+        return Ok(health);
+    }
+
+    let conn = Connection::open_with_flags(&database_path, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+    health.user_version = conn
+        .query_row("PRAGMA user_version", [], |row| row.get::<_, i64>(0))
+        .ok();
+    let quick_check = conn.query_row("PRAGMA quick_check", [], |row| row.get::<_, String>(0))?;
+    health.quick_check_ok = quick_check == "ok";
+    health.quick_check = Some(quick_check);
+    health.game_count = table_count(&conn, "games")?;
+    health.asset_count = table_count(&conn, "game_assets")?;
+    health.path_status = path_status_health(&conn)?;
+
+    Ok(health)
+}
+
 fn directory_stats(path: &Path) -> DbResult<DirectoryStats> {
     let mut stats = DirectoryStats {
         path: path.to_string_lossy().to_string(),
@@ -383,6 +481,15 @@ fn directory_stats(path: &Path) -> DbResult<DirectoryStats> {
         scan_directory(path, &mut stats)?;
     }
     Ok(stats)
+}
+
+fn lightweight_directory_stats(path: &Path) -> DirectoryStats {
+    DirectoryStats {
+        path: path.to_string_lossy().to_string(),
+        exists: path.exists(),
+        file_count: 0,
+        total_bytes: 0,
+    }
 }
 
 fn scan_directory(path: &Path, stats: &mut DirectoryStats) -> DbResult<()> {

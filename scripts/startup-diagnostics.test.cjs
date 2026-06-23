@@ -24,14 +24,14 @@ function loadStartupDiagnostics(api) {
   return module.exports;
 }
 
-test('startup diagnostics share one in-flight app-data diagnostics request', async () => {
+test('startup diagnostics share one in-flight lightweight diagnostics request', async () => {
   let calls = 0;
   let resolveDiagnostics;
   const diagnosticsPromise = new Promise((resolve) => {
     resolveDiagnostics = resolve;
   });
   const api = {
-    getAppDataDiagnostics() {
+    getStartupAppDataDiagnostics() {
       calls += 1;
       return diagnosticsPromise;
     },
@@ -49,7 +49,7 @@ test('startup diagnostics share one in-flight app-data diagnostics request', asy
 test('startup diagnostics cache resets after a failed diagnostics request', async () => {
   let calls = 0;
   const api = {
-    getAppDataDiagnostics() {
+    getStartupAppDataDiagnostics() {
       calls += 1;
       return calls === 1
         ? Promise.reject(new Error('diagnostics unavailable'))
@@ -73,4 +73,18 @@ test('startup self-check and startup database backup use the shared startup diag
   assert.match(backup, /getStartupAppDataDiagnostics\(\)/);
   assert.doesNotMatch(selfCheck, /api\s*\.\s*getAppDataDiagnostics\(\)/);
   assert.doesNotMatch(backup, /api\s*\.\s*getAppDataDiagnostics\(\)/);
+});
+
+test('startup diagnostics use the lightweight backend command instead of full app-data diagnostics', () => {
+  const startupDiagnostics = fs.readFileSync(path.join(__dirname, '..', 'src', 'app', 'startupDiagnostics.ts'), 'utf8');
+  const api = fs.readFileSync(path.join(__dirname, '..', 'src', 'services', 'api.ts'), 'utf8');
+  const commands = fs.readFileSync(path.join(__dirname, '..', 'src-tauri', 'src', 'commands', 'diagnostics.rs'), 'utf8');
+  const lib = fs.readFileSync(path.join(__dirname, '..', 'src-tauri', 'src', 'lib.rs'), 'utf8');
+
+  assert.match(startupDiagnostics, /api\.getStartupAppDataDiagnostics\(\)/);
+  assert.doesNotMatch(startupDiagnostics, /api\.getAppDataDiagnostics\(\)/);
+  assert.match(api, /getStartupAppDataDiagnostics\(\)/);
+  assert.match(api, /command<AppDataDiagnostics>\('get_startup_app_data_diagnostics'/);
+  assert.match(commands, /pub fn get_startup_app_data_diagnostics/);
+  assert.match(lib, /commands::diagnostics::get_startup_app_data_diagnostics/);
 });

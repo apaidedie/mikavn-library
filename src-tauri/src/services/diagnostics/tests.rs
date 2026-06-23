@@ -150,6 +150,54 @@ use zip::ZipArchive;
 
 use crate::services::diagnostic_export::export_diagnostic_package_with_paths;
 
+#[test]
+fn startup_diagnostics_skips_deep_image_scans() {
+    let root = std::env::temp_dir().join(format!(
+        "mikavn-startup-diagnostics-lightweight-{}",
+        Uuid::new_v4()
+    ));
+    let paths = AppPaths::from_root(root.join("app-data")).unwrap();
+    fs::create_dir_all(paths.images().join("nested")).unwrap();
+    fs::write(paths.images().join("nested").join("cover.jpg"), b"image").unwrap();
+
+    let conn = Connection::open(paths.database()).unwrap();
+    conn.execute_batch(
+        r#"
+            CREATE TABLE games (
+              id TEXT PRIMARY KEY,
+              title TEXT NOT NULL,
+              cover_image TEXT,
+              path_status TEXT
+            );
+            CREATE TABLE game_assets (
+              id TEXT PRIMARY KEY,
+              game_id TEXT NOT NULL,
+              uri TEXT NOT NULL
+            );
+            INSERT INTO games (id, title, cover_image, path_status)
+            VALUES ('game', 'VN', 'E:\missing.png', 'ok');
+            INSERT INTO game_assets (id, game_id, uri) VALUES ('asset', 'game', 'E:\missing-asset.png');
+            "#,
+    )
+    .unwrap();
+
+    let diagnostics =
+        get_startup_app_data_diagnostics_with_paths(&paths, "test".to_string()).unwrap();
+
+    assert_eq!(diagnostics.database.game_count, 1);
+    assert_eq!(diagnostics.database.asset_count, 1);
+    assert_eq!(diagnostics.database.quick_check.as_deref(), Some("ok"));
+    assert_eq!(diagnostics.database.image_refs_count, 0);
+    assert_eq!(diagnostics.database.missing_image_refs_count, 0);
+    assert_eq!(diagnostics.images.file_count, 0);
+    assert!(!diagnostics
+        .warnings
+        .iter()
+        .any(|warning| warning.contains("图片引用")));
+
+    let _ = fs::remove_dir_all(root);
+}
+
 fn zip_entry_names(path: &std::path::Path) -> Vec<String> {
     let file = std::fs::File::open(path).unwrap();
     let mut archive = ZipArchive::new(file).unwrap();

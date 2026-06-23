@@ -19,6 +19,10 @@ function mockAppDataPath(...parts: string[]) {
 
 export function createMockStoreDiagnostics(readGames: () => Game[]) {
   return {
+    getStartupAppDataDiagnostics(): Promise<AppDataDiagnostics> {
+      return this.getAppDataDiagnostics();
+    },
+
     getAppDataDiagnostics(): Promise<AppDataDiagnostics> {
       const games = readGames().map(ensureGameDefaults);
       const assets = readAssets();

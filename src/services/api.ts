@@ -164,6 +164,10 @@ export const api = {
     return command<AppDataDiagnostics>('get_app_data_diagnostics', undefined, () => mockStore.getAppDataDiagnostics());
   },
 
+  getStartupAppDataDiagnostics() {
+    return command<AppDataDiagnostics>('get_startup_app_data_diagnostics', undefined, () => mockStore.getStartupAppDataDiagnostics());
+  },
+
   exportDiagnosticPackage() {
     return command<DiagnosticExportReport>('export_diagnostic_package', undefined, () => mockStore.exportDiagnosticPackage());
   },

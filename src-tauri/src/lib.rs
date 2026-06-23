@@ -92,6 +92,7 @@ pub fn run() {
             commands::backups::backup_database_before_update,
             commands::backups::restore_database_backup,
             commands::diagnostics::get_app_data_diagnostics,
+            commands::diagnostics::get_startup_app_data_diagnostics,
             commands::diagnostics::export_diagnostic_package,
             commands::diagnostics::audit_image_references,
             commands::diagnostics::get_image_health_report,
