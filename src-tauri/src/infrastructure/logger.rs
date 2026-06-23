@@ -82,19 +82,19 @@ fn secret_key_value_regex() -> &'static Regex {
 }
 
 fn redact_windows_user_paths(value: &str) -> String {
-    let mut output = String::with_capacity(value.len());
-    let mut index = 0;
-    while let Some(relative) = value[index..].to_ascii_lowercase().find(r"c:\users\") {
-        let start = index + relative;
-        output.push_str(&value[index..start]);
-        let after_prefix = start + r"C:\Users\".len();
-        let rest = &value[after_prefix..];
-        let end_offset = rest.find(['\\', '/']).unwrap_or(rest.len());
-        output.push_str(r"C:\Users\[user]");
-        index = after_prefix + end_offset;
-    }
-    output.push_str(&value[index..]);
-    output
+    windows_user_path_regex()
+        .replace_all(value, |captures: &Captures| {
+            format!("C:{}Users{}[user]", &captures[1], &captures[2])
+        })
+        .into_owned()
+}
+
+fn windows_user_path_regex() -> &'static Regex {
+    static WINDOWS_USER_PATH_REGEX: OnceLock<Regex> = OnceLock::new();
+    WINDOWS_USER_PATH_REGEX.get_or_init(|| {
+        Regex::new(r"(?i)\bc:([\\/])users([\\/])[^\\/]+")
+            .expect("valid Windows user path redaction regex")
+    })
 }
 
 #[cfg(test)]
@@ -110,6 +110,15 @@ mod tests {
         assert!(!redacted.contains("alice"));
         assert!(redacted.contains("API_KEY=[redacted]"));
         assert!(redacted.contains(r"C:\Users\[user]\AppData"));
+    }
+
+    #[test]
+    fn redacts_forward_slash_windows_user_profile_paths() {
+        let text = "cache path C:/Users/alice/AppData/Roaming/MikaVN/logs/mikavn.log";
+        let redacted = redact_sensitive_text(text);
+
+        assert!(!redacted.contains("alice"));
+        assert!(redacted.contains("C:/Users/[user]/AppData"));
     }
 
     #[test]
