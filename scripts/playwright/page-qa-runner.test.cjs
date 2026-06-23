@@ -10,6 +10,7 @@ const libraryCasesPath = path.join(__dirname, 'page-qa-library-cases.cjs');
 const maintenanceCasesPath = path.join(__dirname, 'page-qa-maintenance-cases.cjs');
 const reportsCasesPath = path.join(__dirname, 'page-qa-reports-cases.cjs');
 const savesCasesPath = path.join(__dirname, 'page-qa-saves-cases.cjs');
+const settingsCasesPath = path.join(__dirname, 'page-qa-settings-cases.cjs');
 
 test('page QA routes asset cache maintenance through image health', () => {
   const source = fs.readFileSync(sourcePath, 'utf8');
@@ -82,13 +83,15 @@ test('maintenance result QA verifies game shortcuts leave the library as the cur
 
 test('settings local path QA lives in helper instead of the main runner', () => {
   const source = fs.readFileSync(sourcePath, 'utf8');
+  const settingsSource = fs.readFileSync(settingsCasesPath, 'utf8');
   const helper = fs.readFileSync(helperPath, 'utf8');
 
   assert.match(helper, /async function verifySettingsLocalDataPathActions\(page\)/);
   assert.match(helper, /目录位置速览/);
   assert.match(helper, /复制全部目录路径/);
   assert.match(helper, /打开诊断日志/);
-  assert.match(source, /verifySettingsLocalDataPathActions\(page\)/);
+  assert.match(settingsSource, /verifySettingsLocalDataPathActions\(page\)/);
+  assert.doesNotMatch(source, /verifySettingsLocalDataPathActions\(page\)/);
   assert.doesNotMatch(source, /const copiedDirectorySummary = await page\.evaluate/);
   assert.doesNotMatch(source, /const copiedDiagnosticLogPath = await page\.evaluate/);
 });
@@ -152,4 +155,18 @@ test('reports page QA cases live in a focused reporting scenario module', () => 
   assert.doesNotMatch(source, /\['reports-populated'/);
   assert.doesNotMatch(source, /\['reports-actionable-gaps-open-library'/);
   assert.doesNotMatch(source, /\['reports-export-gap-examples'/);
+});
+
+test('settings page QA cases live in a focused local safety scenario module', () => {
+  const source = fs.readFileSync(sourcePath, 'utf8');
+  const settingsSource = fs.readFileSync(settingsCasesPath, 'utf8');
+
+  assert.match(source, /page-qa-settings-cases\.cjs/);
+  assert.match(source, /\.\.\.settingsPageQaCases/);
+  assert.match(settingsSource, /settings-local-privacy-backup/);
+  assert.match(settingsSource, /settings-tray-disabled-toggle/);
+  assert.match(settingsSource, /secondary metadata provider toggles did not persist/);
+  assert.match(settingsSource, /tray pending hint should clear after saving settings/);
+  assert.doesNotMatch(source, /\['settings-local-privacy-backup'/);
+  assert.doesNotMatch(source, /\['settings-tray-disabled-toggle'/);
 });

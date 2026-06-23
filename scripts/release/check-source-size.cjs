@@ -228,6 +228,11 @@ const DEFAULT_SOURCE_BUDGETS = [
     maxLines: 100,
   },
   {
+    filePath: path.resolve(__dirname, '..', '..', 'scripts', 'playwright', 'page-qa-settings-cases.cjs'),
+    maxBytes: 16 * 1024,
+    maxLines: 120,
+  },
+  {
     filePath: path.resolve(__dirname, '..', '..', 'scripts', 'playwright', 'page-qa-scanner-cases.cjs'),
     maxBytes: 24 * 1024,
     maxLines: 180,

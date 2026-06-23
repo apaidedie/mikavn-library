@@ -84,6 +84,7 @@ test('default source budgets cover frontend, Rust service, and smoke runner hot 
     'scripts/playwright/page-qa-maintenance-cases.cjs',
     'scripts/playwright/page-qa-reports-cases.cjs',
     'scripts/playwright/page-qa-saves-cases.cjs',
+    'scripts/playwright/page-qa-settings-cases.cjs',
     'scripts/playwright/page-qa-fixtures.cjs',
   ]) {
     assert.match(watchedPaths, new RegExp(expectedPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
@@ -98,6 +99,7 @@ test('page QA runner budget keeps shared helpers outside the scenario file', () 
   const maintenanceBudget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('scripts/playwright/page-qa-maintenance-cases.cjs'));
   const reportsBudget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('scripts/playwright/page-qa-reports-cases.cjs'));
   const savesBudget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('scripts/playwright/page-qa-saves-cases.cjs'));
+  const settingsBudget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('scripts/playwright/page-qa-settings-cases.cjs'));
   const scannerBudget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('scripts/playwright/page-qa-scanner-cases.cjs'));
 
   assert.ok(runnerBudget);
@@ -107,6 +109,7 @@ test('page QA runner budget keeps shared helpers outside the scenario file', () 
   assert.ok(maintenanceBudget);
   assert.ok(reportsBudget);
   assert.ok(savesBudget);
+  assert.ok(settingsBudget);
   assert.ok(scannerBudget);
   assert.ok(runnerBudget.maxBytes <= 44 * 1024);
   assert.ok(helperBudget.maxLines <= 240);
@@ -115,6 +118,7 @@ test('page QA runner budget keeps shared helpers outside the scenario file', () 
   assert.ok(maintenanceBudget.maxLines <= 320);
   assert.ok(reportsBudget.maxLines <= 100);
   assert.ok(savesBudget.maxLines <= 100);
+  assert.ok(settingsBudget.maxLines <= 120);
   assert.ok(scannerBudget.maxLines <= 180);
 });
 
@@ -125,6 +129,7 @@ test('page QA runner delegates broad workflow cases to focused scenario modules'
   const maintenanceCasesPath = path.join(__dirname, '..', '..', 'scripts', 'playwright', 'page-qa-maintenance-cases.cjs');
   const reportsCasesPath = path.join(__dirname, '..', '..', 'scripts', 'playwright', 'page-qa-reports-cases.cjs');
   const savesCasesPath = path.join(__dirname, '..', '..', 'scripts', 'playwright', 'page-qa-saves-cases.cjs');
+  const settingsCasesPath = path.join(__dirname, '..', '..', 'scripts', 'playwright', 'page-qa-settings-cases.cjs');
   const scannerCasesPath = path.join(__dirname, '..', '..', 'scripts', 'playwright', 'page-qa-scanner-cases.cjs');
 
   assert.match(runner, /const \{ dashboardPageQaCases \} = require\('\.\/page-qa-dashboard-cases\.cjs'\);/);
@@ -132,12 +137,14 @@ test('page QA runner delegates broad workflow cases to focused scenario modules'
   assert.match(runner, /const \{ maintenancePageQaCases \} = require\('\.\/page-qa-maintenance-cases\.cjs'\);/);
   assert.match(runner, /const \{ reportsPageQaCases \} = require\('\.\/page-qa-reports-cases\.cjs'\);/);
   assert.match(runner, /const \{ savesPageQaCases \} = require\('\.\/page-qa-saves-cases\.cjs'\);/);
+  assert.match(runner, /const \{ settingsPageQaCases \} = require\('\.\/page-qa-settings-cases\.cjs'\);/);
   assert.match(runner, /const \{ runScannerPageQaCases \} = require\('\.\/page-qa-scanner-cases\.cjs'\);/);
   assert.match(runner, /\.\.\.dashboardPageQaCases,/);
   assert.match(runner, /\.\.\.libraryPageQaCases,/);
   assert.match(runner, /\.\.\.maintenancePageQaCases,/);
   assert.match(runner, /\.\.\.reportsPageQaCases,/);
   assert.match(runner, /\.\.\.savesPageQaCases,/);
+  assert.match(runner, /\.\.\.settingsPageQaCases,/);
   assert.match(runner, /await runScannerPageQaCases\(browser\);/);
   assert.doesNotMatch(runner, /dashboard-task-shortcuts/);
   assert.doesNotMatch(runner, /dashboard-mobile/);
@@ -148,6 +155,8 @@ test('page QA runner delegates broad workflow cases to focused scenario modules'
   assert.doesNotMatch(runner, /reports-actionable-gaps-open-library/);
   assert.doesNotMatch(runner, /reports-export-gap-examples/);
   assert.doesNotMatch(runner, /saves-backup-restore/);
+  assert.doesNotMatch(runner, /settings-local-privacy-backup/);
+  assert.doesNotMatch(runner, /settings-tray-disabled-toggle/);
   assert.doesNotMatch(runner, /scanner-skip-import-audit/);
   assert.doesNotMatch(runner, /scanner-duplicate-import-audit/);
   assert.ok(fs.existsSync(dashboardCasesPath));
@@ -155,6 +164,7 @@ test('page QA runner delegates broad workflow cases to focused scenario modules'
   assert.ok(fs.existsSync(maintenanceCasesPath));
   assert.ok(fs.existsSync(reportsCasesPath));
   assert.ok(fs.existsSync(savesCasesPath));
+  assert.ok(fs.existsSync(settingsCasesPath));
   assert.ok(fs.existsSync(scannerCasesPath));
 });
 
