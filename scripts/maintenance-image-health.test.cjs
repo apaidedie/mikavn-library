@@ -370,13 +370,25 @@ test('image health summary can be copied as a compact diagnostic text', () => {
       missingCoverGames: 8,
       missingArtworkGames: 9,
     },
-    cache: { rootPath: 'E:\\MikaVN Library\\app-data\\images' },
+    cache: {
+      rootPath: 'E:\\MikaVN Library\\app-data\\images',
+      totalBytes: 2632718767,
+      orphanBytes: 524288000,
+      oversizedBytes: 104857600,
+      invalidImageBytes: 2097152,
+      contentTypeMismatchBytes: 3145728,
+    },
     recommendations: ['先查看失效引用。', '再整理未引用缓存。'],
   });
 
   assert.match(message, /MikaVN 图片健康摘要/);
   assert.match(message, /生成时间：2026-06-22T12:00:00.000Z/);
   assert.match(message, /缓存目录：E:\\MikaVN Library\\app-data\\images/);
+  assert.match(message, /缓存体积：2\.45 GB/);
+  assert.match(message, /孤儿体积：500\.00 MB/);
+  assert.match(message, /过大图片体积：100\.00 MB/);
+  assert.match(message, /无效图片体积：2\.00 MB/);
+  assert.match(message, /类型不匹配体积：3\.00 MB/);
   assert.match(message, /图片引用：25 条，问题 4 条/);
   assert.match(message, /缺失引用：2/);
   assert.match(message, /旧导入缓存：3（已在 app-data\/images 内，不计入失效引用；路径规范化需先完成数据库备份。）/);

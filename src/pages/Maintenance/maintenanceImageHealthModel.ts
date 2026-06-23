@@ -79,13 +79,18 @@ export function formatImageSafeCacheBatchCompletionMessage(
   return `批量安全整理完成：已移动 ${formatCount(moved)} 个未引用缓存文件到隔离区${skipped}；复查剩余孤儿 ${formatCount(report.summary.orphanFiles)} 个、重复内容 ${formatCount(report.summary.duplicateContentGroups)} 组、未引用坏图 ${formatCount(remainingInvalid)} 个、未引用大图 ${formatCount(remainingOversized)} 个、未引用类型不匹配 ${formatCount(remainingMismatch)} 个。${quarantineRecoveryHint}`;
 }
 
-export function formatImageHealthSummaryMarkdown(report: Pick<ImageHealthReport, 'generatedAt' | 'recommendations' | 'summary'> & { cache?: Pick<ImageHealthReport['cache'], 'rootPath'> | null }) {
+export function formatImageHealthSummaryMarkdown(report: Pick<ImageHealthReport, 'generatedAt' | 'recommendations' | 'summary'> & { cache?: Partial<Pick<ImageHealthReport['cache'], 'rootPath' | 'totalBytes' | 'orphanBytes' | 'oversizedBytes' | 'invalidImageBytes' | 'contentTypeMismatchBytes'>> | null }) {
   const summary = report.summary;
   const lines = [
     '# MikaVN 图片健康摘要',
     '',
     `生成时间：${report.generatedAt}`,
     `缓存目录：${report.cache?.rootPath ?? '(未知)'}`,
+    `缓存体积：${formatBytes(report.cache?.totalBytes ?? 0)}`,
+    `孤儿体积：${formatBytes(report.cache?.orphanBytes ?? 0)}`,
+    `过大图片体积：${formatBytes(report.cache?.oversizedBytes ?? 0)}`,
+    `无效图片体积：${formatBytes(report.cache?.invalidImageBytes ?? 0)}`,
+    `类型不匹配体积：${formatBytes(report.cache?.contentTypeMismatchBytes ?? 0)}`,
     '',
     `图片引用：${formatCount(summary.totalImageRefs)} 条，问题 ${formatCount(summary.issueImageRefs)} 条`,
     `缺失引用：${formatCount(summary.missingLocalRefs)}`,
@@ -169,4 +174,15 @@ export function getImageHealthActionHint({ report, loading }: { report: ImageHea
 
 function formatCount(value: number) {
   return new Intl.NumberFormat('zh-CN').format(value);
+}
+
+function formatBytes(value: number) {
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let size = Math.max(0, value);
+  let unitIndex = 0;
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex += 1;
+  }
+  return unitIndex === 0 ? `${Math.round(size)} ${units[unitIndex]}` : `${size.toFixed(2)} ${units[unitIndex]}`;
 }
