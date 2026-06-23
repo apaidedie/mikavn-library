@@ -4,13 +4,17 @@ const path = require('node:path');
 const test = require('node:test');
 
 const sourcePath = path.join(__dirname, 'page-qa-runner.cjs');
+const helperPath = path.join(__dirname, 'page-qa-runner-helpers.cjs');
 
 test('page QA routes asset cache maintenance through image health', () => {
   const source = fs.readFileSync(sourcePath, 'utf8');
+  const helper = fs.readFileSync(helperPath, 'utf8');
 
   assert.match(source, /waitForImageHealthWorkflow/);
+  assert.match(source, /page-qa-runner-helpers\.cjs/);
+  assert.match(helper, /waitForImageHealthWorkflow/);
   assert.match(source, /getByRole\('button', \{ name: \/图片健康\/ \}\)/);
-  assert.match(source, /一键安全整理/);
+  assert.match(helper, /一键安全整理/);
   assert.doesNotMatch(source, /getByRole\('button', \{ name: \/清理缓存\/ \}\)/);
   assert.doesNotMatch(source, /缓存清理\(\?:完成\|预览完成\)/);
 });
@@ -35,20 +39,22 @@ test('library detail QA verifies copyable image diagnostics', () => {
 
 test('page QA returns from image health with a disambiguated library nav helper', () => {
   const source = fs.readFileSync(sourcePath, 'utf8');
+  const helper = fs.readFileSync(helperPath, 'utf8');
 
-  assert.match(source, /async function openLibrary\(page\)/);
+  assert.match(helper, /async function openLibrary\(page\)/);
   assert.match(source, /openLibrary\(page\)/);
   assert.doesNotMatch(source, /getByLabel\('游戏库'/);
 });
 
 test('dashboard populated QA returns home before taking dashboard screenshot', () => {
   const source = fs.readFileSync(sourcePath, 'utf8');
+  const helper = fs.readFileSync(helperPath, 'utf8');
   const caseStart = source.indexOf("['dashboard-populated'");
   const nextCase = source.indexOf("['dashboard-task-shortcuts'", caseStart);
   const dashboardCase = source.slice(caseStart, nextCase);
   const afterRestoreClick = dashboardCase.slice(dashboardCase.indexOf("getByRole('button', { name: /恢复数据库/ }).click()"));
 
-  assert.match(source, /async function openHome\(page\)/);
+  assert.match(helper, /async function openHome\(page\)/);
   assert.doesNotMatch(source, /getByLabel\('首页'\)/);
   assert.match(dashboardCase, /getByRole\('button', \{ name: \/恢复数据库\/ \}\)\.click\(\)/);
   assert.match(afterRestoreClick, /openHome\(page\);[\s\S]*getByText\('今日状态'\)\.first\(\)\.waitFor/);

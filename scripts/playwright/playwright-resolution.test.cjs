@@ -43,7 +43,7 @@ test('smoke scripts use the shared Playwright resolver instead of inline npx loo
   const scriptsDir = __dirname;
   for (const scriptName of [
     'run-smoke-with-vite.cjs',
-    'page-qa-runner.cjs',
+    'page-qa-runner-helpers.cjs',
     'core-workflow-smoke.cjs',
     'large-library-smoke.cjs',
   ]) {
@@ -51,6 +51,10 @@ test('smoke scripts use the shared Playwright resolver instead of inline npx loo
     assert.match(source, /playwright-resolution\.cjs/);
     assert.doesNotMatch(source, /npm-cache['"], ['"]_npx|npm-cache\\['"]\s*,\s*['"]_npx/);
   }
+
+  const runnerSource = fs.readFileSync(path.join(scriptsDir, 'page-qa-runner.cjs'), 'utf8');
+  assert.match(runnerSource, /page-qa-runner-helpers\.cjs/);
+  assert.doesNotMatch(runnerSource, /npm-cache['"], ['"]_npx|npm-cache\\['"]\s*,\s*['"]_npx/);
 });
 
 test('large smoke warmup timeout is configurable and long enough for cold Vite transforms', () => {

@@ -69,10 +69,21 @@ test('default source budgets cover frontend, Rust service, and smoke runner hot 
     'src-tauri/src/services/image_health.rs',
     'src-tauri/src/db/game_merge_ext.rs',
     'scripts/playwright/page-qa-runner.cjs',
+    'scripts/playwright/page-qa-runner-helpers.cjs',
     'scripts/playwright/page-qa-fixtures.cjs',
   ]) {
     assert.match(watchedPaths, new RegExp(expectedPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   }
+});
+
+test('page QA runner budget keeps shared helpers outside the scenario file', () => {
+  const runnerBudget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('scripts/playwright/page-qa-runner.cjs'));
+  const helperBudget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('scripts/playwright/page-qa-runner-helpers.cjs'));
+
+  assert.ok(runnerBudget);
+  assert.ok(helperBudget);
+  assert.ok(runnerBudget.maxBytes <= 112 * 1024);
+  assert.ok(helperBudget.maxLines <= 240);
 });
 
 test('maintenance page budget keeps page-level orchestration small', () => {
