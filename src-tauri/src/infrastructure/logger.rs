@@ -1,8 +1,10 @@
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
 use chrono::Utc;
+use regex::{Captures, Regex};
 
 use crate::db::DbResult;
 use crate::infrastructure::paths::AppPaths;
@@ -52,29 +54,31 @@ fn append_line(paths: &AppPaths, level: &str, scope: &str, message: &str) -> DbR
 }
 
 fn redact_key_values(value: &str) -> String {
-    value
-        .split_whitespace()
-        .map(|part| {
-            let lower = part.to_ascii_lowercase();
-            if lower.contains("api_key")
-                || lower.contains("apikey")
-                || lower.contains("token")
-                || lower.contains("authorization")
-                || lower.contains("password")
-            {
-                if let Some((key, _)) = part.split_once('=') {
-                    format!("{key}={REDACTED}")
-                } else if let Some((key, _)) = part.split_once(':') {
-                    format!("{key}:{REDACTED}")
-                } else {
-                    REDACTED.to_string()
-                }
-            } else {
-                part.to_string()
-            }
+    let without_authorization = authorization_secret_regex()
+        .replace_all(value, |captures: &Captures| {
+            format!("{}{}{}", &captures[1], &captures[2], REDACTED)
+        });
+    secret_key_value_regex()
+        .replace_all(&without_authorization, |captures: &Captures| {
+            format!("{}{}{}", &captures[1], &captures[2], REDACTED)
         })
-        .collect::<Vec<_>>()
-        .join(" ")
+        .into_owned()
+}
+
+fn authorization_secret_regex() -> &'static Regex {
+    static AUTHORIZATION_SECRET_REGEX: OnceLock<Regex> = OnceLock::new();
+    AUTHORIZATION_SECRET_REGEX.get_or_init(|| {
+        Regex::new(r"(?i)\b(authorization)\b(\s*[:=]\s*)(?:Bearer\s+)?[^\s,;]+")
+            .expect("valid authorization redaction regex")
+    })
+}
+
+fn secret_key_value_regex() -> &'static Regex {
+    static SECRET_KEY_VALUE_REGEX: OnceLock<Regex> = OnceLock::new();
+    SECRET_KEY_VALUE_REGEX.get_or_init(|| {
+        Regex::new(r"(?i)\b(api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|auth[_-]?token|id[_-]?token|private[_-]?key|signing[_-]?key|session(?:[_-]?id)?|cookie|jwt|secret|token|password)\b(\s*[:=]\s*)[^\s,;]+")
+            .expect("valid secret key-value redaction regex")
+    })
 }
 
 fn redact_windows_user_paths(value: &str) -> String {
@@ -106,6 +110,20 @@ mod tests {
         assert!(!redacted.contains("alice"));
         assert!(redacted.contains("API_KEY=[redacted]"));
         assert!(redacted.contains(r"C:\Users\[user]\AppData"));
+    }
+
+    #[test]
+    fn redacts_common_session_cookie_signing_and_bearer_secrets() {
+        let text = r"cookie=session-cookie session_id=session-id jwt=jwt-secret private_key=private-key secret=plain-secret Authorization: Bearer bearer-secret";
+        let redacted = redact_sensitive_text(text);
+
+        assert!(redacted.contains("[redacted]"));
+        assert!(!redacted.contains("session-cookie"));
+        assert!(!redacted.contains("session-id"));
+        assert!(!redacted.contains("jwt-secret"));
+        assert!(!redacted.contains("private-key"));
+        assert!(!redacted.contains("plain-secret"));
+        assert!(!redacted.contains("bearer-secret"));
     }
 
     #[test]
