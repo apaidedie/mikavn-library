@@ -379,6 +379,11 @@ foreach ($token in @("browser", "Vite", "desktop smoke artifacts")) {
     throw "Release notes template must document CI artifact coverage token '$token'."
   }
 }
+foreach ($token in @("Source commit: <git commit>", "git rev-parse HEAD")) {
+  if (!$releaseNotesTemplate.Contains($token)) {
+    throw "Release notes template must document source commit traceability token '$token'."
+  }
+}
 foreach ($token in @("npm run release:check:strict", "npm run release:validate:strict", "npm run release:validate:core", "npm run test:release-scripts", "npm run test:playwright-scripts", "npm run test:data-safety", "npm run test:maintenance-image-health", "npm run test:library-performance", "npm run smoke:large", "npm run smoke:install", "npm run smoke:portable-data", "npm run smoke:real-data:readonly", "npm run smoke:elevated-launch -- success 60", "npm run smoke:elevated-launch -- cancel 60", "no marker", "unsupported", "ConsentPromptBehaviorAdmin", "npm run release:handoff:check", "RELEASE_VALIDATION_REPORT.md", "MANUAL_RISK_PASS_CHECKLIST.md", "output/desktop-smoke/run-*/isolated-app-data", "docs/CODE_SIGNING.md")) {
   if (!$releaseChecklist.Contains($token)) {
     throw "RELEASE_CHECKLIST.md must document release gate token '$token'."

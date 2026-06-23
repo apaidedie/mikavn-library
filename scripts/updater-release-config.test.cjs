@@ -121,11 +121,15 @@ test('release metadata gate knows about updater release checks', () => {
 test('release handoff prepare script is wired into package and metadata gates', () => {
   const pkg = readJson('package.json');
   const gate = read('scripts/release/check-release-metadata.ps1');
+  const template = read('docs/RELEASE_NOTES_TEMPLATE.md');
 
   assert.equal(pkg.scripts['release:handoff:prepare-updater'], 'node scripts/release/prepare-updater-handoff.cjs');
   assert.match(pkg.scripts['test:release-scripts'], /prepare-updater-handoff\.test\.cjs/);
   assert.match(gate, /release:handoff:prepare-updater/);
   assert.match(gate, /prepare-updater-handoff\.test\.cjs/);
+  assert.match(gate, /Source commit/);
+  assert.match(template, /Source commit: <git commit>/);
+  assert.match(template, /git rev-parse HEAD/);
 });
 
 test('release signing certificate preflight is wired into package and metadata gates', () => {
