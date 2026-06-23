@@ -177,6 +177,8 @@ export function useSettingsPageActions({ tabRequest, onAccentPreview, onThemePre
     setMessage(null);
     try {
       const policy = await api.getLogRetention();
+      const ok = window.confirm(`按日志保留策略清理过期诊断日志？\n\n保留最近 ${policy.retainDays} 天、最多 ${policy.maxFiles} 个日志文件；只清理应用生成的旧日志，不会删除数据库、图片缓存或真实游戏文件。`);
+      if (!ok) return;
       const removed = await api.pruneDiagnosticLogs(policy);
       setMessage({ text: removed > 0 ? `已清理 ${removed} 个过期日志。` : '没有需要清理的过期日志。' });
       await loadLogs();

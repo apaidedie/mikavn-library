@@ -253,6 +253,21 @@ test('local data settings exposes a diagnostic package export action', () => {
   assert.match(content, /onExportDiagnosticPackage=\{localData\.exportDiagnosticPackage\}/);
 });
 
+test('diagnostic log cleanup confirms retention policy before deleting old logs', () => {
+  const section = read('src/pages/Settings/SettingsDiagnosticLogsSection.tsx');
+  const actions = read('src/pages/Settings/useSettingsPageActions.ts');
+  const pruneStart = actions.indexOf('async function pruneLogs');
+  const pruneSource = actions.slice(pruneStart, actions.indexOf('async function testAiConnection'));
+
+  assert.match(section, /默认保留 30 天 \/ 60 个文件/);
+  assert.match(pruneSource, /window\.confirm/);
+  assert.match(pruneSource, /按日志保留策略清理过期诊断日志/);
+  assert.match(pruneSource, /保留最近 \$\{policy\.retainDays\} 天/);
+  assert.match(pruneSource, /最多 \$\{policy\.maxFiles\} 个日志文件/);
+  assert.match(pruneSource, /不会删除数据库、图片缓存或真实游戏文件/);
+  assert.ok(pruneSource.indexOf('window.confirm') < pruneSource.indexOf('api.pruneDiagnosticLogs(policy)'));
+});
+
 test('tray settings explain how to fully exit when close hides to tray', () => {
   const section = read('src/pages/Settings/SettingsTraySection.tsx');
   const parts = read('src/pages/Settings/SettingsPageParts.tsx');
