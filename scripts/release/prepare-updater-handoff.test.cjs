@@ -127,14 +127,15 @@ test('prepareUpdaterHandoff stages signed updater artifacts that pass handoff ch
   const releaseExePath = path.join(tempRoot, 'target', 'release', 'mikavn-library.exe');
   const bundleDir = path.join(tempRoot, 'target', 'release', 'bundle', 'nsis');
   const releaseDir = path.join(tempRoot, 'output', 'release', `${version}-windows-x64`);
-  const installerName = `MikaVN Library_${version}_x64-setup.exe`;
+  const bundledInstallerName = `MikaVN Library_${version}_x64-setup.exe`;
+  const installerName = `MikaVN.Library_${version}_x64-setup.exe`;
   const signature = 'signed-updater-payload';
   const releaseExe = Buffer.from('desktop-exe');
   const installer = Buffer.from('installer');
 
   writeFile(releaseExePath, releaseExe);
-  writeFile(path.join(bundleDir, installerName), installer);
-  writeFile(path.join(bundleDir, `${installerName}.sig`), signature);
+  writeFile(path.join(bundleDir, bundledInstallerName), installer);
+  writeFile(path.join(bundleDir, `${bundledInstallerName}.sig`), signature);
   writePassingReport(releaseDir);
   writePassingChecklist(releaseDir);
 
@@ -158,12 +159,15 @@ test('prepareUpdaterHandoff stages signed updater artifacts that pass handoff ch
   assert.equal(latestJson.version, `v${version}`);
   assert.equal(latestJson.pub_date, '2026-06-23T00:00:00Z');
   assert.equal(latestJson.platforms['windows-x86_64'].signature, signature);
-  assert.match(latestJson.platforms['windows-x86_64'].url, /MikaVN%20Library_/);
+  assert.equal(
+    latestJson.platforms['windows-x86_64'].url,
+    `https://github.com/apaidedie/mikavn-library/releases/download/v${version}/${installerName}`,
+  );
 
   const sums = fs.readFileSync(path.join(releaseDir, 'SHA256SUMS.txt'), 'utf8');
   assert.match(sums, new RegExp(`${sha256(releaseExe)}  mikavn-library\\.exe`));
-  assert.match(sums, new RegExp(`${sha256(installer)}  MikaVN Library_${version}_x64-setup\\.exe`));
-  assert.match(sums, new RegExp(`${sha256(signature)}  MikaVN Library_${version}_x64-setup\\.exe\\.sig`));
+  assert.match(sums, new RegExp(`${sha256(installer)}  MikaVN\\.Library_${version}_x64-setup\\.exe`));
+  assert.match(sums, new RegExp(`${sha256(signature)}  MikaVN\\.Library_${version}_x64-setup\\.exe\\.sig`));
   assert.match(sums, / latest\.json/);
 
   const handoff = checkReleaseHandoff({

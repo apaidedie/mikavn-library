@@ -92,11 +92,15 @@ function readReleaseMetadata(repoRoot = path.resolve(__dirname, '..', '..')) {
   };
 }
 
+function publicInstallerName(productName, version) {
+  return `${productName.trim().replace(/\s+/g, '.')}_${version}_x64-setup.exe`;
+}
+
 function requiredReleaseFiles(repoRoot = path.resolve(__dirname, '..', '..')) {
   const { productName, version } = readReleaseMetadata(repoRoot);
   return [
     'mikavn-library.exe',
-    `${productName}_${version}_x64-setup.exe`,
+    publicInstallerName(productName, version),
     'SHA256SUMS.txt',
     'RELEASE_VALIDATION_REPORT.md',
     'MANUAL_RISK_PASS_CHECKLIST.md',

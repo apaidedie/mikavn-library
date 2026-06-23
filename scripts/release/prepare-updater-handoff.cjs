@@ -36,6 +36,10 @@ function readReleaseMetadata(repoRoot) {
   };
 }
 
+function publicInstallerName(productName, version) {
+  return `${productName.trim().replace(/\s+/g, '.')}_${version}_x64-setup.exe`;
+}
+
 function defaultReleaseDir(repoRoot, version) {
   return path.join(repoRoot, 'output', 'release', `${version}-windows-x64`);
 }
@@ -92,7 +96,7 @@ function prepareUpdaterHandoff(options = {}) {
   const notesPath = path.resolve(options.notesPath || path.join(repoRoot, 'docs', 'RELEASE_NOTES_TEMPLATE.md'));
   const installer = findNewestInstaller(bundleDir);
   const signaturePath = `${installer.filePath}.sig`;
-  const installerName = `${productName}_${version}_x64-setup.exe`;
+  const installerName = publicInstallerName(productName, version);
   const signatureName = `${installerName}.sig`;
 
   ensureFile(releaseExePath, 'Release executable');

@@ -47,7 +47,7 @@ function markChecklistPassed(releaseDir) {
 }
 
 function publicReleaseAssetsForHandoff(releaseDir, version, overrides = {}) {
-  const installerName = `MikaVN Library_${version}_x64-setup.exe`;
+  const installerName = `MikaVN.Library_${version}_x64-setup.exe`;
   return [
     installerName,
     `${installerName}.sig`,
@@ -70,7 +70,7 @@ function createHandoff(overrides = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'mikavn-release-handoff-'));
   const version = overrides.version || JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'package.json'), 'utf8')).version;
   const previousVersion = overrides.previousVersion || previousPatchVersion(version);
-  const installerName = overrides.installerName || `MikaVN Library_${version}_x64-setup.exe`;
+  const installerName = overrides.installerName || `MikaVN.Library_${version}_x64-setup.exe`;
   const releaseDir = path.join(root, 'output', 'release', `${version}-windows-x64`);
   const updaterRehearsalEvidenceName = 'lower-version-updater-rehearsal.json';
   const exe = Buffer.from('exe');
@@ -329,7 +329,7 @@ test('checkReleaseHandoff public-ready mode rejects public GitHub release asset 
   const { releaseDir, version } = createHandoff();
   markReportSigned(releaseDir);
   markChecklistPassed(releaseDir);
-  const installerName = `MikaVN Library_${version}_x64-setup.exe`;
+  const installerName = `MikaVN.Library_${version}_x64-setup.exe`;
 
   assert.throws(
     () => checkReleaseHandoff({
