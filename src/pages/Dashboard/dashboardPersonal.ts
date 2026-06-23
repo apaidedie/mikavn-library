@@ -17,7 +17,7 @@ export type DashboardAttentionItem = {
   detail: string;
   count: number;
   tone: 'danger' | 'warning' | 'info';
-  action: 'tasks_attention' | 'tasks_active' | 'library_paths' | 'maintenance_artwork' | 'metadata_missing_ids' | 'settings_local';
+  action: 'tasks_attention' | 'tasks_active' | 'library_paths' | 'maintenance_artwork' | 'metadata_missing_ids' | 'settings_local' | 'settings_local_data_check';
 };
 
 export type DatabaseBackupStatus = {
@@ -175,7 +175,7 @@ export function deriveDashboardAttentionItems(input: AttentionInput): DashboardA
       detail: `${backupCount} 个数据库备份占用 ${formatBackupBytes(backupBytes)}，建议清理旧备份。`,
       count: backupCount,
       tone: 'warning',
-      action: 'settings_local',
+      action: 'settings_local_data_check',
     });
   }
 

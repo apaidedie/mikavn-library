@@ -211,7 +211,7 @@ test('deriveDashboardAttentionItems asks for backup cleanup when database backup
     detail: '48 个数据库备份占用 2.05 GB，建议清理旧备份。',
     count: 48,
     tone: 'warning',
-    action: 'settings_local',
+    action: 'settings_local_data_check',
   }]);
 });
 

@@ -158,5 +158,8 @@ function openAttentionItem(item: DashboardAttentionItem, actions: DashboardPanel
     case 'settings_local':
       actions.onOpenSettings?.('local', item.kind === 'database_backup' ? 'database-restore' : null);
       break;
+    case 'settings_local_data_check':
+      actions.onOpenSettings?.('local', 'local-data-check');
+      break;
   }
 }
