@@ -54,6 +54,7 @@ export function AppUpdateNotice({
     : 'border-emerald-300/20 bg-emerald-500/10 text-emerald-50';
   const noticeMutedTextClassName = error ? 'text-amber-100/85' : 'text-emerald-100/80';
   const noticeActionLinkClassName = error ? 'text-amber-50 underline underline-offset-2' : 'text-emerald-50 underline underline-offset-2';
+  const noticeTitle = error ? '更新安装需要处理' : installed ? '更新已安装' : `发现新版本 ${notice.version}`;
 
   const copyUpdateRecoveryText = async (text: string, successMessage: string) => {
     setRecoveryActionMessage(null);
@@ -69,7 +70,7 @@ export function AppUpdateNotice({
     <div className={`border-b ${noticeToneClassName} px-4 py-2 text-sm`}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="font-medium">发现新版本 {notice.version}</p>
+          <p className="font-medium">{noticeTitle}</p>
           <p className={`truncate text-xs ${noticeMutedTextClassName}`}>{installed ? '更新已安装，请重启应用。' : notice.notes}</p>
           {progressText && <p className="mt-1 text-xs text-amber-100">{progressText}</p>}
           {backupInfo && (

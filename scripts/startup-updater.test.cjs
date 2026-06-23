@@ -74,6 +74,16 @@ test('startup update notice switches banner tone after install errors', () => {
   assert.match(notice, /className=\{`inline-flex items-center gap-1 text-xs \$\{noticeActionLinkClassName\}`\}/);
 });
 
+test('startup update notice title reflects install state', () => {
+  const notice = read('src/app/AppUpdateNotice.tsx');
+
+  assert.match(notice, /noticeTitle/);
+  assert.match(notice, /error\s*\?\s*'更新安装需要处理'/);
+  assert.match(notice, /installed\s*\?\s*'更新已安装'/);
+  assert.match(notice, /`发现新版本 \$\{notice\.version\}`/);
+  assert.match(notice, /<p className="font-medium">\{noticeTitle\}<\/p>/);
+});
+
 test('startup update notice keeps a public manual download link visible before failures', () => {
   const notice = read('src/app/AppUpdateNotice.tsx');
   const manualDownloadIndex = notice.indexOf('手动下载最新版');
