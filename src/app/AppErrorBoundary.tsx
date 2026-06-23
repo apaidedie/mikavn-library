@@ -29,6 +29,9 @@ export class AppErrorBoundary extends Component<{ children: ReactNode }, AppErro
     const error = this.state.error;
     const summary = [
       'MikaVN Library render failure',
+      `Version: ${__MIKAVN_APP_VERSION__}`,
+      `Mode: ${import.meta.env.MODE || 'unknown'}`,
+      `User agent: ${navigator.userAgent || 'unknown'}`,
       `Message: ${error?.message || 'unknown error'}`,
       error?.stack ? `Stack:\n${error.stack}` : '',
       this.state.componentStack ? `Component stack:\n${this.state.componentStack}` : '',

@@ -108,6 +108,20 @@ test('global app error boundary can reveal or copy exported diagnostic path', ()
   assert.match(boundary, /复制诊断包路径/);
 });
 
+test('global app error boundary copied summary includes build and runtime context', () => {
+  const viteConfig = fs.readFileSync('vite.config.ts', 'utf8');
+  const boundary = fs.readFileSync('src/app/AppErrorBoundary.tsx', 'utf8');
+  const envTypesPath = 'src/vite-env.d.ts';
+  const envTypes = fs.existsSync(envTypesPath) ? fs.readFileSync(envTypesPath, 'utf8') : '';
+
+  assert.match(viteConfig, /__MIKAVN_APP_VERSION__/);
+  assert.match(viteConfig, /package\.json/);
+  assert.match(envTypes, /__MIKAVN_APP_VERSION__:\s*string/);
+  assert.match(boundary, /Version: \$\{__MIKAVN_APP_VERSION__\}/);
+  assert.match(boundary, /Mode: \$\{import\.meta\.env\.MODE/);
+  assert.match(boundary, /User agent: \$\{navigator\.userAgent/);
+});
+
 test('startup database backup failure notice can export diagnostics and expose the exported path', () => {
   const app = fs.readFileSync('src/app/App.tsx', 'utf8');
   const controller = fs.readFileSync('src/app/useAppController.ts', 'utf8');
