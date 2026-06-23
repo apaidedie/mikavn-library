@@ -1,7 +1,7 @@
 import { convertFileSrc } from '@tauri-apps/api/core';
 
 const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
-const LOCAL_FILE_PATH_RE = /^(?:[a-z]:\\|\/)/i;
+const LOCAL_FILE_PATH_RE = /^(?:[a-z]:[\\/]|\\\\|\/)/i;
 const PORTABLE_APP_DATA_IMAGE_RE = /(?:^|[\\/])app-data[\\/]images[\\/]/i;
 const CACHE_RELATIVE_IMAGE_RE = /^(?:images[\\/])?[^?#]+\.(?:jpe?g|png|webp|gif|ico)$/i;
 

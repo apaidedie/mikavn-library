@@ -38,6 +38,10 @@ test('imageSrc uses MikaVN image protocol for local Windows app-data images in T
     imageSrc('E:\\MikaVN Library\\app-data\\images\\VN Cover 01.jpg'),
     'http://mikavn-image.localhost/E%3A%5CMikaVN%20Library%5Capp-data%5Cimages%5CVN%20Cover%2001.jpg',
   );
+  assert.equal(
+    imageSrc('E:/MikaVN Library/app-data/images/VN Cover 01.jpg'),
+    'http://mikavn-image.localhost/E%3A%2FMikaVN%20Library%2Fapp-data%2Fimages%2FVN%20Cover%2001.jpg',
+  );
 });
 
 test('imageSrc uses MikaVN image protocol for cache-relative image paths in Tauri', () => {
@@ -56,6 +60,10 @@ test('imageSrc lets Tauri asset protocol handle external local image paths', () 
   assert.equal(
     imageSrc('C:\\Users\\Asus\\Pictures\\VN Cover 01.jpg'),
     'asset://C:\\Users\\Asus\\Pictures\\VN Cover 01.jpg',
+  );
+  assert.equal(
+    imageSrc('C:/Users/Asus/Pictures/VN Cover 01.jpg'),
+    'asset://C:/Users/Asus/Pictures/VN Cover 01.jpg',
   );
 });
 
