@@ -7,6 +7,7 @@ const sourcePath = path.join(__dirname, 'page-qa-runner.cjs');
 const helperPath = path.join(__dirname, 'page-qa-runner-helpers.cjs');
 const dashboardCasesPath = path.join(__dirname, 'page-qa-dashboard-cases.cjs');
 const libraryCasesPath = path.join(__dirname, 'page-qa-library-cases.cjs');
+const maintenanceCasesPath = path.join(__dirname, 'page-qa-maintenance-cases.cjs');
 
 test('page QA routes asset cache maintenance through image health', () => {
   const source = fs.readFileSync(sourcePath, 'utf8');
@@ -66,10 +67,10 @@ test('dashboard populated QA returns home before taking dashboard screenshot', (
 });
 
 test('maintenance result QA verifies game shortcuts leave the library as the current page', () => {
-  const source = fs.readFileSync(sourcePath, 'utf8');
-  const caseStart = source.indexOf("['maintenance-health-description-repair'");
-  const nextCase = source.indexOf("['maintenance-health-metadata-match'", caseStart);
-  const maintenanceCase = source.slice(caseStart, nextCase);
+  const maintenanceSource = fs.readFileSync(maintenanceCasesPath, 'utf8');
+  const caseStart = maintenanceSource.indexOf("['maintenance-health-description-repair'");
+  const nextCase = maintenanceSource.indexOf("['maintenance-health-metadata-match'", caseStart);
+  const maintenanceCase = maintenanceSource.slice(caseStart, nextCase);
   const afterGameShortcut = maintenanceCase.slice(maintenanceCase.indexOf("getByRole('button', { name: /^游戏$/ }).click()"));
 
   assert.match(afterGameShortcut, /localStorage\.getItem\('mikavn\.currentView'\)[\s\S]*!== 'library'/);
@@ -103,4 +104,21 @@ test('library page QA cases live in a focused scenario module', () => {
   assert.doesNotMatch(source, /\['library-populated-detail-artwork'/);
   assert.doesNotMatch(source, /\['library-bulk-edit-safety'/);
   assert.doesNotMatch(source, /\['library-detail-image-audit'/);
+});
+
+test('maintenance page QA cases live in a focused scenario module', () => {
+  const source = fs.readFileSync(sourcePath, 'utf8');
+  const maintenanceSource = fs.readFileSync(maintenanceCasesPath, 'utf8');
+
+  assert.match(source, /page-qa-maintenance-cases\.cjs/);
+  assert.match(source, /\.\.\.maintenancePageQaCases/);
+  assert.match(maintenanceSource, /maintenance-health-description-repair/);
+  assert.match(maintenanceSource, /maintenance-health-metadata-match/);
+  assert.match(maintenanceSource, /maintenance-health-artwork-repair/);
+  assert.match(maintenanceSource, /maintenance-health-duplicate-id-audit/);
+  assert.match(maintenanceSource, /duplicate merge did not move assets to target/);
+  assert.doesNotMatch(source, /\['maintenance-health-description-repair'/);
+  assert.doesNotMatch(source, /\['maintenance-health-metadata-match'/);
+  assert.doesNotMatch(source, /\['maintenance-health-artwork-repair'/);
+  assert.doesNotMatch(source, /\['maintenance-health-duplicate-id-audit'/);
 });
