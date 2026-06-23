@@ -86,6 +86,13 @@ test('global app error boundary exposes diagnostic package export after render c
   assert.match(boundary, /redactDiagnosticText\(summary\)/);
 });
 
+test('global app error boundary redacts the on-screen render failure message', () => {
+  const boundary = fs.readFileSync('src/app/AppErrorBoundary.tsx', 'utf8');
+
+  assert.match(boundary, /errorMessage\(this\.state\.error\)/);
+  assert.doesNotMatch(boundary, /\{this\.state\.error\.message \|\| '未知渲染错误'\}/);
+});
+
 test('global app error boundary can reveal or copy exported diagnostic path', () => {
   const boundary = fs.readFileSync('src/app/AppErrorBoundary.tsx', 'utf8');
   const actionsPath = 'src/components/diagnostics/DiagnosticExportPathActions.tsx';

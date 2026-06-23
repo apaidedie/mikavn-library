@@ -87,7 +87,7 @@ export class AppErrorBoundary extends Component<{ children: ReactNode }, AppErro
             <p className="mt-2 text-sm text-slate-400">应用没有继续渲染。可以先导出诊断包，再重载界面或重新启动应用。</p>
           </div>
           <Notice tone="error">
-            <div className="break-all text-sm">{this.state.error.message || '未知渲染错误'}</div>
+            <div className="break-all text-sm">{errorMessage(this.state.error) || '未知渲染错误'}</div>
             {this.state.exportMessage && <div className="mt-2 break-all text-xs opacity-90">{this.state.exportMessage}</div>}
           </Notice>
           <div className="flex flex-wrap gap-2">
