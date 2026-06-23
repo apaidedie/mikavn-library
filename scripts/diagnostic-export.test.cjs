@@ -198,3 +198,16 @@ test('frontend diagnostic redaction removes secrets and Windows user names befor
   assert.match(redacted, /C:\/Users\/\[user\]\/AppData/);
   assert.doesNotMatch(redacted, /abc|hunter2|apiSecretValue|access123|refresh456|client789|bearer-token-value|alice|bob/);
 });
+
+test('frontend diagnostic redaction removes common cookie session and signing secret names', () => {
+  const { redactDiagnosticText } = loadDiagnosticRedaction();
+  const text = [
+    String.raw`Headers: cookie=session-cookie-value session_id=session-id-value jwt=jwt-secret-value`,
+    String.raw`Signing: private_key=private-key-value secret=plain-secret-value auth_token=auth-token-value id_token=id-token-value`,
+  ].join('\n');
+
+  const redacted = redactDiagnosticText(text);
+
+  assert.match(redacted, /\[redacted\]/);
+  assert.doesNotMatch(redacted, /session-cookie-value|session-id-value|jwt-secret-value|private-key-value|plain-secret-value|auth-token-value|id-token-value/);
+});
