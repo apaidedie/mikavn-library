@@ -6,15 +6,17 @@ const test = require('node:test');
 const sourcePath = path.join(__dirname, 'page-qa-runner.cjs');
 const helperPath = path.join(__dirname, 'page-qa-runner-helpers.cjs');
 const dashboardCasesPath = path.join(__dirname, 'page-qa-dashboard-cases.cjs');
+const libraryCasesPath = path.join(__dirname, 'page-qa-library-cases.cjs');
 
 test('page QA routes asset cache maintenance through image health', () => {
   const source = fs.readFileSync(sourcePath, 'utf8');
   const helper = fs.readFileSync(helperPath, 'utf8');
+  const librarySource = fs.readFileSync(libraryCasesPath, 'utf8');
 
-  assert.match(source, /waitForImageHealthWorkflow/);
+  assert.match(librarySource, /waitForImageHealthWorkflow/);
   assert.match(source, /page-qa-runner-helpers\.cjs/);
   assert.match(helper, /waitForImageHealthWorkflow/);
-  assert.match(source, /getByRole\('button', \{ name: \/图片健康\/ \}\)/);
+  assert.match(librarySource, /getByRole\('button', \{ name: \/图片健康\/ \}\)/);
   assert.match(helper, /一键安全整理/);
   assert.doesNotMatch(source, /getByRole\('button', \{ name: \/清理缓存\/ \}\)/);
   assert.doesNotMatch(source, /缓存清理\(\?:完成\|预览完成\)/);
@@ -28,22 +30,23 @@ test('advanced search QA uses the field label instead of broad placeholder match
 });
 
 test('library detail QA verifies copyable image diagnostics', () => {
-  const source = fs.readFileSync(sourcePath, 'utf8');
+  const librarySource = fs.readFileSync(libraryCasesPath, 'utf8');
 
-  assert.match(source, /复制图片诊断/);
-  assert.match(source, /copiedImageDiagnostic/);
-  assert.match(source, /MikaVN 图片诊断/);
-  assert.match(source, /简介图片：1 张引用/);
-  assert.match(source, /维护入口：维护中心 -> 图片健康 \/ 图片引用审计/);
-  assert.match(source, /已复制图片诊断信息/);
+  assert.match(librarySource, /复制图片诊断/);
+  assert.match(librarySource, /copiedImageDiagnostic/);
+  assert.match(librarySource, /MikaVN 图片诊断/);
+  assert.match(librarySource, /简介图片：1 张引用/);
+  assert.match(librarySource, /维护入口：维护中心 -> 图片健康 \/ 图片引用审计/);
+  assert.match(librarySource, /已复制图片诊断信息/);
 });
 
 test('page QA returns from image health with a disambiguated library nav helper', () => {
   const source = fs.readFileSync(sourcePath, 'utf8');
+  const librarySource = fs.readFileSync(libraryCasesPath, 'utf8');
   const helper = fs.readFileSync(helperPath, 'utf8');
 
   assert.match(helper, /async function openLibrary\(page\)/);
-  assert.match(source, /openLibrary\(page\)/);
+  assert.match(librarySource, /openLibrary\(page\)/);
   assert.doesNotMatch(source, /getByLabel\('游戏库'/);
 });
 
@@ -85,4 +88,19 @@ test('settings local path QA lives in helper instead of the main runner', () => 
   assert.match(source, /verifySettingsLocalDataPathActions\(page\)/);
   assert.doesNotMatch(source, /const copiedDirectorySummary = await page\.evaluate/);
   assert.doesNotMatch(source, /const copiedDiagnosticLogPath = await page\.evaluate/);
+});
+
+test('library page QA cases live in a focused scenario module', () => {
+  const source = fs.readFileSync(sourcePath, 'utf8');
+  const librarySource = fs.readFileSync(libraryCasesPath, 'utf8');
+
+  assert.match(source, /page-qa-library-cases\.cjs/);
+  assert.match(source, /\.\.\.libraryPageQaCases/);
+  assert.match(librarySource, /library-populated-detail-artwork/);
+  assert.match(librarySource, /library bulk edit did not update selected games/);
+  assert.match(librarySource, /library-detail-image-audit/);
+  assert.match(librarySource, /library-empty/);
+  assert.doesNotMatch(source, /\['library-populated-detail-artwork'/);
+  assert.doesNotMatch(source, /\['library-bulk-edit-safety'/);
+  assert.doesNotMatch(source, /\['library-detail-image-audit'/);
 });

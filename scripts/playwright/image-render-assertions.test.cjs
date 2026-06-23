@@ -55,8 +55,10 @@ test('assertImagesLoaded accepts decoded images', async () => {
 
 test('page QA runner verifies decoded description artwork instead of only counting img nodes', () => {
   const source = fs.readFileSync(path.join(__dirname, 'page-qa-runner.cjs'), 'utf8');
+  const librarySource = fs.readFileSync(path.join(__dirname, 'page-qa-library-cases.cjs'), 'utf8');
 
   assert.match(source, /assertImagesLoaded/);
-  assert.match(source, /library detail description image/);
+  assert.match(librarySource, /assertImagesLoaded/);
+  assert.match(librarySource, /library detail description image/);
   assert.match(source, /description repair result detail image/);
 });
