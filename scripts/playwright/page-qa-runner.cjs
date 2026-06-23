@@ -9,6 +9,7 @@ const {
 } = require('./page-qa-fixtures.cjs');
 const { dashboardPageQaCases } = require('./page-qa-dashboard-cases.cjs');
 const { libraryPageQaCases } = require('./page-qa-library-cases.cjs');
+const { metadataPageQaCases } = require('./page-qa-metadata-cases.cjs');
 const { maintenancePageQaCases } = require('./page-qa-maintenance-cases.cjs');
 const { reportsPageQaCases } = require('./page-qa-reports-cases.cjs');
 const { savesPageQaCases } = require('./page-qa-saves-cases.cjs');
@@ -57,58 +58,7 @@ async function main() {
         const gamesState = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.games') || '[]'));
         if (!gamesState.some((game) => game.id === 'qa-2')) throw new Error('collections page QA deleted a game record while deleting a collection');
       }],
-      ['metadata-batch', 'metadata', {}, async (page) => {
-        const queueGapShortcuts = page.locator('[aria-label="缺口快捷筛选"]');
-        await queueGapShortcuts.getByRole('button', { name: /缺全部 ID\s+1/ }).click();
-        if (await page.getByLabel('缺失来源筛选').inputValue() !== 'external_id') throw new Error('metadata quick gap filter did not select missing external ID filter');
-        await page.getByText('天使☆騒々 RE-BOOT!').first().waitFor({ timeout: 5000 });
-        await queueGapShortcuts.getByRole('button', { name: /FANZA\s+2/ }).click();
-        if (await page.getByLabel('缺失来源筛选').inputValue() !== 'fanza') throw new Error('metadata quick gap filter did not select FANZA filter');
-        await queueGapShortcuts.getByRole('button', { name: /Bangumi\s+2/ }).click();
-        if (await page.getByLabel('缺失来源筛选').inputValue() !== 'bangumi') throw new Error('metadata quick gap filter did not select Bangumi filter');
-        await queueGapShortcuts.getByRole('button', { name: /YMGal\s+2/ }).click();
-        if (await page.getByLabel('缺失来源筛选').inputValue() !== 'ymgal') throw new Error('metadata quick gap filter did not select YMGal filter');
-        await queueGapShortcuts.getByRole('button', { name: /全部\s+2/ }).click();
-        if (await page.getByLabel('缺失来源筛选').inputValue() !== 'all') throw new Error('metadata quick gap filter did not reset to all missing providers');
-        await page.getByLabel('匹配队列搜索').fill('天使');
-        await page.getByRole('button', { name: /选择当前筛选/ }).click();
-        await page.getByRole('button', { name: /开始匹配 1 个条目/ }).first().waitFor({ timeout: 5000 });
-        await page.getByRole('button', { name: /重置队列/ }).click();
-        await page.getByRole('button', { name: /清空/ }).first().click();
-        await page.getByRole('button', { name: /开始匹配 0 个条目/ }).first().waitFor({ timeout: 5000 });
-        await page.getByRole('button', { name: /只补媒体/ }).click();
-        if (await page.getByLabel('简介').isChecked()) throw new Error('metadata media preset should not include description');
-        if (!(await page.getByLabel('封面').isChecked()) || !(await page.getByLabel('外部 ID').isChecked())) throw new Error('metadata media preset should include cover and external IDs');
-        await page.getByRole('button', { name: /只补文本/ }).click();
-        if (!(await page.getByLabel('简介').isChecked()) || await page.getByLabel('封面').isChecked()) throw new Error('metadata text preset did not toggle fields');
-        await page.getByRole('button', { name: /安全补全/ }).click();
-        await page.getByLabel('缺失来源筛选').selectOption('dlsite');
-        await page.getByRole('button', { name: /选择当前筛选/ }).click();
-        await page.getByRole('button', { name: /开始匹配/ }).click();
-        await page.getByText(/批量匹配任务已启动/).first().waitFor({ timeout: 5000 });
-        await page.getByText('成功').first().waitFor({ timeout: 5000 });
-        await page.getByText('待复核').first().waitFor({ timeout: 5000 });
-        await page.getByLabel('匹配结果搜索').fill('RJ01000000');
-        await page.getByText(/推荐：DLsite RJ01000000/).first().waitFor({ timeout: 5000 });
-        await page.getByLabel('匹配结果搜索').fill('没有这种匹配结果');
-        await page.getByText('当前筛选没有匹配结果。').first().waitFor({ timeout: 5000 });
-        await page.getByRole('button', { name: /重置筛选/ }).first().click();
-        await page.getByText(/推荐：/).first().waitFor({ timeout: 5000 });
-        await page.getByLabel('匹配写入状态筛选').selectOption('writable');
-        await page.getByText(/推荐：/).first().waitFor({ timeout: 5000 });
-        await page.getByRole('button', { name: /应用当前推荐/ }).click();
-        await page.getByText(/已写入/).first().waitFor({ timeout: 5000 });
-        const appliedMetadataGames = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.games') || '[]'));
-        const appliedMetadataGame = appliedMetadataGames.find((game) => game.id === 'qa-2');
-        if (appliedMetadataGame?.bangumiId !== 'bgm-29443' || appliedMetadataGame?.ymgalId !== 'ymgal-29443') throw new Error('metadata apply did not preserve secondary external IDs');
-        await page.getByLabel('匹配写入状态筛选').selectOption('applied');
-        await page.getByText(/已写入/).first().waitFor({ timeout: 5000 });
-        await page.getByLabel('匹配写入状态筛选').selectOption('writable');
-        await page.getByLabel('匹配结果状态筛选').selectOption('error');
-        await page.getByText('当前筛选没有匹配结果。').first().waitFor({ timeout: 5000 });
-        await page.getByRole('button', { name: /重置筛选/ }).first().click();
-        await page.getByText(/推荐：/).first().waitFor({ timeout: 5000 });
-      }],
+      ...metadataPageQaCases,
       ...reportsPageQaCases,
       ...savesPageQaCases,
       ...maintenancePageQaCases,

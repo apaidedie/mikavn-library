@@ -7,6 +7,7 @@ const sourcePath = path.join(__dirname, 'page-qa-runner.cjs');
 const helperPath = path.join(__dirname, 'page-qa-runner-helpers.cjs');
 const dashboardCasesPath = path.join(__dirname, 'page-qa-dashboard-cases.cjs');
 const libraryCasesPath = path.join(__dirname, 'page-qa-library-cases.cjs');
+const metadataCasesPath = path.join(__dirname, 'page-qa-metadata-cases.cjs');
 const maintenanceCasesPath = path.join(__dirname, 'page-qa-maintenance-cases.cjs');
 const reportsCasesPath = path.join(__dirname, 'page-qa-reports-cases.cjs');
 const savesCasesPath = path.join(__dirname, 'page-qa-saves-cases.cjs');
@@ -109,6 +110,19 @@ test('library page QA cases live in a focused scenario module', () => {
   assert.doesNotMatch(source, /\['library-populated-detail-artwork'/);
   assert.doesNotMatch(source, /\['library-bulk-edit-safety'/);
   assert.doesNotMatch(source, /\['library-detail-image-audit'/);
+});
+
+test('metadata page QA cases live in a focused metadata maintenance module', () => {
+  const source = fs.readFileSync(sourcePath, 'utf8');
+  const metadataSource = fs.readFileSync(metadataCasesPath, 'utf8');
+
+  assert.match(source, /page-qa-metadata-cases\.cjs/);
+  assert.match(source, /\.\.\.metadataPageQaCases/);
+  assert.match(metadataSource, /metadata-batch/);
+  assert.match(metadataSource, /metadata quick gap filter did not select FANZA filter/);
+  assert.match(metadataSource, /metadata media preset should include cover and external IDs/);
+  assert.match(metadataSource, /metadata apply did not preserve secondary external IDs/);
+  assert.doesNotMatch(source, /\['metadata-batch'/);
 });
 
 test('maintenance page QA cases live in a focused scenario module', () => {
