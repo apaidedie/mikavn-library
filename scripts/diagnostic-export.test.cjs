@@ -221,3 +221,17 @@ test('frontend diagnostic redaction removes JSON-style secret fields', () => {
   assert.match(redacted, /\[redacted\]/);
   assert.doesNotMatch(redacted, /json-api-secret|json-session-secret|json-private-secret|json-bearer-secret/);
 });
+
+test('frontend diagnostic redaction removes common raw token prefixes', () => {
+  const { redactDiagnosticText } = loadDiagnosticRedaction();
+  const text = [
+    'Provider returned sk-testRawTokenValue1234567890 in error details.',
+    'GitHub token ghp_abcdefghijklmnopqrstuvwxyz123456 leaked in a copied trace.',
+    'Fine-grained token github_pat_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 was present.',
+  ].join('\n');
+
+  const redacted = redactDiagnosticText(text);
+
+  assert.match(redacted, /\[redacted\]/);
+  assert.doesNotMatch(redacted, /sk-testRawTokenValue1234567890|ghp_abcdefghijklmnopqrstuvwxyz123456|github_pat_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/);
+});

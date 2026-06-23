@@ -86,10 +86,12 @@ fn redact_key_values(value: &str) -> String {
         .replace_all(&without_json_secrets, |captures: &Captures| {
             format!("{}{}{}", &captures[1], &captures[2], REDACTED)
         });
-    secret_key_value_regex()
+    let without_key_values = secret_key_value_regex()
         .replace_all(&without_authorization, |captures: &Captures| {
             format!("{}{}{}", &captures[1], &captures[2], REDACTED)
-        })
+        });
+    raw_token_regex()
+        .replace_all(&without_key_values, REDACTED)
         .into_owned()
 }
 
@@ -124,6 +126,16 @@ fn secret_key_value_regex() -> &'static Regex {
     SECRET_KEY_VALUE_REGEX.get_or_init(|| {
         Regex::new(r"(?i)\b(api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|auth[_-]?token|id[_-]?token|private[_-]?key|signing[_-]?key|session(?:[_-]?id)?|cookie|jwt|secret|token|password)\b(\s*[:=]\s*)[^\s,;]+")
             .expect("valid secret key-value redaction regex")
+    })
+}
+
+fn raw_token_regex() -> &'static Regex {
+    static RAW_TOKEN_REGEX: OnceLock<Regex> = OnceLock::new();
+    RAW_TOKEN_REGEX.get_or_init(|| {
+        Regex::new(
+            r"\b(?:sk-[A-Za-z0-9_-]{16,}|ghp_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{30,})\b",
+        )
+        .expect("valid raw token redaction regex")
     })
 }
 
@@ -191,6 +203,18 @@ mod tests {
         assert!(!redacted.contains("json-session-secret"));
         assert!(!redacted.contains("json-private-secret"));
         assert!(!redacted.contains("json-bearer-secret"));
+    }
+
+    #[test]
+    fn redacts_common_raw_token_prefixes() {
+        let text = "Provider returned sk-testRawTokenValue1234567890 and ghp_abcdefghijklmnopqrstuvwxyz123456 plus github_pat_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        let redacted = redact_sensitive_text(text);
+
+        assert!(redacted.contains("[redacted]"));
+        assert!(!redacted.contains("sk-testRawTokenValue1234567890"));
+        assert!(!redacted.contains("ghp_abcdefghijklmnopqrstuvwxyz123456"));
+        assert!(!redacted
+            .contains("github_pat_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"));
     }
 
     #[test]

@@ -4,6 +4,7 @@ const secretJsonFieldPattern = new RegExp(`(["'])(${SECRET_KEY_PATTERN})\\1(\\s*
 const authorizationJsonFieldPattern = /(["'])(authorization)\1(\s*:\s*)\1(?:Bearer\s+)?[^"'\r\n]*\1/gi;
 const secretKeyValuePattern = new RegExp(`\\b(${SECRET_KEY_PATTERN})\\b(\\s*[:=]\\s*)([^\\s,;]+)`, 'gi');
 const authorizationKeyValuePattern = /\b(authorization)\b(\s*[:=]\s*)(?:Bearer\s+)?[^\s,;]+/gi;
+const rawTokenPattern = /\b(?:sk-[A-Za-z0-9_-]{16,}|ghp_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{30,})\b/g;
 
 export function redactDiagnosticText(value: string) {
   return redactWindowsUserPaths(redactSecretValues(String(value ?? '')));
@@ -14,7 +15,8 @@ function redactSecretValues(value: string) {
     .replace(authorizationJsonFieldPattern, (_match, quote: string, key: string, separator: string) => `${quote}${key}${quote}${separator}${quote}${REDACTED}${quote}`)
     .replace(secretJsonFieldPattern, (_match, quote: string, key: string, separator: string) => `${quote}${key}${quote}${separator}${quote}${REDACTED}${quote}`)
     .replace(secretKeyValuePattern, (_match, key: string, separator: string) => `${key}${separator}${REDACTED}`)
-    .replace(authorizationKeyValuePattern, (_match, key: string, separator: string) => `${key}${separator}${REDACTED}`);
+    .replace(authorizationKeyValuePattern, (_match, key: string, separator: string) => `${key}${separator}${REDACTED}`)
+    .replace(rawTokenPattern, REDACTED);
 }
 
 function redactWindowsUserPaths(value: string) {
