@@ -16,6 +16,18 @@ const libraryLoadBudgetMs = Number.parseInt(process.env.MIKAVN_LARGE_LIBRARY_LOA
 const detailSwitchBudgetMs = Number.parseInt(process.env.MIKAVN_LARGE_LIBRARY_DETAIL_BUDGET_MS || '3000', 10);
 const quickSearchBudgetMs = Number.parseInt(process.env.MIKAVN_LARGE_LIBRARY_QUICK_SEARCH_BUDGET_MS || '5000', 10);
 const searchBudgetMs = Number.parseInt(process.env.MIKAVN_LARGE_LIBRARY_SEARCH_BUDGET_MS || '8000', 10);
+const largeLibraryTargets = {
+  maxTimingMs: {
+    libraryLoadMs: Number.parseInt(process.env.MIKAVN_LARGE_LIBRARY_LOAD_TARGET_MS || '2500', 10),
+    detailSwitchMs: Number.parseInt(process.env.MIKAVN_LARGE_LIBRARY_DETAIL_TARGET_MS || '800', 10),
+    quickSearchMs: Number.parseInt(process.env.MIKAVN_LARGE_LIBRARY_QUICK_SEARCH_TARGET_MS || '2000', 10),
+    searchMs: Number.parseInt(process.env.MIKAVN_LARGE_LIBRARY_SEARCH_TARGET_MS || '2500', 10),
+  },
+  maxRenderedRows: {
+    initial: Number.parseInt(process.env.MIKAVN_LARGE_LIBRARY_INITIAL_ROWS_TARGET || '240', 10),
+    afterLoadMore: Number.parseInt(process.env.MIKAVN_LARGE_LIBRARY_AFTER_LOAD_MORE_ROWS_TARGET || '480', 10),
+  },
+};
 
 const settings = {
   provider_vndb_enabled: 'true',
@@ -168,6 +180,7 @@ async function main() {
       detailSwitchTargetId: detailSwitchTarget.id,
     },
     budgets: { libraryLoadBudgetMs, detailSwitchBudgetMs, quickSearchBudgetMs, searchBudgetMs },
+    targets: largeLibraryTargets,
     renderedRows: {},
     timings: {},
   };
@@ -241,7 +254,7 @@ async function main() {
     await browser.close();
   }
 
-  report.history = recordLargeLibrarySmokeHistory(report, { historyPath });
+  report.history = recordLargeLibrarySmokeHistory(report, { historyPath, warningThresholds: largeLibraryTargets });
   for (const warning of formatLargeLibrarySmokeWarnings(report.history.warnings)) {
     console.warn(warning);
   }

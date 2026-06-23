@@ -90,6 +90,41 @@ test('large library smoke history flags substantial timing regressions without f
   assert.match(result.warnings[0].message, /libraryLoadMs regressed by 700ms/);
 });
 
+test('large library smoke history flags absolute soft target warnings without a baseline', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mikavn-large-history-target-'));
+  const historyPath = path.join(tempDir, 'large-library-history.jsonl');
+  const report = {
+    gameCount: 4500,
+    timings: { libraryLoadMs: 2501, detailSwitchMs: 801, quickSearchMs: 2001, searchMs: 2501 },
+    renderedRows: { initial: 241, afterLoadMore: 481 },
+  };
+
+  const result = recordLargeLibrarySmokeHistory(report, {
+    historyPath,
+    timestamp: '2026-06-21T12:00:00.000Z',
+    warningThresholds: {
+      maxTimingMs: { libraryLoadMs: 2500, detailSwitchMs: 800, quickSearchMs: 2000, searchMs: 2500 },
+      maxRenderedRows: { initial: 240, afterLoadMore: 480 },
+    },
+  });
+
+  assert.equal(result.previous, null);
+  assert.deepEqual(result.warnings.map((warning) => warning.metric), [
+    'libraryLoadMs',
+    'detailSwitchMs',
+    'quickSearchMs',
+    'searchMs',
+    'renderedRows.initial',
+    'renderedRows.afterLoadMore',
+  ]);
+  assert.equal(result.warnings[0].targetMs, 2500);
+  assert.equal(result.warnings[0].currentMs, 2501);
+  assert.match(result.warnings[0].message, /libraryLoadMs exceeded soft target by 1ms/);
+  assert.equal(result.warnings[4].targetRows, 240);
+  assert.equal(result.warnings[4].currentRows, 241);
+  assert.match(result.warnings[4].message, /renderedRows\.initial exceeded soft target by 1 rows/);
+});
+
 test('large library smoke history flags rendered row regressions', () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mikavn-large-history-rows-'));
   const historyPath = path.join(tempDir, 'large-library-history.jsonl');
@@ -129,6 +164,18 @@ test('large library smoke prints timing regression warnings for release logs', (
   assert.match(source, /console\.warn/);
 });
 
+test('large library smoke prints absolute soft target warnings for release logs', () => {
+  const warnings = [
+    { metric: 'quickSearchMs', targetMs: 2000, currentMs: 2400, deltaMs: 400, warningType: 'timing-target' },
+    { metric: 'renderedRows.initial', targetRows: 240, currentRows: 360, deltaRows: 120, warningType: 'row-target' },
+  ];
+
+  assert.deepEqual(formatLargeLibrarySmokeWarnings(warnings), [
+    'WARN large library performance target: quickSearchMs 2400ms > 2000ms (+400ms)',
+    'WARN large library render target: renderedRows.initial 360 > 240 rows (+120)',
+  ]);
+});
+
 test('large library smoke prints rendered row regression warnings for release logs', () => {
   const warnings = [
     { metric: 'renderedRows.initial', previousRows: 240, currentRows: 1200, deltaRows: 960, ratio: 4 },
@@ -139,6 +186,15 @@ test('large library smoke prints rendered row regression warnings for release lo
     'WARN large library render regression: renderedRows.initial 240 -> 1200 rows (+960, +400%)',
     'WARN large library render regression: renderedRows.afterLoadMore 480 -> 1680 rows (+1200, +250%)',
   ]);
+});
+
+test('large library smoke records soft targets in the report and history warnings', () => {
+  const source = fs.readFileSync(sourcePath, 'utf8');
+
+  assert.match(source, /MIKAVN_LARGE_LIBRARY_LOAD_TARGET_MS/);
+  assert.match(source, /largeLibraryTargets/);
+  assert.match(source, /targets: largeLibraryTargets/);
+  assert.match(source, /warningThresholds: largeLibraryTargets/);
 });
 
 test('large library smoke waits for advanced search content before searching', () => {

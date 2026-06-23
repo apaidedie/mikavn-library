@@ -57,17 +57,31 @@ function buildLargeLibrarySmokeDelta(current, previous) {
 }
 
 function buildLargeLibrarySmokeWarnings(current, previous, options = {}) {
-  if (!previous) return [];
   const minDeltaMs = Number(options.minDeltaMs ?? 500);
   const minRatio = Number(options.minRatio ?? 0.25);
   const minRowDelta = Number(options.minRowDelta ?? 240);
   const minRowRatio = Number(options.minRowRatio ?? 0.5);
+  const maxTimingMs = options.maxTimingMs ?? {};
+  const maxRenderedRows = options.maxRenderedRows ?? {};
   const timingMetrics = ['libraryLoadMs', 'detailSwitchMs', 'quickSearchMs', 'searchMs'];
   const rowMetrics = ['initial', 'afterLoadMore'];
   const warnings = [];
 
   for (const metric of timingMetrics) {
     const currentMs = Number(current.timings?.[metric] || 0);
+    const targetMs = Number(maxTimingMs[metric] || 0);
+    if (targetMs > 0 && currentMs > targetMs) {
+      warnings.push({
+        metric,
+        warningType: 'timing-target',
+        targetMs,
+        currentMs,
+        deltaMs: currentMs - targetMs,
+        message: `${metric} exceeded soft target by ${currentMs - targetMs}ms (${currentMs}ms > ${targetMs}ms).`,
+      });
+    }
+
+    if (!previous) continue;
     const previousMs = Number(previous.timings?.[metric] || 0);
     if (previousMs <= 0 || currentMs <= 0) continue;
 
@@ -87,6 +101,19 @@ function buildLargeLibrarySmokeWarnings(current, previous, options = {}) {
 
   for (const metric of rowMetrics) {
     const currentRows = Number(current.renderedRows?.[metric] || 0);
+    const targetRows = Number(maxRenderedRows[metric] || 0);
+    if (targetRows > 0 && currentRows > targetRows) {
+      warnings.push({
+        metric: `renderedRows.${metric}`,
+        warningType: 'row-target',
+        targetRows,
+        currentRows,
+        deltaRows: currentRows - targetRows,
+        message: `renderedRows.${metric} exceeded soft target by ${currentRows - targetRows} rows (${currentRows} > ${targetRows}).`,
+      });
+    }
+
+    if (!previous) continue;
     const previousRows = Number(previous.renderedRows?.[metric] || 0);
     if (previousRows <= 0 || currentRows <= 0) continue;
 
@@ -110,6 +137,12 @@ function buildLargeLibrarySmokeWarnings(current, previous, options = {}) {
 function formatLargeLibrarySmokeWarnings(warnings = []) {
   return warnings.map((warning) => {
     const ratioPercent = Math.round(Number(warning.ratio || 0) * 100);
+    if (warning.warningType === 'timing-target') {
+      return `WARN large library performance target: ${warning.metric} ${warning.currentMs}ms > ${warning.targetMs}ms (+${warning.deltaMs}ms)`;
+    }
+    if (warning.warningType === 'row-target') {
+      return `WARN large library render target: ${warning.metric} ${warning.currentRows} > ${warning.targetRows} rows (+${warning.deltaRows})`;
+    }
     if (warning.metric && String(warning.metric).startsWith('renderedRows.')) {
       return `WARN large library render regression: ${warning.metric} ${warning.previousRows} -> ${warning.currentRows} rows (+${warning.deltaRows}, +${ratioPercent}%)`;
     }
