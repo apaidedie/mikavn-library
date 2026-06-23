@@ -22,6 +22,7 @@ impl<'a> TaskRepository<'a> {
         retry_payload: Option<String>,
         retryable: bool,
     ) -> DbResult<TaskRecord> {
+        let message = message.map(|value| logger::redact_sensitive_text(&value));
         let item = TaskRecord {
             id: Uuid::new_v4().to_string(),
             task_type: task_type.to_string(),

@@ -235,6 +235,10 @@ mod tests {
             .unwrap();
         let logs = db.list_task_logs(&task.id).unwrap();
 
+        let created_message = task.message.unwrap();
+        assert!(created_message.contains("[redacted]"));
+        assert!(!created_message.contains("secret"));
+        assert!(!created_message.contains("alice"));
         assert!(!updated.error.unwrap().contains("hunter2"));
         assert!(!logs.iter().any(|log| log.message.contains("secret")
             || log.message.contains("alice")
