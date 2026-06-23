@@ -78,6 +78,11 @@ const DEFAULT_SOURCE_BUDGETS = [
     maxLines: 120,
   },
   {
+    filePath: path.resolve(__dirname, '..', '..', 'src', 'pages', 'Library', 'useLibraryPageController.ts'),
+    maxBytes: 20 * 1024,
+    maxLines: 130,
+  },
+  {
     filePath: path.resolve(__dirname, '..', '..', 'src', 'pages', 'Library', 'LibrarySidebar.tsx'),
     maxBytes: 32 * 1024,
     maxLines: 120,

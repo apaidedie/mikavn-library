@@ -55,6 +55,7 @@ test('default source budgets cover frontend, Rust service, and smoke runner hot 
     'src/services/mockStore.ts',
     'src/pages/Dashboard/DashboardPage.tsx',
     'src/pages/Library/LibraryPage.tsx',
+    'src/pages/Library/useLibraryPageController.ts',
     'src/pages/Library/LibrarySidebar.tsx',
     'src/pages/Library/LibraryResizeHandle.tsx',
     'src/pages/Library/GameForm.tsx',
@@ -126,8 +127,9 @@ test('library page budget keeps library orchestration small', () => {
   assert.ok(budget.maxLines <= 120);
 });
 
-test('library companion budgets keep sidebar rendering outside the page shell', () => {
+test('library companion budgets keep controller and sidebar rendering outside the page shell', () => {
   for (const [fileName, maxLines] of [
+    ['useLibraryPageController.ts', 130],
     ['LibrarySidebar.tsx', 120],
     ['LibraryResizeHandle.tsx', 80],
   ]) {

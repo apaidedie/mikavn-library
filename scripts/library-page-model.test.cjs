@@ -350,12 +350,17 @@ test('getLibraryRenderWindow can use a precomputed selected index lookup', () =>
   assert.equal(window.selectedPinned, true);
 });
 
-test('LibraryPage uses a memoized game lookup for selected state', () => {
-  const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Library', 'LibraryPage.tsx'), 'utf8');
+test('LibraryPage delegates selection and dialog orchestration to a controller hook', () => {
+  const pageSource = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Library', 'LibraryPage.tsx'), 'utf8');
+  const hookSource = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Library', 'useLibraryPageController.ts'), 'utf8');
 
-  assert.match(source, /useMemo\(\(\) => buildLibraryGameLookup\(visibleGames\), \[visibleGames\]\)/);
-  assert.doesNotMatch(source, /visibleGames\.find\(\(game\) => game\.id === selectedGameId\)/);
-  assert.doesNotMatch(source, /visibleGames\.some\(\(game\) => game\.id === selectedGameId\)/);
+  assert.match(pageSource, /useLibraryPageController/);
+  assert.doesNotMatch(pageSource, /from '@\/services\/api'/);
+  assert.doesNotMatch(pageSource, /useEffect|useMemo|useState/);
+  assert.match(hookSource, /useMemo\(\(\) => buildLibraryGameLookup\(visibleGames\), \[visibleGames\]\)/);
+  assert.match(hookSource, /changedLibraryMetadataFields/);
+  assert.doesNotMatch(hookSource, /visibleGames\.find\(\(game\) => game\.id === selectedGameId\)/);
+  assert.doesNotMatch(hookSource, /visibleGames\.some\(\(game\) => game\.id === selectedGameId\)/);
 });
 
 test('library nav renders through the bounded render window helper', () => {
