@@ -37,6 +37,15 @@ function preview(overrides) {
   };
 }
 
+function game(overrides) {
+  return {
+    id: overrides.id,
+    title: overrides.title ?? overrides.id,
+    developer: overrides.developer ?? null,
+    brand: overrides.brand ?? null,
+  };
+}
+
 test('getSaveRestorePreviewPair returns merge and mirror keys with cached previews', () => {
   const { getSaveRestorePreviewPair } = loadSavesPageModel();
   const mergePreview = preview({ mode: 'merge', keptFiles: 2 });
@@ -74,6 +83,43 @@ test('restorePreviewCompletionMessage summarizes merge and mirror previews', () 
   assert.equal(restorePreviewCompletionMessage('mirror', preview({ mode: 'mirror', newFiles: 2, overwrittenFiles: 1, removedFiles: 3 })), '镜像恢复预览完成：新增 2，覆盖 1，清理 3。');
 });
 
+test('getSaveGamePickerOptions limits large game lists and filters by local query', () => {
+  const { getSaveGamePickerOptions, saveGamePickerMaxOptions } = loadSavesPageModel();
+  const games = [
+    game({ id: 'selected', title: 'Selected Game' }),
+    ...Array.from({ length: 120 }, (_, index) => game({ id: `game-${index}`, title: `Game ${index}` })),
+    game({ id: 'target-1', title: 'White Album', developer: 'Leaf' }),
+    game({ id: 'target-2', title: 'ToHeart', developer: 'Leaf' }),
+  ];
+
+  const initial = getSaveGamePickerOptions(games, 'selected', '');
+  const filtered = getSaveGamePickerOptions(games, 'selected', 'leaf');
+
+  assert.equal(saveGamePickerMaxOptions, 80);
+  assert.equal(initial.length, 80);
+  assert.equal(initial[0].id, 'selected');
+  assert.deepEqual(filtered.map((item) => item.id), ['selected', 'target-1', 'target-2']);
+});
+
+test('getSaveGamePickerOptions keeps the selected game visible when it does not match the query', () => {
+  const { getSaveGamePickerOptions } = loadSavesPageModel();
+  const games = [
+    game({ id: 'selected', title: 'Selected Game' }),
+    game({ id: 'target', title: 'Summer Pockets', developer: 'Key' }),
+  ];
+
+  const options = getSaveGamePickerOptions(games, 'selected', 'key');
+
+  assert.deepEqual(options.map((item) => item.id), ['selected', 'target']);
+});
+
+test('formatSaveGamePickerHint summarizes bounded and filtered picker results', () => {
+  const { formatSaveGamePickerHint } = loadSavesPageModel();
+
+  assert.equal(formatSaveGamePickerHint(80, 500, ''), '显示 80 / 500 个游戏，输入关键词缩小范围。');
+  assert.equal(formatSaveGamePickerHint(2, 500, 'key'), '匹配 2 / 500 个游戏。');
+});
+
 test('saves page loads a bounded game list and ignores stale initial loads', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Saves', 'useSavesPageActions.ts'), 'utf8');
 
@@ -81,6 +127,16 @@ test('saves page loads a bounded game list and ignores stale initial loads', () 
   assert.match(source, /let cancelled = false/);
   assert.match(source, /if \(cancelled\) return/);
   assert.match(source, /return \(\) => \{\s*cancelled = true;\s*\}/s);
+});
+
+test('save path panel filters game picker options before rendering the select', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Saves', 'SavePathPanel.tsx'), 'utf8');
+
+  assert.match(source, /gamePickerQuery/);
+  assert.match(source, /getSaveGamePickerOptions/);
+  assert.match(source, /formatSaveGamePickerHint/);
+  assert.match(source, /gamePickerOptions\.map/);
+  assert.doesNotMatch(source, /games\.map\(\(game\) => <option/);
 });
 
 test('saves page ignores stale save path refreshes while selected game changes', () => {

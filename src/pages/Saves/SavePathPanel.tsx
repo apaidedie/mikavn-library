@@ -1,4 +1,5 @@
 import { Archive, Copy, FolderOpen, FolderPlus, LocateFixed, Save, ShieldCheck, Trash2 } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +9,7 @@ import { MetricTile, Panel, PanelContent, PanelHeader, SoftRow } from '@/compone
 import { Select } from '@/components/ui/select';
 import type { Game } from '@/types/game';
 import type { SaveBackup, SavePath, SavePathCandidate } from '@/types/saves';
+import { formatSaveGamePickerHint, getSaveGamePickerOptions } from './savesPageModel';
 
 type SavePathPanelProps = {
   backupLabel: string;
@@ -34,15 +36,25 @@ type SavePathPanelProps = {
 };
 
 export function SavePathPanel({ backupLabel, backups, candidates, games, label, loading, onAddPath, onBackupLabelChange, onCopyPath, onCreateBackup, onLabelChange, onPathChange, onPickPath, onRemovePath, onReveal, onSelectGame, onSuggestPaths, onUseCandidate, path, paths, selectedGameId }: SavePathPanelProps) {
+  const [gamePickerQuery, setGamePickerQuery] = useState('');
+  const gamePickerOptions = useMemo(() => getSaveGamePickerOptions(games, selectedGameId, gamePickerQuery), [gamePickerQuery, games, selectedGameId]);
+
   return (
     <Panel>
       <PanelHeader title="存档路径" icon={<Archive className="h-4 w-4" />} />
       <PanelContent className="space-y-4">
         <SoftRow className="px-3 py-2.5">
           <Label>游戏</Label>
+          <Input
+            className="mt-2"
+            value={gamePickerQuery}
+            onChange={(event) => setGamePickerQuery(event.target.value)}
+            placeholder="筛选标题 / 会社 / 标签"
+          />
           <Select className="mt-2 w-full" value={selectedGameId ?? ''} onChange={(event) => onSelectGame(event.target.value || null)}>
-            {games.map((game) => <option key={game.id} value={game.id}>{game.title}</option>)}
+            {gamePickerOptions.map((game) => <option key={game.id} value={game.id}>{game.title}</option>)}
           </Select>
+          <div className="mt-1 text-xs text-slate-500">{formatSaveGamePickerHint(gamePickerOptions.length, games.length, gamePickerQuery)}</div>
           <div className="mt-3 grid grid-cols-2 gap-2">
             <MetricTile icon={<FolderPlus className="h-3.5 w-3.5" />} label="存档路径" value={`${paths.length}`} />
             <MetricTile icon={<ShieldCheck className="h-3.5 w-3.5" />} label="备份记录" value={`${backups.length}`} />
