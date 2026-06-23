@@ -1,3 +1,5 @@
+import { redactDiagnosticText } from '@/utils/diagnosticRedaction';
+
 export type UpdaterCheckResult =
   | { kind: 'unavailable'; message: string }
   | { kind: 'up_to_date'; message: string }
@@ -153,7 +155,7 @@ export function formatUpdaterRecoveryText({
     if (backup.path) lines.push(`备份路径：${backup.path}`);
   }
 
-  return lines.join('\n');
+  return redactDiagnosticText(lines.join('\n'));
 }
 
 export function formatUpdaterInstallProgress(progress: UpdaterInstallProgress | null): string | null {

@@ -4,6 +4,17 @@ const path = require('node:path');
 const test = require('node:test');
 const ts = require('typescript');
 
+function loadDiagnosticRedaction() {
+  const sourcePath = path.join(__dirname, '..', 'src', 'utils', 'diagnosticRedaction.ts');
+  const source = fs.readFileSync(sourcePath, 'utf8');
+  const transpiled = ts.transpileModule(source, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true },
+  }).outputText;
+  const module = { exports: {} };
+  new Function('module', 'exports', transpiled)(module, module.exports);
+  return module.exports;
+}
+
 function loadModel() {
   const sourcePath = path.join(__dirname, '..', 'src', 'services', 'updaterModel.ts');
   const source = fs.readFileSync(sourcePath, 'utf8');
@@ -11,7 +22,11 @@ function loadModel() {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true },
   }).outputText;
   const module = { exports: {} };
-  new Function('module', 'exports', transpiled)(module, module.exports);
+  const localRequire = (specifier) => {
+    if (specifier === '@/utils/diagnosticRedaction') return loadDiagnosticRedaction();
+    throw new Error(`Unexpected require: ${specifier}`);
+  };
+  new Function('module', 'exports', 'require', transpiled)(module, module.exports, localRequire);
   return module.exports;
 }
 
@@ -110,6 +125,21 @@ test('updater recovery text does not suggest manual installer after backup failu
 
   assert.match(text, /更新已取消，数据库没有被替换。/);
   assert.doesNotMatch(text, new RegExp(updaterFallbackDownloadUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+});
+
+test('updater recovery text redacts copied secrets and Windows user names', () => {
+  const { formatUpdaterRecoveryText } = loadModel();
+  const text = formatUpdaterRecoveryText({
+    errorText: String.raw`更新失败：download token:abc password=hunter2 API_KEY=secret C:\Users\alice\AppData\Local\MikaVN\latest.json`,
+    backup: {
+      fileName: 'before-update-token.db',
+      path: String.raw`C:\Users\bob\AppData\Local\MikaVN\database-backups\before-update.db`,
+    },
+  });
+
+  assert.match(text, /\[redacted\]/);
+  assert.match(text, /C:\\Users\\\[user\]\\AppData/);
+  assert.doesNotMatch(text, /abc|hunter2|secret|alice|bob/);
 });
 
 test('install progress formatter reports backup, download percent, and install phases', () => {
