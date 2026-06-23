@@ -17,9 +17,53 @@ function sha256(contents) {
   return crypto.createHash('sha256').update(contents).digest('hex');
 }
 
+function sha256File(filePath) {
+  return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
+}
+
 function previousPatchVersion(version) {
   const parts = version.split('.').map((part) => Number(part));
   return `${parts[0]}.${parts[1]}.${Math.max(0, parts[2] - 1)}`;
+}
+
+function markReportSigned(releaseDir) {
+  const reportPath = path.join(releaseDir, 'RELEASE_VALIDATION_REPORT.md');
+  fs.writeFileSync(
+    reportPath,
+    fs.readFileSync(reportPath, 'utf8')
+      .replace('- `npm run release:signing:check`: artifacts are `NotSigned`.', '- `npm run release:signing:check`: signed true.')
+      .replace('- `npm run release:signing:require`: failed as expected because the artifacts are not signed with a valid trusted certificate.', '- `npm run release:signing:require`: passed.'),
+  );
+}
+
+function markChecklistPassed(releaseDir) {
+  const checklistPath = path.join(releaseDir, 'MANUAL_RISK_PASS_CHECKLIST.md');
+  fs.writeFileSync(
+    checklistPath,
+    fs.readFileSync(checklistPath, 'utf8')
+      .replaceAll('- [ ]', '- [x]')
+      .replace(/^(- \[x\] .+?)$/gm, '$1 Evidence: verified during release smoke.'),
+  );
+}
+
+function publicReleaseAssetsForHandoff(releaseDir, version, overrides = {}) {
+  const installerName = `MikaVN Library_${version}_x64-setup.exe`;
+  return [
+    installerName,
+    `${installerName}.sig`,
+    'latest.json',
+    'SHA256SUMS.txt',
+    'RELEASE_VALIDATION_REPORT.md',
+    'MANUAL_RISK_PASS_CHECKLIST.md',
+  ].map((name) => {
+    const filePath = path.join(releaseDir, name);
+    const digest = overrides[name] || `sha256:${sha256File(filePath)}`;
+    return {
+      name,
+      size: fs.statSync(filePath).size,
+      digest,
+    };
+  });
 }
 
 function createHandoff(overrides = {}) {
@@ -266,13 +310,7 @@ test('checkReleaseHandoff public-ready mode rejects blocking release risks', () 
 
 test('check-release-handoff CLI can require public release readiness', () => {
   const { releaseDir } = createHandoff();
-  const checklistPath = path.join(releaseDir, 'MANUAL_RISK_PASS_CHECKLIST.md');
-  fs.writeFileSync(
-    checklistPath,
-    fs.readFileSync(checklistPath, 'utf8')
-      .replaceAll('- [ ]', '- [x]')
-      .replace(/^(- \[x\] .+?)$/gm, '$1 Evidence: verified during release smoke.'),
-  );
+  markChecklistPassed(releaseDir);
 
   const result = childProcess.spawnSync(process.execPath, [
     path.join(__dirname, 'check-release-handoff.cjs'),
@@ -285,6 +323,24 @@ test('check-release-handoff CLI can require public release readiness', () => {
 
   assert.equal(result.status, 1);
   assert.match(result.stderr, /release handoff has blocking public release risk\(s\): unsigned-windows-artifacts/);
+});
+
+test('checkReleaseHandoff public-ready mode rejects public GitHub release asset digest drift', () => {
+  const { releaseDir, version } = createHandoff();
+  markReportSigned(releaseDir);
+  markChecklistPassed(releaseDir);
+  const installerName = `MikaVN Library_${version}_x64-setup.exe`;
+
+  assert.throws(
+    () => checkReleaseHandoff({
+      releaseDir,
+      requirePublicReady: true,
+      publicReleaseAssets: publicReleaseAssetsForHandoff(releaseDir, version, {
+        [installerName]: `sha256:${sha256('different-installer')}`,
+      }),
+    }),
+    /release handoff has blocking public release risk\(s\): public-release-asset-digest-mismatch/,
+  );
 });
 
 test('checkReleaseHandoff treats large-library performance warnings as public release blockers', () => {

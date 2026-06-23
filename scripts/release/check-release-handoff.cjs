@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const childProcess = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
@@ -73,6 +74,8 @@ const REQUIRED_PASSED_COMMANDS = [
   'npm run release:handoff:check',
   'npm run release:signing:certificate:check',
 ];
+
+const GITHUB_REPO = 'apaidedie/mikavn-library';
 
 function defaultReleaseDir() {
   const repoRoot = path.resolve(__dirname, '..', '..');
@@ -440,6 +443,85 @@ function requireNoBlockingReleaseRisks(risks) {
   throw new Error(`release handoff has blocking public release risk(s): ${risks.map((risk) => risk.code).join(', ')}`);
 }
 
+function normalizePublicAssetDigest(value) {
+  const digest = String(value || '').trim().toLowerCase();
+  return digest.startsWith('sha256:') ? digest.slice('sha256:'.length) : digest;
+}
+
+function readPublicReleaseAssetsFromGitHub(version) {
+  const result = childProcess.spawnSync('gh', [
+    'release',
+    'view',
+    `v${version}`,
+    '--repo',
+    GITHUB_REPO,
+    '--json',
+    'assets',
+  ], {
+    encoding: 'utf8',
+  });
+  if (result.status !== 0) {
+    const message = (result.stderr || result.stdout || '').trim();
+    throw new Error(`failed to read GitHub release assets for v${version}: ${message || `exit ${result.status}`}`);
+  }
+  const parsed = JSON.parse(result.stdout);
+  return parsed.assets || [];
+}
+
+function expectedPublicReleaseArtifacts({ releaseDir, installerName }) {
+  return [
+    installerName,
+    `${installerName}.sig`,
+    'latest.json',
+    'SHA256SUMS.txt',
+    'RELEASE_VALIDATION_REPORT.md',
+    'MANUAL_RISK_PASS_CHECKLIST.md',
+  ].map((fileName) => {
+    const filePath = path.join(releaseDir, fileName);
+    return {
+      fileName,
+      sizeBytes: fs.statSync(filePath).size,
+      sha256: sha256File(filePath),
+    };
+  });
+}
+
+function publicReleaseAssetRisks({ releaseDir, installerName, publicReleaseAssets }) {
+  const byName = new Map(publicReleaseAssets.map((asset) => [asset.name, asset]));
+  const risks = [];
+  for (const expected of expectedPublicReleaseArtifacts({ releaseDir, installerName })) {
+    const actual = byName.get(expected.fileName);
+    if (!actual) {
+      risks.push({
+        code: 'public-release-asset-missing',
+        message: `GitHub Release is missing public asset ${expected.fileName}.`,
+        fileName: expected.fileName,
+      });
+      continue;
+    }
+    if (Number(actual.size) !== expected.sizeBytes) {
+      risks.push({
+        code: 'public-release-asset-size-mismatch',
+        message: `GitHub Release asset size drifted for ${expected.fileName}.`,
+        fileName: expected.fileName,
+        expectedSizeBytes: expected.sizeBytes,
+        actualSizeBytes: Number(actual.size),
+      });
+    }
+    const actualDigest = normalizePublicAssetDigest(actual.digest);
+    if (!actualDigest || actualDigest !== expected.sha256) {
+      risks.push({
+        code: 'public-release-asset-digest-mismatch',
+        message: `GitHub Release asset digest drifted for ${expected.fileName}.`,
+        fileName: expected.fileName,
+        expectedSha256: expected.sha256,
+        actualSha256: actualDigest || null,
+      });
+    }
+  }
+  return risks;
+}
+
 function splitManualRiskChecklistItem(value) {
   const trimmed = value.trim();
   const match = /\s+(?:Evidence|证据)\s*[:：]\s*(.+)$/i.exec(trimmed);
@@ -495,6 +577,22 @@ function checkReleaseHandoff(options = {}) {
     buildMode,
     largeLibraryPerformanceWarnings,
   });
+  if (options.requirePublicReady && blockingRisks.length === 0) {
+    let publicReleaseAssets;
+    try {
+      publicReleaseAssets = options.publicReleaseAssets || readPublicReleaseAssetsFromGitHub(readReleaseMetadata().version);
+      blockingRisks.push(...publicReleaseAssetRisks({
+        releaseDir,
+        installerName: installerArtifact.fileName,
+        publicReleaseAssets,
+      }));
+    } catch (error) {
+      blockingRisks.push({
+        code: 'public-release-assets-unavailable',
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
   if (options.requirePublicReady) requireNoBlockingReleaseRisks(blockingRisks);
 
   return {

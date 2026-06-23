@@ -25,6 +25,28 @@ function sha256(contents) {
   return crypto.createHash('sha256').update(contents).digest('hex');
 }
 
+function sha256File(filePath) {
+  return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
+}
+
+function publicReleaseAssetsForHandoff(releaseDir, installerName) {
+  return [
+    installerName,
+    `${installerName}.sig`,
+    'latest.json',
+    'SHA256SUMS.txt',
+    'RELEASE_VALIDATION_REPORT.md',
+    'MANUAL_RISK_PASS_CHECKLIST.md',
+  ].map((name) => {
+    const filePath = path.join(releaseDir, name);
+    return {
+      name,
+      size: fs.statSync(filePath).size,
+      digest: `sha256:${sha256File(filePath)}`,
+    };
+  });
+}
+
 function writePassingReport(releaseDir) {
   const previousVersion = previousPatchVersion(version);
   writeFile(path.join(releaseDir, 'lower-version-updater-rehearsal.json'), `${JSON.stringify({
@@ -144,7 +166,11 @@ test('prepareUpdaterHandoff stages signed updater artifacts that pass handoff ch
   assert.match(sums, new RegExp(`${sha256(signature)}  MikaVN Library_${version}_x64-setup\\.exe\\.sig`));
   assert.match(sums, / latest\.json/);
 
-  const handoff = checkReleaseHandoff({ releaseDir, requirePublicReady: true });
+  const handoff = checkReleaseHandoff({
+    releaseDir,
+    requirePublicReady: true,
+    publicReleaseAssets: publicReleaseAssetsForHandoff(releaseDir, installerName),
+  });
   assert.equal(handoff.buildMode, 'updater-capable');
   assert.equal(handoff.updaterArtifacts.length, 2);
   assert.deepEqual(handoff.blockingReleaseRisks, []);

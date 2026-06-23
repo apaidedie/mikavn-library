@@ -438,6 +438,11 @@ foreach ($token in @("npm run smoke:real-install:update", "manual-install-smoke"
     throw "Release notes template real install update smoke documentation is missing required token: $token"
   }
 }
+foreach ($token in @("GitHub Release asset", "SHA256 digests", "latest.json", "MANUAL_RISK_PASS_CHECKLIST.md")) {
+  if (!$readme.Contains($token) -and !$releaseChecklist.Contains($token)) {
+    throw "Public release asset drift documentation is missing required token: $token"
+  }
+}
 
 $releaseValidationScript = Get-Content -LiteralPath (Join-Path $repoRoot "scripts\release\run-release-validation.ps1") -Raw
 foreach ($token in @("check-release-metadata.ps1", "-StrictGitHubLinks", "npm run release:signing:certificate:check", "npm run test:release-scripts", "npm run test:playwright-scripts", "npm run test:diagnostic-export", "npm run test:data-safety", "npm run test:maintenance-image-health", "npm run test:library-performance", "cargo fmt --check", "cargo clippy -- -D warnings", "cargo test", "npm run smoke:browser", "npm run smoke:large", "npm run tauri:build", "npm run smoke:install", "npm run smoke:portable-data", "npm run smoke:real-data:readonly", "npm run smoke:desktop")) {
