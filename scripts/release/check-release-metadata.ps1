@@ -427,12 +427,15 @@ foreach ($token in @("current repository test count", "Rust tests", "get_app_dat
     throw "README.md verification snapshot must document '$token'."
   }
 }
-foreach ($token in @("npm run smoke:real-install:update", "manual-install-smoke", "verified database backup")) {
+foreach ($token in @("npm run smoke:real-install:update", "manual-install-smoke", "verified database backup", "Lower-version updater rehearsal", "previous version", "current version")) {
   if (!$readme.Contains($token)) {
     throw "README real install update smoke documentation is missing required token: $token"
   }
   if (!$releaseChecklist.Contains($token)) {
     throw "Release checklist real install update smoke documentation is missing required token: $token"
+  }
+  if (!$releaseNotesTemplate.Contains($token)) {
+    throw "Release notes template real install update smoke documentation is missing required token: $token"
   }
 }
 

@@ -62,6 +62,7 @@ function createHandoff(overrides = {}) {
     '- `npm run smoke:portable-data`: passed.',
     '- `npm run smoke:real-data:readonly`: passed. `quick_check` ok; image header samples ok.',
     '- `npm run smoke:real-install:update`: passed. Real install counts preserved; verified database backup created under manual-install-smoke.',
+    '- Lower-version updater rehearsal: passed. Installed previous version, updated through the in-app updater to current version, restarted, and verified app-data.',
     '- Target install directory: `E:\\MikaVN Library`.',
     '- Post-install SQLite `quick_check`: ok.',
     '- Real installed exe: `E:\\MikaVN Library\\mikavn-library.exe`.',
@@ -540,6 +541,21 @@ test('checkReleaseHandoff requires real install update evidence to mention verif
   assert.throws(
     () => checkReleaseHandoff({ releaseDir }),
     /release validation report is missing required token: .*verified database backup/,
+  );
+});
+
+test('checkReleaseHandoff requires lower-version updater rehearsal evidence in the validation report', () => {
+  const { releaseDir } = createHandoff();
+  const reportPath = path.join(releaseDir, 'RELEASE_VALIDATION_REPORT.md');
+  const report = fs.readFileSync(reportPath, 'utf8');
+  fs.writeFileSync(
+    reportPath,
+    report.replace('- Lower-version updater rehearsal: passed. Installed previous version, updated through the in-app updater to current version, restarted, and verified app-data.\n', ''),
+  );
+
+  assert.throws(
+    () => checkReleaseHandoff({ releaseDir }),
+    /release validation report is missing required token: .*Lower-version updater rehearsal/,
   );
 });
 
