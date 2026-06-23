@@ -60,10 +60,18 @@ test('startup update notice switches banner tone after install errors', () => {
   const notice = read('src/app/AppUpdateNotice.tsx');
 
   assert.match(notice, /noticeToneClassName/);
+  assert.match(notice, /noticeMutedTextClassName/);
+  assert.match(notice, /noticeActionLinkClassName/);
   assert.match(notice, /error\s*\?/);
   assert.match(notice, /border-amber-300\/25 bg-amber-500\/10 text-amber-50/);
+  assert.match(notice, /text-amber-100\/85/);
+  assert.match(notice, /text-amber-50 underline underline-offset-2/);
   assert.match(notice, /border-emerald-300\/20 bg-emerald-500\/10 text-emerald-50/);
+  assert.match(notice, /text-emerald-100\/80/);
+  assert.match(notice, /text-emerald-50 underline underline-offset-2/);
   assert.match(notice, /className=\{`border-b \$\{noticeToneClassName\} px-4 py-2 text-sm`\}/);
+  assert.match(notice, /className=\{`truncate text-xs \$\{noticeMutedTextClassName\}`\}/);
+  assert.match(notice, /className=\{`inline-flex items-center gap-1 text-xs \$\{noticeActionLinkClassName\}`\}/);
 });
 
 test('startup update notice keeps a public manual download link visible before failures', () => {

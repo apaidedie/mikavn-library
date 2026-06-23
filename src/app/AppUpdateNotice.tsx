@@ -52,6 +52,8 @@ export function AppUpdateNotice({
   const noticeToneClassName = error
     ? 'border-amber-300/25 bg-amber-500/10 text-amber-50'
     : 'border-emerald-300/20 bg-emerald-500/10 text-emerald-50';
+  const noticeMutedTextClassName = error ? 'text-amber-100/85' : 'text-emerald-100/80';
+  const noticeActionLinkClassName = error ? 'text-amber-50 underline underline-offset-2' : 'text-emerald-50 underline underline-offset-2';
 
   const copyUpdateRecoveryText = async (text: string, successMessage: string) => {
     setRecoveryActionMessage(null);
@@ -68,61 +70,61 @@ export function AppUpdateNotice({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="font-medium">发现新版本 {notice.version}</p>
-          <p className="truncate text-xs text-emerald-100/80">{installed ? '更新已安装，请重启应用。' : notice.notes}</p>
+          <p className={`truncate text-xs ${noticeMutedTextClassName}`}>{installed ? '更新已安装，请重启应用。' : notice.notes}</p>
           {progressText && <p className="mt-1 text-xs text-amber-100">{progressText}</p>}
           {backupInfo && (
             <div className="mt-1 flex flex-wrap items-center gap-2">
-              <p className="truncate text-xs text-emerald-100/80">更新前数据库备份：{backupInfo.fileName}</p>
-              <button className="inline-flex items-center gap-1 text-xs text-emerald-50 underline underline-offset-2" type="button" onClick={onRevealBackup}>
+              <p className={`truncate text-xs ${noticeMutedTextClassName}`}>更新前数据库备份：{backupInfo.fileName}</p>
+              <button className={`inline-flex items-center gap-1 text-xs ${noticeActionLinkClassName}`} type="button" onClick={onRevealBackup}>
                 <FolderOpen className="h-3.5 w-3.5" />
                 打开备份位置
               </button>
-              <button className="inline-flex items-center gap-1 text-xs text-emerald-50 underline underline-offset-2" type="button" onClick={onCopyBackupPath}>
+              <button className={`inline-flex items-center gap-1 text-xs ${noticeActionLinkClassName}`} type="button" onClick={onCopyBackupPath}>
                 <ClipboardCopy className="h-3.5 w-3.5" />
                 复制备份路径
               </button>
             </div>
           )}
-          {backupActionMessage && <p className="mt-1 text-xs text-emerald-100">{backupActionMessage}</p>}
+          {backupActionMessage && <p className={`mt-1 text-xs ${noticeMutedTextClassName}`}>{backupActionMessage}</p>}
           {recoveryHint && (
             <div className="mt-1 max-w-[42rem] rounded-md border border-amber-200/20 bg-black/15 px-2 py-1">
               <p className="text-xs font-medium text-amber-50">{recoveryHint?.title}</p>
-              <p className="text-xs text-emerald-100/80">{recoveryHint?.guidance}</p>
+              <p className={`text-xs ${noticeMutedTextClassName}`}>{recoveryHint?.guidance}</p>
             </div>
           )}
           {error && <p className="mt-1 select-text text-xs text-rose-100">{error}</p>}
           {error && (
             <div className="mt-1 flex flex-wrap gap-2">
-              <button className="inline-flex items-center gap-1 text-xs text-emerald-50 underline underline-offset-2" type="button" onClick={() => void copyUpdateRecoveryText(formatUpdaterRecoveryText({ errorText: error, backup: backupInfo }), '已复制更新错误。')}>
+              <button className={`inline-flex items-center gap-1 text-xs ${noticeActionLinkClassName}`} type="button" onClick={() => void copyUpdateRecoveryText(formatUpdaterRecoveryText({ errorText: error, backup: backupInfo }), '已复制更新错误。')}>
                 <ClipboardCopy className="h-3.5 w-3.5" />
                 复制错误
               </button>
               {recoveryHint?.showFallbackDownload && (
                 <>
-                  <button className="inline-flex items-center gap-1 text-xs text-emerald-50 underline underline-offset-2" type="button" onClick={() => void copyUpdateRecoveryText(updaterFallbackDownloadUrl, '已复制备用下载链接。')}>
+                  <button className={`inline-flex items-center gap-1 text-xs ${noticeActionLinkClassName}`} type="button" onClick={() => void copyUpdateRecoveryText(updaterFallbackDownloadUrl, '已复制备用下载链接。')}>
                     <ClipboardCopy className="h-3.5 w-3.5" />
                     复制备用链接
                   </button>
-                  <a className="inline-flex items-center gap-1 text-xs text-emerald-50 underline underline-offset-2" href={updaterFallbackDownloadUrl} rel="noreferrer" target="_blank">
+                  <a className={`inline-flex items-center gap-1 text-xs ${noticeActionLinkClassName}`} href={updaterFallbackDownloadUrl} rel="noreferrer" target="_blank">
                     <ExternalLink className="h-3.5 w-3.5" />
                     备用下载页面
                   </a>
                 </>
               )}
               {backupInfo && error && (
-                <button className="inline-flex items-center gap-1 text-xs text-emerald-50 underline underline-offset-2" type="button" onClick={onOpenDatabaseRestore}>
+                <button className={`inline-flex items-center gap-1 text-xs ${noticeActionLinkClassName}`} type="button" onClick={onOpenDatabaseRestore}>
                   <RotateCcw className="h-3.5 w-3.5" />
                   去恢复数据库
                 </button>
               )}
-              <button className="inline-flex items-center gap-1 text-xs text-emerald-50 underline underline-offset-2 disabled:opacity-60" disabled={diagnosticExportLoading} type="button" onClick={onExportDiagnosticPackage}>
+              <button className={`inline-flex items-center gap-1 text-xs ${noticeActionLinkClassName} disabled:opacity-60`} disabled={diagnosticExportLoading} type="button" onClick={onExportDiagnosticPackage}>
                 <FileArchive className="h-3.5 w-3.5" />
                 {diagnosticExportLoading ? '导出中' : '导出诊断包'}
               </button>
             </div>
           )}
-          {recoveryActionMessage && <p className="mt-1 text-xs text-emerald-100">{recoveryActionMessage}</p>}
-          {error && diagnosticExportMessage && <p className="mt-1 break-all text-xs text-emerald-100">{diagnosticExportMessage}</p>}
+          {recoveryActionMessage && <p className={`mt-1 text-xs ${noticeMutedTextClassName}`}>{recoveryActionMessage}</p>}
+          {error && diagnosticExportMessage && <p className={`mt-1 break-all text-xs ${noticeMutedTextClassName}`}>{diagnosticExportMessage}</p>}
           {error && diagnosticExportPath && (
             <div className="mt-1 flex flex-wrap gap-2">
               <DiagnosticExportPathActions buttonSize="sm" buttonVariant="ghost" path={diagnosticExportPath} onCopy={onCopyDiagnosticExportPath} onReveal={onRevealDiagnosticExportPath} />
