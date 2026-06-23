@@ -16,6 +16,26 @@ function loadDashboardPersonal() {
   }).outputText;
 
   const module = { exports: {} };
+  const fn = new Function('module', 'exports', 'require', transpiled);
+  fn(module, module.exports, (id) => {
+    if (id === '@/utils/databaseBackupCleanupPolicy') return loadDatabaseBackupCleanupPolicy();
+    throw new Error(`Unexpected require: ${id}`);
+  });
+  return module.exports;
+}
+
+function loadDatabaseBackupCleanupPolicy() {
+  const sourcePath = path.join(__dirname, '..', 'src', 'utils', 'databaseBackupCleanupPolicy.ts');
+  const source = fs.readFileSync(sourcePath, 'utf8');
+  const transpiled = ts.transpileModule(source, {
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2022,
+      esModuleInterop: true,
+    },
+  }).outputText;
+
+  const module = { exports: {} };
   const fn = new Function('module', 'exports', transpiled);
   fn(module, module.exports);
   return module.exports;
@@ -193,6 +213,15 @@ test('deriveDashboardAttentionItems asks for backup cleanup when database backup
     tone: 'warning',
     action: 'settings_local',
   }]);
+});
+
+test('dashboard backup cleanup reminders reuse the shared local backup policy', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Dashboard', 'dashboardPersonal.ts'), 'utf8');
+
+  assert.match(source, /@\/utils\/databaseBackupCleanupPolicy/);
+  assert.match(source, /getDatabaseBackupCleanupSuggestion/);
+  assert.doesNotMatch(source, /fileCount > 20/);
+  assert.doesNotMatch(source, /1024 \* 1024 \* 1024/);
 });
 
 test('deriveDatabaseBackupStatus reports missing, fresh, and stale local backups', () => {

@@ -1,6 +1,7 @@
 import type { AppDataDiagnostics, DatabaseBackupSummary } from '@/types/archive';
 import type { Game } from '@/types/game';
 import type { TaskRecord } from '@/types/task';
+import { getDatabaseBackupCleanupSuggestion } from '@/utils/databaseBackupCleanupPolicy';
 
 export type DashboardAttentionKind =
   | 'failed_tasks'
@@ -167,7 +168,7 @@ export function deriveDashboardAttentionItems(input: AttentionInput): DashboardA
       tone: 'info',
       action: 'settings_local',
     });
-  } else if (shouldSuggestDatabaseBackupCleanup(input.diagnostics?.databaseBackups)) {
+  } else if (getDatabaseBackupCleanupSuggestion(input.diagnostics?.databaseBackups)) {
     items.push({
       kind: 'database_backup',
       title: '数据库备份占用偏大',
@@ -205,7 +206,7 @@ export function deriveDatabaseBackupStatus(backups: Pick<DatabaseBackupSummary, 
   }
 
   const ageDays = Math.max(0, Math.floor((dateMillis(now) - dateMillis(latestBackupAt)) / 86_400_000));
-  if (shouldSuggestDatabaseBackupCleanup(backups)) {
+  if (getDatabaseBackupCleanupSuggestion(backups)) {
     return {
       level: 'large',
       actionNeeded: true,
@@ -269,12 +270,6 @@ function dateMillis(value?: string | Date | null) {
 function clamp(value: number, min: number, max: number) {
   if (!Number.isFinite(value)) return min;
   return Math.min(max, Math.max(min, value));
-}
-
-function shouldSuggestDatabaseBackupCleanup(backups: { fileCount?: number | null; totalBytes?: number | null } | null | undefined) {
-  const fileCount = backups?.fileCount ?? 0;
-  const totalBytes = backups?.totalBytes ?? 0;
-  return fileCount > 20 || totalBytes > 1024 * 1024 * 1024;
 }
 
 function formatBackupBytes(bytes: number) {
