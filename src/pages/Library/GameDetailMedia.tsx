@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2, Copy, RefreshCw, Wrench } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Copy, ImageOff, RefreshCw, Wrench } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -44,11 +44,7 @@ export function DescriptionRichText({ value }: { value?: string | null }) {
         }
 
         const src = imageSrc(part.src) ?? part.src;
-        return (
-          <figure className="overflow-hidden rounded-md border border-white/10 bg-black/[0.16]" key={`${index}-${part.src}`}>
-            <img alt={part.alt || '简介图片'} className="mx-auto max-h-[460px] w-auto max-w-full object-contain" decoding="async" loading="lazy" src={src} />
-          </figure>
-        );
+        return <DescriptionImageFigure alt={part.alt || '简介图片'} key={`${index}-${part.src}`} src={src} />;
       })}
       {totalImageCount > descriptionImageInitialRenderLimit && (
         <div className="rounded-md border border-white/10 bg-black/[0.14] px-3 py-2 text-xs text-slate-400">
@@ -59,6 +55,34 @@ export function DescriptionRichText({ value }: { value?: string | null }) {
         </div>
       )}
     </div>
+  );
+}
+
+function DescriptionImageFigure({ alt, src }: { alt: string; src: string }) {
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [src]);
+
+  if (failed) {
+    return (
+      <figure aria-label={`${alt}加载失败`} className="overflow-hidden rounded-md border border-amber-300/20 bg-amber-400/10" data-image-state="failed">
+        <div className="flex min-h-32 flex-col items-center justify-center gap-2 px-4 py-6 text-center">
+          <ImageOff className="h-8 w-8 text-amber-100/80" />
+          <div className="text-sm font-medium text-amber-100">简介图片加载失败</div>
+          <div className="max-w-md text-xs leading-5 text-slate-300">
+            可在右侧媒体健康复制图片诊断，或到维护中心 -&gt; 图片健康检查失效引用。
+          </div>
+        </div>
+      </figure>
+    );
+  }
+
+  return (
+    <figure className="overflow-hidden rounded-md border border-white/10 bg-black/[0.16]" data-image-state="loading">
+      <img alt={alt} className="mx-auto max-h-[460px] w-auto max-w-full object-contain" decoding="async" loading="lazy" src={src} onError={() => setFailed(true)} />
+    </figure>
   );
 }
 

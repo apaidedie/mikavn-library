@@ -229,3 +229,16 @@ test('game detail media UI exposes copyable image diagnostics', () => {
   assert.match(actions, /navigator\.clipboard\.writeText\(diagnostic\)/);
   assert.match(actions, /已复制图片诊断信息/);
 });
+
+test('description image load failures render a diagnostic placeholder', () => {
+  const media = fs.readFileSync('src/pages/Library/GameDetailMedia.tsx', 'utf8');
+
+  assert.match(media, /function DescriptionImageFigure/);
+  assert.match(media, /<DescriptionImageFigure/);
+  assert.match(media, /onError=\{\(\) => setFailed\(true\)\}/);
+  assert.match(media, /useEffect\(\(\) => \{\s*setFailed\(false\);\s*\}, \[src\]\)/s);
+  assert.match(media, /简介图片加载失败/);
+  assert.match(media, /复制图片诊断/);
+  assert.match(media, /维护中心 -&gt; 图片健康/);
+  assert.doesNotMatch(media, /<img alt=\{part\.alt \|\| '简介图片'\} className="mx-auto max-h-\[460px\]/);
+});
