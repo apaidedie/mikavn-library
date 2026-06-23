@@ -5,6 +5,7 @@ const test = require('node:test');
 
 const sourcePath = path.join(__dirname, 'page-qa-runner.cjs');
 const helperPath = path.join(__dirname, 'page-qa-runner-helpers.cjs');
+const advancedSearchCasesPath = path.join(__dirname, 'page-qa-advanced-search-cases.cjs');
 const collectionsCasesPath = path.join(__dirname, 'page-qa-collections-cases.cjs');
 const dashboardCasesPath = path.join(__dirname, 'page-qa-dashboard-cases.cjs');
 const libraryCasesPath = path.join(__dirname, 'page-qa-library-cases.cjs');
@@ -29,10 +30,31 @@ test('page QA routes asset cache maintenance through image health', () => {
 });
 
 test('advanced search QA uses the field label instead of broad placeholder matching', () => {
+  const advancedSearchSource = fs.readFileSync(advancedSearchCasesPath, 'utf8');
+
+  assert.match(advancedSearchSource, /getByRole\('textbox', \{ name: '关键词或条件' \}\)/);
+  assert.doesNotMatch(advancedSearchSource, /getByPlaceholder\(\/输入标题\|关键词\|快捷搜索\/\)/);
+});
+
+test('advanced search QA cases live in a focused saved-search scenario module', () => {
   const source = fs.readFileSync(sourcePath, 'utf8');
 
-  assert.match(source, /getByRole\('textbox', \{ name: '关键词或条件' \}\)/);
-  assert.doesNotMatch(source, /getByPlaceholder\(\/输入标题\|关键词\|快捷搜索\/\)/);
+  assert.ok(fs.existsSync(advancedSearchCasesPath), 'advanced search scenario module should exist');
+  const advancedSearchSource = fs.readFileSync(advancedSearchCasesPath, 'utf8');
+
+  assert.match(source, /page-qa-advanced-search-cases\.cjs/);
+  assert.match(source, /\.\.\.advancedSearchPageQaCases/);
+  assert.match(advancedSearchSource, /advanced-search-results/);
+  assert.match(advancedSearchSource, /advanced search page QA did not persist the created saved search/);
+  assert.match(advancedSearchSource, /advanced search page QA deleted an unrelated saved search/);
+  assert.doesNotMatch(source, /advanced-search-results/);
+});
+
+test('advanced search QA keeps its warmed runner position before scanner cases', () => {
+  const source = fs.readFileSync(sourcePath, 'utf8');
+
+  assert.ok(source.indexOf('...settingsPageQaCases') < source.indexOf('...advancedSearchPageQaCases'));
+  assert.ok(source.indexOf('...advancedSearchPageQaCases') < source.indexOf('await runScannerPageQaCases(browser);'));
 });
 
 test('library detail QA verifies copyable image diagnostics', () => {
