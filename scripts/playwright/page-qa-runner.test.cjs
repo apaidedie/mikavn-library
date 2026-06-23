@@ -8,6 +8,7 @@ const helperPath = path.join(__dirname, 'page-qa-runner-helpers.cjs');
 const dashboardCasesPath = path.join(__dirname, 'page-qa-dashboard-cases.cjs');
 const libraryCasesPath = path.join(__dirname, 'page-qa-library-cases.cjs');
 const maintenanceCasesPath = path.join(__dirname, 'page-qa-maintenance-cases.cjs');
+const reportsCasesPath = path.join(__dirname, 'page-qa-reports-cases.cjs');
 const savesCasesPath = path.join(__dirname, 'page-qa-saves-cases.cjs');
 
 test('page QA routes asset cache maintenance through image health', () => {
@@ -135,4 +136,20 @@ test('saves page QA cases live in a focused data-safety scenario module', () => 
   assert.match(savesSource, /page QA save restore flows did not create protection backup records/);
   assert.match(savesSource, /page QA mirror save restore task did not log the protection backup/);
   assert.doesNotMatch(source, /\['saves-backup-restore'/);
+});
+
+test('reports page QA cases live in a focused reporting scenario module', () => {
+  const source = fs.readFileSync(sourcePath, 'utf8');
+  const reportsSource = fs.readFileSync(reportsCasesPath, 'utf8');
+
+  assert.match(source, /page-qa-reports-cases\.cjs/);
+  assert.match(source, /\.\.\.reportsPageQaCases/);
+  assert.match(reportsSource, /reports-populated/);
+  assert.match(reportsSource, /reports-privacy-filter-disabled/);
+  assert.match(reportsSource, /reports-actionable-gaps-open-library/);
+  assert.match(reportsSource, /reports-export-gap-examples/);
+  assert.match(reportsSource, /reports markdown export did not log missing description image examples/);
+  assert.doesNotMatch(source, /\['reports-populated'/);
+  assert.doesNotMatch(source, /\['reports-actionable-gaps-open-library'/);
+  assert.doesNotMatch(source, /\['reports-export-gap-examples'/);
 });
