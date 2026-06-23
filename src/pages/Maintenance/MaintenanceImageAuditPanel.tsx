@@ -216,7 +216,7 @@ function ImageHealthSummaryPanel({
           ))}
         </div>
       ) : <div className="text-xs text-slate-600">未检查前不会修改任何文件。</div>}
-      {(summary?.legacyAppDataImportRefs ?? 0) > 0 ? <div className="text-xs text-slate-600">旧导入缓存仍位于 app-data/images 内，当前不计入失效引用；后续可按需做便携路径规范化。</div> : null}
+      {(summary?.legacyAppDataImportRefs ?? 0) > 0 ? <div className="text-xs text-slate-600">旧导入缓存仍位于 app-data/images 内，当前不计入失效引用；路径规范化会改数据库，后续执行前需要先完成数据库备份。</div> : null}
       {canInspectBrokenRefs ? <div className="text-xs text-slate-500">缺失引用、失效引用和外部旧路径需要进入明细审计逐条确认。</div> : null}
       {cache ? (
         <div className="space-y-2">

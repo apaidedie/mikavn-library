@@ -75,6 +75,10 @@ fn image_health_report_counts_reference_and_cache_issues() {
         .recommendations
         .iter()
         .any(|item| item.contains("过大图片")));
+    assert!(report
+        .recommendations
+        .iter()
+        .any(|item| item.contains("数据库备份")));
 
     let _ = fs::remove_dir_all(root);
 }

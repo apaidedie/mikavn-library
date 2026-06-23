@@ -690,7 +690,7 @@ fn image_health_recommendations(summary: &ImageHealthSummary) -> Vec<String> {
     }
     if summary.legacy_app_data_import_refs > 0 {
         recommendations.push(
-            "Playnite 旧导入路径仍在 app-data/images 内，可稍后做便携路径规范化。".to_string(),
+            "Playnite 旧导入路径仍在 app-data/images 内，不算失效引用；便携路径规范化会改数据库，执行前必须先完成数据库备份。".to_string(),
         );
     }
     if recommendations.is_empty() {

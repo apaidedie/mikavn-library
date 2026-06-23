@@ -318,6 +318,7 @@ test('image health summary can be copied as a compact diagnostic text', () => {
   assert.match(message, /缓存目录：E:\\MikaVN Library\\app-data\\images/);
   assert.match(message, /图片引用：25 条，问题 4 条/);
   assert.match(message, /缺失引用：2/);
+  assert.match(message, /旧导入缓存：3（已在 app-data\/images 内，不计入失效引用；路径规范化需先完成数据库备份。）/);
   assert.match(message, /孤儿图片：7/);
   assert.match(message, /重复内容：3 组/);
   assert.match(message, /过大图片：5 个，其中仍被引用 2 个/);
@@ -453,6 +454,8 @@ test('maintenance image health ui treats app-data legacy imports as informationa
 
   assert.match(panel, /旧导入缓存/);
   assert.match(panel, /当前不计入失效引用/);
+  assert.match(panel, /路径规范化会改数据库/);
+  assert.match(panel, /先完成数据库备份/);
   assert.doesNotMatch(panel, /label="Playnite 旧导入" tone=\{\(summary\?\.legacyAppDataImportRefs \?\? 0\) > 0 \? 'warn' : 'ok'\}/);
 });
 
