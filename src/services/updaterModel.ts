@@ -74,13 +74,13 @@ export function mapTauriUpdateResult(update: RawTauriUpdate | null): UpdaterChec
 
 export function formatUpdaterError(error: unknown): string {
   if (error instanceof Error && error.message.trim()) {
-    return `更新失败：${error.message}`;
+    return `更新失败：${redactDiagnosticText(error.message)}`;
   }
   if (typeof error === 'string' && error.trim()) {
-    return `更新失败：${error}`;
+    return `更新失败：${redactDiagnosticText(error)}`;
   }
   if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string' && error.message.trim()) {
-    return `更新失败：${error.message}`;
+    return `更新失败：${redactDiagnosticText(error.message)}`;
   }
   return '更新失败：未知错误';
 }

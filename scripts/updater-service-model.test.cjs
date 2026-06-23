@@ -71,6 +71,16 @@ test('copyable failure message keeps useful error text', () => {
   assert.equal(formatUpdaterError({ message: 'download failed' }), '更新失败：download failed');
 });
 
+test('screen updater error text redacts secrets and Windows user names', () => {
+  const { formatUpdaterError } = loadModel();
+
+  const text = formatUpdaterError(String.raw`download failed token:abc API_KEY=secret C:\Users\alice\AppData\Local\MikaVN\latest.json`);
+
+  assert.match(text, /\[redacted\]/);
+  assert.match(text, /C:\\Users\\\[user\]\\AppData/);
+  assert.doesNotMatch(text, /abc|secret|alice/);
+});
+
 test('updater recovery hints explain backup, signature, download, and restart failures', () => {
   const { createUpdaterRecoveryHint } = loadModel();
 
