@@ -211,3 +211,13 @@ test('frontend diagnostic redaction removes common cookie session and signing se
   assert.match(redacted, /\[redacted\]/);
   assert.doesNotMatch(redacted, /session-cookie-value|session-id-value|jwt-secret-value|private-key-value|plain-secret-value|auth-token-value|id-token-value/);
 });
+
+test('frontend diagnostic redaction removes JSON-style secret fields', () => {
+  const { redactDiagnosticText } = loadDiagnosticRedaction();
+  const text = String.raw`{"api_key":"json-api-secret","session_id":"json-session-secret","private_key":"json-private-secret","authorization":"Bearer json-bearer-secret"}`;
+
+  const redacted = redactDiagnosticText(text);
+
+  assert.match(redacted, /\[redacted\]/);
+  assert.doesNotMatch(redacted, /json-api-secret|json-session-secret|json-private-secret|json-bearer-secret/);
+});

@@ -54,8 +54,36 @@ fn append_line(paths: &AppPaths, level: &str, scope: &str, message: &str) -> DbR
 }
 
 fn redact_key_values(value: &str) -> String {
+    let without_json_authorization =
+        authorization_json_secret_regex().replace_all(value, |captures: &Captures| {
+            format!(
+                "{}{}{}{}{}{}{}",
+                &captures[1],
+                &captures[2],
+                &captures[3],
+                &captures[4],
+                &captures[5],
+                REDACTED,
+                &captures[6]
+            )
+        });
+    let without_json_secrets = secret_json_field_regex().replace_all(
+        &without_json_authorization,
+        |captures: &Captures| {
+            format!(
+                "{}{}{}{}{}{}{}",
+                &captures[1],
+                &captures[2],
+                &captures[3],
+                &captures[4],
+                &captures[5],
+                REDACTED,
+                &captures[6]
+            )
+        },
+    );
     let without_authorization = authorization_secret_regex()
-        .replace_all(value, |captures: &Captures| {
+        .replace_all(&without_json_secrets, |captures: &Captures| {
             format!("{}{}{}", &captures[1], &captures[2], REDACTED)
         });
     secret_key_value_regex()
@@ -63,6 +91,24 @@ fn redact_key_values(value: &str) -> String {
             format!("{}{}{}", &captures[1], &captures[2], REDACTED)
         })
         .into_owned()
+}
+
+fn authorization_json_secret_regex() -> &'static Regex {
+    static AUTHORIZATION_JSON_SECRET_REGEX: OnceLock<Regex> = OnceLock::new();
+    AUTHORIZATION_JSON_SECRET_REGEX.get_or_init(|| {
+        Regex::new(
+            r#"(?i)(["'])(authorization)(["'])(\s*:\s*)(["'])(?:Bearer\s+)?[^"'\r\n]*(["'])"#,
+        )
+        .expect("valid JSON authorization redaction regex")
+    })
+}
+
+fn secret_json_field_regex() -> &'static Regex {
+    static SECRET_JSON_FIELD_REGEX: OnceLock<Regex> = OnceLock::new();
+    SECRET_JSON_FIELD_REGEX.get_or_init(|| {
+        Regex::new(r#"(?i)(["'])(api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|auth[_-]?token|id[_-]?token|private[_-]?key|signing[_-]?key|session(?:[_-]?id)?|cookie|jwt|secret|token|password)(["'])(\s*:\s*)(["'])[^"'\r\n]*(["'])"#)
+            .expect("valid JSON secret field redaction regex")
+    })
 }
 
 fn authorization_secret_regex() -> &'static Regex {
@@ -133,6 +179,18 @@ mod tests {
         assert!(!redacted.contains("private-key"));
         assert!(!redacted.contains("plain-secret"));
         assert!(!redacted.contains("bearer-secret"));
+    }
+
+    #[test]
+    fn redacts_json_style_secret_fields() {
+        let text = r#"{"api_key":"json-api-secret","session_id":"json-session-secret","private_key":"json-private-secret","authorization":"Bearer json-bearer-secret"}"#;
+        let redacted = redact_sensitive_text(text);
+
+        assert!(redacted.contains("[redacted]"));
+        assert!(!redacted.contains("json-api-secret"));
+        assert!(!redacted.contains("json-session-secret"));
+        assert!(!redacted.contains("json-private-secret"));
+        assert!(!redacted.contains("json-bearer-secret"));
     }
 
     #[test]
