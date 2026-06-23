@@ -50,6 +50,7 @@ test('default source budgets cover frontend, Rust service, and smoke runner hot 
     'src/app/AppRoutes.tsx',
     'src/app/appNavigation.ts',
     'src/app/useAppController.ts',
+    'src/app/useAppNavigationController.ts',
     'src/app/useAppKeyboardShortcuts.ts',
     'src/app/useAppThemeSettings.ts',
     'src/services/mockStore.ts',
@@ -121,7 +122,8 @@ test('app companion budgets keep entry chrome, routes, and hooks small', () => {
     ['AppErrorBoundary.tsx', 120],
     ['AppRoutes.tsx', 120],
     ['appNavigation.ts', 80],
-    ['useAppController.ts', 180],
+    ['useAppController.ts', 90],
+    ['useAppNavigationController.ts', 140],
     ['useAppKeyboardShortcuts.ts', 80],
     ['useAppThemeSettings.ts', 120],
   ]) {
@@ -130,6 +132,20 @@ test('app companion budgets keep entry chrome, routes, and hooks small', () => {
     assert.ok(budget, fileName);
     assert.ok(budget.maxLines <= maxLines, fileName);
   }
+});
+
+test('app controller delegates navigation state to a focused hook', () => {
+  const controller = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'app', 'useAppController.ts'), 'utf8');
+  const navigationController = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'app', 'useAppNavigationController.ts'), 'utf8');
+
+  assert.match(controller, /import \{ useAppNavigationController \} from '\.\/useAppNavigationController';/);
+  assert.match(controller, /const navigation = useAppNavigationController\(\);/);
+  assert.doesNotMatch(controller, /useState</);
+  assert.doesNotMatch(controller, /readInitialView/);
+  assert.match(navigationController, /export function useAppNavigationController/);
+  assert.match(navigationController, /readInitialView/);
+  assert.match(navigationController, /mikavn\.currentView/);
+  assert.match(navigationController, /useAppKeyboardShortcuts/);
 });
 
 test('library page budget keeps library orchestration small', () => {

@@ -124,14 +124,14 @@ test('startup update notice keeps backup actions visible after failed installs',
 test('startup update notice links failed update backups to database restore workflow', () => {
   const notice = read('src/app/AppUpdateNotice.tsx');
   const app = read('src/app/App.tsx');
-  const controller = read('src/app/useAppController.ts');
+  const appControllerSource = `${read('src/app/useAppController.ts')}\n${read('src/app/useAppNavigationController.ts')}`;
 
   assert.match(notice, /onOpenDatabaseRestore/);
   assert.match(notice, /去恢复数据库/);
   assert.match(notice, /backupInfo && error/);
   assert.match(app, /onOpenDatabaseRestore=\{app\.openDatabaseRestore\}/);
-  assert.match(controller, /openDatabaseRestore/);
-  assert.match(controller, /openSettings\('local', 'database-restore'\)/);
+  assert.match(appControllerSource, /openDatabaseRestore/);
+  assert.match(appControllerSource, /openSettings\('local', 'database-restore'\)/);
 });
 
 test('startup updater prevents duplicate install requests while an install is in flight', () => {

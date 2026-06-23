@@ -40,7 +40,12 @@ const DEFAULT_SOURCE_BUDGETS = [
   {
     filePath: path.resolve(__dirname, '..', '..', 'src', 'app', 'useAppController.ts'),
     maxBytes: 32 * 1024,
-    maxLines: 180,
+    maxLines: 90,
+  },
+  {
+    filePath: path.resolve(__dirname, '..', '..', 'src', 'app', 'useAppNavigationController.ts'),
+    maxBytes: 24 * 1024,
+    maxLines: 140,
   },
   {
     filePath: path.resolve(__dirname, '..', '..', 'src', 'services', 'mockStore.ts'),
