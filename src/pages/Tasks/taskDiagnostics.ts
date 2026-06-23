@@ -1,4 +1,5 @@
 import type { TaskLogEntry, TaskRecord } from '@/types/task';
+import { redactDiagnosticText } from '@/utils/diagnosticRedaction';
 import { taskLabel, taskStatusLabel } from '@/utils/taskLabels';
 import { formatDateTime } from '@/utils/time';
 
@@ -28,7 +29,7 @@ export function buildTaskDiagnosticMarkdown(task: TaskRecord, logs: TaskLogEntry
     }
   }
 
-  return `${lines.join('\n')}\n`;
+  return redactDiagnosticText(`${lines.join('\n')}\n`);
 }
 
 export function taskDiagnosticSuggestions(task: TaskRecord, logs: TaskLogEntry[] = []) {

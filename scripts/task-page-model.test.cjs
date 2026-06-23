@@ -39,6 +39,53 @@ function loadTaskPageModel() {
   return module.exports;
 }
 
+function loadDiagnosticRedaction() {
+  const sourcePath = path.join(__dirname, '..', 'src', 'utils', 'diagnosticRedaction.ts');
+  const source = fs.readFileSync(sourcePath, 'utf8');
+  const transpiled = ts.transpileModule(source, {
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2022,
+      esModuleInterop: true,
+    },
+  }).outputText;
+
+  const module = { exports: {} };
+  const fn = new Function('module', 'exports', transpiled);
+  fn(module, module.exports);
+  return module.exports;
+}
+
+function loadTaskDiagnostics() {
+  const sourcePath = path.join(__dirname, '..', 'src', 'pages', 'Tasks', 'taskDiagnostics.ts');
+  const source = fs.readFileSync(sourcePath, 'utf8');
+  const transpiled = ts.transpileModule(source, {
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2022,
+      esModuleInterop: true,
+    },
+  }).outputText;
+
+  const module = { exports: {} };
+  const localRequire = (specifier) => {
+    if (specifier === '@/utils/diagnosticRedaction') return loadDiagnosticRedaction();
+    if (specifier === '@/utils/taskLabels') {
+      return {
+        taskLabel: (taskType) => taskType,
+        taskStatusLabel: (status) => status,
+      };
+    }
+    if (specifier === '@/utils/time') {
+      return { formatDateTime: (value) => value };
+    }
+    throw new Error(`Unexpected require: ${specifier}`);
+  };
+  const fn = new Function('module', 'exports', 'require', transpiled);
+  fn(module, module.exports, localRequire);
+  return module.exports;
+}
+
 function task(overrides) {
   return {
     id: overrides.id,
@@ -124,6 +171,7 @@ test('deriveRecentResultTasks returns latest completed, failed, and cancelled ta
 test('task page exposes searchable per-task logs and copy actions', () => {
   const queuePanel = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Tasks', 'TaskQueuePanel.tsx'), 'utf8');
   const page = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Tasks', 'TasksPage.tsx'), 'utf8');
+  const actions = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Tasks', 'useTasksPageActions.ts'), 'utf8');
 
   assert.match(page, /logsByTask=\{tasksPage\.logsByTask\}/);
   assert.match(page, /onCopyTaskLog=\{\(log\) => void tasksPage\.copyTaskLog\(log\)\}/);
@@ -131,4 +179,32 @@ test('task page exposes searchable per-task logs and copy actions', () => {
   assert.match(queuePanel, /placeholder="搜索日志"/);
   assert.match(queuePanel, /matchesLogQuery\(log, logQuery\)/);
   assert.match(queuePanel, /title="复制任务日志"/);
+  assert.match(actions, /redactDiagnosticText/);
+  assert.match(actions, /navigator\.clipboard\.writeText\(redactDiagnosticText\(`/);
+});
+
+test('task diagnostic markdown redacts copied secrets and Windows user names', () => {
+  const { buildTaskDiagnosticMarkdown } = loadTaskDiagnostics();
+  const markdown = buildTaskDiagnosticMarkdown(
+    task({
+      id: 'private-task',
+      status: 'failed',
+      message: String.raw`任务失败 token:abc C:\Users\alice\AppData\Local\MikaVN\mikavn.db`,
+      error: 'password=hunter2 API_KEY=secret',
+    }),
+    [
+      {
+        id: 'log-secret',
+        taskId: 'private-task',
+        level: 'error',
+        message: 'authorization:BearerXYZ C:/Users/bob/AppData/Roaming/MikaVN/log.txt',
+        createdAt: '2026-01-01T00:00:00.000Z',
+      },
+    ],
+  );
+
+  assert.match(markdown, /\[redacted\]/);
+  assert.match(markdown, /C:\\Users\\\[user\]\\AppData/);
+  assert.match(markdown, /C:\/Users\/\[user\]\/AppData/);
+  assert.doesNotMatch(markdown, /abc|hunter2|secret|BearerXYZ|alice|bob/);
 });

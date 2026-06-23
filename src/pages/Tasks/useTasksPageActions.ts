@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { api } from '@/services/api';
 import type { TaskFilterPreset, TaskLogEntry, TaskRecord, TaskStatus } from '@/types/task';
+import { redactDiagnosticText } from '@/utils/diagnosticRedaction';
 import { errorMessage } from '@/utils/errorMessage';
 import { taskLabel } from '@/utils/taskLabels';
 import { formatDateTime } from '@/utils/time';
@@ -131,7 +132,7 @@ export function useTasksPageActions({ filterPreset, focusRequestKey = 0, focusTa
   const copyTaskLog = useCallback(async (log: TaskLogEntry) => {
     setError(null);
     try {
-      await navigator.clipboard.writeText(`${formatDateTime(log.createdAt)} ${levelLabel(log.level)} ${log.message}`);
+      await navigator.clipboard.writeText(redactDiagnosticText(`${formatDateTime(log.createdAt)} ${levelLabel(log.level)} ${log.message}`));
       setMessage('已复制任务日志。');
     } catch (reason) {
       setError(errorMessage(reason));
