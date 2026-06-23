@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { ConfigItem, ConfigSection } from '@/components/ui/config-item';
 import { Input } from '@/components/ui/input';
 import type { AppDataDiagnostics, LibraryArchivePreview } from '@/types/archive';
-import { databaseBackupCleanupPolicy, formatDatabaseBackupCleanupPolicy, shouldSuggestDatabaseBackupCleanup } from '@/utils/databaseBackupCleanupPolicy';
+import { databaseBackupCleanupPolicy, formatDatabaseBackupCleanupPolicy, getDatabaseBackupCleanupSuggestion } from '@/utils/databaseBackupCleanupPolicy';
 import { SettingFlag } from './SettingFlag';
 import { DirectoryLocation, Stat, dataDirSourceLabel, formatBytes, formatCount, type DirectoryLocationItem } from './SettingsPageParts';
 
@@ -70,7 +70,7 @@ export function SettingsLocalDataSection({
 }: SettingsLocalDataSectionProps) {
   const latestBackup = diagnostics?.databaseBackups.files[0] ?? null;
   const cleanupPolicyText = formatDatabaseBackupCleanupPolicy(databaseBackupCleanupPolicy);
-  const backupCleanupSuggested = shouldSuggestDatabaseBackupCleanup(diagnostics?.databaseBackups);
+  const backupCleanupSuggestion = getDatabaseBackupCleanupSuggestion(diagnostics?.databaseBackups);
 
   return (
     <ConfigSection title="本地数据">
@@ -97,9 +97,9 @@ export function SettingsLocalDataSection({
           <div className="text-xs text-slate-500">
             旧版更新保护备份 database-update-protection 也会计入数据库备份统计；清理仍只作用于应用管理的备份文件。
           </div>
-          {backupCleanupSuggested && (
+          {backupCleanupSuggestion && (
             <div className="text-xs text-amber-200">
-              备份占用偏大，建议清理旧备份；清理前会再次确认，并继续保留最新备份和近期备份。
+              备份占用偏大：当前 {formatCount(backupCleanupSuggestion.fileCount)} 个 · {formatBytes(backupCleanupSuggestion.totalBytes)}，建议清理旧备份；清理前会再次确认，并继续保留最新备份和近期备份。
             </div>
           )}
         </div>

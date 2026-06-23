@@ -2,11 +2,27 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
+const ts = require('typescript');
 
 const repoRoot = path.resolve(__dirname, '..');
 
 function read(relativePath) {
   return fs.readFileSync(path.join(repoRoot, relativePath), 'utf8');
+}
+
+function loadDatabaseBackupCleanupPolicy() {
+  const source = read('src/utils/databaseBackupCleanupPolicy.ts');
+  const transpiled = ts.transpileModule(source, {
+    compilerOptions: {
+      esModuleInterop: true,
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2022,
+    },
+  }).outputText;
+  const module = { exports: {} };
+  const fn = new Function('module', 'exports', transpiled);
+  fn(module, module.exports);
+  return module.exports;
 }
 
 test('local data settings exposes clear backup and restore entry', () => {
@@ -78,10 +94,31 @@ test('local data settings highlights large database backup storage before cleanu
   assert.match(policy, /warnFileCount:\s*20/);
   assert.match(policy, /warnTotalBytes:\s*1024 \* 1024 \* 1024/);
   assert.match(policy, /shouldSuggestDatabaseBackupCleanup/);
-  assert.match(section, /shouldSuggestDatabaseBackupCleanup\(diagnostics\?\.databaseBackups\)/);
+  assert.match(policy, /getDatabaseBackupCleanupSuggestion/);
+  assert.match(section, /getDatabaseBackupCleanupSuggestion\(diagnostics\?\.databaseBackups\)/);
+  assert.match(section, /formatCount\(backupCleanupSuggestion\.fileCount\)/);
+  assert.match(section, /formatBytes\(backupCleanupSuggestion\.totalBytes\)/);
   assert.match(section, /备份占用偏大/);
   assert.match(section, /建议清理旧备份/);
   assert.match(section, /清理旧备份/);
+});
+
+test('database backup cleanup suggestion preserves concrete count and size evidence', () => {
+  const { getDatabaseBackupCleanupSuggestion } = loadDatabaseBackupCleanupPolicy();
+
+  assert.equal(getDatabaseBackupCleanupSuggestion({ fileCount: 20, totalBytes: 1024 * 1024 * 1024 }), null);
+  assert.deepEqual(getDatabaseBackupCleanupSuggestion({ fileCount: 49, totalBytes: 2246991872 }), {
+    fileCount: 49,
+    totalBytes: 2246991872,
+    overFileCount: true,
+    overTotalBytes: true,
+  });
+  assert.deepEqual(getDatabaseBackupCleanupSuggestion({ fileCount: 2, totalBytes: 2 * 1024 * 1024 * 1024 }), {
+    fileCount: 2,
+    totalBytes: 2 * 1024 * 1024 * 1024,
+    overFileCount: false,
+    overTotalBytes: true,
+  });
 });
 
 test('settings top-level local tab advertises backup access', () => {
