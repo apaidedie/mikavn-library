@@ -208,9 +208,15 @@ function compareSemanticVersions(left, right) {
 }
 
 function lowerVersionUpdaterRehearsalFromReport(report, expectedCurrentVersion) {
-  const match = /Lower-version updater rehearsal:\s*passed\.[^\r\n]*previous version:\s*(v?\d+\.\d+\.\d+)[^\r\n]*current version:\s*(v?\d+\.\d+\.\d+)/i.exec(report);
+  const lineMatch = /^.*Lower-version updater rehearsal:\s*passed\.[^\r\n]*$/im.exec(report);
+  const line = lineMatch?.[0] ?? '';
+  const match = /Lower-version updater rehearsal:\s*passed\.[^\r\n]*previous version:\s*(v?\d+\.\d+\.\d+)[^\r\n]*current version:\s*(v?\d+\.\d+\.\d+)/i.exec(line);
   if (!match) {
     throw new Error('release validation report must record lower-version updater rehearsal previous and current semantic versions');
+  }
+  const normalizedLine = line.toLowerCase();
+  if (!normalizedLine.includes('restart') || !normalizedLine.includes('app-data')) {
+    throw new Error('release validation report must record lower-version updater rehearsal restart and app-data verification');
   }
   const previousVersion = parseSemanticVersion(match[1], 'previous version');
   const currentVersion = parseSemanticVersion(match[2], 'current version');

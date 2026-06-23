@@ -569,6 +569,21 @@ test('checkReleaseHandoff requires lower-version updater rehearsal evidence in t
   );
 });
 
+test('checkReleaseHandoff requires lower-version updater rehearsal to verify app-data after restart', () => {
+  const { releaseDir } = createHandoff();
+  const reportPath = path.join(releaseDir, 'RELEASE_VALIDATION_REPORT.md');
+  const report = fs.readFileSync(reportPath, 'utf8');
+  fs.writeFileSync(
+    reportPath,
+    report.replace(/Updated through the in-app updater, restarted, and verified app-data\./, 'Updated through the in-app updater.'),
+  );
+
+  assert.throws(
+    () => checkReleaseHandoff({ releaseDir }),
+    /release validation report must record lower-version updater rehearsal restart and app-data verification/,
+  );
+});
+
 test('checkReleaseHandoff requires diagnostic export and startup self-check evidence in the validation report', () => {
   const { releaseDir } = createHandoff();
   const reportPath = path.join(releaseDir, 'RELEASE_VALIDATION_REPORT.md');
