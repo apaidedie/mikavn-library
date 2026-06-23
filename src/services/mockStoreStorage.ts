@@ -9,6 +9,7 @@ export const PLAY_SESSIONS_KEY = 'mikavn-library.mock.playSessions';
 export const SCAN_TASKS_KEY = 'mikavn-library.mock.scanTasks';
 export const TASKS_KEY = 'mikavn-library.mock.tasks';
 export const TASK_LOGS_KEY = 'mikavn-library.mock.taskLogs';
+export const TASK_RETRY_PAYLOADS_KEY = 'mikavn-library.mock.taskRetryPayloads';
 export const LAUNCH_PROFILES_KEY = 'mikavn-library.mock.launchProfiles';
 export const FIELD_LOCKS_KEY = 'mikavn-library.mock.fieldLocks';
 export const COLLECTIONS_KEY = 'mikavn-library.mock.collections';

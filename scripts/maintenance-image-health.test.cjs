@@ -84,7 +84,6 @@ function taskDetail(logMessages) {
       progress: 1,
       message: '简介图片修复完成',
       error: null,
-      retryPayload: null,
       retryable: true,
       createdAt: '2026-01-01T00:00:00.000Z',
       updatedAt: '2026-01-01T00:00:00.000Z',

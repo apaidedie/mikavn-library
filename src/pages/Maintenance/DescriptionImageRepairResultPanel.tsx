@@ -147,13 +147,10 @@ function descriptionImageRepairTaskFallback(task: TaskRecord, logs: TaskLogEntry
   if (!needsAttentionTask(task)) return [];
   const pendingItems = descriptionImageRepairPendingLogItems(logs, sourceIndex, task.error || task.message || '任务在生成逐条修复明细前结束。');
   if (pendingItems.length > 0) return pendingItems;
-  const payload = parseRetryPayload(task.retryPayload);
-  const provider = payload?.provider && String(payload.provider).trim() ? String(payload.provider).trim().toLowerCase() : 'task';
-  const providerId = payload?.providerId && String(payload.providerId).trim() ? String(payload.providerId).trim() : task.id;
   return [{
     status: 'failed',
-    provider,
-    providerId,
+    provider: 'task',
+    providerId: task.id,
     title: taskLabel(task.taskType),
     gameId: null,
     message: task.error || task.message || '任务在生成逐条修复明细前结束。',
@@ -298,16 +295,6 @@ function buildDescriptionSourceIndex(games: Game[]) {
 
 function descriptionSourceKey(provider: string, providerId: string) {
   return `${provider.trim().toLowerCase()}:${providerId.trim().toLowerCase()}`;
-}
-
-function parseRetryPayload(value?: string | null): Record<string, unknown> | null {
-  if (!value) return null;
-  try {
-    const parsed = JSON.parse(value) as unknown;
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as Record<string, unknown> : null;
-  } catch {
-    return null;
-  }
 }
 
 function needsAttentionTask(task: TaskRecord) {

@@ -212,6 +212,35 @@ mod tests {
     }
 
     #[test]
+    fn task_retry_payload_is_not_serialized_to_ui_records() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch("PRAGMA foreign_keys = ON;").unwrap();
+        let db = Database { conn };
+        db.migrate().unwrap();
+
+        let task = db
+            .create_task_with_payload(
+                "library.scan",
+                Some("Scanning".to_string()),
+                Some(r#"{"path":"D:\Games\Private","apiKey":"secret-token"}"#.to_string()),
+                true,
+            )
+            .unwrap();
+        let stored = db.get_task(&task.id).unwrap();
+        assert!(stored
+            .retry_payload
+            .as_deref()
+            .unwrap()
+            .contains(r"D:\Games\Private"));
+
+        let serialized = serde_json::to_value(&stored).unwrap();
+        assert!(serialized.get("retryPayload").is_none());
+        let serialized_text = serialized.to_string();
+        assert!(!serialized_text.contains("D:\\Games\\Private"));
+        assert!(!serialized_text.contains("secret-token"));
+    }
+
+    #[test]
     fn task_messages_and_logs_are_redacted() {
         let conn = Connection::open_in_memory().unwrap();
         conn.execute_batch("PRAGMA foreign_keys = ON;").unwrap();

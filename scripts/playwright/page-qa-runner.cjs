@@ -58,6 +58,13 @@ async function seed(page, view, overrides = {}) {
   }, { nextView: view, data: mockData(overrides) });
 }
 
+async function readTaskRetryPayload(page, task) {
+  return page.evaluate((taskId) => {
+    const payloads = JSON.parse(localStorage.getItem('mikavn-library.mock.taskRetryPayloads') || '{}');
+    return JSON.parse(payloads?.[taskId] || '{}');
+  }, task?.id ?? null);
+}
+
 async function waitForApp(page) {
   await page.waitForSelector('body', { timeout: 10000 });
   await page.waitForFunction(() => /MikaVN|游戏|任务|搜索|设置|存档|扫描|报告|合集|维护|Library/i.test(document.body.innerText), null, { timeout: 10000 });
@@ -695,7 +702,7 @@ async function main() {
         const repairTasks = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.tasks') || '[]'));
         const repairTask = repairTasks.find((task) => task.taskType === 'metadata.description_image_repair');
         if (!repairTask || repairTask.status !== 'completed' || !repairTask.retryable) throw new Error('description image repair did not create a retryable completed task');
-        const repairPayload = JSON.parse(repairTask.retryPayload || '{}');
+        const repairPayload = await readTaskRetryPayload(page, repairTask);
         if (repairPayload.provider !== 'all' || repairPayload.maxImages !== 3) throw new Error('description image repair task did not persist retry options');
         const repairLogs = await page.evaluate((taskId) => JSON.parse(localStorage.getItem('mikavn-library.mock.taskLogs') || '{}')[taskId] || [], repairTask.id);
         if (!repairLogs.some((log) => /dlsite:RJ01000001/.test(log.message))) throw new Error('description image repair task log did not record the provider candidate');
@@ -1228,7 +1235,7 @@ async function main() {
       await page.getByText('警告').first().waitFor({ timeout: 5000 });
       const cancelledTasks = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.tasks') || '[]'));
       const cancelledTask = cancelledTasks.find((task) => task.id === 'qa-task-running');
-      const cancelledPayload = JSON.parse(cancelledTask?.retryPayload || '{}');
+      const cancelledPayload = await readTaskRetryPayload(page, cancelledTask);
       if (cancelledTask?.status !== 'cancelled' || cancelledPayload.gameIds?.join(',') !== 'qa-1,qa-2') throw new Error('task page cancel did not preserve the original retry payload');
       const cancelledMetadataRow = page.locator('.motion-soft-row').filter({ hasText: '批量元数据匹配' }).filter({ hasText: '任务已取消' }).first();
       await cancelledMetadataRow.getByRole('button', { name: /重试/ }).click();
@@ -1236,7 +1243,7 @@ async function main() {
       await page.getByText(/批量匹配完成：2 个条目/).first().waitFor({ timeout: 5000 });
       const retriedBatchTasks = await page.evaluate(() => JSON.parse(localStorage.getItem('mikavn-library.mock.tasks') || '[]'));
       const retriedBatchTask = retriedBatchTasks.find((task) => task.taskType === 'metadata.batch_match' && /批量匹配完成：2 个条目/.test(task.message ?? ''));
-      const retriedBatchPayload = JSON.parse(retriedBatchTask?.retryPayload || '{}');
+      const retriedBatchPayload = await readTaskRetryPayload(page, retriedBatchTask);
       if (!retriedBatchTask?.retryable || retriedBatchPayload.gameIds?.join(',') !== 'qa-1,qa-2') throw new Error('task page retry did not recreate the batch match task with the original game IDs');
     });
   } finally {

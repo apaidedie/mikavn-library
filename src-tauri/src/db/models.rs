@@ -783,6 +783,7 @@ pub struct TaskRecord {
     pub progress: f64,
     pub message: Option<String>,
     pub error: Option<String>,
+    #[serde(skip_serializing)]
     pub retry_payload: Option<String>,
     pub retryable: bool,
     pub created_at: String,

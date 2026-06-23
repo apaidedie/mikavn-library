@@ -102,15 +102,22 @@ const brokenMediaReferenceGame = {
 };
 const brokenMediaReferenceAsset = { id: 'qa-broken-media-asset', gameId: 'qa-broken-media-ref', assetType: 'audit_only', uri: 'D:\\Playnite\\library\\files\\missing-banner.jpg', source: 'mock', isPrimary: false, createdAt: now, updatedAt: now };
 const tasks = [
-  { id: 'qa-task-failed', taskType: 'library.scan', status: 'failed', progress: 1, message: '扫描失败：路径不存在', error: 'PATH_NOT_FOUND: D:\\Missing', retryPayload: JSON.stringify({ path: 'D:\\Missing', recursive: true }), retryable: true, createdAt: now, updatedAt: now },
-  { id: 'qa-task-running', taskType: 'metadata.batch_match', status: 'running', progress: 0.42, message: '正在匹配 2 个游戏', error: null, retryPayload: JSON.stringify({ gameIds: ['qa-1', 'qa-2'] }), retryable: true, createdAt: tenMinutesAgo, updatedAt: now },
-  { id: 'qa-task-maintenance-failed', taskType: 'metadata.artwork_repair', status: 'failed', progress: 1, message: '媒体补图失败：来源无响应', error: 'PROVIDER_TIMEOUT: VNDB', retryPayload: JSON.stringify({ providers: ['all'], fields: ['cover', 'banner', 'background'], limit: 20 }), retryable: true, createdAt: tenMinutesAgo, updatedAt: now },
+  { id: 'qa-task-failed', taskType: 'library.scan', status: 'failed', progress: 1, message: '扫描失败：路径不存在', error: 'PATH_NOT_FOUND: D:\\Missing', retryable: true, createdAt: now, updatedAt: now },
+  { id: 'qa-task-running', taskType: 'metadata.batch_match', status: 'running', progress: 0.42, message: '正在匹配 2 个游戏', error: null, retryable: true, createdAt: tenMinutesAgo, updatedAt: now },
+  { id: 'qa-task-maintenance-failed', taskType: 'metadata.artwork_repair', status: 'failed', progress: 1, message: '媒体补图失败：来源无响应', error: 'PROVIDER_TIMEOUT: VNDB', retryable: true, createdAt: tenMinutesAgo, updatedAt: now },
 ];
 const descriptionImageRepairFailedTask = {
-  id: 'qa-task-description-image-failed', taskType: 'metadata.description_image_repair', status: 'failed', progress: 1, message: '简介图片修复失败：DLsite 暂不可用', error: 'PROVIDER_TIMEOUT: DLsite', retryPayload: JSON.stringify({ provider: 'all', limit: 20, maxImages: 3 }), retryable: true, createdAt: tenMinutesAgo, updatedAt: now,
+  id: 'qa-task-description-image-failed', taskType: 'metadata.description_image_repair', status: 'failed', progress: 1, message: '简介图片修复失败：DLsite 暂不可用', error: 'PROVIDER_TIMEOUT: DLsite', retryable: true, createdAt: tenMinutesAgo, updatedAt: now,
 };
 const fanzaDescriptionImageRepairTask = {
-  id: 'qa-task-description-image-fanza', taskType: 'metadata.description_image_repair', status: 'completed', progress: 1, message: '简介图片修复完成：更新 1 个条目，插入 1 张图片，跳过 0 个，失败 0 个。', error: null, retryPayload: JSON.stringify({ provider: 'fanza', limit: 20, maxImages: 3 }), retryable: true, createdAt: tenMinutesAgo, updatedAt: now,
+  id: 'qa-task-description-image-fanza', taskType: 'metadata.description_image_repair', status: 'completed', progress: 1, message: '简介图片修复完成：更新 1 个条目，插入 1 张图片，跳过 0 个，失败 0 个。', error: null, retryable: true, createdAt: tenMinutesAgo, updatedAt: now,
+};
+const taskRetryPayloads = {
+  'qa-task-failed': JSON.stringify({ path: 'D:\\Missing', recursive: true }),
+  'qa-task-running': JSON.stringify({ gameIds: ['qa-1', 'qa-2'] }),
+  'qa-task-maintenance-failed': JSON.stringify({ providers: ['all'], fields: ['cover', 'banner', 'background'], limit: 20 }),
+  'qa-task-description-image-failed': JSON.stringify({ provider: 'all', limit: 20, maxImages: 3 }),
+  'qa-task-description-image-fanza': JSON.stringify({ provider: 'fanza', limit: 20, maxImages: 3 }),
 };
 const taskLogs = {
   'qa-task-failed': [
@@ -157,6 +164,7 @@ function mockData(overrides = {}) {
   return {
     'mikavn-library.mock.games': overrides.games ?? games,
     'mikavn-library.mock.tasks': overrides.tasks ?? tasks,
+    'mikavn-library.mock.taskRetryPayloads': overrides.taskRetryPayloads ?? taskRetryPayloads,
     'mikavn-library.mock.taskLogs': overrides.taskLogs ?? taskLogs,
     'mikavn-library.mock.savePaths': overrides.savePaths ?? savePaths,
     'mikavn-library.mock.saveBackups': overrides.saveBackups ?? saveBackups,
@@ -185,5 +193,6 @@ module.exports = {
   secondaryExternalIdCompleteGame,
   settings,
   taskLogs,
+  taskRetryPayloads,
   tasks,
 };

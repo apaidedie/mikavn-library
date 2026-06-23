@@ -124,14 +124,12 @@ function ArtworkCompactStat({ label, value, tone = 'neutral' }: { label: string;
 
 function artworkRepairTaskFallback(task: TaskRecord): ArtworkRepairLogSummary[] {
   if (!needsAttentionTask(task)) return [];
-  const payload = parseRetryPayload(task.retryPayload);
-  const fields = Array.isArray(payload?.fields) ? payload.fields.map(String).filter(Boolean) : [];
   return [{
     status: 'failed',
     title: task.message || taskLabel(task.taskType),
     gameId: null,
     message: task.error || task.message || '任务在生成逐条补图明细前结束。',
-    fields,
+    fields: [],
   }];
 }
 
@@ -198,16 +196,6 @@ function splitArtworkFields(value: string) {
     .split(/[\/、，,]/)
     .map((field) => field.trim())
     .filter(Boolean);
-}
-
-function parseRetryPayload(value?: string | null): Record<string, unknown> | null {
-  if (!value) return null;
-  try {
-    const parsed = JSON.parse(value) as unknown;
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as Record<string, unknown> : null;
-  } catch {
-    return null;
-  }
 }
 
 function needsAttentionTask(task: TaskRecord) {

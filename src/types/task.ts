@@ -9,7 +9,6 @@ export type TaskRecord = {
   progress: number;
   message?: string | null;
   error?: string | null;
-  retryPayload?: string | null;
   retryable?: boolean;
   createdAt: string;
   updatedAt: string;

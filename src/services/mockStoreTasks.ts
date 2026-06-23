@@ -1,12 +1,38 @@
 import type { TaskDetail, TaskLogEntry, TaskRecord } from '@/types/task';
-import { TASKS_KEY, TASK_LOGS_KEY, readJson, writeJson } from './mockStoreStorage';
+import { TASKS_KEY, TASK_LOGS_KEY, TASK_RETRY_PAYLOADS_KEY, readJson, writeJson } from './mockStoreStorage';
 
 export function readTasks() {
-  return readJson<TaskRecord[]>(TASKS_KEY, []);
+  const stored = readJson<StoredTaskRecord[]>(TASKS_KEY, []);
+  const retryPayloads = readTaskRetryPayloads();
+  let migrated = false;
+  const tasks = stored.map((task) => {
+    const { retryPayload, ...publicTask } = task;
+    if (retryPayload) {
+      retryPayloads[task.id] = retryPayload;
+      migrated = true;
+    }
+    return publicTask;
+  });
+  if (migrated) {
+    writeJson(TASK_RETRY_PAYLOADS_KEY, retryPayloads);
+    writeJson(TASKS_KEY, tasks);
+  }
+  return tasks;
 }
 
-export function writeTasks(tasks: TaskRecord[]) {
-  writeJson(TASKS_KEY, tasks);
+export function writeTasks(tasks: StoredTaskRecord[]) {
+  const retryPayloads = readTaskRetryPayloads();
+  const publicTasks = tasks.map((task) => {
+    const { retryPayload, ...publicTask } = task;
+    if (retryPayload) retryPayloads[task.id] = retryPayload;
+    return publicTask;
+  });
+  const activeTaskIds = new Set(publicTasks.map((task) => task.id));
+  for (const taskId of Object.keys(retryPayloads)) {
+    if (!activeTaskIds.has(taskId)) delete retryPayloads[taskId];
+  }
+  writeJson(TASK_RETRY_PAYLOADS_KEY, retryPayloads);
+  writeJson(TASKS_KEY, publicTasks);
 }
 
 export function addTaskLog(taskId: string, level: TaskLogEntry['level'], message: string) {
@@ -26,8 +52,29 @@ export function readTaskLogs(taskId: string) {
   return readJson<Record<string, TaskLogEntry[]>>(TASK_LOGS_KEY, {})[taskId] ?? [];
 }
 
-function recordTask(task: TaskRecord, logs: string[] = []) {
+type StoredTaskRecord = TaskRecord & { retryPayload?: string | null };
+
+export function readTaskRetryPayload(taskId: string) {
+  return readTaskRetryPayloads()[taskId] ?? null;
+}
+
+function readTaskRetryPayloads() {
+  return readJson<Record<string, string>>(TASK_RETRY_PAYLOADS_KEY, {});
+}
+
+function writeTaskRetryPayload(taskId: string, retryPayload?: string | null) {
+  const retryPayloads = readTaskRetryPayloads();
+  if (retryPayload?.trim()) {
+    retryPayloads[taskId] = retryPayload;
+  } else {
+    delete retryPayloads[taskId];
+  }
+  writeJson(TASK_RETRY_PAYLOADS_KEY, retryPayloads);
+}
+
+function recordTask(task: TaskRecord, logs: string[] = [], retryPayload?: string | null) {
   writeTasks([task, ...readTasks().filter((item) => item.id !== task.id)].slice(0, 100));
+  writeTaskRetryPayload(task.id, retryPayload);
   for (const log of logs) addTaskLog(task.id, task.status === 'failed' ? 'error' : 'info', log);
   return task;
 }
@@ -49,11 +96,10 @@ export function makeTask(input: {
     progress: input.progress ?? 1,
     message: input.message ?? null,
     error: input.error ?? null,
-    retryPayload: input.retryPayload ?? null,
     retryable: input.retryable ?? false,
     createdAt: now,
     updatedAt: now,
-  }, [input.message ?? '任务已记录'].filter(Boolean) as string[]);
+  }, [input.message ?? '任务已记录'].filter(Boolean) as string[], input.retryPayload);
 }
 
 export function reportGapSummaryLog(content: string) {

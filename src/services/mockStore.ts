@@ -22,7 +22,7 @@ import { createMockStoreSaves } from './mockStoreSaves';
 import { createMockStoreSettings } from './mockStoreSettings';
 import { FIELD_LOCKS_KEY, STORAGE_KEY, readJson } from './mockStoreStorage';
 import { createMockStoreTags } from './mockStoreTags';
-import { createMockStoreTaskQueries } from './mockStoreTasks';
+import { createMockStoreTaskQueries, readTaskRetryPayload } from './mockStoreTasks';
 
 function readGames() {
   const raw = localStorage.getItem(STORAGE_KEY);
@@ -199,9 +199,10 @@ export const mockStore = {
 
   async retryTask(id: string): Promise<TaskRecord> {
     const task = await this.getTask(id);
-    if (!task.retryable || !task.retryPayload) return Promise.reject(new Error('Task is not retryable'));
+    const retryPayload = readTaskRetryPayload(id);
+    if (!task.retryable || !retryPayload) return Promise.reject(new Error('Task is not retryable'));
     if (task.status !== 'failed' && task.status !== 'cancelled') return Promise.reject(new Error('Only failed or cancelled tasks can be retried'));
-    const payload = JSON.parse(task.retryPayload) as Record<string, unknown>;
+    const payload = JSON.parse(retryPayload) as Record<string, unknown>;
     if (task.taskType === 'library.scan') return this.startScanTask(String(payload.path ?? ''), Boolean(payload.recursive));
     if (task.taskType === 'database.backup') return this.backupDatabase(String(payload.path ?? ''));
     if (task.taskType === 'library.archive_export') return this.exportLibraryArchive({

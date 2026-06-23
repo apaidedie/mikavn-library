@@ -32,8 +32,11 @@ const assets = [
   { id: 'qa-asset-shot', gameId: 'qa-1', assetType: 'screenshot', uri: hero, source: 'mock', isPrimary: false, createdAt: now, updatedAt: now },
 ];
 const tasks = [
-  { id: 'qa-task-failed', taskType: 'library.scan', status: 'failed', progress: 1, message: '扫描失败：路径不存在', error: 'PATH_NOT_FOUND: D:\\Missing', retryPayload: JSON.stringify({ path: 'D:\\Missing', recursive: true }), retryable: true, createdAt: now, updatedAt: now },
+  { id: 'qa-task-failed', taskType: 'library.scan', status: 'failed', progress: 1, message: '扫描失败：路径不存在', error: 'PATH_NOT_FOUND: D:\\Missing', retryable: true, createdAt: now, updatedAt: now },
 ];
+const taskRetryPayloads = {
+  'qa-task-failed': JSON.stringify({ path: 'D:\\Missing', recursive: true }),
+};
 const taskLogs = {
   'qa-task-failed': [
     { id: 'log-1', taskId: 'qa-task-failed', level: 'info', message: '开始扫描 D:\\Missing', createdAt: now },
@@ -54,6 +57,7 @@ const settings = {
 const initialData = {
   'mikavn-library.mock.games': games,
   'mikavn-library.mock.tasks': tasks,
+  'mikavn-library.mock.taskRetryPayloads': taskRetryPayloads,
   'mikavn-library.mock.taskLogs': taskLogs,
   'mikavn-library.mock.savePaths': savePaths,
   'mikavn-library.mock.saveBackups': saveBackups,
@@ -99,6 +103,11 @@ async function navigate(page, view) {
 
 async function getStorage(page, key) {
   return page.evaluate((storageKey) => JSON.parse(localStorage.getItem(storageKey) || 'null'), key);
+}
+
+async function getTaskRetryPayload(page, task) {
+  const payloads = await getStorage(page, 'mikavn-library.mock.taskRetryPayloads');
+  return JSON.parse(payloads?.[task?.id] || '{}');
 }
 
 function importAuditFilter(page) {
@@ -262,7 +271,7 @@ async function main() {
     await expectText(page, /数据库备份任务已创建/);
     const afterDatabaseBackupTasks = await getStorage(page, 'mikavn-library.mock.tasks');
     const databaseBackupTask = afterDatabaseBackupTasks.find((item) => item.taskType === 'database.backup');
-    const databaseBackupPayload = JSON.parse(databaseBackupTask?.retryPayload || '{}');
+    const databaseBackupPayload = await getTaskRetryPayload(page, databaseBackupTask);
     if (!databaseBackupTask?.retryable || databaseBackupPayload.path !== 'mikavn-backup-' + now.slice(0, 10) + '.db') throw new Error('database backup task did not persist retry options for the selected target path');
     await page.getByRole('button', { name: /恢复数据库/ }).click();
     await expectText(page, /数据库恢复任务已创建/);
@@ -275,7 +284,7 @@ async function main() {
     await expectText(page, /库归档完整恢复任务已创建/);
     const afterArchiveRestoreTasks = await getStorage(page, 'mikavn-library.mock.tasks');
     const archiveRestoreTask = afterArchiveRestoreTasks.find((item) => item.taskType === 'library.archive_restore');
-    const archiveRestorePayload = JSON.parse(archiveRestoreTask?.retryPayload || '{}');
+    const archiveRestorePayload = await getTaskRetryPayload(page, archiveRestoreTask);
     if (!archiveRestoreTask?.retryable || archiveRestorePayload.archiveDir !== 'D:\\MikaVN-Smoke-Archive' || archiveRestorePayload.restoreImages !== true || archiveRestorePayload.restoreSaveBackups !== false) throw new Error('archive restore task did not persist retry options for the selected restore scope');
     const beforeArchiveImportGames = await getStorage(page, 'mikavn-library.mock.games');
     const starTitleCountBeforeArchiveImport = beforeArchiveImportGames.filter((item) => item.title === '星之终途').length;
@@ -286,19 +295,19 @@ async function main() {
     if (afterArchiveImportGames.filter((item) => item.title === '星之终途').length !== starTitleCountBeforeArchiveImport) throw new Error('archive import should skip conflicting existing game records');
     const afterArchiveImportTasks = await getStorage(page, 'mikavn-library.mock.tasks');
     const archiveImportTask = afterArchiveImportTasks.find((item) => item.taskType === 'library.archive_import');
-    const archiveImportPayload = JSON.parse(archiveImportTask?.retryPayload || '{}');
+    const archiveImportPayload = await getTaskRetryPayload(page, archiveImportTask);
     if (!archiveImportTask?.retryable || archiveImportPayload.archiveDir !== 'D:\\MikaVN-Smoke-Archive') throw new Error('archive import task did not persist retry options for the selected archive path');
     await page.getByRole('button', { name: /^导出归档$/ }).click();
     await expectText(page, /库归档导出任务已创建/);
     const afterArchiveExportTasks = await getStorage(page, 'mikavn-library.mock.tasks');
     const archiveExportTask = afterArchiveExportTasks.find((item) => item.taskType === 'library.archive_export');
-    const archiveExportPayload = JSON.parse(archiveExportTask?.retryPayload || '{}');
+    const archiveExportPayload = await getTaskRetryPayload(page, archiveExportTask);
     if (!archiveExportTask?.retryable || archiveExportPayload.targetDir !== 'D:\\MikaVN-Smoke-Archive' || archiveExportPayload.includeImages !== true || archiveExportPayload.includeSaveBackups !== false) throw new Error('archive export task did not persist retry options for the selected export scope');
     await page.getByRole('button', { name: /导出 ZIP/ }).click();
     await expectText(page, /ZIP 库归档导出任务已创建/);
     const afterArchiveZipExportTasks = await getStorage(page, 'mikavn-library.mock.tasks');
     const archiveZipExportTask = afterArchiveZipExportTasks.find((item) => item.taskType === 'library.archive_export_zip');
-    const archiveZipExportPayload = JSON.parse(archiveZipExportTask?.retryPayload || '{}');
+    const archiveZipExportPayload = await getTaskRetryPayload(page, archiveZipExportTask);
     if (!archiveZipExportTask?.retryable || archiveZipExportPayload.targetDir !== 'D:\\MikaVN-Smoke-Archive' || archiveZipExportPayload.includeImages !== true || archiveZipExportPayload.includeSaveBackups !== false) throw new Error('archive zip export task did not persist retry options for the selected export scope');
     console.log('OK settings logs/archive import/export zip task');
 
