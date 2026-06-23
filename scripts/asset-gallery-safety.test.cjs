@@ -48,6 +48,18 @@ test('maintenance data panel routes image cache cleanup to image health quaranti
   assert.doesNotMatch(actions, /assetCleanupPreview/);
 });
 
+test('maintenance data panel explains database backup cleanup policy and current usage', () => {
+  const panel = fs.readFileSync('src/pages/Maintenance/MaintenanceDataLocationPanel.tsx', 'utf8');
+
+  assert.match(panel, /databaseBackupCleanupPolicy/);
+  assert.match(panel, /formatDatabaseBackupCleanupPolicy\(databaseBackupCleanupPolicy\)/);
+  assert.match(panel, /getDatabaseBackupCleanupSuggestion\(diagnostics\?\.databaseBackups\)/);
+  assert.match(panel, /formatCount\(backupCleanupSuggestion\.fileCount\)/);
+  assert.match(panel, /formatBytes\(backupCleanupSuggestion\.totalBytes\)/);
+  assert.match(panel, /不会删除当前 mikavn\.db/);
+  assert.match(panel, /备份占用偏大/);
+});
+
 test('asset gallery ignores stale asset loads after switching games', () => {
   const source = fs.readFileSync('src/pages/Library/AssetGallery.tsx', 'utf8');
 

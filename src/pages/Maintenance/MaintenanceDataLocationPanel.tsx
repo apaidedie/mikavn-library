@@ -2,7 +2,8 @@ import { FileArchive, HardDrive, ShieldCheck, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Panel, PanelContent, PanelHeader, SoftRow } from '@/components/ui/page';
 import type { AppDataDiagnostics } from '@/types/archive';
-import { PathRow, StorageStat, dataDirSourceLabel } from './MaintenancePageParts';
+import { databaseBackupCleanupPolicy, formatDatabaseBackupCleanupPolicy, getDatabaseBackupCleanupSuggestion } from '@/utils/databaseBackupCleanupPolicy';
+import { PathRow, StorageStat, dataDirSourceLabel, formatBytes, formatCount } from './MaintenancePageParts';
 
 export function MaintenanceDataLocationPanel({
   cleanupLoading,
@@ -24,6 +25,8 @@ export function MaintenanceDataLocationPanel({
   onRevealPath: (path: string) => void;
 }) {
   const database = diagnostics?.database;
+  const backupCleanupPolicyText = formatDatabaseBackupCleanupPolicy(databaseBackupCleanupPolicy);
+  const backupCleanupSuggestion = getDatabaseBackupCleanupSuggestion(diagnostics?.databaseBackups);
 
   return (
     <Panel>
@@ -47,6 +50,12 @@ export function MaintenanceDataLocationPanel({
           <StorageStat label="存档备份" path={diagnostics?.saveBackups.path} size={diagnostics?.saveBackups.totalBytes ?? 0} count={diagnostics?.saveBackups.fileCount ?? 0} onCopy={diagnostics ? () => onCopyPath('存档备份', diagnostics.saveBackups.path) : undefined} onReveal={diagnostics ? () => onRevealPath(diagnostics.saveBackups.path) : undefined} />
           <StorageStat label="数据库备份" path={diagnostics?.databaseBackups.rootPath} size={diagnostics?.databaseBackups.totalBytes ?? 0} count={diagnostics?.databaseBackups.fileCount ?? 0} onCopy={diagnostics ? () => onCopyPath('数据库备份', diagnostics.databaseBackups.rootPath) : undefined} onReveal={diagnostics ? () => onRevealPath(diagnostics.databaseBackups.rootPath) : undefined} />
         </div>
+        <SoftRow className="px-3 py-2 text-xs leading-5 text-slate-500">
+          <div>
+            数据库备份清理策略：{backupCleanupPolicyText}；只清理应用管理的旧数据库备份，不会删除当前 mikavn.db。
+            {backupCleanupSuggestion && <span className="ml-2 text-amber-200">备份占用偏大：当前 {formatCount(backupCleanupSuggestion.fileCount)} 个 · {formatBytes(backupCleanupSuggestion.totalBytes)}。</span>}
+          </div>
+        </SoftRow>
         <SoftRow className="grid gap-3 px-3 py-3 xl:grid-cols-[minmax(0,1fr)_auto]">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-slate-100">
