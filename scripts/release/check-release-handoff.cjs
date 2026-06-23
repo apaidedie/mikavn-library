@@ -10,6 +10,7 @@ const REQUIRED_REPORT_TOKENS = [
   'npm run smoke:browser',
   'npm run smoke:large',
   'Large library performance warnings',
+  'Topbar quick search',
   'npm run tauri:build',
   'npm run smoke:install',
   'npm run smoke:portable-data',
@@ -175,6 +176,14 @@ function largeLibraryWarningCountFromReport(report) {
     throw new Error('release validation report must record a numeric large library performance warning count');
   }
   return Number(match[1]);
+}
+
+function topbarQuickSearchMsFromReport(report) {
+  const match = /Topbar quick search:\s*([\d,]+)\s*ms\b/i.exec(report);
+  if (!match) {
+    throw new Error('release validation report must record a numeric topbar quick search timing');
+  }
+  return Number(match[1].replace(/,/g, ''));
 }
 
 function cleanRiskCode(value) {
@@ -353,6 +362,7 @@ function checkReleaseHandoff(options = {}) {
   const signingStatus = signingStatusFromReport(report);
   const signingCertificatePreflight = signingCertificatePreflightFromReport(report);
   const largeLibraryPerformanceWarnings = largeLibraryWarningCountFromReport(report);
+  const topbarQuickSearchMs = topbarQuickSearchMsFromReport(report);
   const installerArtifact = artifacts.find((artifact) => artifact.fileName.endsWith('_x64-setup.exe'));
   const updaterArtifacts = buildMode === 'updater-capable'
     ? requireUpdaterArtifacts({
@@ -384,6 +394,7 @@ function checkReleaseHandoff(options = {}) {
     signingStatus,
     signingCertificatePreflight,
     largeLibraryPerformanceWarnings,
+    topbarQuickSearchMs,
     manualRiskStatus,
     manualRiskChecklist,
     blockingReleaseRisks: blockingRisks,
@@ -404,6 +415,7 @@ if (require.main === module) {
       signingStatus: result.signingStatus,
       signingCertificatePreflight: result.signingCertificatePreflight,
       largeLibraryPerformanceWarnings: result.largeLibraryPerformanceWarnings,
+      topbarQuickSearchMs: result.topbarQuickSearchMs,
       manualRiskStatus: result.manualRiskStatus,
       manualRiskChecklist: result.manualRiskChecklist,
       blockingReleaseRisks: result.blockingReleaseRisks,

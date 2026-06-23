@@ -30,6 +30,7 @@ function writePassingReport(releaseDir) {
     '- `npm run smoke:browser`: passed.',
     '- `npm run smoke:large`: passed.',
     '- Large library performance warnings: 0.',
+    '- Topbar quick search: 210ms, budget 5,000ms.',
     '- `npm run tauri:build`: passed.',
     '- `npm run smoke:install`: passed.',
     '- `npm run smoke:portable-data`: passed.',

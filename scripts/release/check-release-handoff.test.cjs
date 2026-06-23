@@ -56,6 +56,7 @@ function createHandoff(overrides = {}) {
     '- `npm run smoke:browser`: passed.',
     '- `npm run smoke:large`: passed.',
     '- Large library performance warnings: 0.',
+    '- Topbar quick search: 210ms, budget 5,000ms.',
     overrides.localTauriBuildOnly ? '- `npm run tauri:build:local`: passed.' : '- `npm run tauri:build`: passed.',
     '- `npm run smoke:install`: passed.',
     '- `npm run smoke:portable-data`: passed.',
@@ -122,6 +123,7 @@ test('checkReleaseHandoff accepts complete artifacts, checksums, reports, and ch
   assert.equal(result.requiredFiles.length, 5);
   assert.equal(result.signingStatus, 'documented-unsigned');
   assert.equal(result.buildMode, 'updater-capable');
+  assert.equal(result.topbarQuickSearchMs, 210);
   assert.equal(result.manualRiskStatus, 'checklist-pending');
   assert.deepEqual(result.blockingReleaseRisks, [
     {
@@ -598,6 +600,30 @@ test('checkReleaseHandoff requires large library warning count in the validation
   assert.throws(
     () => checkReleaseHandoff({ releaseDir }),
     /release validation report is missing required token: .*Large library performance warnings/,
+  );
+});
+
+test('checkReleaseHandoff requires topbar quick search timing evidence in the validation report', () => {
+  const { releaseDir } = createHandoff();
+  const reportPath = path.join(releaseDir, 'RELEASE_VALIDATION_REPORT.md');
+  const report = fs.readFileSync(reportPath, 'utf8');
+  fs.writeFileSync(reportPath, report.replace('- Topbar quick search: 210ms, budget 5,000ms.\n', ''));
+
+  assert.throws(
+    () => checkReleaseHandoff({ releaseDir }),
+    /release validation report is missing required token: .*Topbar quick search/,
+  );
+});
+
+test('checkReleaseHandoff rejects non-numeric topbar quick search timing evidence', () => {
+  const { releaseDir } = createHandoff();
+  const reportPath = path.join(releaseDir, 'RELEASE_VALIDATION_REPORT.md');
+  const report = fs.readFileSync(reportPath, 'utf8');
+  fs.writeFileSync(reportPath, report.replace('Topbar quick search: 210ms', 'Topbar quick search: unknown'));
+
+  assert.throws(
+    () => checkReleaseHandoff({ releaseDir }),
+    /release validation report must record a numeric topbar quick search timing/,
   );
 });
 
