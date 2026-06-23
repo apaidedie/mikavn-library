@@ -15,7 +15,8 @@ Prepared release candidate for the diagnostic export and large-library hardening
 
 ### Changed
 
-- Library rendering and image loading remain tuned for large local libraries through lower initial render budgets, native lazy cover loading, async image decoding, and debounced text filters.
+- Library rendering and image loading remain tuned for large local libraries through lower initial render budgets, native lazy cover loading, async image decoding, debounced text filters, lower-priority decorative detail backgrounds, and deferred play-session history loading.
+- Game detail collection membership now uses a direct current-game membership query instead of per-collection scans, reducing detail-switch work on libraries with many collections.
 - Image health maintenance now centralizes orphan, duplicate-name, oversized-file, missing-reference, and legacy-path reporting with quarantine-first cleanup behavior.
 - Release build warning noise from the diagnostic export test helper was removed.
 

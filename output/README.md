@@ -6,12 +6,21 @@ This directory keeps generated verification artifacts, local packaging helpers, 
 
 ## Current Artifacts
 
-- `release/<version>-windows-x64/`: copied release installers, release executables, and SHA256 checksums for local handoff.
-- `playwright/page-qa-current/`: latest page-level screenshots for dashboard, library, search, scanner, metadata, tasks, reports, saves, collections, and settings.
-- `playwright/workflow-smoke-current/`: latest workflow smoke screenshot.
+- `release/<version>-windows-x64/`: copied release installers, release executables, SHA256 checksums, and local build notes for handoff.
+
+## Regenerated Artifacts
+
+These folders are created only when the matching smoke, build, or release command is run. They can be deleted after the evidence is no longer needed.
+
+- `playwright/page-qa-current/`: page-level screenshots for dashboard, library, search, scanner, metadata, tasks, reports, saves, collections, and settings.
+- `playwright/workflow-smoke-current/`: workflow smoke screenshot.
+- `playwright/large-library-current/`: large-library timing report and screenshots.
 - `clean-install-smoke/run-*/`: isolated NSIS install, first-run, and uninstall smoke reports.
 - `desktop-smoke/run-*/`: desktop smoke reports and logs.
-- `nsis-3.11/`, `nsis-3.11.zip`, and `nsis_tauri_utils.dll`: local Tauri packaging helpers when `useLocalToolsDir` is enabled.
+- `portable-app-data-smoke/run-*/`: portable app-data install smoke evidence.
+- `real-app-data-readonly-smoke/`: readonly checks for the real installed library.
+- `real-install-update-smoke/`: guarded real install overwrite/update smoke evidence.
+- `nsis-*/`, `nsis-*.zip`, and `nsis_tauri_utils.dll`: local Tauri packaging helpers when `useLocalToolsDir` is enabled.
 
 ## Archive
 

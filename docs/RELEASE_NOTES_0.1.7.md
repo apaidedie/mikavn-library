@@ -4,7 +4,8 @@
 
 - Adds a Maintenance `导出诊断包` action for faster startup, update, image, and metadata issue investigation.
 - Diagnostic packages include generated summaries, app-data health, environment metadata, and redacted log previews.
-- Large-library behavior remains tuned for 4000+ game libraries through smaller render windows, lazy cover loading, async image decoding, and debounced text filters.
+- Large-library behavior remains tuned for 4000+ game libraries through bounded render windows, lazy cover loading, async image decoding, debounced text filters, lower-priority decorative detail backgrounds, and deferred play-session history loading.
+- Game detail collection membership now uses a direct current-game query instead of per-collection membership scans, improving detail switching on libraries with many collections.
 - Image health maintenance now reports missing references, orphan cache files, duplicate names, oversized files, content-type mismatches, and legacy Playnite-style cache paths in one place.
 
 ## Safety
@@ -22,6 +23,8 @@ This build should pass:
 - `npm run test:diagnostic-export`
 - `cargo test -q diagnostic --manifest-path src-tauri/Cargo.toml`
 - `npm run smoke:large`
+
+Latest large-library smoke covered 4,500 browser-preview records with list load, detail switch, topbar quick search, and advanced search inside the current budgets.
 
 Local installed-app smoke on `E:\MikaVN Library` verified:
 
