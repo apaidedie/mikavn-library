@@ -1,13 +1,22 @@
 import type { Game } from '@/types/game';
-import type { SaveRestoreMode, SaveRestorePreview } from '@/types/saves';
+import type { SaveBackup, SaveRestoreMode, SaveRestorePreview } from '@/types/saves';
 
 export const saveGamePickerMaxOptions = 80;
+export const saveBackupHistoryInitialRenderCount = 80;
+export const saveBackupHistoryRenderBatchSize = 80;
 
 export type SaveRestorePreviewPair = {
   mergeKey: string;
   mirrorKey: string;
   mergePreview: SaveRestorePreview | null;
   mirrorPreview: SaveRestorePreview | null;
+};
+
+export type SaveBackupHistoryRenderWindow = {
+  visibleBackups: SaveBackup[];
+  renderedCount: number;
+  totalCount: number;
+  hasMore: boolean;
 };
 
 export function getSaveRestorePreviewPair(backupId: string, previews: Record<string, SaveRestorePreview>): SaveRestorePreviewPair {
@@ -19,6 +28,21 @@ export function getSaveRestorePreviewPair(backupId: string, previews: Record<str
     mergePreview: previews[mergeKey] ?? null,
     mirrorPreview: previews[mirrorKey] ?? null,
   };
+}
+
+export function getSaveBackupHistoryRenderWindow(backups: SaveBackup[], visibleCount: number): SaveBackupHistoryRenderWindow {
+  const safeVisibleCount = Math.max(0, Math.min(backups.length, Math.floor(visibleCount)));
+  const visibleBackups = backups.slice(0, safeVisibleCount);
+  return {
+    visibleBackups,
+    renderedCount: visibleBackups.length,
+    totalCount: backups.length,
+    hasMore: visibleBackups.length < backups.length,
+  };
+}
+
+export function formatSaveBackupHistoryLoadMoreLabel(renderedCount: number, totalCount: number) {
+  return `加载更多 ${formatSaveCount(renderedCount)} / ${formatSaveCount(totalCount)}`;
 }
 
 export function savePathCandidateMessage(count: number) {

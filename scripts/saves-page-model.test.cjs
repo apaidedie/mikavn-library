@@ -46,6 +46,19 @@ function game(overrides) {
   };
 }
 
+function backup(index) {
+  return {
+    id: `backup-${index}`,
+    gameId: 'game-1',
+    savePathId: 'save-path-1',
+    label: `备份 ${index}`,
+    sourcePath: `D:\\Saves\\${index}`,
+    backupPath: `E:\\MikaVN Library\\app-data\\save-backups\\${index}`,
+    protection: false,
+    createdAt: '2026-01-01T00:00:00.000Z',
+  };
+}
+
 test('getSaveRestorePreviewPair returns merge and mirror keys with cached previews', () => {
   const { getSaveRestorePreviewPair } = loadSavesPageModel();
   const mergePreview = preview({ mode: 'merge', keptFiles: 2 });
@@ -120,6 +133,28 @@ test('formatSaveGamePickerHint summarizes bounded and filtered picker results', 
   assert.equal(formatSaveGamePickerHint(2, 500, 'key'), '匹配 2 / 500 个游戏。');
 });
 
+test('save backup history render window keeps long backup histories bounded', () => {
+  const {
+    getSaveBackupHistoryRenderWindow,
+    saveBackupHistoryInitialRenderCount,
+    saveBackupHistoryRenderBatchSize,
+  } = loadSavesPageModel();
+  const backups = Array.from({ length: 250 }, (_, index) => backup(index));
+
+  const initialWindow = getSaveBackupHistoryRenderWindow(backups, saveBackupHistoryInitialRenderCount);
+  const expandedWindow = getSaveBackupHistoryRenderWindow(backups, saveBackupHistoryInitialRenderCount + saveBackupHistoryRenderBatchSize);
+  const emptyWindow = getSaveBackupHistoryRenderWindow([], saveBackupHistoryInitialRenderCount);
+
+  assert.equal(saveBackupHistoryInitialRenderCount, 80);
+  assert.equal(saveBackupHistoryRenderBatchSize, 80);
+  assert.equal(initialWindow.visibleBackups.length, 80);
+  assert.equal(initialWindow.renderedCount, 80);
+  assert.equal(initialWindow.totalCount, 250);
+  assert.equal(initialWindow.hasMore, true);
+  assert.equal(expandedWindow.visibleBackups.length, 160);
+  assert.equal(emptyWindow.hasMore, false);
+});
+
 test('saves page loads a bounded game list and ignores stale initial loads', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Saves', 'useSavesPageActions.ts'), 'utf8');
 
@@ -147,4 +182,15 @@ test('saves page ignores stale save path refreshes while selected game changes',
   assert.match(source, /const requestId = \+\+refreshSavesRequestRef\.current/);
   assert.match(source, /Promise\.all\(\[api\.listSavePaths\(gameId\), api\.listSaveBackups\(gameId\)\]\)/);
   assert.match(source, /if \(requestId !== refreshSavesRequestRef\.current\) return/);
+});
+
+test('save backup history panel renders through a bounded window helper', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Saves', 'SaveBackupHistoryPanel.tsx'), 'utf8');
+
+  assert.match(source, /saveBackupHistoryInitialRenderCount/);
+  assert.match(source, /saveBackupHistoryRenderBatchSize/);
+  assert.match(source, /getSaveBackupHistoryRenderWindow/);
+  assert.match(source, /visibleBackups\.map\(\(backup\)/);
+  assert.doesNotMatch(source, /backups\.map\(\(backup\)/);
+  assert.match(source, /加载更多/);
 });
