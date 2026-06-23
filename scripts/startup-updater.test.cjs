@@ -124,7 +124,11 @@ test('startup update notice keeps backup actions visible after failed installs',
 test('startup update notice links failed update backups to database restore workflow', () => {
   const notice = read('src/app/AppUpdateNotice.tsx');
   const app = read('src/app/App.tsx');
-  const appControllerSource = `${read('src/app/useAppController.ts')}\n${read('src/app/useAppNavigationController.ts')}`;
+  const appControllerSource = [
+    read('src/app/useAppController.ts'),
+    read('src/app/useAppNavigationController.ts'),
+    read('src/app/useAppNavigationRequests.ts'),
+  ].join('\n');
 
   assert.match(notice, /onOpenDatabaseRestore/);
   assert.match(notice, /去恢复数据库/);

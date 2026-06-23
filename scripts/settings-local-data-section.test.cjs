@@ -190,7 +190,11 @@ test('dashboard local safety links to backup and restore settings', () => {
 test('dashboard backup restore actions request the exact restore section', () => {
   const dashboard = read('src/pages/Dashboard/DashboardLocalPanels.tsx');
   const routes = read('src/app/AppRoutes.tsx');
-  const appControllerSource = `${read('src/app/useAppController.ts')}\n${read('src/app/useAppNavigationController.ts')}`;
+  const appControllerSource = [
+    read('src/app/useAppController.ts'),
+    read('src/app/useAppNavigationController.ts'),
+    read('src/app/useAppNavigationRequests.ts'),
+  ].join('\n');
   const settingsPage = read('src/pages/Settings/SettingsPage.tsx');
   const localTab = read('src/pages/Settings/SettingsLocalTabContent.tsx');
   const types = read('src/pages/Settings/settingsTypes.ts');

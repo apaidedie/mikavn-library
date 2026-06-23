@@ -51,6 +51,7 @@ test('default source budgets cover frontend, Rust service, and smoke runner hot 
     'src/app/appNavigation.ts',
     'src/app/useAppController.ts',
     'src/app/useAppNavigationController.ts',
+    'src/app/useAppNavigationRequests.ts',
     'src/app/useAppKeyboardShortcuts.ts',
     'src/app/useAppThemeSettings.ts',
     'src/services/mockStore.ts',
@@ -128,7 +129,8 @@ test('app companion budgets keep entry chrome, routes, and hooks small', () => {
     ['AppRoutes.tsx', 120],
     ['appNavigation.ts', 80],
     ['useAppController.ts', 90],
-    ['useAppNavigationController.ts', 140],
+    ['useAppNavigationController.ts', 100],
+    ['useAppNavigationRequests.ts', 120],
     ['useAppKeyboardShortcuts.ts', 80],
     ['useAppThemeSettings.ts', 120],
   ]) {
@@ -151,6 +153,19 @@ test('app controller delegates navigation state to a focused hook', () => {
   assert.match(navigationController, /readInitialView/);
   assert.match(navigationController, /mikavn\.currentView/);
   assert.match(navigationController, /useAppKeyboardShortcuts/);
+});
+
+test('app navigation controller delegates page request state to a focused hook', () => {
+  const navigationController = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'app', 'useAppNavigationController.ts'), 'utf8');
+  const requestHook = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'app', 'useAppNavigationRequests.ts'), 'utf8');
+
+  assert.match(navigationController, /import \{ useAppNavigationRequests \} from '\.\/useAppNavigationRequests';/);
+  assert.match(navigationController, /const navigationRequests = useAppNavigationRequests\(/);
+  assert.doesNotMatch(navigationController, /setTaskFocusRequest|setSettingsTabRequest|setMetadataQueuePresetRequest/);
+  assert.match(requestHook, /export function useAppNavigationRequests/);
+  assert.match(requestHook, /openDatabaseRestore/);
+  assert.match(requestHook, /openSettings\('local', 'database-restore'\)/);
+  assert.match(requestHook, /setTaskFocusRequest/);
 });
 
 test('library page budget keeps library orchestration small', () => {
