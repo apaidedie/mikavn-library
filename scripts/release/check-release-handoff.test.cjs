@@ -28,6 +28,7 @@ function createHandoff(overrides = {}) {
   const previousVersion = overrides.previousVersion || previousPatchVersion(version);
   const installerName = overrides.installerName || `MikaVN Library_${version}_x64-setup.exe`;
   const releaseDir = path.join(root, 'output', 'release', `${version}-windows-x64`);
+  const updaterRehearsalEvidenceName = 'lower-version-updater-rehearsal.json';
   const exe = Buffer.from('exe');
   const installer = Buffer.from('installer');
   const installerSignature = Buffer.from('installer-signature');
@@ -52,6 +53,14 @@ function createHandoff(overrides = {}) {
     checksumEntries.push(`${sha256(installerSignature)}  ${installerName}.sig`);
     checksumEntries.push(`${sha256(latestJson)}  latest.json`);
   }
+  writeFile(path.join(releaseDir, updaterRehearsalEvidenceName), `${JSON.stringify({
+    previousVersion,
+    currentVersion: version,
+    restartVerified: true,
+    appDataVerified: true,
+    databaseQuickCheck: 'ok',
+    targetInstallDir: 'E:\\MikaVN Library',
+  }, null, 2)}\n`);
   writeFile(path.join(releaseDir, 'SHA256SUMS.txt'), [...checksumEntries, ''].join('\n'));
   const reportLines = [
     '# MikaVN Library 0.1.1 Local Release Validation',
@@ -68,7 +77,7 @@ function createHandoff(overrides = {}) {
     '- `npm run smoke:portable-data`: passed.',
     '- `npm run smoke:real-data:readonly`: passed. `quick_check` ok; image header samples ok.',
     '- `npm run smoke:real-install:update`: passed. Real install counts preserved; verified database backup created under manual-install-smoke.',
-    `- Lower-version updater rehearsal: passed. previous version: ${previousVersion}. current version: ${version}. Updated through the in-app updater, restarted, verified app-data, and SQLite quick_check ok.`,
+    `- Lower-version updater rehearsal: passed. previous version: ${previousVersion}. current version: ${version}. Updated through the in-app updater, restarted, verified app-data, and SQLite quick_check ok. Evidence: ${updaterRehearsalEvidenceName}.`,
     '- Target install directory: `E:\\MikaVN Library`.',
     '- Post-install SQLite `quick_check`: ok.',
     '- Real installed exe: `E:\\MikaVN Library\\mikavn-library.exe`.',
@@ -133,6 +142,7 @@ test('checkReleaseHandoff accepts complete artifacts, checksums, reports, and ch
   assert.equal(result.topbarQuickSearchMs, 210);
   assert.deepEqual(result.lowerVersionUpdaterRehearsal, {
     currentVersion: version,
+    evidenceFile: 'lower-version-updater-rehearsal.json',
     previousVersion,
   });
   assert.equal(result.manualRiskStatus, 'checklist-pending');
@@ -596,6 +606,48 @@ test('checkReleaseHandoff requires lower-version updater rehearsal to verify dat
   assert.throws(
     () => checkReleaseHandoff({ releaseDir }),
     /release validation report must record lower-version updater rehearsal SQLite quick_check ok/,
+  );
+});
+
+test('checkReleaseHandoff requires lower-version updater rehearsal evidence file', () => {
+  const { releaseDir } = createHandoff();
+  const reportPath = path.join(releaseDir, 'RELEASE_VALIDATION_REPORT.md');
+  const report = fs.readFileSync(reportPath, 'utf8');
+  fs.writeFileSync(
+    reportPath,
+    report.replace(/ Evidence: lower-version-updater-rehearsal\.json\./, ''),
+  );
+
+  assert.throws(
+    () => checkReleaseHandoff({ releaseDir }),
+    /release validation report must record lower-version updater rehearsal evidence file/,
+  );
+});
+
+test('checkReleaseHandoff rejects missing lower-version updater rehearsal evidence file', () => {
+  const { releaseDir } = createHandoff();
+  fs.rmSync(path.join(releaseDir, 'lower-version-updater-rehearsal.json'));
+
+  assert.throws(
+    () => checkReleaseHandoff({ releaseDir }),
+    /lower-version updater rehearsal evidence file not found/,
+  );
+});
+
+test('checkReleaseHandoff rejects lower-version updater rehearsal evidence without database quick_check ok', () => {
+  const { releaseDir } = createHandoff();
+  fs.writeFileSync(path.join(releaseDir, 'lower-version-updater-rehearsal.json'), `${JSON.stringify({
+    previousVersion: previousPatchVersion(JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'package.json'), 'utf8')).version),
+    currentVersion: JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'package.json'), 'utf8')).version,
+    restartVerified: true,
+    appDataVerified: true,
+    databaseQuickCheck: 'failed',
+    targetInstallDir: 'E:\\MikaVN Library',
+  }, null, 2)}\n`);
+
+  assert.throws(
+    () => checkReleaseHandoff({ releaseDir }),
+    /lower-version updater rehearsal evidence must record databaseQuickCheck ok/,
   );
 });
 

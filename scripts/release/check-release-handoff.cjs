@@ -207,7 +207,58 @@ function compareSemanticVersions(left, right) {
   return 0;
 }
 
-function lowerVersionUpdaterRehearsalFromReport(report, expectedCurrentVersion) {
+function resolveReleaseEvidencePath(releaseDir, evidencePath, label) {
+  const cleaned = String(evidencePath || '')
+    .trim()
+    .replace(/^`+|`+$/g, '')
+    .replace(/[.;]+$/g, '')
+    .trim();
+  if (!cleaned) throw new Error(`release validation report must record ${label} evidence file`);
+  if (path.isAbsolute(cleaned)) throw new Error(`${label} evidence file must be relative to the release handoff directory`);
+  const releaseRoot = path.resolve(releaseDir);
+  const filePath = path.resolve(releaseRoot, cleaned);
+  if (filePath !== releaseRoot && !filePath.startsWith(`${releaseRoot}${path.sep}`)) {
+    throw new Error(`${label} evidence file must stay within the release handoff directory`);
+  }
+  if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
+    throw new Error(`${label} evidence file not found: ${cleaned}`);
+  }
+  return {
+    evidenceFile: cleaned.replace(/\\/g, '/'),
+    evidenceFilePath: filePath,
+  };
+}
+
+function readJsonEvidence(filePath, label) {
+  try {
+    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  } catch (error) {
+    throw new Error(`${label} evidence file is not valid JSON: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+function validateLowerVersionUpdaterRehearsalEvidence(filePath, expected) {
+  const evidence = readJsonEvidence(filePath, 'lower-version updater rehearsal');
+  const evidencePrevious = parseSemanticVersion(evidence.previousVersion, 'lower-version updater rehearsal evidence previousVersion');
+  const evidenceCurrent = parseSemanticVersion(evidence.currentVersion, 'lower-version updater rehearsal evidence currentVersion');
+  if (evidencePrevious.normalized !== expected.previousVersion) {
+    throw new Error(`lower-version updater rehearsal evidence previousVersion must match report: ${evidencePrevious.normalized} !== ${expected.previousVersion}`);
+  }
+  if (evidenceCurrent.normalized !== expected.currentVersion) {
+    throw new Error(`lower-version updater rehearsal evidence currentVersion must match report: ${evidenceCurrent.normalized} !== ${expected.currentVersion}`);
+  }
+  if (evidence.restartVerified !== true) {
+    throw new Error('lower-version updater rehearsal evidence must record restartVerified true');
+  }
+  if (evidence.appDataVerified !== true) {
+    throw new Error('lower-version updater rehearsal evidence must record appDataVerified true');
+  }
+  if (String(evidence.databaseQuickCheck || '').toLowerCase() !== 'ok') {
+    throw new Error('lower-version updater rehearsal evidence must record databaseQuickCheck ok');
+  }
+}
+
+function lowerVersionUpdaterRehearsalFromReport(report, expectedCurrentVersion, releaseDir) {
   const lineMatch = /^.*Lower-version updater rehearsal:\s*passed\.[^\r\n]*$/im.exec(report);
   const line = lineMatch?.[0] ?? '';
   const match = /Lower-version updater rehearsal:\s*passed\.[^\r\n]*previous version:\s*(v?\d+\.\d+\.\d+)[^\r\n]*current version:\s*(v?\d+\.\d+\.\d+)/i.exec(line);
@@ -230,9 +281,19 @@ function lowerVersionUpdaterRehearsalFromReport(report, expectedCurrentVersion) 
   if (compareSemanticVersions(previousVersion, currentVersion) >= 0) {
     throw new Error(`lower-version updater rehearsal previous version must be lower than current version: ${previousVersion.normalized} >= ${currentVersion.normalized}`);
   }
+  const evidenceMatch = /\bEvidence:\s*([^\r\n]+?)\s*$/i.exec(line);
+  if (!evidenceMatch) {
+    throw new Error('release validation report must record lower-version updater rehearsal evidence file');
+  }
+  const { evidenceFile, evidenceFilePath } = resolveReleaseEvidencePath(releaseDir, evidenceMatch[1], 'lower-version updater rehearsal');
+  validateLowerVersionUpdaterRehearsalEvidence(evidenceFilePath, {
+    previousVersion: previousVersion.normalized,
+    currentVersion: currentVersion.normalized,
+  });
   return {
     previousVersion: previousVersion.normalized,
     currentVersion: currentVersion.normalized,
+    evidenceFile,
   };
 }
 
@@ -413,7 +474,7 @@ function checkReleaseHandoff(options = {}) {
   const signingCertificatePreflight = signingCertificatePreflightFromReport(report);
   const largeLibraryPerformanceWarnings = largeLibraryWarningCountFromReport(report);
   const topbarQuickSearchMs = topbarQuickSearchMsFromReport(report);
-  const lowerVersionUpdaterRehearsal = lowerVersionUpdaterRehearsalFromReport(report, readReleaseMetadata().version);
+  const lowerVersionUpdaterRehearsal = lowerVersionUpdaterRehearsalFromReport(report, readReleaseMetadata().version, releaseDir);
   const installerArtifact = artifacts.find((artifact) => artifact.fileName.endsWith('_x64-setup.exe'));
   const updaterArtifacts = buildMode === 'updater-capable'
     ? requireUpdaterArtifacts({

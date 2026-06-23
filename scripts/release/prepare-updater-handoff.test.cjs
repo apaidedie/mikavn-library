@@ -26,6 +26,15 @@ function sha256(contents) {
 }
 
 function writePassingReport(releaseDir) {
+  const previousVersion = previousPatchVersion(version);
+  writeFile(path.join(releaseDir, 'lower-version-updater-rehearsal.json'), `${JSON.stringify({
+    previousVersion,
+    currentVersion: version,
+    restartVerified: true,
+    appDataVerified: true,
+    databaseQuickCheck: 'ok',
+    targetInstallDir: 'E:\\MikaVN Library',
+  }, null, 2)}\n`);
   writeFile(path.join(releaseDir, 'RELEASE_VALIDATION_REPORT.md'), [
     '# MikaVN Library release validation',
     '## Automated Checks',
@@ -41,7 +50,7 @@ function writePassingReport(releaseDir) {
     '- `npm run smoke:portable-data`: passed.',
     '- `npm run smoke:real-data:readonly`: passed. `quick_check` ok; image header samples ok.',
     '- `npm run smoke:real-install:update`: passed. Real install counts preserved; verified database backup created under manual-install-smoke.',
-    `- Lower-version updater rehearsal: passed. previous version: ${previousPatchVersion(version)}. current version: ${version}. Updated through the in-app updater, restarted, verified app-data, and SQLite quick_check ok.`,
+    `- Lower-version updater rehearsal: passed. previous version: ${previousVersion}. current version: ${version}. Updated through the in-app updater, restarted, verified app-data, and SQLite quick_check ok. Evidence: lower-version-updater-rehearsal.json.`,
     '- Target install directory: `E:\\MikaVN Library`.',
     '- Post-install SQLite `quick_check`: ok.',
     '- Real installed exe: `E:\\MikaVN Library\\mikavn-library.exe`.',
