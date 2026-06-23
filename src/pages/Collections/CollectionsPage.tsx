@@ -12,6 +12,12 @@ import type { Game, GameCollection } from '@/types/game';
 import { PLAY_STATUS_LABEL } from '@/types/game';
 import { cn } from '@/utils/cn';
 import { errorMessage } from '@/utils/errorMessage';
+import {
+  collectionGamesInitialRenderCount,
+  collectionGamesRenderBatchSize,
+  formatCollectionGamesLoadMoreLabel,
+  getCollectionGameRenderWindow,
+} from './collectionsPageModel';
 
 const colorOptions = [
   { id: 'rose', label: '樱粉' },
@@ -33,10 +39,13 @@ export function CollectionsPage({ refreshKey, onOpenGame, onChanged }: Collectio
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [color, setColor] = useState('rose');
+  const [collectionGamesRenderCount, setCollectionGamesRenderCount] = useState(collectionGamesInitialRenderCount);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const selected = useMemo(() => collections.find((item) => item.id === selectedId) ?? collections[0] ?? null, [collections, selectedId]);
   const linkedIds = useMemo(() => new Set(games.map((game) => game.id)), [games]);
+  const collectionGameWindow = useMemo(() => getCollectionGameRenderWindow(games, collectionGamesRenderCount), [collectionGamesRenderCount, games]);
+  const visibleCollectionGames = collectionGameWindow.visibleGames;
 
   useEffect(() => {
     loadCollections();
@@ -45,10 +54,12 @@ export function CollectionsPage({ refreshKey, onOpenGame, onChanged }: Collectio
   useEffect(() => {
     if (!selected) {
       setGames([]);
+      setCollectionGamesRenderCount(collectionGamesInitialRenderCount);
       return;
     }
 
     let cancelled = false;
+    setCollectionGamesRenderCount(collectionGamesInitialRenderCount);
     api
       .listCollectionGames(selected.id)
       .then((items) => {
@@ -118,6 +129,12 @@ export function CollectionsPage({ refreshKey, onOpenGame, onChanged }: Collectio
     }
   };
 
+  const loadMoreCollectionGames = () => {
+    setCollectionGamesRenderCount((current) => (
+      Math.min(games.length, Math.max(current, collectionGameWindow.visibleCount) + collectionGamesRenderBatchSize)
+    ));
+  };
+
   return (
     <PageShell>
       <PageFrame className="max-w-[82rem] gap-5">
@@ -185,19 +202,28 @@ export function CollectionsPage({ refreshKey, onOpenGame, onChanged }: Collectio
 
                 <div className="grid gap-4 lg:grid-cols-[1fr_18rem]">
                   <div className="min-h-0 space-y-2">
-                    {games.length === 0 ? <EmptyState className="py-12">这个合集还没有游戏。</EmptyState> : games.map((game) => (
-                      <SoftRow className="grid grid-cols-[3.4rem_1fr_auto] items-center gap-3 px-3 py-2" key={game.id}>
-                        <CoverImage alt={game.title} className="aspect-[2/3] rounded-md" src={game.coverImage} />
-                        <button className="min-w-0 text-left" onClick={() => onOpenGame(game.id)} type="button">
-                          <div className="truncate text-sm font-medium text-slate-100">{game.title}</div>
-                          <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
-                            <Badge className="min-h-5 px-2 text-[11px]">{PLAY_STATUS_LABEL[game.playStatus]}</Badge>
-                            <span className="truncate">{game.developer || game.brand || '未填写会社'}</span>
-                          </div>
-                        </button>
-                        <Button size="sm" variant="outline" onClick={() => removeGame(game)}>移除</Button>
-                      </SoftRow>
-                    ))}
+                    {games.length === 0 ? <EmptyState className="py-12">这个合集还没有游戏。</EmptyState> : (
+                      <>
+                        {visibleCollectionGames.map((game) => (
+                          <SoftRow className="grid grid-cols-[3.4rem_1fr_auto] items-center gap-3 px-3 py-2" key={game.id}>
+                            <CoverImage alt={game.title} className="aspect-[2/3] rounded-md" src={game.coverImage} />
+                            <button className="min-w-0 text-left" onClick={() => onOpenGame(game.id)} type="button">
+                              <div className="truncate text-sm font-medium text-slate-100">{game.title}</div>
+                              <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
+                                <Badge className="min-h-5 px-2 text-[11px]">{PLAY_STATUS_LABEL[game.playStatus]}</Badge>
+                                <span className="truncate">{game.developer || game.brand || '未填写会社'}</span>
+                              </div>
+                            </button>
+                            <Button size="sm" variant="outline" onClick={() => removeGame(game)}>移除</Button>
+                          </SoftRow>
+                        ))}
+                        {collectionGameWindow.hasMore ? (
+                          <Button className="w-full justify-center" variant="outline" onClick={loadMoreCollectionGames}>
+                            {formatCollectionGamesLoadMoreLabel(collectionGameWindow.visibleCount, collectionGameWindow.totalCount)}
+                          </Button>
+                        ) : null}
+                      </>
+                    )}
                   </div>
 
                   <AddGamesPanel collection={selected} linkedIds={linkedIds} onAdded={async () => {
