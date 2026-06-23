@@ -72,6 +72,75 @@ function Get-OptionalDirectorySummary([string]$Root, [string]$Name, [string]$Chi
   }
 }
 
+function Get-FileMutationSnapshot([string]$Label, [string]$Path) {
+  $item = Get-Item -LiteralPath $Path
+  [ordered]@{
+    label = $Label
+    path = $item.FullName
+    exists = $true
+    length = [int64]$item.Length
+    lastWriteTimeUtc = $item.LastWriteTimeUtc.ToString("o")
+  }
+}
+
+function Get-DirectoryMutationSnapshot([string]$Label, [object]$Summary) {
+  $latest = if ($Summary.latestFileTime) { ([DateTime]$Summary.latestFileTime).ToUniversalTime().ToString("o") } else { $null }
+  [ordered]@{
+    label = $Label
+    path = $Summary.path
+    exists = if ($null -ne $Summary.exists) { [bool]$Summary.exists } else { $true }
+    fileCount = [int]$Summary.fileCount
+    totalBytes = [int64]$Summary.totalBytes
+    latestFileTimeUtc = $latest
+  }
+}
+
+function Get-ReadonlyMutationSnapshot([string]$AppDataRoot, [string]$DatabasePath) {
+  [ordered]@{
+    database = Get-FileMutationSnapshot "database" $DatabasePath
+    images = Get-DirectoryMutationSnapshot "images" (Get-DirectorySummary $AppDataRoot "images")
+    databaseBackups = Get-DirectoryMutationSnapshot "database-backups" (Get-DirectorySummary $AppDataRoot "database-backups")
+    databaseUpdateProtection = Get-DirectoryMutationSnapshot "database-backups/update-protection" (Get-OptionalDirectorySummary $AppDataRoot "database-backups" "update-protection")
+    legacyDatabaseUpdateProtection = Get-DirectoryMutationSnapshot "database-update-protection" (Get-OptionalDirectorySummary $AppDataRoot "database-update-protection")
+    logs = Get-DirectoryMutationSnapshot "logs" (Get-DirectorySummary $AppDataRoot "logs")
+  }
+}
+
+function Compare-ReadonlyMutationSnapshot([object]$Before, [object]$After) {
+  $changes = @()
+  foreach ($section in @("database", "images", "databaseBackups", "databaseUpdateProtection", "legacyDatabaseUpdateProtection", "logs")) {
+    $beforeSection = $Before[$section]
+    $afterSection = $After[$section]
+    foreach ($property in @("exists", "length", "lastWriteTimeUtc", "fileCount", "totalBytes", "latestFileTimeUtc")) {
+      if ($null -eq $beforeSection[$property] -and $null -eq $afterSection[$property]) {
+        continue
+      }
+      if ([string]$beforeSection[$property] -ne [string]$afterSection[$property]) {
+        $changes += [ordered]@{
+          section = $section
+          property = $property
+          before = $beforeSection[$property]
+          after = $afterSection[$property]
+        }
+      }
+    }
+  }
+  return @($changes)
+}
+
+function Assert-ReadonlyMutationGuard([object]$Before, [object]$After) {
+  $changes = Compare-ReadonlyMutationSnapshot $Before $After
+  if ($changes.Count -gt 0) {
+    throw "Real data readonly smoke mutated live app-data: $($changes | ConvertTo-Json -Depth 4)"
+  }
+  [ordered]@{
+    before = $Before
+    after = $After
+    unchanged = $true
+    changes = @()
+  }
+}
+
 function Test-DatabaseBackupQuickChecks([object]$Summary, [string]$Description, [int]$Limit) {
   $path = $Summary.path
   if (!$path -or !(Test-Path -LiteralPath $path -PathType Container) -or $Limit -le 0) {
@@ -242,6 +311,7 @@ $resolvedAppRoot = (Resolve-Path -LiteralPath $AppRoot).Path
 $appDataRoot = Assert-UnderRoot $resolvedAppRoot (Join-Path $resolvedAppRoot "app-data") "app-data"
 $databasePath = Assert-UnderRoot $appDataRoot (Join-Path $appDataRoot "mikavn.db") "database"
 $exePath = Assert-UnderRoot $resolvedAppRoot (Join-Path $resolvedAppRoot "mikavn-library.exe") "installed executable"
+$readonlyBefore = Get-ReadonlyMutationSnapshot $appDataRoot $databasePath
 
 $python = Get-Command python -ErrorAction SilentlyContinue
 if (!$python) {
@@ -557,6 +627,8 @@ if ($database.assetSummary -and $database.assetSummary.unsupportedLocalImageCoun
   throw "Real data smoke failed: unsupported local asset images $($database.assetSummary.unsupportedLocalImageCount) exceeds maximum $MaxUnsupportedLocalAssetImages. Samples:`n$samples"
 }
 
+$readonlyMutationGuard = Assert-ReadonlyMutationGuard $readonlyBefore (Get-ReadonlyMutationSnapshot $appDataRoot $databasePath)
+
 $report = [ordered]@{
   appRoot = $resolvedAppRoot
   executable = $exePath
@@ -574,6 +646,7 @@ $report = [ordered]@{
   backupQuickChecks = $backupQuickChecks
   logs = $logs
   readonly = $true
+  readonlyMutationGuard = $readonlyMutationGuard
 }
 
 if (!$NoReport) {

@@ -19,6 +19,10 @@ test('real app-data readonly smoke is exposed and cannot mutate the live library
   assert.match(script, /backupQuickChecks/);
   assert.match(script, /imageHeaderQuickChecks/);
   assert.match(script, /referencedImageHeaderQuickChecks/);
+  assert.match(script, /Get-ReadonlyMutationSnapshot/);
+  assert.match(script, /Assert-ReadonlyMutationGuard/);
+  assert.match(script, /readonlyMutationGuard/);
+  assert.match(script, /Real data readonly smoke mutated live app-data/);
   assert.match(script, /unsupportedImageFileSamples/);
   assert.match(script, /unsupportedReferencedImageSamples/);
   assert.match(script, /imageFileKindCounts/);
