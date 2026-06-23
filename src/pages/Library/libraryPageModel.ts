@@ -40,6 +40,41 @@ export function buildLibraryGameIndexLookup(games: Game[]) {
   return lookup;
 }
 
+export function createVisibleGameIdSet(games: Game[]) {
+  const ids = new Set<string>();
+  for (const game of games) {
+    ids.add(game.id);
+  }
+  return ids;
+}
+
+export function pruneBulkSelectionToVisible(current: Set<string>, visibleIds: ReadonlySet<string>): Set<string> {
+  let changed = false;
+  const next = new Set<string>();
+  for (const id of current) {
+    if (visibleIds.has(id)) {
+      next.add(id);
+    } else {
+      changed = true;
+    }
+  }
+  return changed ? next : current;
+}
+
+export function deriveInvertedVisibleBulkSelection(current: ReadonlySet<string>, visibleGames: Game[]) {
+  let visibleUnselectedCount = 0;
+  const nextSelectedIds = new Set(current);
+  for (const game of visibleGames) {
+    if (current.has(game.id)) {
+      nextSelectedIds.delete(game.id);
+    } else {
+      visibleUnselectedCount += 1;
+      nextSelectedIds.add(game.id);
+    }
+  }
+  return { nextSelectedIds, visibleUnselectedCount };
+}
+
 export function getLibraryRenderIdentity(games: Game[]) {
   // Keep this identity compact; it is recalculated for large filtered result sets.
   let hash = 2166136261;

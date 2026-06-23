@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetState
 import { api } from '@/services/api';
 import type { Game, GameCollection, PlayStatus, UpdateGameInput } from '@/types/game';
 import { errorMessage } from '@/utils/errorMessage';
-import { formatLibraryBulkConfirmation, formatLibraryBulkSelectionConfirmation, libraryBulkSelectionConfirmThreshold, libraryBulkWriteBatchSize } from './libraryPageModel';
+import { createVisibleGameIdSet, deriveInvertedVisibleBulkSelection, formatLibraryBulkConfirmation, formatLibraryBulkSelectionConfirmation, libraryBulkSelectionConfirmThreshold, libraryBulkWriteBatchSize, pruneBulkSelectionToVisible } from './libraryPageModel';
 
 type UseLibraryBulkActionsOptions = {
   onChanged: () => void;
@@ -27,11 +27,8 @@ export function useLibraryBulkActions({ onChanged, refreshKey, setError, setGame
   }, [refreshKey]);
 
   useEffect(() => {
-    const visibleIds = new Set(visibleGames.map((game) => game.id));
-    setBulkSelectedIds((current) => {
-      const next = new Set([...current].filter((id) => visibleIds.has(id)));
-      return next.size === current.size ? current : next;
-    });
+    const visibleIds = createVisibleGameIdSet(visibleGames);
+    setBulkSelectedIds((current) => pruneBulkSelectionToVisible(current, visibleIds));
   }, [visibleGames]);
 
   const selectedBulkGames = useMemo(() => visibleGames.filter((game) => bulkSelectedIds.has(game.id)), [bulkSelectedIds, visibleGames]);
@@ -68,21 +65,13 @@ export function useLibraryBulkActions({ onChanged, refreshKey, setError, setGame
 
   const selectVisibleGames = useCallback(() => {
     if (visibleGames.length >= libraryBulkSelectionConfirmThreshold && !window.confirm(formatLibraryBulkSelectionConfirmation(visibleGames.length))) return;
-    setBulkSelectedIds(new Set(visibleGames.map((game) => game.id)));
+    setBulkSelectedIds(createVisibleGameIdSet(visibleGames));
   }, [visibleGames]);
 
   const invertVisibleBulkSelection = useCallback(() => {
-    const visibleUnselectedCount = visibleGames.filter((game) => !bulkSelectedIds.has(game.id)).length;
+    const { nextSelectedIds, visibleUnselectedCount } = deriveInvertedVisibleBulkSelection(bulkSelectedIds, visibleGames);
     if (visibleUnselectedCount >= libraryBulkSelectionConfirmThreshold && !window.confirm(formatLibraryBulkSelectionConfirmation(visibleUnselectedCount))) return;
-    setBulkSelectedIds((current) => {
-      const visibleIds = new Set(visibleGames.map((game) => game.id));
-      const next = new Set(current);
-      for (const id of visibleIds) {
-        if (next.has(id)) next.delete(id);
-        else next.add(id);
-      }
-      return next;
-    });
+    setBulkSelectedIds(nextSelectedIds);
     setBulkMessage(null);
   }, [bulkSelectedIds, visibleGames]);
 

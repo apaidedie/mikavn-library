@@ -164,6 +164,27 @@ test('formatLibraryBulkSelectionConfirmation warns before selecting a large visi
   );
 });
 
+test('library bulk selection helpers prune, select, and invert visible ids without array intermediates', () => {
+  const {
+    createVisibleGameIdSet,
+    deriveInvertedVisibleBulkSelection,
+    pruneBulkSelectionToVisible,
+  } = loadLibraryPageModel();
+  const games = [game({ id: 'a' }), game({ id: 'b' }), game({ id: 'c' })];
+  const current = new Set(['a', 'hidden']);
+  const visibleIds = createVisibleGameIdSet(games);
+
+  assert.deepEqual([...visibleIds], ['a', 'b', 'c']);
+  assert.deepEqual([...pruneBulkSelectionToVisible(current, visibleIds)], ['a']);
+
+  const alreadyVisible = new Set(['a', 'b']);
+  assert.equal(pruneBulkSelectionToVisible(alreadyVisible, visibleIds), alreadyVisible);
+
+  const inverted = deriveInvertedVisibleBulkSelection(new Set(['a']), games);
+  assert.equal(inverted.visibleUnselectedCount, 2);
+  assert.deepEqual([...inverted.nextSelectedIds], ['b', 'c']);
+});
+
 test('library bulk actions require confirmation before database writes', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Library', 'useLibraryBulkActions.ts'), 'utf8');
 
@@ -203,14 +224,18 @@ test('library bulk select-all confirms before selecting a large visible batch', 
   assert.match(source, /formatLibraryBulkSelectionConfirmation\(visibleGames\.length\)/);
   assert.match(source, /visibleGames\.length >= libraryBulkSelectionConfirmThreshold/);
   assert.match(source, /window\.confirm\(formatLibraryBulkSelectionConfirmation\(visibleGames\.length\)\)/);
+  assert.match(source, /createVisibleGameIdSet\(visibleGames\)/);
+  assert.doesNotMatch(source, /new Set\(visibleGames\.map/);
 });
 
 test('library bulk invert confirms when it would add a large visible batch', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Library', 'useLibraryBulkActions.ts'), 'utf8');
 
-  assert.match(source, /const visibleUnselectedCount = visibleGames\.filter\(\(game\) => !bulkSelectedIds\.has\(game\.id\)\)\.length/);
+  assert.match(source, /deriveInvertedVisibleBulkSelection\(bulkSelectedIds, visibleGames\)/);
   assert.match(source, /visibleUnselectedCount >= libraryBulkSelectionConfirmThreshold/);
   assert.match(source, /window\.confirm\(formatLibraryBulkSelectionConfirmation\(visibleUnselectedCount\)\)/);
+  assert.doesNotMatch(source, /visibleGames\.filter\(\(game\) => !bulkSelectedIds\.has\(game\.id\)\)\.length/);
+  assert.doesNotMatch(source, /new Set\(visibleGames\.map/);
 });
 
 test('library bulk panel labels select-current with the visible count', () => {
