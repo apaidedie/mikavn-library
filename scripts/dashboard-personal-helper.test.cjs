@@ -278,7 +278,7 @@ test('deriveDatabaseBackupStatus recommends cleanup when backup storage grows la
 });
 
 test('dashboard continue query keeps playing-game payload bounded', () => {
-  const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Dashboard', 'DashboardPage.tsx'), 'utf8');
+  const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Dashboard', 'useDashboardPageData.ts'), 'utf8');
 
   assert.match(source, /api\.listGames\(\{ status: 'playing', sortBy: 'last_played_at', sortDirection: 'desc', limit: 24 \}\)/);
 });

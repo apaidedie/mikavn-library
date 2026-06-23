@@ -1,18 +1,14 @@
-import { useEffect, useMemo, useState } from 'react';
 import { EmptyState } from '@/components/ui/notice';
 import { PageFrame, PageShell } from '@/components/ui/page';
-import { api } from '@/services/api';
 import type { SettingsSection, SettingsTab } from '@/pages/Settings/SettingsPage';
-import type { AppDataDiagnostics } from '@/types/archive';
-import type { DashboardData, Game, LibraryFilterPreset } from '@/types/game';
-import type { TaskFilterPreset, TaskRecord } from '@/types/task';
-import { errorMessage } from '@/utils/errorMessage';
+import type { LibraryFilterPreset } from '@/types/game';
+import type { TaskFilterPreset } from '@/types/task';
 import { DashboardErrorNotice } from './DashboardErrorNotice';
 import { ContinuePanel, TodayStrip } from './DashboardHeroPanels';
 import { LocalSafetyPanel, NeedsAttentionPanel } from './DashboardLocalPanels';
-import { deriveDashboardAttentionItems, deriveDashboardTaskSummary, rankContinueGames, uniqueDashboardGames } from './dashboardPersonal';
 import { RecentTasksPanel } from './RecentTasksPanel';
 import { useDashboardDiagnosticExport } from './useDashboardDiagnosticExport';
+import { useDashboardPageData } from './useDashboardPageData';
 
 type DashboardPageProps = {
   refreshKey: number;
@@ -28,56 +24,8 @@ type DashboardPageProps = {
 };
 
 export function DashboardPage({ refreshKey, onOpenGame, onAddGame, onOpenScanner, onOpenLibrary, onOpenMaintenance, onOpenMetadata, onOpenSaves, onOpenSettings, onOpenTasks }: DashboardPageProps) {
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [playingGames, setPlayingGames] = useState<Game[]>([]);
-  const [settings, setSettings] = useState<Record<string, string>>({});
-  const [diagnostics, setDiagnostics] = useState<AppDataDiagnostics | null>(null);
-  const [tasks, setTasks] = useState<TaskRecord[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [sectionErrors, setSectionErrors] = useState<string[]>([]);
+  const { attentionItems, continueGames, data, diagnostics, error, sectionErrors, taskSummary, tasks } = useDashboardPageData(refreshKey);
   const { copyDashboardDiagnosticExportPath, diagnosticExportLoading, diagnosticExportMessage, diagnosticExportPath, exportDiagnosticPackage, revealDiagnosticExportPath } = useDashboardDiagnosticExport();
-
-  useEffect(() => {
-    let cancelled = false;
-    const errors: string[] = [];
-    setSectionErrors([]);
-
-    api
-      .getDashboard()
-      .then((next) => {
-        if (!cancelled) {
-          setData(next);
-          setError(null);
-        }
-      })
-      .catch((reason: unknown) => {
-        if (!cancelled) setError(errorMessage(reason));
-      });
-
-    api.listTasks(8).then((next) => !cancelled && setTasks(next)).catch(() => !cancelled && setTasks([]));
-    api.getAppSettings().then((next) => !cancelled && setSettings(next)).catch(() => undefined);
-    api.getAppDataDiagnostics()
-      .then((next) => !cancelled && setDiagnostics(next))
-      .catch((reason: unknown) => {
-        errors.push(`本地自检暂时不可用：${errorMessage(reason)}`);
-        if (!cancelled) setSectionErrors([...errors]);
-      });
-    api.listGames({ status: 'playing', sortBy: 'last_played_at', sortDirection: 'desc', limit: 24 })
-      .then((next) => !cancelled && setPlayingGames(next))
-      .catch((reason: unknown) => {
-        errors.push(`继续游玩列表暂时不可用：${errorMessage(reason)}`);
-        if (!cancelled) setSectionErrors([...errors]);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [refreshKey]);
-
-  const hideHidden = settings.privacy_hide_hidden === 'true';
-  const continueGames = useMemo(() => data ? rankContinueGames(uniqueDashboardGames([...playingGames, ...data.recentGames, ...data.recentlyAdded]), { hideHidden, limit: 6 }) : [], [data, hideHidden, playingGames]);
-  const attentionItems = useMemo(() => deriveDashboardAttentionItems({ diagnostics, tasks }), [diagnostics, tasks]);
-  const taskSummary = useMemo(() => deriveDashboardTaskSummary(tasks), [tasks]);
 
   if (error) {
     return (

@@ -55,6 +55,7 @@ test('default source budgets cover frontend, Rust service, and smoke runner hot 
     'src/app/useAppThemeSettings.ts',
     'src/services/mockStore.ts',
     'src/pages/Dashboard/DashboardPage.tsx',
+    'src/pages/Dashboard/useDashboardPageData.ts',
     'src/pages/Library/LibraryPage.tsx',
     'src/pages/Library/useLibraryPageController.ts',
     'src/pages/Library/LibrarySidebar.tsx',
@@ -170,9 +171,27 @@ test('library companion budgets keep controller and sidebar rendering outside th
 
 test('dashboard page budget keeps personal dashboard orchestration small', () => {
   const budget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('src/pages/Dashboard/DashboardPage.tsx'));
+  const dataBudget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('src/pages/Dashboard/useDashboardPageData.ts'));
 
   assert.ok(budget);
-  assert.ok(budget.maxLines <= 160);
+  assert.ok(dataBudget);
+  assert.ok(budget.maxLines <= 115);
+  assert.ok(dataBudget.maxLines <= 95);
+});
+
+test('dashboard page delegates loading and derived state to a focused hook', () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'pages', 'Dashboard', 'DashboardPage.tsx'), 'utf8');
+  const hook = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'pages', 'Dashboard', 'useDashboardPageData.ts'), 'utf8');
+
+  assert.match(page, /import \{ useDashboardPageData \} from '\.\/useDashboardPageData';/);
+  assert.match(page, /useDashboardPageData\(refreshKey\)/);
+  assert.doesNotMatch(page, /useState|useEffect|useMemo/);
+  assert.doesNotMatch(page, /api\./);
+  assert.doesNotMatch(page, /deriveDashboardAttentionItems|rankContinueGames|uniqueDashboardGames/);
+  assert.match(hook, /export function useDashboardPageData/);
+  assert.match(hook, /api\s*\.\s*getDashboard/);
+  assert.match(hook, /deriveDashboardAttentionItems/);
+  assert.match(hook, /rankContinueGames/);
 });
 
 test('game form budget keeps form mapping outside page component', () => {

@@ -55,7 +55,12 @@ const DEFAULT_SOURCE_BUDGETS = [
   {
     filePath: path.resolve(__dirname, '..', '..', 'src', 'pages', 'Dashboard', 'DashboardPage.tsx'),
     maxBytes: 32 * 1024,
-    maxLines: 160,
+    maxLines: 115,
+  },
+  {
+    filePath: path.resolve(__dirname, '..', '..', 'src', 'pages', 'Dashboard', 'useDashboardPageData.ts'),
+    maxBytes: 20 * 1024,
+    maxLines: 95,
   },
   {
     filePath: path.resolve(__dirname, '..', '..', 'src', 'pages', 'Maintenance', 'MaintenancePage.tsx'),
