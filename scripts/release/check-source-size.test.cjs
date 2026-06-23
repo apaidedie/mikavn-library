@@ -79,6 +79,7 @@ test('default source budgets cover frontend, Rust service, and smoke runner hot 
     'src-tauri/src/db/game_merge_ext.rs',
     'scripts/playwright/page-qa-runner.cjs',
     'scripts/playwright/page-qa-runner-helpers.cjs',
+    'scripts/playwright/page-qa-collections-cases.cjs',
     'scripts/playwright/page-qa-dashboard-cases.cjs',
     'scripts/playwright/page-qa-scanner-cases.cjs',
     'scripts/playwright/page-qa-metadata-cases.cjs',
@@ -95,6 +96,7 @@ test('default source budgets cover frontend, Rust service, and smoke runner hot 
 test('page QA runner budget keeps shared helpers outside the scenario file', () => {
   const runnerBudget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('scripts/playwright/page-qa-runner.cjs'));
   const helperBudget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('scripts/playwright/page-qa-runner-helpers.cjs'));
+  const collectionsBudget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('scripts/playwright/page-qa-collections-cases.cjs'));
   const dashboardBudget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('scripts/playwright/page-qa-dashboard-cases.cjs'));
   const libraryBudget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('scripts/playwright/page-qa-library-cases.cjs'));
   const metadataBudget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('scripts/playwright/page-qa-metadata-cases.cjs'));
@@ -106,6 +108,7 @@ test('page QA runner budget keeps shared helpers outside the scenario file', () 
 
   assert.ok(runnerBudget);
   assert.ok(helperBudget);
+  assert.ok(collectionsBudget);
   assert.ok(dashboardBudget);
   assert.ok(libraryBudget);
   assert.ok(metadataBudget);
@@ -116,6 +119,7 @@ test('page QA runner budget keeps shared helpers outside the scenario file', () 
   assert.ok(scannerBudget);
   assert.ok(runnerBudget.maxBytes <= 44 * 1024);
   assert.ok(helperBudget.maxLines <= 240);
+  assert.ok(collectionsBudget.maxLines <= 100);
   assert.ok(dashboardBudget.maxLines <= 140);
   assert.ok(libraryBudget.maxLines <= 240);
   assert.ok(metadataBudget.maxLines <= 120);
@@ -128,6 +132,7 @@ test('page QA runner budget keeps shared helpers outside the scenario file', () 
 
 test('page QA runner delegates broad workflow cases to focused scenario modules', () => {
   const runner = fs.readFileSync(path.join(__dirname, '..', '..', 'scripts', 'playwright', 'page-qa-runner.cjs'), 'utf8');
+  const collectionsCasesPath = path.join(__dirname, '..', '..', 'scripts', 'playwright', 'page-qa-collections-cases.cjs');
   const dashboardCasesPath = path.join(__dirname, '..', '..', 'scripts', 'playwright', 'page-qa-dashboard-cases.cjs');
   const libraryCasesPath = path.join(__dirname, '..', '..', 'scripts', 'playwright', 'page-qa-library-cases.cjs');
   const metadataCasesPath = path.join(__dirname, '..', '..', 'scripts', 'playwright', 'page-qa-metadata-cases.cjs');
@@ -137,6 +142,7 @@ test('page QA runner delegates broad workflow cases to focused scenario modules'
   const settingsCasesPath = path.join(__dirname, '..', '..', 'scripts', 'playwright', 'page-qa-settings-cases.cjs');
   const scannerCasesPath = path.join(__dirname, '..', '..', 'scripts', 'playwright', 'page-qa-scanner-cases.cjs');
 
+  assert.match(runner, /const \{ collectionsPageQaCases \} = require\('\.\/page-qa-collections-cases\.cjs'\);/);
   assert.match(runner, /const \{ dashboardPageQaCases \} = require\('\.\/page-qa-dashboard-cases\.cjs'\);/);
   assert.match(runner, /const \{ libraryPageQaCases \} = require\('\.\/page-qa-library-cases\.cjs'\);/);
   assert.match(runner, /const \{ metadataPageQaCases \} = require\('\.\/page-qa-metadata-cases\.cjs'\);/);
@@ -145,6 +151,7 @@ test('page QA runner delegates broad workflow cases to focused scenario modules'
   assert.match(runner, /const \{ savesPageQaCases \} = require\('\.\/page-qa-saves-cases\.cjs'\);/);
   assert.match(runner, /const \{ settingsPageQaCases \} = require\('\.\/page-qa-settings-cases\.cjs'\);/);
   assert.match(runner, /const \{ runScannerPageQaCases \} = require\('\.\/page-qa-scanner-cases\.cjs'\);/);
+  assert.match(runner, /\.\.\.collectionsPageQaCases,/);
   assert.match(runner, /\.\.\.dashboardPageQaCases,/);
   assert.match(runner, /\.\.\.libraryPageQaCases,/);
   assert.match(runner, /\.\.\.metadataPageQaCases,/);
@@ -153,6 +160,8 @@ test('page QA runner delegates broad workflow cases to focused scenario modules'
   assert.match(runner, /\.\.\.savesPageQaCases,/);
   assert.match(runner, /\.\.\.settingsPageQaCases,/);
   assert.match(runner, /await runScannerPageQaCases\(browser\);/);
+  assert.doesNotMatch(runner, /collections-populated/);
+  assert.doesNotMatch(runner, /collections-create-add-remove-delete/);
   assert.doesNotMatch(runner, /dashboard-task-shortcuts/);
   assert.doesNotMatch(runner, /dashboard-mobile/);
   assert.doesNotMatch(runner, /library-populated-detail-artwork/);
@@ -167,6 +176,7 @@ test('page QA runner delegates broad workflow cases to focused scenario modules'
   assert.doesNotMatch(runner, /settings-tray-disabled-toggle/);
   assert.doesNotMatch(runner, /scanner-skip-import-audit/);
   assert.doesNotMatch(runner, /scanner-duplicate-import-audit/);
+  assert.ok(fs.existsSync(collectionsCasesPath));
   assert.ok(fs.existsSync(dashboardCasesPath));
   assert.ok(fs.existsSync(libraryCasesPath));
   assert.ok(fs.existsSync(metadataCasesPath));

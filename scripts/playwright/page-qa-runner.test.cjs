@@ -5,6 +5,7 @@ const test = require('node:test');
 
 const sourcePath = path.join(__dirname, 'page-qa-runner.cjs');
 const helperPath = path.join(__dirname, 'page-qa-runner-helpers.cjs');
+const collectionsCasesPath = path.join(__dirname, 'page-qa-collections-cases.cjs');
 const dashboardCasesPath = path.join(__dirname, 'page-qa-dashboard-cases.cjs');
 const libraryCasesPath = path.join(__dirname, 'page-qa-library-cases.cjs');
 const metadataCasesPath = path.join(__dirname, 'page-qa-metadata-cases.cjs');
@@ -95,6 +96,20 @@ test('settings local path QA lives in helper instead of the main runner', () => 
   assert.doesNotMatch(source, /verifySettingsLocalDataPathActions\(page\)/);
   assert.doesNotMatch(source, /const copiedDirectorySummary = await page\.evaluate/);
   assert.doesNotMatch(source, /const copiedDiagnosticLogPath = await page\.evaluate/);
+});
+
+test('collections page QA cases live in a focused organization scenario module', () => {
+  const source = fs.readFileSync(sourcePath, 'utf8');
+  const collectionsSource = fs.readFileSync(collectionsCasesPath, 'utf8');
+
+  assert.match(source, /page-qa-collections-cases\.cjs/);
+  assert.match(source, /\.\.\.collectionsPageQaCases/);
+  assert.match(collectionsSource, /collections-populated/);
+  assert.match(collectionsSource, /collections-create-add-remove-delete/);
+  assert.match(collectionsSource, /collections page QA did not add the searched game to the new collection/);
+  assert.match(collectionsSource, /collections page QA deleted a game record while deleting a collection/);
+  assert.doesNotMatch(source, /\['collections-populated'/);
+  assert.doesNotMatch(source, /\['collections-create-add-remove-delete'/);
 });
 
 test('library page QA cases live in a focused scenario module', () => {
