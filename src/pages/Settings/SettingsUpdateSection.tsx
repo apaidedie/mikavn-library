@@ -115,7 +115,7 @@ export function SettingsUpdateSection({ onOpenDatabaseRestore, onRevealBackup }:
 
   return (
     <ConfigSection title="应用更新">
-      <ConfigItem title="Windows 更新" description="通过公开 GitHub Releases 检查并安装已签名的 Windows 更新。">
+      <ConfigItem title="Windows 更新" description="通过公开 GitHub Releases 检查 Windows 更新；安装前会自动备份数据库，失败时提供备用下载链接。">
         <div className="flex flex-col items-end gap-3">
           <Button disabled={state === 'checking' || state === 'installing'} onClick={() => void checkUpdates()} type="button" variant="outline">
             <RefreshCw className="h-4 w-4" />

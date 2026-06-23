@@ -21,6 +21,14 @@ test('settings update section exposes manual updater actions and browser fallbac
   assert.match(source, /restartAfterUpdate/);
 });
 
+test('settings update section avoids promising signed Windows artifacts in local builds', () => {
+  const source = read('src/pages/Settings/SettingsUpdateSection.tsx');
+
+  assert.doesNotMatch(source, /已签名的 Windows 更新/);
+  assert.match(source, /公开 GitHub Releases/);
+  assert.match(source, /失败时提供备用下载链接/);
+});
+
 test('local settings tab renders updater section before data maintenance', () => {
   const source = read('src/pages/Settings/SettingsLocalTabContent.tsx');
   const updateIndex = source.indexOf('<SettingsUpdateSection');
