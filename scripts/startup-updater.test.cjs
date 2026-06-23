@@ -108,6 +108,17 @@ test('startup update notice can reveal or copy pre-update backup path', () => {
   assert.match(app, /onCopyBackupPath=\{app\.startupUpdater\.copyStartupBackupPath\}/);
 });
 
+test('startup update notice keeps backup actions visible after failed installs', () => {
+  const notice = read('src/app/AppUpdateNotice.tsx');
+
+  assert.match(notice, /\{backupInfo && \(/);
+  assert.doesNotMatch(notice, /\{installed && backupInfo && \(/);
+  const backupBlock = notice.slice(notice.indexOf('{backupInfo && ('), notice.indexOf('{backupActionMessage'));
+  assert.match(backupBlock, /更新前数据库备份/);
+  assert.match(backupBlock, /打开备份位置/);
+  assert.match(backupBlock, /复制备份路径/);
+});
+
 test('startup update notice links failed update backups to database restore workflow', () => {
   const notice = read('src/app/AppUpdateNotice.tsx');
   const app = read('src/app/App.tsx');

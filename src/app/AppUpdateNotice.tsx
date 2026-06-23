@@ -54,7 +54,7 @@ export function AppUpdateNotice({
           <p className="font-medium">发现新版本 {notice.version}</p>
           <p className="truncate text-xs text-emerald-100/80">{installed ? '更新已安装，请重启应用。' : notice.notes}</p>
           {progressText && <p className="mt-1 text-xs text-amber-100">{progressText}</p>}
-          {installed && backupInfo && (
+          {backupInfo && (
             <div className="mt-1 flex flex-wrap items-center gap-2">
               <p className="truncate text-xs text-emerald-100/80">更新前数据库备份：{backupInfo.fileName}</p>
               <button className="inline-flex items-center gap-1 text-xs text-emerald-50 underline underline-offset-2" type="button" onClick={onRevealBackup}>
