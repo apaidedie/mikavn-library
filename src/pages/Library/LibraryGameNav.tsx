@@ -16,6 +16,7 @@ import {
   libraryGridRenderBatchSize,
   libraryListInitialRenderCount,
   libraryListRenderBatchSize,
+  nextLibraryRenderCount,
 } from './libraryPageModel';
 
 type LibraryGameNavProps = {
@@ -70,7 +71,7 @@ export function GameList({ blurCovers, bulkMode, games, onSelect, onToggleSelect
       ))}
       {renderWindow.hasMore && (
         <div className="px-2 pb-2 pt-1">
-          <Button className="h-8 w-full text-xs" size="sm" variant="outline" onClick={() => setRenderState(() => ({ identity: renderIdentity, count: Math.min(games.length, renderWindow.primaryGames.length + libraryListRenderBatchSize) }))}>
+          <Button className="h-8 w-full text-xs" size="sm" variant="outline" onClick={() => setRenderState((current) => ({ identity: renderIdentity, count: nextLibraryRenderCount(games.length, current.identity === renderIdentity ? current.count : libraryListInitialRenderCount, libraryListRenderBatchSize) }))}>
             {formatLibraryLoadMoreLabel(renderWindow.primaryGames.length, games.length)}
           </Button>
         </div>
@@ -108,7 +109,7 @@ export function GameGrid({ blurCovers, bulkMode, games, onSelect, onToggleSelect
       </div>
       {renderWindow.hasMore && (
         <div className="px-2 pb-3">
-          <Button className="h-8 w-full text-xs" size="sm" variant="outline" onClick={() => setRenderState(() => ({ identity: renderIdentity, count: Math.min(games.length, renderWindow.primaryGames.length + libraryGridRenderBatchSize) }))}>
+          <Button className="h-8 w-full text-xs" size="sm" variant="outline" onClick={() => setRenderState((current) => ({ identity: renderIdentity, count: nextLibraryRenderCount(games.length, current.identity === renderIdentity ? current.count : libraryGridInitialRenderCount, libraryGridRenderBatchSize) }))}>
             {formatLibraryLoadMoreLabel(renderWindow.primaryGames.length, games.length)}
           </Button>
         </div>

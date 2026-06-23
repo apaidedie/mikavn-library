@@ -145,6 +145,15 @@ test('formatLibraryLoadMoreLabel summarizes the current render window', () => {
   assert.equal(formatLibraryLoadMoreLabel(160, 1000), '加载更多 160 / 1,000');
 });
 
+test('nextLibraryRenderCount advances from the latest render state and clamps to total', () => {
+  const { nextLibraryRenderCount } = loadLibraryPageModel();
+
+  assert.equal(nextLibraryRenderCount(5000, 240, 240), 480);
+  assert.equal(nextLibraryRenderCount(5000, 480, 240), 720);
+  assert.equal(nextLibraryRenderCount(500, 480, 240), 500);
+  assert.equal(nextLibraryRenderCount(500, Number.NaN, 240), 240);
+});
+
 test('formatLibraryBulkConfirmation summarizes the selected batch before writing', () => {
   const { formatLibraryBulkConfirmation } = loadLibraryPageModel();
 
@@ -406,8 +415,9 @@ test('library nav resets render budgets synchronously when result identity chang
   assert.match(source, /useMemo\(\(\) => getLibraryRenderIdentity\(games\), \[games\]\)/);
   assert.match(source, /renderState\.identity === renderIdentity \? renderState\.count : libraryListInitialRenderCount/);
   assert.match(source, /renderState\.identity === renderIdentity \? renderState\.count : libraryGridInitialRenderCount/);
-  assert.match(source, /setRenderState\(\(\) => \(\{ identity: renderIdentity, count: Math\.min\(games\.length, renderWindow\.primaryGames\.length \+ libraryListRenderBatchSize\) \}\)\)/);
-  assert.match(source, /setRenderState\(\(\) => \(\{ identity: renderIdentity, count: Math\.min\(games\.length, renderWindow\.primaryGames\.length \+ libraryGridRenderBatchSize\) \}\)\)/);
+  assert.match(source, /nextLibraryRenderCount/);
+  assert.match(source, /setRenderState\(\(current\) => \(\{ identity: renderIdentity, count: nextLibraryRenderCount\(games\.length, current\.identity === renderIdentity \? current\.count : libraryListInitialRenderCount, libraryListRenderBatchSize\) \}\)\)/);
+  assert.match(source, /setRenderState\(\(current\) => \(\{ identity: renderIdentity, count: nextLibraryRenderCount\(games\.length, current\.identity === renderIdentity \? current\.count : libraryGridInitialRenderCount, libraryGridRenderBatchSize\) \}\)\)/);
   assert.doesNotMatch(source, /setRenderCount\(libraryListInitialRenderCount\)/);
   assert.doesNotMatch(source, /setRenderCount\(libraryGridInitialRenderCount\)/);
 });

@@ -147,6 +147,13 @@ export function formatLibraryLoadMoreLabel(visibleCount: number, totalCount: num
   return `加载更多 ${formatLibraryCount(visibleCount)} / ${formatLibraryCount(totalCount)}`;
 }
 
+export function nextLibraryRenderCount(totalCount: number, currentCount: number, batchSize: number) {
+  const safeTotal = Number.isFinite(totalCount) ? Math.max(0, Math.floor(totalCount)) : 0;
+  const safeCurrent = Number.isFinite(currentCount) ? Math.max(0, Math.floor(currentCount)) : 0;
+  const safeBatch = Number.isFinite(batchSize) ? Math.max(0, Math.floor(batchSize)) : 0;
+  return Math.min(safeTotal, safeCurrent + safeBatch);
+}
+
 export function formatLibraryBulkConfirmation(count: number, label: string) {
   return `确认对当前筛选范围内已选的 ${formatLibraryCount(count)} 个游戏执行批量操作：${label}？\n此操作只修改 MikaVN 数据库记录，不会删除真实游戏文件。`;
 }
