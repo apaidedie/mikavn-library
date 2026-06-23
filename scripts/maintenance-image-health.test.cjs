@@ -4,6 +4,23 @@ const path = require('node:path');
 const test = require('node:test');
 const ts = require('typescript');
 
+function loadDiagnosticRedaction() {
+  const sourcePath = path.join(__dirname, '..', 'src', 'utils', 'diagnosticRedaction.ts');
+  const source = fs.readFileSync(sourcePath, 'utf8');
+  const transpiled = ts.transpileModule(source, {
+    compilerOptions: {
+      esModuleInterop: true,
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2022,
+    },
+  }).outputText;
+
+  const module = { exports: {} };
+  const fn = new Function('module', 'exports', transpiled);
+  fn(module, module.exports);
+  return module.exports;
+}
+
 function loadDescriptionImageRepairResultPanel() {
   const sourcePath = path.join(__dirname, '..', 'src', 'pages', 'Maintenance', 'DescriptionImageRepairResultPanel.tsx');
   const source = fs.readFileSync(sourcePath, 'utf8');
@@ -49,8 +66,12 @@ function loadMaintenanceImageHealthModel() {
   }).outputText;
 
   const module = { exports: {} };
-  const fn = new Function('module', 'exports', transpiled);
-  fn(module, module.exports);
+  const localRequire = (specifier) => {
+    if (specifier === '@/utils/diagnosticRedaction') return loadDiagnosticRedaction();
+    throw new Error(`Unexpected require: ${specifier}`);
+  };
+  const fn = new Function('module', 'exports', 'require', transpiled);
+  fn(module, module.exports, localRequire);
   return module.exports;
 }
 
@@ -328,6 +349,40 @@ test('image health summary can be copied as a compact diagnostic text', () => {
   assert.match(message, /媒体图不完整游戏：9/);
   assert.match(message, /1\. 先查看失效引用。/);
   assert.match(message, /2\. 再整理未引用缓存。/);
+});
+
+test('image health summary redacts copied cache paths and recommendation secrets', () => {
+  const { formatImageHealthSummaryMarkdown } = loadMaintenanceImageHealthModel();
+  const message = formatImageHealthSummaryMarkdown({
+    generatedAt: '2026-06-22T12:00:00.000Z',
+    summary: {
+      totalImageRefs: 1,
+      issueImageRefs: 1,
+      missingLocalRefs: 1,
+      cDriveRefs: 1,
+      playniteRefs: 0,
+      legacyAppDataImportRefs: 0,
+      externalLegacyRefs: 0,
+      imageFiles: 1,
+      orphanFiles: 0,
+      duplicateFileNameGroups: 0,
+      duplicateContentGroups: 0,
+      oversizedFiles: 0,
+      oversizedImageRefs: 0,
+      invalidImageFiles: 0,
+      invalidImageRefs: 0,
+      contentTypeMismatchFiles: 0,
+      contentTypeMismatchRefs: 0,
+      missingCoverGames: 1,
+      missingArtworkGames: 1,
+    },
+    cache: { rootPath: String.raw`C:\Users\alice\AppData\Local\MikaVN\images` },
+    recommendations: ['检查 token:abc password=hunter2 API_KEY=secret 后再导出。'],
+  });
+
+  assert.match(message, /\[redacted\]/);
+  assert.match(message, /C:\\Users\\\[user\]\\AppData/);
+  assert.doesNotMatch(message, /abc|hunter2|secret|alice/);
 });
 
 test('image health model formats referenced and safely cleanable cache counts', () => {

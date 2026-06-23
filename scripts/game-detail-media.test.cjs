@@ -4,8 +4,8 @@ const path = require('node:path');
 const test = require('node:test');
 const ts = require('typescript');
 
-function loadGameDetailMediaModel() {
-  const sourcePath = path.join(__dirname, '..', 'src', 'pages', 'Library', 'gameDetailMediaModel.ts');
+function loadDiagnosticRedaction() {
+  const sourcePath = path.join(__dirname, '..', 'src', 'utils', 'diagnosticRedaction.ts');
   const source = fs.readFileSync(sourcePath, 'utf8');
   const transpiled = ts.transpileModule(source, {
     compilerOptions: {
@@ -18,6 +18,27 @@ function loadGameDetailMediaModel() {
   const module = { exports: {} };
   const fn = new Function('module', 'exports', transpiled);
   fn(module, module.exports);
+  return module.exports;
+}
+
+function loadGameDetailMediaModel() {
+  const sourcePath = path.join(__dirname, '..', 'src', 'pages', 'Library', 'gameDetailMediaModel.ts');
+  const source = fs.readFileSync(sourcePath, 'utf8');
+  const transpiled = ts.transpileModule(source, {
+    compilerOptions: {
+      esModuleInterop: true,
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2022,
+    },
+  }).outputText;
+
+  const module = { exports: {} };
+  const localRequire = (specifier) => {
+    if (specifier === '@/utils/diagnosticRedaction') return loadDiagnosticRedaction();
+    throw new Error(`Unexpected require: ${specifier}`);
+  };
+  const fn = new Function('module', 'exports', 'require', transpiled);
+  fn(module, module.exports, localRequire);
   return module.exports;
 }
 
@@ -112,6 +133,45 @@ test('game image diagnostic text captures fields audit counts and samples', () =
   assert.match(text, /封面 \[缺失\]/);
   assert.match(text, /图库 \[Playnite\]/);
   assert.match(text, /维护入口：维护中心 -> 图片健康 \/ 图片引用审计/);
+});
+
+test('game image diagnostic text redacts copied secrets and Windows user names', () => {
+  const { formatGameImageDiagnostic } = loadGameDetailMediaModel();
+  const game = {
+    ...gameFixture(),
+    installPath: String.raw`C:\Users\alice\Games\private-vn token:abc`,
+    coverImage: String.raw`C:\Users\alice\AppData\Local\MikaVN\cover.jpg`,
+  };
+  const audit = {
+    totalRefs: 1,
+    issueCount: 1,
+    localCount: 1,
+    remoteCount: 0,
+    missingCount: 1,
+    cDriveCount: 1,
+    playniteCount: 0,
+    truncated: false,
+    items: [
+      {
+        gameId: 'game-1',
+        gameTitle: '图片测试游戏',
+        sourceKind: 'game',
+        sourceLabel: '游戏',
+        fieldName: 'cover_image',
+        value: String.raw`password=hunter2 C:\Users\bob\AppData\Local\MikaVN\missing.jpg`,
+        resolvedPath: String.raw`C:/Users/bob/AppData/Roaming/MikaVN/missing.jpg?api_key=secret`,
+        status: 'missing',
+        issues: ['missing', 'c_drive'],
+      },
+    ],
+  };
+
+  const text = formatGameImageDiagnostic(game, audit);
+
+  assert.match(text, /\[redacted\]/);
+  assert.match(text, /C:\\Users\\\[user\]\\Games/);
+  assert.match(text, /C:\/Users\/\[user\]\/AppData/);
+  assert.doesNotMatch(text, /abc|hunter2|secret|alice|bob/);
 });
 
 test('description image rendering keeps text while limiting initial image nodes', () => {

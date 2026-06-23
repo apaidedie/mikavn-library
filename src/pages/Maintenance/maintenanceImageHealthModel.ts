@@ -1,4 +1,5 @@
 import type { ImageHealthReport, ImageQuarantineReport } from '@/types/archive';
+import { redactDiagnosticText } from '@/utils/diagnosticRedaction';
 
 const quarantineRecoveryHint = '隔离区 manifest.json 可用于按原路径找回。';
 
@@ -112,7 +113,7 @@ export function formatImageHealthSummaryMarkdown(report: Pick<ImageHealthReport,
     });
   }
 
-  return lines.join('\n');
+  return redactDiagnosticText(lines.join('\n'));
 }
 
 export function formatImageHealthReferenceSplit(total?: number | null, referenced?: number | null) {

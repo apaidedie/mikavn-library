@@ -1,5 +1,6 @@
 import type { ImageReferenceAudit } from '@/types/archive';
 import type { Game } from '@/types/game';
+import { redactDiagnosticText } from '@/utils/diagnosticRedaction';
 
 export type DescriptionPart =
   | { type: 'text'; value: string }
@@ -200,7 +201,7 @@ export function formatGameImageDiagnostic(game: Game, audit: ImageReferenceAudit
   }
 
   lines.push('', '维护入口：维护中心 -> 图片健康 / 图片引用审计');
-  return lines.join('\n');
+  return redactDiagnosticText(lines.join('\n'));
 }
 
 function mediaFieldHealth(id: string, label: string, value?: string | null): MediaHealthItem {
