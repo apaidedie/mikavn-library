@@ -35,6 +35,16 @@ test('large library smoke report records rendered row counts', () => {
   assert.match(source, /report\.renderedRows\.afterLoadMore = expandedRows/);
 });
 
+test('large library smoke seeds cover images and verifies visible cover decoding', () => {
+  const source = fs.readFileSync(sourcePath, 'utf8');
+
+  assert.match(source, /largeSmokeCoverImage/);
+  assert.match(source, /coverImage: largeSmokeCoverImage/);
+  assert.match(source, /assertImagesLoaded/);
+  assert.match(source, /\.game-nav-row img/);
+  assert.match(source, /large library visible cover image/);
+});
+
 test('large library smoke history appends compact performance entries and reports deltas', () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mikavn-large-history-'));
   const historyPath = path.join(tempDir, 'large-library-history.jsonl');

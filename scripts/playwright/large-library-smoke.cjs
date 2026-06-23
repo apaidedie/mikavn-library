@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { assertImagesLoaded } = require('./image-render-assertions.cjs');
 const { formatLargeLibrarySmokeWarnings, recordLargeLibrarySmokeHistory } = require('./large-library-report-history.cjs');
 const { resolvePlaywright } = require('./playwright-resolution.cjs');
 
@@ -11,6 +12,7 @@ const historyPath = path.resolve(process.env.MIKAVN_LARGE_LIBRARY_HISTORY_PATH |
 fs.mkdirSync(outDir, { recursive: true });
 
 const now = new Date().toISOString();
+const largeSmokeCoverImage = '/favicon.svg';
 const gameCount = Number.parseInt(process.env.MIKAVN_LARGE_LIBRARY_COUNT || '4500', 10);
 const libraryLoadBudgetMs = Number.parseInt(process.env.MIKAVN_LARGE_LIBRARY_LOAD_BUDGET_MS || '12000', 10);
 const detailSwitchBudgetMs = Number.parseInt(process.env.MIKAVN_LARGE_LIBRARY_DETAIL_BUDGET_MS || '3000', 10);
@@ -76,7 +78,7 @@ function makeLargeGames(count) {
       launchArgs: null,
       pathStatus: index % 31 === 0 ? 'broken' : 'ok',
       lastPathCheckedAt: now,
-      coverImage: null,
+      coverImage: largeSmokeCoverImage,
       bannerImage: null,
       backgroundImage: null,
       vndbId: index % 5 === 0 ? `v${10000 + index}` : null,
@@ -197,6 +199,7 @@ async function main() {
       report.renderedRows.initial = visibleRows;
       if (visibleRows <= 0) throw new Error('expected initial list rows to render');
       if (visibleRows >= gameCount) throw new Error(`expected batched list rows below ${gameCount}, got ${visibleRows}`);
+      await assertImagesLoaded(page.locator('.game-nav-row img').first(), 'large library visible cover image');
       const loadMoreButton = page.getByRole('button', { name: /加载更多/ }).first();
       await loadMoreButton.waitFor({ timeout: 5000 });
       await loadMoreButton.click();
