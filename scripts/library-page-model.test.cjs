@@ -268,9 +268,14 @@ test('getLibraryRenderWindow keeps large lists bounded and pins far selected gam
 test('getLibraryRenderIdentity changes when the current result window changes', () => {
   const { getLibraryRenderIdentity } = loadLibraryPageModel();
 
-  assert.equal(getLibraryRenderIdentity([]), '0::');
-  assert.equal(getLibraryRenderIdentity([game({ id: 'a' }), game({ id: 'b' })]), '2:a:b');
-  assert.equal(getLibraryRenderIdentity([game({ id: 'a' }), game({ id: 'c' })]), '2:a:c');
+  const emptyIdentity = getLibraryRenderIdentity([]);
+  const firstIdentity = getLibraryRenderIdentity([game({ id: 'a' }), game({ id: 'b' })]);
+  const changedIdentity = getLibraryRenderIdentity([game({ id: 'a' }), game({ id: 'c' })]);
+
+  assert.match(emptyIdentity, /^0:/);
+  assert.match(firstIdentity, /^2:/);
+  assert.match(changedIdentity, /^2:/);
+  assert.notEqual(firstIdentity, changedIdentity);
 });
 
 test('getLibraryRenderIdentity changes when middle results change under the same boundaries', () => {
@@ -296,6 +301,17 @@ test('getLibraryRenderIdentity changes when any unsampled large-list result chan
   const changed = base.map((item, index) => index === 11 ? game({ id: 'game-replaced-11' }) : item);
 
   assert.notEqual(getLibraryRenderIdentity(base), getLibraryRenderIdentity(changed));
+});
+
+test('getLibraryRenderIdentity stays compact for large libraries', () => {
+  const { getLibraryRenderIdentity } = loadLibraryPageModel();
+  const games = Array.from({ length: 5000 }, (_, index) => game({ id: `very-long-library-game-${index}` }));
+
+  const identity = getLibraryRenderIdentity(games);
+
+  assert.match(identity, /^5000:/);
+  assert.ok(identity.length <= 48, `identity should stay compact, got ${identity.length} chars`);
+  assert.doesNotMatch(identity, /very-long-library-game-4999/);
 });
 
 test('buildLibraryGameLookup supports constant-time selected game lookups for large libraries', () => {

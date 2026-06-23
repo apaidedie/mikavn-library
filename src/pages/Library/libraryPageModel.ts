@@ -41,8 +41,17 @@ export function buildLibraryGameIndexLookup(games: Game[]) {
 }
 
 export function getLibraryRenderIdentity(games: Game[]) {
-  if (games.length === 0) return '0::';
-  return `${games.length}:${games.map((game) => game.id).join(':')}`;
+  // Keep this identity compact; it is recalculated for large filtered result sets.
+  let hash = 2166136261;
+  for (const game of games) {
+    for (let index = 0; index < game.id.length; index += 1) {
+      hash ^= game.id.charCodeAt(index);
+      hash = Math.imul(hash, 16777619);
+    }
+    hash ^= 58;
+    hash = Math.imul(hash, 16777619);
+  }
+  return `${games.length}:${(hash >>> 0).toString(36)}`;
 }
 
 export function groupLibraryGames(games: Game[], statusLabels: Record<PlayStatus, string>): LibraryGameGroup[] {
