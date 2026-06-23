@@ -56,6 +56,16 @@ test('startup update notice exposes fallback download link after install errors'
   assert.match(notice, /recoveryActionMessage/);
 });
 
+test('startup update notice switches banner tone after install errors', () => {
+  const notice = read('src/app/AppUpdateNotice.tsx');
+
+  assert.match(notice, /noticeToneClassName/);
+  assert.match(notice, /error\s*\?/);
+  assert.match(notice, /border-amber-300\/25 bg-amber-500\/10 text-amber-50/);
+  assert.match(notice, /border-emerald-300\/20 bg-emerald-500\/10 text-emerald-50/);
+  assert.match(notice, /className=\{`border-b \$\{noticeToneClassName\} px-4 py-2 text-sm`\}/);
+});
+
 test('startup update notice keeps a public manual download link visible before failures', () => {
   const notice = read('src/app/AppUpdateNotice.tsx');
   const manualDownloadIndex = notice.indexOf('手动下载最新版');

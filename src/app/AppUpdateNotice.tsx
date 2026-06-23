@@ -49,6 +49,9 @@ export function AppUpdateNotice({
 }: AppUpdateNoticeProps) {
   const [recoveryActionMessage, setRecoveryActionMessage] = useState<string | null>(null);
   const recoveryHint = createUpdaterRecoveryHint(error);
+  const noticeToneClassName = error
+    ? 'border-amber-300/25 bg-amber-500/10 text-amber-50'
+    : 'border-emerald-300/20 bg-emerald-500/10 text-emerald-50';
 
   const copyUpdateRecoveryText = async (text: string, successMessage: string) => {
     setRecoveryActionMessage(null);
@@ -61,7 +64,7 @@ export function AppUpdateNotice({
   };
 
   return (
-    <div className="border-b border-emerald-300/20 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-50">
+    <div className={`border-b ${noticeToneClassName} px-4 py-2 text-sm`}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="font-medium">发现新版本 {notice.version}</p>
