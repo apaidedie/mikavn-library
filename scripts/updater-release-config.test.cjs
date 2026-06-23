@@ -25,6 +25,7 @@ test('package scripts and dependencies include updater gates and frontend plugin
   assert.match(pkg.scripts['test:maintenance-image-health'], /scripts\/maintenance-image-health\.test\.cjs/);
   assert.match(pkg.scripts['test:library-performance'], /scripts\/cover-image-performance\.test\.cjs/);
   assert.match(pkg.scripts['test:library-performance'], /scripts\/library-filter-performance\.test\.cjs/);
+  assert.match(pkg.scripts['test:library-performance'], /scripts\/scanner-page-model\.test\.cjs/);
   assert.match(pkg.scripts['test:release-scripts'], /updater-release-config\.test\.cjs/);
   assert.match(pkg.scripts['release:handoff:require-public'], /check-release-handoff\.cjs --require-public-ready/);
   assert.match(pkg.scripts['smoke:real-data:readonly'], /run-real-app-data-readonly-smoke\.ps1/);

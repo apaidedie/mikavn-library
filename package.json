@@ -31,7 +31,7 @@
     "test:saves-page-model": "node --test scripts/saves-page-model.test.cjs",
     "test:maintenance-image-health": "node --test scripts/maintenance-image-health.test.cjs scripts/maintenance-queue-actions.test.cjs",
     "test:diagnostic-export": "node --test scripts/diagnostic-export.test.cjs scripts/startup-diagnostics.test.cjs scripts/dashboard-diagnostic-export.test.cjs",
-    "test:library-performance": "node --test scripts/cover-image-performance.test.cjs scripts/library-filter-performance.test.cjs scripts/collections-page-model.test.cjs scripts/saves-page-model.test.cjs scripts/batch-metadata-page-model.test.cjs",
+    "test:library-performance": "node --test scripts/cover-image-performance.test.cjs scripts/library-filter-performance.test.cjs scripts/collections-page-model.test.cjs scripts/saves-page-model.test.cjs scripts/batch-metadata-page-model.test.cjs scripts/scanner-page-model.test.cjs",
     "release:check": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/release/check-release-metadata.ps1",
     "release:check:strict": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/release/check-release-metadata.ps1 -StrictGitHubLinks",
     "release:signing:certificate:check": "node scripts/release/check-signing-certificate.cjs",

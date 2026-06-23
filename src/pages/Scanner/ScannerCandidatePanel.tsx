@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react';
 import { CheckCircle2, Copy, PlayCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -6,7 +7,13 @@ import { EmptyState } from '@/components/ui/notice';
 import { Panel, PanelContent, PanelHeader, SoftRow } from '@/components/ui/page';
 import { Select } from '@/components/ui/select';
 import type { ScanCandidate } from '@/types/game';
-import type { ConflictAction } from './scannerPageModel';
+import {
+  formatCount,
+  getScannerCandidateRenderWindow,
+  scannerCandidateInitialRenderCount,
+  scannerCandidateRenderBatchSize,
+  type ConflictAction,
+} from './scannerPageModel';
 
 type ScannerCandidatePanelProps = {
   candidates: ScanCandidate[];
@@ -22,6 +29,21 @@ type ScannerCandidatePanelProps = {
 };
 
 export function ScannerCandidatePanel({ candidates, conflictActions, loading, scanning, selectedIds, onCopyExecutablePath, onCopyInstallPath, onImportSelected, onToggleCandidate, onUpdateConflictAction }: ScannerCandidatePanelProps) {
+  const [renderWindowState, setRenderWindowState] = useState({ candidates, visibleCount: scannerCandidateInitialRenderCount });
+  const visibleCount = renderWindowState.candidates === candidates ? renderWindowState.visibleCount : scannerCandidateInitialRenderCount;
+  const { visibleCandidates, renderedCount, totalCount, hasMore } = useMemo(() => getScannerCandidateRenderWindow(candidates, visibleCount), [candidates, visibleCount]);
+  const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+
+  const loadMoreCandidates = () => {
+    setRenderWindowState((current) => {
+      const currentVisibleCount = current.candidates === candidates ? current.visibleCount : scannerCandidateInitialRenderCount;
+      return {
+        candidates,
+        visibleCount: Math.min(candidates.length, currentVisibleCount + scannerCandidateRenderBatchSize),
+      };
+    });
+  };
+
   return (
     <Panel className="min-h-0">
       <PanelHeader
@@ -37,10 +59,10 @@ export function ScannerCandidatePanel({ candidates, conflictActions, loading, sc
           </EmptyState>
         ) : (
           <div className="max-h-[calc(100vh-13rem)] space-y-2 overflow-auto pr-1">
-            {candidates.map((candidate) => (
+            {visibleCandidates.map((candidate) => (
               <ScannerCandidateRow
                 candidate={candidate}
-                checked={selectedIds.includes(candidate.id)}
+                checked={selectedIdSet.has(candidate.id)}
                 conflictAction={conflictActions[candidate.id] ?? 'skip'}
                 key={candidate.id}
                 onCopyExecutablePath={onCopyExecutablePath}
@@ -49,6 +71,11 @@ export function ScannerCandidatePanel({ candidates, conflictActions, loading, sc
                 onUpdateConflictAction={(action) => onUpdateConflictAction(candidate.id, action)}
               />
             ))}
+            {hasMore && (
+              <Button aria-label="加载更多扫描候选" className="w-full justify-center" size="sm" variant="outline" onClick={loadMoreCandidates}>
+                加载更多 {formatCount(renderedCount)} / {formatCount(totalCount)}
+              </Button>
+            )}
           </div>
         )}
       </PanelContent>

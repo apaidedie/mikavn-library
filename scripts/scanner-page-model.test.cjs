@@ -61,6 +61,28 @@ test('deriveScannerCandidateSummary counts candidates, selected items, and confl
   });
 });
 
+test('scanner candidate render window keeps large scan results bounded', () => {
+  const {
+    getScannerCandidateRenderWindow,
+    scannerCandidateInitialRenderCount,
+    scannerCandidateRenderBatchSize,
+  } = loadScannerPageModel();
+  const candidates = Array.from({ length: 260 }, (_, index) => candidate({ id: `candidate-${index}` }));
+
+  const initialWindow = getScannerCandidateRenderWindow(candidates, scannerCandidateInitialRenderCount);
+  const expandedWindow = getScannerCandidateRenderWindow(candidates, scannerCandidateInitialRenderCount + scannerCandidateRenderBatchSize);
+  const emptyWindow = getScannerCandidateRenderWindow([], scannerCandidateInitialRenderCount);
+
+  assert.equal(scannerCandidateInitialRenderCount, 80);
+  assert.equal(scannerCandidateRenderBatchSize, 80);
+  assert.equal(initialWindow.visibleCandidates.length, 80);
+  assert.equal(initialWindow.renderedCount, 80);
+  assert.equal(initialWindow.totalCount, 260);
+  assert.equal(initialWindow.hasMore, true);
+  assert.equal(expandedWindow.visibleCandidates.length, 160);
+  assert.equal(emptyWindow.hasMore, false);
+});
+
 test('isScanningTaskStatus treats pending and running scan tasks as active', () => {
   const { isScanningTaskStatus } = loadScannerPageModel();
 
@@ -122,4 +144,17 @@ test('scanner backend uses lightweight conflict rows instead of loading full gam
   assert.match(source, /list_scan_conflict_rows/);
   assert.match(scannerDb, /pub fn list_scan_conflict_rows/);
   assert.match(scannerDb, /SELECT id, title, install_path, executable_path FROM games/);
+});
+
+test('scanner candidate panel renders through a bounded window helper', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'pages', 'Scanner', 'ScannerCandidatePanel.tsx'), 'utf8');
+
+  assert.match(source, /scannerCandidateInitialRenderCount/);
+  assert.match(source, /scannerCandidateRenderBatchSize/);
+  assert.match(source, /getScannerCandidateRenderWindow/);
+  assert.match(source, /visibleCandidates\.map\(\(candidate\)/);
+  assert.doesNotMatch(source, /candidates\.map\(\(candidate\)/);
+  assert.match(source, /selectedIdSet/);
+  assert.doesNotMatch(source, /selectedIds\.includes\(candidate\.id\)/);
+  assert.match(source, /加载更多/);
 });

@@ -9,6 +9,28 @@ export type ScannerCandidateSummary = {
   conflictCount: number;
 };
 
+export const scannerCandidateInitialRenderCount = 80;
+export const scannerCandidateRenderBatchSize = 80;
+
+export type ScannerCandidateRenderWindow = {
+  visibleCandidates: ScanCandidate[];
+  renderedCount: number;
+  totalCount: number;
+  hasMore: boolean;
+};
+
+export function getScannerCandidateRenderWindow(candidates: ScanCandidate[], visibleCount: number): ScannerCandidateRenderWindow {
+  const requestedCount = Number.isFinite(visibleCount) ? Math.floor(visibleCount) : 0;
+  const boundedCount = Math.min(candidates.length, Math.max(0, requestedCount));
+  const visibleCandidates = candidates.slice(0, boundedCount);
+  return {
+    visibleCandidates,
+    renderedCount: visibleCandidates.length,
+    totalCount: candidates.length,
+    hasMore: visibleCandidates.length < candidates.length,
+  };
+}
+
 export function buildImportCandidates(candidates: ScanCandidate[], selectedIds: string[], conflictActions: Record<string, ConflictAction>): ImportCandidate[] {
   return candidates
     .filter((candidate) => selectedIds.includes(candidate.id))
