@@ -64,6 +64,8 @@ test('default source budgets cover frontend, Rust service, and smoke runner hot 
     'src/pages/Scanner/ScannerPage.tsx',
     'src/pages/Metadata/BatchMetadataPage.tsx',
     'src/pages/Saves/SavesPage.tsx',
+    'src/pages/Maintenance/MaintenanceImageAuditPanel.tsx',
+    'src/pages/Maintenance/ImageHealthSummaryPanel.tsx',
     'src/pages/Maintenance/ImageAuditDetailPanel.tsx',
     'src/pages/Maintenance/imageAuditDetailModel.ts',
     'src-tauri/src/services/archives.rs',
@@ -94,6 +96,16 @@ test('maintenance page budget keeps page-level orchestration small', () => {
 
   assert.ok(budget);
   assert.ok(budget.maxLines <= 280);
+});
+
+test('maintenance image health budgets keep summary rendering outside the audit shell', () => {
+  const panelBudget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('src/pages/Maintenance/MaintenanceImageAuditPanel.tsx'));
+  const summaryBudget = DEFAULT_SOURCE_BUDGETS.find((item) => item.filePath.replace(/\\/g, '/').endsWith('src/pages/Maintenance/ImageHealthSummaryPanel.tsx'));
+
+  assert.ok(panelBudget);
+  assert.ok(summaryBudget);
+  assert.ok(panelBudget.maxLines <= 150);
+  assert.ok(summaryBudget.maxLines <= 260);
 });
 
 test('app shell budget keeps entry routing outside the main shell', () => {

@@ -98,6 +98,30 @@ function taskDetail(logMessages) {
   };
 }
 
+function readMaintenanceImageAuditPanelSource() {
+  return fs.readFileSync('src/pages/Maintenance/MaintenanceImageAuditPanel.tsx', 'utf8');
+}
+
+function readImageHealthSummaryPanelSource() {
+  return fs.readFileSync('src/pages/Maintenance/ImageHealthSummaryPanel.tsx', 'utf8');
+}
+
+function readImageHealthUiSource() {
+  return `${readMaintenanceImageAuditPanelSource()}\n${readImageHealthSummaryPanelSource()}`;
+}
+
+test('maintenance image health summary rendering is split from the audit shell', () => {
+  const panel = readMaintenanceImageAuditPanelSource();
+  const summary = readImageHealthSummaryPanelSource();
+
+  assert.match(panel, /import \{ ImageHealthSummaryPanel \}/);
+  assert.match(panel, /<ImageHealthSummaryPanel/);
+  assert.doesNotMatch(panel, /function ImageHealthSummaryPanel/);
+  assert.match(summary, /function ImageHealthSummaryPanel/);
+  assert.match(summary, /整理全部安全项/);
+  assert.match(summary, /ImageHealthDuplicateContentSamples/);
+});
+
 test('image health commands are registered and exposed through api', () => {
   const lib = fs.readFileSync('src-tauri/src/lib.rs', 'utf8');
   const commands = fs.readFileSync('src-tauri/src/commands/diagnostics.rs', 'utf8');
@@ -137,7 +161,7 @@ test('image health commands are registered and exposed through api', () => {
 });
 
 test('maintenance image health ui explains safe quarantine workflow', () => {
-  const panel = fs.readFileSync('src/pages/Maintenance/MaintenanceImageAuditPanel.tsx', 'utf8');
+  const panel = readImageHealthUiSource();
   const actions = fs.readFileSync('src/pages/Maintenance/useMaintenanceInspectionActions.ts', 'utf8');
 
   assert.match(actions, /imageHealth/);
@@ -155,7 +179,7 @@ test('maintenance image health ui explains safe quarantine workflow', () => {
 });
 
 test('maintenance image health ui explains how to recover quarantined images', () => {
-  const panel = fs.readFileSync('src/pages/Maintenance/MaintenanceImageAuditPanel.tsx', 'utf8');
+  const panel = readImageHealthUiSource();
 
   assert.match(panel, /manifest\.json/);
   assert.match(panel, /按清单找回/);
@@ -182,7 +206,7 @@ test('maintenance image quarantine result exposes recovery path actions', () => 
 });
 
 test('maintenance image health ui exposes cache issue samples and reveal actions', () => {
-  const panel = fs.readFileSync('src/pages/Maintenance/MaintenanceImageAuditPanel.tsx', 'utf8');
+  const panel = readImageHealthUiSource();
   const types = fs.readFileSync('src/types/archive.ts', 'utf8');
   const mock = fs.readFileSync('src/services/mockStoreDiagnostics.ts', 'utf8');
 
@@ -205,7 +229,7 @@ test('maintenance image health ui exposes cache issue samples and reveal actions
 });
 
 test('maintenance image health ui can reveal duplicate cache samples', () => {
-  const panel = fs.readFileSync('src/pages/Maintenance/MaintenanceImageAuditPanel.tsx', 'utf8');
+  const panel = readImageHealthUiSource();
 
   assert.match(panel, /joinImageCachePath/);
   assert.match(panel, /rootPath=\{cache\.rootPath\}/);
@@ -219,7 +243,7 @@ test('maintenance image health ui can reveal duplicate cache samples', () => {
 });
 
 test('maintenance image health ui links missing artwork findings to repair actions', () => {
-  const panel = fs.readFileSync('src/pages/Maintenance/MaintenanceImageAuditPanel.tsx', 'utf8');
+  const panel = readImageHealthUiSource();
   const content = fs.readFileSync('src/pages/Maintenance/MaintenancePageContent.tsx', 'utf8');
 
   assert.match(panel, /missingCoverGames/);
@@ -249,7 +273,7 @@ test('artwork repair candidate discovery uses lightweight backend rows', () => {
 });
 
 test('maintenance image health ui links broken image references to audit details', () => {
-  const panel = fs.readFileSync('src/pages/Maintenance/MaintenanceImageAuditPanel.tsx', 'utf8');
+  const panel = readImageHealthUiSource();
 
   assert.match(panel, /canInspectBrokenRefs/);
   assert.match(panel, /查看失效引用/);
@@ -258,7 +282,7 @@ test('maintenance image health ui links broken image references to audit details
 });
 
 test('maintenance image health ui exposes one-click safe cleanup wording', () => {
-  const panel = fs.readFileSync('src/pages/Maintenance/MaintenanceImageAuditPanel.tsx', 'utf8');
+  const panel = readImageHealthUiSource();
   const actions = fs.readFileSync('src/pages/Maintenance/useMaintenanceInspectionActions.ts', 'utf8');
   const content = fs.readFileSync('src/pages/Maintenance/MaintenancePageContent.tsx', 'utf8');
 
@@ -295,7 +319,7 @@ test('maintenance image health ui exposes one-click safe cleanup wording', () =>
 });
 
 test('maintenance image health ui surfaces cache storage size and safe reclaim size', () => {
-  const panel = fs.readFileSync('src/pages/Maintenance/MaintenanceImageAuditPanel.tsx', 'utf8');
+  const panel = readImageHealthUiSource();
 
   assert.match(panel, /缓存体积/);
   assert.match(panel, /formatBytes\(cache\?\.totalBytes \?\? 0\)/);
@@ -393,7 +417,7 @@ test('image health model formats referenced and safely cleanable cache counts', 
 });
 
 test('maintenance image health ui distinguishes referenced cache issues from safe cleanup counts', () => {
-  const panel = fs.readFileSync('src/pages/Maintenance/MaintenanceImageAuditPanel.tsx', 'utf8');
+  const panel = readImageHealthUiSource();
 
   assert.match(panel, /formatImageHealthReferenceSplit/);
   assert.match(panel, /formatImageHealthReferenceSplit\(summary\?\.oversizedFiles, summary\?\.oversizedImageRefs\)/);
@@ -402,7 +426,7 @@ test('maintenance image health ui distinguishes referenced cache issues from saf
 });
 
 test('maintenance image health ui can copy the current health summary', () => {
-  const panel = fs.readFileSync('src/pages/Maintenance/MaintenanceImageAuditPanel.tsx', 'utf8');
+  const panel = readImageHealthUiSource();
   const actions = fs.readFileSync('src/pages/Maintenance/useMaintenanceInspectionActions.ts', 'utf8');
   const content = fs.readFileSync('src/pages/Maintenance/MaintenancePageContent.tsx', 'utf8');
 
@@ -504,7 +528,7 @@ test('maintenance content type mismatch quarantine requires explicit confirmatio
 });
 
 test('maintenance image health ui treats app-data legacy imports as informational', () => {
-  const panel = fs.readFileSync('src/pages/Maintenance/MaintenanceImageAuditPanel.tsx', 'utf8');
+  const panel = readImageHealthUiSource();
 
   assert.match(panel, /旧导入缓存/);
   assert.match(panel, /当前不计入失效引用/);
@@ -514,7 +538,7 @@ test('maintenance image health ui treats app-data legacy imports as informationa
 });
 
 test('maintenance image health ui shows every health recommendation', () => {
-  const panel = fs.readFileSync('src/pages/Maintenance/MaintenanceImageAuditPanel.tsx', 'utf8');
+  const panel = readImageHealthUiSource();
 
   assert.match(panel, /report\.recommendations\.map/);
   assert.match(panel, /health-recommendation/);
@@ -705,7 +729,7 @@ test('image health action hint explains disabled maintenance actions', () => {
 });
 
 test('maintenance image health ui renders the action availability hint', () => {
-  const panel = fs.readFileSync('src/pages/Maintenance/MaintenanceImageAuditPanel.tsx', 'utf8');
+  const panel = readImageHealthUiSource();
 
   assert.match(panel, /getImageHealthActionHint/);
   assert.match(panel, /data-image-health-action-hint/);
