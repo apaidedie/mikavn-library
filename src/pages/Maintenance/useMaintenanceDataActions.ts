@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { api } from '@/services/api';
 import type { AppDataDiagnostics } from '@/types/archive';
-import { databaseBackupCleanupPolicy, formatDatabaseBackupCleanupPolicy } from '@/utils/databaseBackupCleanupPolicy';
+import { databaseBackupCleanupPolicy, formatDatabaseBackupCleanupConfirmation } from '@/utils/databaseBackupCleanupPolicy';
 import { errorMessage } from '@/utils/errorMessage';
 import { formatBytes } from './MaintenancePageParts';
 
@@ -32,8 +32,7 @@ export function useMaintenanceDataActions({ setError, setMessage }: UseMaintenan
   }, [setError]);
 
   const cleanupDatabaseBackups = useCallback(async () => {
-    const cleanupPolicyText = formatDatabaseBackupCleanupPolicy(databaseBackupCleanupPolicy);
-    if (!window.confirm(`按安全规则清理旧数据库备份？${cleanupPolicyText}；只清理应用管理的旧数据库备份，不会删除当前 mikavn.db。`)) return;
+    if (!window.confirm(formatDatabaseBackupCleanupConfirmation(databaseBackupCleanupPolicy, diagnostics?.databaseBackups))) return;
     setCleanupLoading(true);
     setError(null);
     setMessage(null);

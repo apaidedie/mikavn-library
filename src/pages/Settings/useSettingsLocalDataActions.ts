@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { api } from '@/services/api';
 import { chooseArchiveDirectory, chooseArchivePath, chooseDatabaseBackupPath, chooseDatabaseRestorePath } from '@/services/dialog';
 import type { AppDataDiagnostics, LibraryArchivePreview } from '@/types/archive';
-import { databaseBackupCleanupPolicy, formatDatabaseBackupCleanupPolicy } from '@/utils/databaseBackupCleanupPolicy';
+import { databaseBackupCleanupPolicy, formatDatabaseBackupCleanupConfirmation } from '@/utils/databaseBackupCleanupPolicy';
 import { errorMessage } from '@/utils/errorMessage';
 import { formatBytes, getDirectoryLocations, type DirectoryLocationItem } from './SettingsPageParts';
 
@@ -44,8 +44,7 @@ export function useSettingsLocalDataActions({ onSaved, setError, setMessage }: U
   async function cleanupDatabaseBackups() {
     setError(null);
     setMessage(null);
-    const cleanupPolicyText = formatDatabaseBackupCleanupPolicy(databaseBackupCleanupPolicy);
-    const ok = window.confirm(`按安全规则清理旧数据库备份？${cleanupPolicyText}；只清理应用管理的旧数据库备份，不会删除当前 mikavn.db。`);
+    const ok = window.confirm(formatDatabaseBackupCleanupConfirmation(databaseBackupCleanupPolicy, diagnostics?.databaseBackups));
     if (!ok) return;
     setCleanupLoading(true);
     try {

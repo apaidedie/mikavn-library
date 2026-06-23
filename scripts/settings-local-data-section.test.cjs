@@ -88,11 +88,11 @@ test('database backup cleanup policy is centralized and visible before cleanup',
   assert.match(section, /@\/utils\/databaseBackupCleanupPolicy/);
   assert.match(actions, /databaseBackupCleanupPolicy/);
   assert.match(actions, /@\/utils\/databaseBackupCleanupPolicy/);
-  assert.match(actions, /formatDatabaseBackupCleanupPolicy\(databaseBackupCleanupPolicy\)/);
+  assert.match(actions, /formatDatabaseBackupCleanupConfirmation\(databaseBackupCleanupPolicy, diagnostics\?\.databaseBackups\)/);
   assert.match(actions, /cleanupOldDatabaseBackups\(databaseBackupCleanupPolicy\)/);
   assert.match(maintenanceActions, /databaseBackupCleanupPolicy/);
   assert.match(maintenanceActions, /@\/utils\/databaseBackupCleanupPolicy/);
-  assert.match(maintenanceActions, /formatDatabaseBackupCleanupPolicy\(databaseBackupCleanupPolicy\)/);
+  assert.match(maintenanceActions, /formatDatabaseBackupCleanupConfirmation\(databaseBackupCleanupPolicy, diagnostics\?\.databaseBackups\)/);
   assert.match(maintenanceActions, /cleanupOldDatabaseBackups\(databaseBackupCleanupPolicy\)/);
   assert.doesNotMatch(actions, /\.\/settingsBackupCleanupPolicy/);
   assert.doesNotMatch(section, /\.\/settingsBackupCleanupPolicy/);
@@ -133,6 +133,29 @@ test('database backup cleanup suggestion preserves concrete count and size evide
     overFileCount: false,
     overTotalBytes: true,
   });
+});
+
+test('database backup cleanup confirmation includes current backup evidence', () => {
+  const { formatDatabaseBackupCleanupConfirmation } = loadDatabaseBackupCleanupPolicy();
+
+  assert.equal(
+    formatDatabaseBackupCleanupConfirmation({ retainCount: 10, retainDays: 30 }, { fileCount: 49, totalBytes: 2246991872 }),
+    '按安全规则清理旧数据库备份？当前 49 个，占用 2.09 GB。保留最新 10 个，并保留 30 天内的备份；只清理应用管理的旧数据库备份，不会删除当前 mikavn.db。',
+  );
+  assert.equal(
+    formatDatabaseBackupCleanupConfirmation({ retainCount: 10, retainDays: 30 }, null),
+    '按安全规则清理旧数据库备份？保留最新 10 个，并保留 30 天内的备份；只清理应用管理的旧数据库备份，不会删除当前 mikavn.db。',
+  );
+});
+
+test('settings and maintenance cleanup confirmations reuse current backup evidence', () => {
+  const settingsActions = read('src/pages/Settings/useSettingsLocalDataActions.ts');
+  const maintenanceActions = read('src/pages/Maintenance/useMaintenanceDataActions.ts');
+
+  assert.match(settingsActions, /formatDatabaseBackupCleanupConfirmation/);
+  assert.match(settingsActions, /formatDatabaseBackupCleanupConfirmation\(databaseBackupCleanupPolicy, diagnostics\?\.databaseBackups\)/);
+  assert.match(maintenanceActions, /formatDatabaseBackupCleanupConfirmation/);
+  assert.match(maintenanceActions, /formatDatabaseBackupCleanupConfirmation\(databaseBackupCleanupPolicy, diagnostics\?\.databaseBackups\)/);
 });
 
 test('settings top-level local tab advertises backup access', () => {
