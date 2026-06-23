@@ -46,7 +46,13 @@ export function SettingsLocalTabContent({ form, libraryRoots, localData, restore
       />
 
       <SettingsUpdateSection
+        diagnosticExportLoading={localData.diagnosticExportLoading}
+        diagnosticExportMessage={localData.diagnosticExportMessage}
+        diagnosticExportPath={localData.diagnosticExportPath}
+        onCopyDiagnosticExportPath={localData.copyDiagnosticExportPath}
+        onExportDiagnosticPackage={localData.exportDiagnosticPackage}
         onOpenDatabaseRestore={scrollToDatabaseRestore}
+        onRevealDiagnosticExportPath={localData.revealDiagnosticExportPath}
         onRevealBackup={(path) => void localData.revealPath('更新前数据库备份', path)}
       />
 

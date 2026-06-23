@@ -140,3 +140,26 @@ test('startup updater prevents duplicate install requests while an install is in
   assert.match(hook, /installInFlightRef\.current = true/);
   assert.match(hook, /finally \{[\s\S]*installInFlightRef\.current = false;[\s\S]*\}/);
 });
+
+test('startup update failures can export diagnostics and expose the exported package path', () => {
+  const hook = read('src/app/useStartupUpdater.ts');
+  const notice = read('src/app/AppUpdateNotice.tsx');
+  const app = read('src/app/App.tsx');
+
+  assert.match(hook, /startupUpdateDiagnosticExportLoading/);
+  assert.match(hook, /startupUpdateDiagnosticExportPath/);
+  assert.match(hook, /startupUpdateDiagnosticExportMessage/);
+  assert.match(hook, /exportStartupUpdateDiagnosticPackage/);
+  assert.match(hook, /api\.exportDiagnosticPackage\(\)/);
+  assert.match(hook, /setStartupUpdateDiagnosticExportPath\(report\.path\)/);
+  assert.match(hook, /api\.revealPath\(startupUpdateDiagnosticExportPath\)/);
+  assert.match(hook, /navigator\.clipboard\.writeText\(startupUpdateDiagnosticExportPath\)/);
+  assert.match(notice, /DiagnosticExportPathActions/);
+  assert.match(notice, /导出诊断包/);
+  assert.match(app, /diagnosticExportLoading=\{app\.startupUpdater\.startupUpdateDiagnosticExportLoading\}/);
+  assert.match(app, /diagnosticExportPath=\{app\.startupUpdater\.startupUpdateDiagnosticExportPath\}/);
+  assert.match(app, /diagnosticExportMessage=\{app\.startupUpdater\.startupUpdateDiagnosticExportMessage\}/);
+  assert.match(app, /onExportDiagnosticPackage=\{app\.startupUpdater\.exportStartupUpdateDiagnosticPackage\}/);
+  assert.match(app, /onRevealDiagnosticExportPath=\{app\.startupUpdater\.revealStartupUpdateDiagnosticExportPath\}/);
+  assert.match(app, /onCopyDiagnosticExportPath=\{app\.startupUpdater\.copyStartupUpdateDiagnosticExportPath\}/);
+});

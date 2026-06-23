@@ -1,5 +1,6 @@
-import { ClipboardCopy, Download, ExternalLink, FolderOpen, RotateCcw, RotateCw, X } from 'lucide-react';
+import { ClipboardCopy, Download, ExternalLink, FileArchive, FolderOpen, RotateCcw, RotateCw, X } from 'lucide-react';
 import { useState } from 'react';
+import { DiagnosticExportPathActions } from '@/components/diagnostics/DiagnosticExportPathActions';
 import { Button } from '@/components/ui/button';
 import { createUpdaterRecoveryHint, formatUpdaterError, updaterFallbackDownloadUrl, type UpdateProtectionBackupInfo, type UpdaterCheckResult } from '@/services/updaterModel';
 
@@ -11,10 +12,16 @@ type AppUpdateNoticeProps = {
   error: string | null;
   backupInfo: UpdateProtectionBackupInfo | null;
   backupActionMessage: string | null;
+  diagnosticExportLoading: boolean;
+  diagnosticExportMessage: string | null;
+  diagnosticExportPath: string | null;
   onDismiss: () => void;
   onInstall: () => void;
   onCopyBackupPath: () => void;
+  onCopyDiagnosticExportPath: () => void;
+  onExportDiagnosticPackage: () => void;
   onRevealBackup: () => void;
+  onRevealDiagnosticExportPath: () => void;
   onOpenDatabaseRestore: () => void;
   onRestart: () => void;
 };
@@ -27,11 +34,17 @@ export function AppUpdateNotice({
   error,
   backupInfo,
   backupActionMessage,
+  diagnosticExportLoading,
+  diagnosticExportMessage,
+  diagnosticExportPath,
   onCopyBackupPath,
+  onCopyDiagnosticExportPath,
   onDismiss,
+  onExportDiagnosticPackage,
   onInstall,
   onOpenDatabaseRestore,
   onRevealBackup,
+  onRevealDiagnosticExportPath,
   onRestart,
 }: AppUpdateNoticeProps) {
   const [recoveryActionMessage, setRecoveryActionMessage] = useState<string | null>(null);
@@ -99,9 +112,19 @@ export function AppUpdateNotice({
                   去恢复数据库
                 </button>
               )}
+              <button className="inline-flex items-center gap-1 text-xs text-emerald-50 underline underline-offset-2 disabled:opacity-60" disabled={diagnosticExportLoading} type="button" onClick={onExportDiagnosticPackage}>
+                <FileArchive className="h-3.5 w-3.5" />
+                {diagnosticExportLoading ? '导出中' : '导出诊断包'}
+              </button>
             </div>
           )}
           {recoveryActionMessage && <p className="mt-1 text-xs text-emerald-100">{recoveryActionMessage}</p>}
+          {error && diagnosticExportMessage && <p className="mt-1 break-all text-xs text-emerald-100">{diagnosticExportMessage}</p>}
+          {error && diagnosticExportPath && (
+            <div className="mt-1 flex flex-wrap gap-2">
+              <DiagnosticExportPathActions buttonSize="sm" buttonVariant="ghost" path={diagnosticExportPath} onCopy={onCopyDiagnosticExportPath} onReveal={onRevealDiagnosticExportPath} />
+            </div>
+          )}
         </div>
         <div className="flex shrink-0 gap-2">
           {installed ? (

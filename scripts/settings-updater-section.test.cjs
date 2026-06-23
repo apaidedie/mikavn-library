@@ -105,3 +105,26 @@ test('settings update section keeps a public manual download link visible before
   assert.ok(manualDownloadIndex > errorBlockIndex, 'manual public download link should be rendered outside the error-only fallback block');
   assert.match(source, /href=\{updaterFallbackDownloadUrl\}/);
 });
+
+test('settings update failures can export diagnostics and expose the exported package path', () => {
+  const section = read('src/pages/Settings/SettingsUpdateSection.tsx');
+  const localTab = read('src/pages/Settings/SettingsLocalTabContent.tsx');
+  const diagnosticActions = read('src/components/diagnostics/DiagnosticExportPathActions.tsx');
+
+  assert.match(section, /DiagnosticExportPathActions/);
+  assert.match(section, /diagnosticExportLoading/);
+  assert.match(section, /diagnosticExportPath/);
+  assert.match(section, /diagnosticExportMessage/);
+  assert.match(section, /onExportDiagnosticPackage/);
+  assert.match(section, /onRevealDiagnosticExportPath/);
+  assert.match(section, /onCopyDiagnosticExportPath/);
+  assert.match(section, /导出诊断包/);
+  assert.match(diagnosticActions, /打开诊断包位置/);
+  assert.match(diagnosticActions, /复制诊断包路径/);
+  assert.match(localTab, /diagnosticExportLoading=\{localData\.diagnosticExportLoading\}/);
+  assert.match(localTab, /diagnosticExportPath=\{localData\.diagnosticExportPath\}/);
+  assert.match(localTab, /diagnosticExportMessage=\{localData\.diagnosticExportMessage\}/);
+  assert.match(localTab, /onExportDiagnosticPackage=\{localData\.exportDiagnosticPackage\}/);
+  assert.match(localTab, /onRevealDiagnosticExportPath=\{localData\.revealDiagnosticExportPath\}/);
+  assert.match(localTab, /onCopyDiagnosticExportPath=\{localData\.copyDiagnosticExportPath\}/);
+});

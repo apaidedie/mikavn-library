@@ -1,5 +1,6 @@
-import { ClipboardCopy, Download, ExternalLink, FolderOpen, RefreshCw, RotateCcw, RotateCw } from 'lucide-react';
+import { ClipboardCopy, Download, ExternalLink, FileArchive, FolderOpen, RefreshCw, RotateCcw, RotateCw } from 'lucide-react';
 import { useRef, useState } from 'react';
+import { DiagnosticExportPathActions } from '@/components/diagnostics/DiagnosticExportPathActions';
 import { Button } from '@/components/ui/button';
 import { ConfigItem, ConfigSection } from '@/components/ui/config-item';
 import { checkForAppUpdate, installAppUpdate, restartAfterUpdate, type AppUpdateHandle } from '@/services/updater';
@@ -8,11 +9,26 @@ import { createUpdaterRecoveryHint, formatUpdaterError, formatUpdaterInstallProg
 type InstallState = 'idle' | 'checking' | 'available' | 'up_to_date' | 'installing' | 'installed' | 'failed' | 'unavailable';
 
 type SettingsUpdateSectionProps = {
+  diagnosticExportLoading?: boolean;
+  diagnosticExportMessage?: string | null;
+  diagnosticExportPath?: string | null;
+  onCopyDiagnosticExportPath?: () => void;
+  onExportDiagnosticPackage?: () => void;
   onOpenDatabaseRestore?: () => void;
+  onRevealDiagnosticExportPath?: () => void;
   onRevealBackup?: (path: string) => void | Promise<void>;
 };
 
-export function SettingsUpdateSection({ onOpenDatabaseRestore, onRevealBackup }: SettingsUpdateSectionProps) {
+export function SettingsUpdateSection({
+  diagnosticExportLoading = false,
+  diagnosticExportMessage,
+  diagnosticExportPath,
+  onCopyDiagnosticExportPath,
+  onExportDiagnosticPackage,
+  onOpenDatabaseRestore,
+  onRevealDiagnosticExportPath,
+  onRevealBackup,
+}: SettingsUpdateSectionProps) {
   const [state, setState] = useState<InstallState>('idle');
   const [result, setResult] = useState<UpdaterCheckResult | null>(null);
   const [update, setUpdate] = useState<AppUpdateHandle | null>(null);
@@ -166,8 +182,26 @@ export function SettingsUpdateSection({ onOpenDatabaseRestore, onRevealBackup }:
                     </Button>
                   </>
                 )}
+                {onExportDiagnosticPackage && (
+                  <Button disabled={diagnosticExportLoading} size="sm" type="button" variant="outline" onClick={onExportDiagnosticPackage}>
+                    <FileArchive className="h-4 w-4" />
+                    {diagnosticExportLoading ? '导出中' : '导出诊断包'}
+                  </Button>
+                )}
               </div>
               {recoveryActionMessage && <div className="text-xs text-emerald-200">{recoveryActionMessage}</div>}
+              {diagnosticExportMessage && <div className="max-w-[42rem] break-all text-right text-xs text-emerald-200">{diagnosticExportMessage}</div>}
+              {diagnosticExportPath && onCopyDiagnosticExportPath && onRevealDiagnosticExportPath && (
+                <div className="flex flex-wrap justify-end gap-2">
+                  <DiagnosticExportPathActions
+                    buttonSize="sm"
+                    buttonVariant="ghost"
+                    path={diagnosticExportPath}
+                    onCopy={onCopyDiagnosticExportPath}
+                    onReveal={onRevealDiagnosticExportPath}
+                  />
+                </div>
+              )}
             </div>
           )}
           <div className="flex flex-wrap justify-end gap-2">

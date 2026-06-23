@@ -12,6 +12,9 @@ export function useStartupUpdater() {
   const [error, setError] = useState<string | null>(null);
   const [backupInfo, setBackupInfo] = useState<UpdateProtectionBackupInfo | null>(null);
   const [backupActionMessage, setBackupActionMessage] = useState<string | null>(null);
+  const [startupUpdateDiagnosticExportLoading, setStartupUpdateDiagnosticExportLoading] = useState(false);
+  const [startupUpdateDiagnosticExportPath, setStartupUpdateDiagnosticExportPath] = useState<string | null>(null);
+  const [startupUpdateDiagnosticExportMessage, setStartupUpdateDiagnosticExportMessage] = useState<string | null>(null);
   const installInFlightRef = useRef(false);
 
   useEffect(() => {
@@ -41,6 +44,8 @@ export function useStartupUpdater() {
     setInstallProgress(null);
     setBackupInfo(null);
     setBackupActionMessage(null);
+    setStartupUpdateDiagnosticExportPath(null);
+    setStartupUpdateDiagnosticExportMessage(null);
   };
 
   const installStartupUpdate = async () => {
@@ -105,6 +110,40 @@ export function useStartupUpdater() {
     }
   };
 
+  const exportStartupUpdateDiagnosticPackage = async () => {
+    setStartupUpdateDiagnosticExportLoading(true);
+    setStartupUpdateDiagnosticExportMessage(null);
+    try {
+      const report = await api.exportDiagnosticPackage();
+      setStartupUpdateDiagnosticExportPath(report.path);
+      setStartupUpdateDiagnosticExportMessage(`诊断包已导出：${report.fileName}。不包含完整数据库、图片缓存或存档文件。`);
+    } catch (error) {
+      setStartupUpdateDiagnosticExportMessage(`诊断包导出失败：${formatUpdaterError(error).replace(/^更新失败：/, '')}`);
+    } finally {
+      setStartupUpdateDiagnosticExportLoading(false);
+    }
+  };
+
+  const revealStartupUpdateDiagnosticExportPath = async () => {
+    if (!startupUpdateDiagnosticExportPath) return;
+    try {
+      await api.revealPath(startupUpdateDiagnosticExportPath);
+      setStartupUpdateDiagnosticExportMessage('已打开诊断包位置。');
+    } catch (error) {
+      setStartupUpdateDiagnosticExportMessage(`打开诊断包位置失败：${formatUpdaterError(error).replace(/^更新失败：/, '')}`);
+    }
+  };
+
+  const copyStartupUpdateDiagnosticExportPath = async () => {
+    if (!startupUpdateDiagnosticExportPath) return;
+    try {
+      await navigator.clipboard.writeText(startupUpdateDiagnosticExportPath);
+      setStartupUpdateDiagnosticExportMessage('诊断包路径已复制。');
+    } catch (error) {
+      setStartupUpdateDiagnosticExportMessage(`复制诊断包路径失败：${formatUpdaterError(error).replace(/^更新失败：/, '')}`);
+    }
+  };
+
   return {
     notice,
     installing,
@@ -113,10 +152,16 @@ export function useStartupUpdater() {
     error,
     backupInfo,
     backupActionMessage,
+    startupUpdateDiagnosticExportLoading,
+    startupUpdateDiagnosticExportPath,
+    startupUpdateDiagnosticExportMessage,
     copyStartupBackupPath,
+    copyStartupUpdateDiagnosticExportPath,
     dismissStartupUpdate,
+    exportStartupUpdateDiagnosticPackage,
     installStartupUpdate,
     restartStartupUpdate,
+    revealStartupUpdateDiagnosticExportPath,
     revealStartupBackupPath,
   };
 }

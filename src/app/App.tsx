@@ -56,16 +56,22 @@ export function App() {
         <AppUpdateNotice
           backupActionMessage={app.startupUpdater.backupActionMessage}
           backupInfo={app.startupUpdater.backupInfo}
+          diagnosticExportLoading={app.startupUpdater.startupUpdateDiagnosticExportLoading}
+          diagnosticExportMessage={app.startupUpdater.startupUpdateDiagnosticExportMessage}
+          diagnosticExportPath={app.startupUpdater.startupUpdateDiagnosticExportPath}
           error={app.startupUpdater.error}
           installed={app.startupUpdater.installed}
           installing={app.startupUpdater.installing}
           notice={app.startupUpdateNotice}
           progressText={app.startupUpdater.installProgress}
           onCopyBackupPath={app.startupUpdater.copyStartupBackupPath}
+          onCopyDiagnosticExportPath={app.startupUpdater.copyStartupUpdateDiagnosticExportPath}
           onDismiss={app.startupUpdater.dismissStartupUpdate}
+          onExportDiagnosticPackage={app.startupUpdater.exportStartupUpdateDiagnosticPackage}
           onInstall={app.startupUpdater.installStartupUpdate}
           onOpenDatabaseRestore={app.openDatabaseRestore}
           onRevealBackup={app.startupUpdater.revealStartupBackupPath}
+          onRevealDiagnosticExportPath={app.startupUpdater.revealStartupUpdateDiagnosticExportPath}
           onRestart={app.startupUpdater.restartStartupUpdate}
         />
       )}

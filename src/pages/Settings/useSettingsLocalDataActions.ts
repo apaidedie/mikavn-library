@@ -22,6 +22,7 @@ export function useSettingsLocalDataActions({ onSaved, setError, setMessage }: U
   const [diagnostics, setDiagnostics] = useState<AppDataDiagnostics | null>(null);
   const [diagnosticsLoading, setDiagnosticsLoading] = useState(false);
   const [diagnosticExportLoading, setDiagnosticExportLoading] = useState(false);
+  const [diagnosticExportMessage, setDiagnosticExportMessage] = useState<string | null>(null);
   const [diagnosticExportPath, setDiagnosticExportPath] = useState<string | null>(null);
   const [cleanupLoading, setCleanupLoading] = useState(false);
 
@@ -61,13 +62,17 @@ export function useSettingsLocalDataActions({ onSaved, setError, setMessage }: U
   async function exportDiagnosticPackage() {
     setError(null);
     setMessage(null);
+    setDiagnosticExportMessage(null);
     setDiagnosticExportPath(null);
     setDiagnosticExportLoading(true);
     try {
       const report = await api.exportDiagnosticPackage();
+      const message = `诊断包已导出：${report.fileName}（${formatBytes(report.sizeBytes)}）。包含自检摘要和脱敏日志预览，不包含完整数据库、图片缓存或存档文件。`;
       setDiagnosticExportPath(report.path);
-      setMessage({ text: `诊断包已导出：${report.fileName}（${formatBytes(report.sizeBytes)}）。包含自检摘要和脱敏日志预览，不包含完整数据库、图片缓存或存档文件。` });
+      setDiagnosticExportMessage(message);
+      setMessage({ text: message });
     } catch (reason) {
+      setDiagnosticExportMessage(`诊断包导出失败：${errorMessage(reason)}`);
       setError(errorMessage(reason));
     } finally {
       setDiagnosticExportLoading(false);
@@ -249,6 +254,7 @@ export function useSettingsLocalDataActions({ onSaved, setError, setMessage }: U
     copyDirectoryPath,
     databasePath,
     diagnosticExportLoading,
+    diagnosticExportMessage,
     diagnosticExportPath,
     diagnostics,
     diagnosticsLoading,
